@@ -1,0 +1,140 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  width: 90%;
+  max-width: 1200px;
+  height: 80vh;
+  background: rgba(14, 14, 14, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  display: flex;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+}
+
+.leftPanel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.coverContainer {
+  position: relative;
+  width: 400px;
+  height: 400px;
+  perspective: 1000px;
+}
+
+.vinyl {
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  z-index: 1;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+  animation: slideOut 1s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0) rotate(0deg); }
+  to { transform: translateX(120px) rotate(90deg); }
+}
+
+.cover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.rightPanel {
+  flex: 1;
+  padding: 40px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.tracklist {
+  margin-top: 24px;
+  list-style: none;
+  padding: 0;
+  flex: 1;
+}
+
+.tracklist li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-family: 'Hanken Grotesk', sans-serif;
+  color: #ccc;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.btnPrimary {
+  padding: 12px 24px;
+  background: #e9c349;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+
+.btnOutline {
+  padding: 12px 24px;
+  background: transparent;
+  color: #e9c349;
+  border: 1px solid #e9c349;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+
+.btnYoutube {
+  padding: 12px 24px;
+  background: #ff0000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-family: 'Hanken Grotesk', sans-serif;
+  width: 100%;
+  margin-top: 16px;
+}

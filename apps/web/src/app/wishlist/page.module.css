@@ -1,0 +1,42 @@
+.wrapper {
+  min-height: 100vh;
+  background: #000000;
+  position: relative;
+}
+
+.glassOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(233, 195, 73, 0.03); /* Slight amber tint */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  padding: 40px 40px 0;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.title {
+  font-family: 'Bodoni Moda', serif;
+  font-size: 3rem;
+  color: #fff;
+  margin: 0;
+}
+
+.subtitle {
+  font-family: 'Hanken Grotesk', sans-serif;
+  color: #8e9192;
+  margin-top: 8px;
+}
