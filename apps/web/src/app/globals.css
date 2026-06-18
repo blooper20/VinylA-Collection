@@ -1,9 +1,34 @@
 @import '@vinyla/ui/src/glassmorphism.css';
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&display=swap');
 
 :root {
-  --background: #000000; /* Pure Deep Black MVP */
+  /* DARK_BLACK (Default MVP) */
+  --background: #000000;
   --foreground: #ffffff;
+  --text-secondary: #8e9192;
   --accent: #e9c349;
+  --border: rgba(255, 255, 255, 0.2);
+  --font-headline: "Bodoni Moda", serif;
+  --font-body: "Hanken Grotesk", sans-serif;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="MOODY_WALNUT"] {
+  --background: #0e0e0e;
+  --foreground: #ffffff;
+  --text-secondary: #8e9192;
+  --accent: #e9c349;
+  --border: rgba(233, 195, 73, 0.3);
+  --glass-bg: rgba(233, 195, 73, 0.05);
+}
+
+[data-theme="CLEAN_DOODLING"] {
+  --background: #fcf9ee;
+  --foreground: #002b7f;
+  --text-secondary: #4a608c;
+  --accent: #ffb84d;
+  --border: #002b7f;
+  --glass-bg: rgba(0, 43, 127, 0.05);
 }
 
 html, body {
@@ -15,7 +40,7 @@ body {
   min-height: 100%;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
@@ -29,4 +54,59 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Luxury Noir Texture Overlay */
+.texture-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* Subtle Doodling Background for Search Area */
+.doodle-bg {
+  background-image: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.02) 1px, transparent 1px),
+                    radial-gradient(circle at 80% 40%, rgba(255,255,255,0.02) 1px, transparent 1px),
+                    radial-gradient(circle at 50% 80%, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 100px 100px;
+}
+
+/* Hide scrollbar for clean aesthetic */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+.hide-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Layout Shift on Sidebar Hover */
+.main-content {
+  margin-left: 80px;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex: 1;
+  min-height: 100vh;
+  position: relative;
+}
+
+nav:hover ~ .main-content {
+  margin-left: 256px;
 }
