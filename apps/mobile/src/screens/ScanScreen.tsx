@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
+import { detectVinylCover } from '../utils/visionAPI';
 
 export const ScanScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedAlbum, setScannedAlbum] = useState<MockVinylData | null>(null);
+  const cameraRef = useRef<CameraView>(null);
+  const [flash, setFlash] = useState<'on' | 'off'>('off');
 
   if (!permission) return <View style={styles.container} />;
 
@@ -22,18 +25,42 @@ export const ScanScreen = () => {
     );
   }
 
-  const handleScan = () => {
+  const toggleFlash = () => {
+    setFlash((prev) => (prev === 'off' ? 'on' : 'off'));
+  };
+
+  const handleScan = async () => {
+    if (!cameraRef.current) return;
+    
     setIsScanning(true);
-    setTimeout(() => {
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.5 });
+      if (photo && photo.base64) {
+        // Call Vision API
+        const visionResult = await detectVinylCover(photo.base64);
+        console.log('Vision API result:', JSON.stringify(visionResult));
+        
+        // Mock matching logic: just select a random mock vinyl for now
+        // In a real scenario, we'd use visionResult.webDetection or textAnnotations to query the database
+        const randomAlbum = mockVinyls[Math.floor(Math.random() * mockVinyls.length)];
+        setScannedAlbum(randomAlbum);
+      }
+    } catch (error) {
+      console.error('Failed to take picture or detect:', error);
+      Alert.alert('Scan Failed', 'Could not process the image. Please try again.');
+    } finally {
       setIsScanning(false);
-      const randomAlbum = mockVinyls[Math.floor(Math.random() * mockVinyls.length)];
-      setScannedAlbum(randomAlbum);
-    }, 1000);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <CameraView style={StyleSheet.absoluteFillObject} facing="back">
+      <CameraView 
+        style={StyleSheet.absoluteFillObject} 
+        facing="back" 
+        ref={cameraRef}
+        flash={flash}
+      >
         <View style={styles.overlay}>
           <View style={styles.topDim} />
           <View style={styles.middleRow}>
@@ -46,9 +73,11 @@ export const ScanScreen = () => {
           </View>
           <View style={styles.bottomDim}>
             <View style={styles.controls}>
-              <TouchableOpacity style={styles.controlBtn}><Text style={styles.controlText}>⚡</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.shutterBtn} onPress={handleScan}>
-                <View style={styles.shutterInner} />
+              <TouchableOpacity style={styles.controlBtn} onPress={toggleFlash}>
+                <Text style={styles.controlText}>{flash === 'on' ? '⚡' : '🌩️'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.shutterBtn} onPress={handleScan} disabled={isScanning}>
+                <View style={[styles.shutterInner, isScanning && { backgroundColor: '#ccc' }]} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.controlBtn}><Text style={styles.controlText}>🖼️</Text></TouchableOpacity>
             </View>

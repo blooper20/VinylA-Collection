@@ -1,34 +1,88 @@
 import React, { useState } from 'react';
-import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
-import { DetailModal } from '../components/Modal/DetailModal';
-
-const { width } = Dimensions.get('window');
-const itemSize = width / 2 - 24;
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { useTheme } from '@vinyla/ui';
+import { mockVinyls } from '@vinyla/shared-types';
 
 export const WishScreen = () => {
-  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
-  const wishAlbums = mockVinyls.filter(a => a.STATUS === 'WISH');
+  const { themeColors } = useTheme();
+  const wishes = mockVinyls.filter(v => v.STATUS === 'WISH');
+  const holyGrail = wishes[0];
+  const list = wishes.slice(1);
+  
+  const [noteVisible, setNoteVisible] = useState(false);
+  const [note, setNote] = useState('');
+
+  const renderHeader = () => {
+    if (!holyGrail) return null;
+    return (
+      <View style={styles.spotlightContainer}>
+        <Text style={[styles.spotlightLabel, { color: themeColors.accent }]}>★ Holy Grail</Text>
+        <Image source={{ uri: holyGrail.IMAGE_URL }} style={styles.spotlightCover} />
+        <Text style={[styles.spotlightTitle, { color: themeColors.textPrimary }]}>{holyGrail.TITLE}</Text>
+        <Text style={[styles.spotlightArtist, { color: themeColors.textSecondary }]}>{holyGrail.ARTIST}</Text>
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.glassOverlay} />
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <Text style={[styles.pageTitle, { color: themeColors.textPrimary }]}>Master List</Text>
+      
       <FlatList
-        data={wishAlbums}
-        numColumns={2}
-        keyExtractor={item => item.ALBUM_ID.toString()}
-        contentContainerStyle={styles.list}
+        ListHeaderComponent={renderHeader}
+        data={list}
+        keyExtractor={item => item.ALBUM_ID}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
-            <Image source={{ uri: item.IMAGE_URL }} style={styles.cover} />
-          </TouchableOpacity>
+          <View style={[styles.listItem, { borderBottomColor: themeColors.border }]}>
+            <Image source={{ uri: item.IMAGE_URL }} style={styles.listCover} />
+            <View style={styles.listInfo}>
+              <Text style={[styles.listTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{item.TITLE}</Text>
+              <Text style={[styles.listArtist, { color: themeColors.textSecondary }]}>{item.ARTIST}</Text>
+              <View style={[styles.priorityBar, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                <View style={[styles.priorityFill, { backgroundColor: themeColors.accent, width: `${Math.floor(Math.random() * 60) + 40}%` }]} />
+              </View>
+            </View>
+            <TouchableOpacity style={styles.deleteBtn}>
+              <Text style={{ color: themeColors.textSecondary, fontSize: 24 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
         )}
       />
-      <DetailModal 
-        album={selectedAlbum} 
-        visible={!!selectedAlbum} 
-        onClose={() => setSelectedAlbum(null)} 
-      />
+
+      {/* FAB for Note */}
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: themeColors.accent }]}
+        onPress={() => setNoteVisible(true)}
+      >
+        <Text style={styles.fabText}>📝</Text>
+      </TouchableOpacity>
+
+      {/* Bottom Sheet Modal for Note */}
+      <Modal visible={noteVisible} animationType="slide" transparent>
+        <KeyboardAvoidingView 
+          style={styles.modalBg} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setNoteVisible(false)} />
+          <View style={[styles.bottomSheet, { backgroundColor: themeColors.background, borderTopColor: themeColors.border }]}>
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: themeColors.textPrimary }]}>Curator's Note</Text>
+              <TouchableOpacity onPress={() => setNoteVisible(false)}>
+                <Text style={{ color: themeColors.accent, fontWeight: 'bold' }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={[styles.noteInput, { color: themeColors.textPrimary }]}
+              multiline
+              autoFocus
+              placeholder="Strategy, prices, condition..."
+              placeholderTextColor={themeColors.textSecondary}
+              value={note}
+              onChangeText={setNote}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 };
@@ -36,24 +90,121 @@ export const WishScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  glassOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(233, 195, 73, 0.05)',
-  },
-  list: {
-    padding: 16,
     paddingTop: 60,
   },
-  card: {
-    width: itemSize,
-    height: itemSize,
-    margin: 8,
+  pageTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  cover: {
-    width: '100%',
-    height: '100%',
+  spotlightContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 40,
+  },
+  spotlightLabel: {
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  spotlightCover: {
+    width: 240,
+    height: 240,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  spotlightTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  spotlightArtist: {
+    fontSize: 16,
+  },
+  listItem: {
+    flexDirection: 'row',
+    padding: 16,
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  listCover: {
+    width: 64,
+    height: 64,
     borderRadius: 8,
+    marginRight: 16,
+  },
+  listInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  listTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  listArtist: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  priorityBar: {
+    width: '80%',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  priorityFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  deleteBtn: {
+    padding: 8,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabText: {
+    fontSize: 24,
+  },
+  modalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    height: 300,
+    borderTopWidth: 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  noteInput: {
+    flex: 1,
+    fontSize: 16,
+    textAlignVertical: 'top',
   }
 });

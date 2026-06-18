@@ -7,6 +7,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { WishScreen } from '../screens/WishScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { SearchScreen } from '../screens/SearchScreen';
+import { MyScreen } from '../screens/MyScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -31,7 +32,7 @@ export const TabNavigator = () => {
         }}
       />
       <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="My" component={HomeScreen} />
+      <Tab.Screen name="My" component={MyScreen} />
     </Tab.Navigator>
   );
 };
