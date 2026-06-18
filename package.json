@@ -1,7 +1,7 @@
 {
   "name": "vinyla-collection",
   "private": true,
-  "packageManager": "npm@11.6.2",
+  "packageManager": "npm@10.0.0",
   "workspaces": [
     "apps/*",
     "packages/*"

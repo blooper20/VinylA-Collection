@@ -1,9 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "globalEnv": ["PORT", "NODE_ENV", "EXPO_PUBLIC_VISION_API_KEY"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
+      "env": ["NEXT_PUBLIC_*", "EXPO_PUBLIC_*"]
     },
     "lint": {
       "dependsOn": ["^lint"]
