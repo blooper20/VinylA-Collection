@@ -1,42 +1,312 @@
-.wrapper {
-  min-height: 100vh;
-  background: #000000;
-  position: relative;
-}
-
-.glassOverlay {
-  position: absolute;
-  top: 0;
-  left: 0;
+.container {
   width: 100%;
-  height: 100%;
-  background: rgba(233, 195, 73, 0.03); /* Slight amber tint */
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.content {
+  min-height: 100vh;
   position: relative;
-  z-index: 1;
+  background-color: var(--background);
+  padding: 64px;
 }
 
 .header {
-  padding: 40px 40px 0;
-  max-width: 1600px;
-  margin: 0 auto;
+  margin-bottom: 48px;
 }
 
-.title {
-  font-family: 'Bodoni Moda', serif;
-  font-size: 3rem;
-  color: #fff;
-  margin: 0;
+.headerSubtitle {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+  display: block;
 }
 
-.subtitle {
-  font-family: 'Hanken Grotesk', sans-serif;
-  color: #8e9192;
+.headerTitle {
+  font-family: var(--font-headline);
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+.spotlightCard {
+  background-color: rgba(42, 42, 42, 0.4);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.spotlightImageContainer {
+  width: 100%;
+  aspect-ratio: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlightImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s ease;
+}
+
+.spotlightCard:hover .spotlightImage {
+  transform: scale(1.05);
+}
+
+.spotlightBadge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background-color: var(--accent);
+  color: var(--background);
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.spotlightContent {
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(35, 26, 0, 0.5) 0%, var(--background) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.spotlightTitle {
+  font-family: var(--font-headline);
+  font-size: 24px;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.spotlightArtist {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.spotlightTags {
+  display: flex;
+  gap: 8px;
+}
+
+.tag {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+}
+
+.spotlightPrice {
+  font-family: var(--font-headline);
+  font-size: 24px;
+  color: var(--accent);
+  margin-top: auto;
+}
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.listTitle {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.wantedList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wantedItem {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(28, 27, 27, 0.5) 0%, rgba(14, 14, 14, 0.5) 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+.wantedItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.priorityLine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.priorityHigh { background-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.priorityMedium { background-color: rgba(233, 195, 73, 0.4); }
+.priorityLow { background-color: rgba(255, 255, 255, 0.1); }
+
+.itemImage {
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.itemContent {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.itemTitle {
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.itemArtist {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 100px;
   margin-top: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: var(--accent);
+}
+
+.priorityLabel {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.itemActions {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.shopCount {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.curatorLog {
+  margin-top: 64px;
+  background-color: rgba(42, 42, 42, 0.4);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(233, 195, 73, 0.2);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+.logHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.logTitle {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.logContent {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.logText {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+.logFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 16px;
+}
+
+.logDate {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.editButton {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
 }
