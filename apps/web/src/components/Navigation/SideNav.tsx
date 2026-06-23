@@ -5,44 +5,60 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import styles from './SideNav.module.css';
 
+const navItems = [
+  { name: '컬렉션', path: '/',         icon: 'shelves' },
+  { name: '탐색',   path: '/search',   icon: 'travel_explore' },
+  { name: '위시리스트', path: '/wishlist', icon: 'bookmark' },
+  { name: '마이페이지', path: '/my',    icon: 'person' },
+];
+
 export const SideNav: React.FC = () => {
   const pathname = usePathname();
 
-  const navItems = [
-    { name: 'Gallery', path: '/', icon: 'grid_view' },
-    { name: 'Vault', path: '/my', icon: 'shelves' },
-    { name: 'Discovery', path: '/search', icon: 'explore' },
-  ];
-
   return (
-    <nav className={`${styles.sidebar} group`}>
-      <div className={styles.header}>
-        <div className={styles.avatar}>
-          <span className="material-symbols-outlined">heart_minus</span>
+    <nav className={styles.sidebar}>
+      {/* Brand */}
+      <div className={styles.brand}>
+        <div className={styles.brandIcon}>
+          <span className="material-symbols-outlined">album</span>
         </div>
-        <div className={styles.brandLabel}>
-          <div className={styles.brandTitle}>The Vault</div>
-          <div className={styles.brandSubtitle}>Elite Membership</div>
+        <div className={styles.brandText}>
+          <span className={styles.brandName}>VinylA</span>
+          <span className={styles.brandTagline}>vinyl archive</span>
         </div>
       </div>
 
-      <div className={styles.navLinks}>
+      <div className={styles.divider} />
+
+      {/* Main Nav */}
+      <div className={styles.nav}>
         {navItems.map((item) => {
           const isActive = pathname === item.path;
           return (
-            <Link href={item.path} key={item.name} className={`${styles.navItem} ${isActive ? styles.active : ''}`}>
-              <span className={`material-symbols-outlined ${styles.navIcon}`} style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>
+            <Link
+              key={item.name}
+              href={item.path}
+              className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+            >
+              <span
+                className={`material-symbols-outlined ${styles.navIcon}`}
+                style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300" }}
+              >
                 {item.icon}
               </span>
               <span className={styles.navLabel}>{item.name}</span>
             </Link>
           );
         })}
-        
-        <Link href="/settings" className={`${styles.navItem} ${styles.settingsLink}`}>
+      </div>
+
+      {/* Bottom */}
+      <div className={styles.bottom}>
+        <div className={styles.bottomDivider} />
+        <div className={styles.navItem} style={{ color: 'var(--text-muted)' }}>
           <span className={`material-symbols-outlined ${styles.navIcon}`}>settings</span>
-          <span className={styles.navLabel}>Settings</span>
-        </Link>
+          <span className={styles.navLabel}>설정</span>
+        </div>
       </div>
     </nav>
   );

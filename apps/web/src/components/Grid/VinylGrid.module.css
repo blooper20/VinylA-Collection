@@ -1,12 +1,98 @@
+/* VinylGrid — 보관함 메인 */
+
+.pageWrapper {
+  min-height: 100dvh;
+  background: var(--bg-deep);
+}
+
+/* ---- Page Header ---- */
+.pageHeader {
+  padding: 56px 56px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.headerLeft {}
+
+.pageEyebrow {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.pageTitle {
+  font-family: var(--font-headline);
+  font-size: clamp(48px, 6vw, 88px);
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.pageSubtitle {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 12px;
+  letter-spacing: 0.08em;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.filterChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.filterChip:hover {
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.filterChip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #111;
+}
+
+/* ---- Grid ---- */
 .grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(6, 1fr);
-  gap: 24px;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 40px;
-  height: 100vh;
-  box-sizing: border-box;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2px;
+  padding: 2px;
+}
+
+@media (min-width: 1200px) {
+  .grid { grid-template-columns: repeat(5, 1fr); }
+}
+
+@media (min-width: 1600px) {
+  .grid { grid-template-columns: repeat(6, 1fr); }
 }

@@ -3,77 +3,99 @@
 import React from 'react';
 import styles from './page.module.css';
 
+const stats = [
+  { label: '컬렉션 가치',  value: '18,450,000', unit: '₩', sub: '시장 추정가 기준' },
+  { label: '보유 LP',      value: '1,242',       unit: '',   sub: '이번 달 +12장 추가' },
+  { label: '주요 장르',    value: '쿨 재즈',      unit: '',   sub: '전체의 45%' },
+];
+
 const timeline = [
-  { date: 'Oct 24, 2023', caption: 'Acquired at Vintage Records NYC', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=400&auto=format&fit=crop' },
-  { date: 'Sep 12, 2023', caption: 'Gifted by a friend', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=400&auto=format&fit=crop' },
-  { date: 'Aug 05, 2023', caption: 'Found in a thrift store', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=400&auto=format&fit=crop' },
+  {
+    date: 'Oct 2023',
+    title: 'Kind of Blue 초판',
+    desc: '파리 지하 레코드샵에서 발견한 1959년 프레싱. 흠 하나 없는 상태입니다.',
+    img: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=200&auto=format&fit=crop',
+  },
+  {
+    date: 'Aug 2023',
+    title: '1,000장 돌파',
+    desc: '누적 보유 1,000장을 넘어섰습니다. 마스터 컬렉터 등급 달성.',
+    img: 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=200&auto=format&fit=crop',
+  },
+  {
+    date: 'May 2023',
+    title: '첫 직거래 완료',
+    desc: 'A Love Supreme 일본반, 교토 컬렉터와 성사. 정가의 2.3배.',
+    img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=200&auto=format&fit=crop',
+  },
 ];
 
 export default function MyProfilePage() {
   return (
-    <div className={`${styles.container} hide-scroll`}>
-      {/* Profile Header */}
-      <header className={styles.header}>
-        <div className={styles.profileSection}>
-          <div className={styles.avatarWrapper}>
-            <div className={styles.avatarImage} />
+    <div className={styles.page}>
+      <header className={styles.hero}>
+        <div className={styles.heroBg} />
+        <div className={styles.heroInner}>
+          <div className={styles.avatarRing}>
+            <img
+              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop"
+              alt="프로필"
+              className={styles.avatarImage}
+            />
+            <div className={styles.avatarBadge}>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px', fontVariationSettings: "'FILL' 1" }}>verified</span>
+            </div>
           </div>
+
           <div className={styles.profileInfo}>
-            <h1 className={styles.userName}>Alexander Wright</h1>
-            <div className={styles.badge}>
-              <span className={`material-symbols-outlined ${styles.badgeIcon}`}>verified</span>
-              <span className={styles.badgeText}>Elite Curator</span>
+            <p className={styles.profileEyebrow}>Master Collector</p>
+            <h1 className={styles.profileName}>김재현</h1>
+            <div className={styles.collectorBadge}>
+              <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>diamond</span>
+              <span className={styles.collectorBadgeText}>Obsidian Grade · 1994년부터</span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Vault Analytics */}
-      <section>
+      <section className={styles.analytics}>
         <div className={styles.analyticsGrid}>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>Collection Value</span>
-            <span className={styles.statValue}>$12,450</span>
-            <span className={styles.statSubtext}>Estimated Market Value</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>Total Records</span>
-            <span className={styles.statValue}>342</span>
-            <span className={styles.statSubtext}>+12 this month</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>Top Genre</span>
-            <span className={styles.statValue}>Jazz Noir</span>
-            <span className={styles.statSubtext}>45% of collection</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Musical Journey (Timeline) */}
-      <section>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Musical Journey</h2>
-        </div>
-        <div className={styles.timeline}>
-          {timeline.map((item, idx) => (
-            <div key={idx} className={styles.timelineItem}>
-              <div className={styles.polaroid}>
-                <div 
-                  className={styles.polaroidImage} 
-                  style={{ backgroundImage: `url(${item.img})` }} 
-                />
-                <span className={styles.polaroidCaption}>{item.caption}</span>
+          {stats.map((stat, i) => (
+            <div key={i} className={styles.statCard}>
+              <span className={styles.statLabel}>{stat.label}</span>
+              <div className={styles.statValue}>
+                {stat.unit && <span className={styles.statUnit}>{stat.unit}</span>}
+                {stat.value}
               </div>
-              <span className={styles.timelineDate}>{item.date}</span>
+              <div className={styles.statSub}>{stat.sub}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Profile Actions */}
-      <section className={styles.actionSection}>
-        <button className={styles.actionPrimary}>Edit Collection</button>
-        <button className={styles.actionSecondary}>Export Vault Data</button>
+      <section className={styles.journey}>
+        <div className={styles.journeySectionHeader}>
+          <div className={styles.journeyAccentLine} />
+          <h2 className={styles.journeySectionTitle}>수집 기록</h2>
+        </div>
+        <div className={styles.timeline}>
+          {timeline.map((item, i) => (
+            <div key={i} className={styles.timelineItem}>
+              <div className={styles.timelineDot} />
+              <img src={item.img} alt={item.title} className={styles.timelineImage} />
+              <div className={styles.timelineText}>
+                <span className={styles.timelineDate}>{item.date}</span>
+                <div className={styles.timelineTitle}>{item.title}</div>
+                <div className={styles.timelineDesc}>{item.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.actions}>
+        <button className={styles.btnPrimary}>컬렉션 편집</button>
+        <button className={styles.btnSecondary}>데이터 내보내기</button>
       </section>
     </div>
   );

@@ -38,36 +38,68 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <button className={styles.closeBtn} onClick={onClose}>
+          <span className="material-symbols-outlined">close</span>
+        </button>
+
         <div className={styles.leftPanel}>
           <div className={styles.coverContainer}>
-            <div 
-              className={styles.vinyl} 
-              style={{ backgroundColor: album.CUSTOM_COLOR_HEX }}
-            />
+            <div className={styles.vinyl}>
+              <div 
+                className={styles.vinylLabel} 
+                style={{ backgroundImage: `url(${album.IMAGE_URL})` }} 
+              />
+            </div>
             <div className={styles.cover}>
-              <img src={album.IMAGE_URL} alt={album.TITLE} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+              <img src={album.IMAGE_URL} alt={album.TITLE} className={styles.coverImage} />
             </div>
           </div>
         </div>
+        
         <div className={styles.rightPanel}>
-          <h2 style={{ fontFamily: 'Bodoni Moda, serif', fontSize: '2.5rem' }}>{album.TITLE}</h2>
-          <h3 style={{ color: '#8e9192', fontFamily: 'Hanken Grotesk, sans-serif' }}>{album.ARTIST} • {album.RELEASE_YEAR}</h3>
+          <div className={styles.headerInfo}>
+            <div className={styles.eyebrow}>{album.RELEASE_YEAR} • {album.GENRES?.join(', ') || 'LP'}</div>
+            <h2 className={styles.title}>{album.TITLE}</h2>
+            <h3 className={styles.artist}>{album.ARTIST}</h3>
+          </div>
           
-          <ul className={styles.tracklist}>
-            {album.TRACKS?.map((track, i) => (
-              <li key={i}>{i + 1}. {track}</li>
-            ))}
-          </ul>
+          <div className={styles.tracklistContainer}>
+            <div className={styles.tracklistHeader}>Tracklist</div>
+            <ul className={styles.tracklist}>
+              {album.TRACKS ? album.TRACKS.map((track, i) => (
+                <li key={i}>
+                  <span className={styles.trackNum}>{String(i + 1).padStart(2, '0')}</span>
+                  <span className={styles.trackName}>{track}</span>
+                </li>
+              )) : (
+                <li className={styles.emptyTrack}>No tracklist available</li>
+              )}
+            </ul>
+          </div>
           
           <div className={styles.actions}>
-            <button className={styles.btnPrimary}>Add to Collection</button>
-            <button className={styles.btnOutline}>WISH</button>
+            <button className={styles.btnPrimary}>
+              <span className="material-symbols-outlined">add</span>
+              보관함 추가
+            </button>
+            <button className={styles.btnSecondary}>
+              <span className="material-symbols-outlined">bookmark_add</span>
+              위시
+            </button>
           </div>
-          <button className={styles.btnYoutube} onClick={handleYoutubeListen}>LISTEN ON YOUTUBE</button>
-          <button className={styles.btnYoutube} style={{ backgroundColor: '#333', marginTop: '10px' }} onClick={handleDiscogsSearch}>SEARCH ON DISCOGS</button>
+
+          <div className={styles.externalLinks}>
+            <button className={styles.linkBtn} onClick={handleYoutubeListen}>
+              <span className="material-symbols-outlined">play_circle</span>
+              Listen on YouTube
+            </button>
+            <button className={styles.linkBtn} onClick={handleDiscogsSearch}>
+              <span className="material-symbols-outlined">album</span>
+              Search on Discogs
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
