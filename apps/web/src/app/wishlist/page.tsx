@@ -1,123 +1,49 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { DetailModal } from '../../components/Modal/DetailModal';
+import { MockVinylData } from '@vinyla/shared-types';
 import styles from './page.module.css';
 
-const wantedRecords = [
-  { 
-    title: 'Bitches Brew', 
-    artist: 'Miles Davis', 
-    priority: 'HIGH', 
-    priorityClass: styles.priorityHigh, 
-    progress: '90%', 
-    shops: 4, 
-    img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=200&auto=format&fit=crop' 
-  },
-  { 
-    title: 'A Love Supreme', 
-    artist: 'John Coltrane', 
-    priority: 'MEDIUM', 
-    priorityClass: styles.priorityMedium, 
-    progress: '45%', 
-    shops: 2, 
-    img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=200&auto=format&fit=crop' 
-  },
-  { 
-    title: 'Pastel Blues', 
-    artist: 'Nina Simone', 
-    priority: 'LOW', 
-    priorityClass: styles.priorityLow, 
-    progress: '15%', 
-    shops: 1, 
-    img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=200&auto=format&fit=crop' 
-  },
+const records = [
+  { ALBUM_ID: 'w1', TITLE: 'Bitches Brew',          ARTIST: 'Miles Davis',   IMAGE_URL: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=600', STATUS: 'WISH', RELEASE_YEAR: 1970 },
+  { ALBUM_ID: 'spot-1', TITLE: 'The Black Saint and the Sinner Lady', ARTIST: 'Charles Mingus', IMAGE_URL: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600', STATUS: 'WISH', RELEASE_YEAR: 1963 },
+  { ALBUM_ID: 'w2', TITLE: 'A Love Supreme',        ARTIST: 'John Coltrane', IMAGE_URL: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=600', STATUS: 'WISH', RELEASE_YEAR: 1965 },
+  { ALBUM_ID: 'w3', TITLE: 'Pastel Blues',          ARTIST: 'Nina Simone',   IMAGE_URL: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600', STATUS: 'WISH', RELEASE_YEAR: 1965 },
+  { ALBUM_ID: 'w4', TITLE: 'The Birth of the Cool', ARTIST: 'Miles Davis',   IMAGE_URL: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=600', STATUS: 'WISH', RELEASE_YEAR: 1957 },
 ];
 
 export default function WishlistPage() {
+  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
+
   return (
-    <div className={styles.container}>
+    <div className={styles.page}>
       <header className={styles.header}>
-        <span className={styles.headerSubtitle}>Wishlist Spotlight</span>
-        <h1 className={styles.headerTitle}>Rare Findings</h1>
+        <span className={styles.eyebrow}>Archive</span>
+        <h1 className={styles.title}>위시리스트</h1>
+        <p className={styles.subtitle}>수집을 기다리는 {records.length}장의 바이닐</p>
       </header>
 
-      <div className={styles.grid}>
-        {/* Spotlight Card */}
-        <div className={styles.spotlightCard}>
-          <div className={styles.spotlightImageContainer}>
-            <img 
-              src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800&auto=format&fit=crop" 
-              alt="Rare Vinyl LP" 
-              className={styles.spotlightImage} 
-            />
-            <div className={styles.spotlightBadge}>RARE FIND</div>
-          </div>
-          <div className={styles.spotlightContent}>
-            <div>
-              <h2 className={styles.spotlightTitle}>The Black Saint and the Sinner Lady</h2>
-              <p className={styles.spotlightArtist}>Charles Mingus (1963 Mono Pressing)</p>
-            </div>
-            <div className={styles.spotlightTags}>
-              <span className={styles.tag}>JAZZ</span>
-              <span className={styles.tag}>IMPROV</span>
-            </div>
-            <div className={styles.spotlightPrice}>$1,240</div>
-          </div>
-        </div>
-
-        {/* Wanted List */}
-        <div>
-          <div className={styles.listHeader}>
-            <h3 className={styles.listTitle}>WANTED RECORDS ({wantedRecords.length})</h3>
-            <span className="material-symbols-outlined">sort</span>
-          </div>
-
-          <div className={styles.wantedList}>
-            {wantedRecords.map((record, idx) => (
-              <div key={idx} className={styles.wantedItem}>
-                <div className={`${styles.priorityLine} ${record.priorityClass}`} />
-                <div 
-                  className={styles.itemImage} 
-                  style={{ backgroundImage: `url(${record.img})` }} 
-                />
-                <div className={styles.itemContent}>
-                  <h4 className={styles.itemTitle}>{record.title}</h4>
-                  <p className={styles.itemArtist}>{record.artist}</p>
-                  <div>
-                    <div className={styles.progressBar}>
-                      <div className={styles.progressFill} style={{ width: record.progress }} />
-                    </div>
-                    <div className={styles.priorityLabel}>{record.priority} PRIORITY</div>
-                  </div>
-                </div>
-                <div className={styles.itemActions}>
-                  <button className="material-symbols-outlined" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)' }}>
-                    more_vert
-                  </button>
-                  <span className={styles.shopCount}>{record.shops} SHOP</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Curator's Log */}
-          <div className={styles.curatorLog}>
-            <div className={styles.logHeader}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--accent)' }}>edit_note</span>
-              <h3 className={styles.logTitle}>Curator's Log</h3>
-            </div>
-            <div className={styles.logContent}>
-              <p className={styles.logText}>
-                "Still tracking that 1963 Mingus pressing. The dynamic range on the mono version is significantly superior to the '70s reissues. Priority remains high for the quarter. Need to check the Tokyo markets next Tuesday."
-              </p>
-              <div className={styles.logFooter}>
-                <span className={styles.logDate}>Updated 2h ago</span>
-                <button className={styles.editButton}>EDIT LOG</button>
+      <div className={styles.simpleGrid}>
+        {records.map((rec) => (
+          <div key={rec.ALBUM_ID} className={styles.card} onClick={() => setSelectedAlbum(rec as any)}>
+            <div className={styles.coverWrapper}>
+              <img src={rec.IMAGE_URL} alt={rec.TITLE} className={styles.cover} loading="lazy" />
+              <div className={styles.coverOverlay}>
+                <span className="material-symbols-outlined">zoom_in</span>
               </div>
             </div>
+            <div className={styles.info}>
+              <h2 className={styles.albumTitle}>{rec.TITLE}</h2>
+              <p className={styles.albumArtist}>{rec.ARTIST} <span className={styles.dot}>•</span> {rec.RELEASE_YEAR}</p>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
+
+      {selectedAlbum && (
+        <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />
+      )}
     </div>
   );
 }
