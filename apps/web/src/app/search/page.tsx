@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { searchDiscogs } from '@vinyla/core-api';
+import React, { useState, useRef, useCallback } from 'react';
+import { searchDiscogsLazy, AlbumItem, SearchStatus } from '@vinyla/core-api';
 import { DetailModal } from '../../components/Modal/DetailModal';
 import styles from './page.module.css';
 
@@ -16,12 +16,53 @@ const genres = [
   { title: '월드',          sub: 'World',       height: 260, img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop' },
 ];
 
+// ─── Skeleton card placeholder ───────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className={styles.masonryItem} style={{ pointerEvents: 'none' }}>
+      <div className={styles.skeletonImage} />
+      <div className={styles.genreContent}>
+        <div className={styles.skeletonLine} style={{ width: '70%', height: 18, marginBottom: 8 }} />
+        <div className={styles.skeletonLine} style={{ width: '45%', height: 14 }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Result card with entrance animation ─────────────────────────────────────
+function AlbumCard({ item, onSelect }: { item: AlbumItem; onSelect: (item: AlbumItem) => void }) {
+  return (
+    <div
+      className={`${styles.masonryItem} ${styles.albumCardIn}`}
+      onClick={() => onSelect(item)}
+      style={{ cursor: 'pointer' }}
+    >
+      <img
+        src={item.thumb || 'https://via.placeholder.com/200'}
+        alt={item.title}
+        className={styles.genreImage}
+        style={{ height: 260 }}
+        loading="lazy"
+      />
+      <div className={styles.genreContent}>
+        <h3 className={styles.genreTitle} style={{ fontSize: '18px' }}>{item.title}</h3>
+        <p className={styles.genreSub}>{item.artist ? `${item.artist}` : ''}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SearchPage() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<AlbumItem[]>([]);
+  const [status, setStatus] = useState<SearchStatus>('idle');
+  const [totalToCheck, setTotalToCheck] = useState(0);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // cancel token: if user starts a new search, discard stale callbacks
+  const searchIdRef = useRef(0);
 
   React.useEffect(() => {
     const handleToast = (e: any) => {
@@ -32,20 +73,56 @@ export default function SearchPage() {
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) {
       setResults([]);
+      setStatus('idle');
       return;
     }
-    setIsSearching(true);
-    try {
-      const data = await searchDiscogs(query);
-      setResults(data);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+
+    // Bump search ID so stale callbacks from a previous search are ignored
+    const currentSearchId = ++searchIdRef.current;
+
+    setResults([]);
+    setStatus('fetching_itunes');
+    setTotalToCheck(0);
+
+    await searchDiscogsLazy(
+      query,
+      // onItem — called each time a validated album is ready
+      (album) => {
+        if (searchIdRef.current !== currentSearchId) return; // stale, discard
+        setResults((prev) => {
+          // Deduplicate by id
+          if (prev.some((a) => a.id === album.id)) return prev;
+          return [...prev, album];
+        });
+      },
+      // onStatusChange
+      (newStatus, total) => {
+        if (searchIdRef.current !== currentSearchId) return;
+        setStatus(newStatus);
+        if (total !== undefined) setTotalToCheck(total);
+      }
+    );
+  }, [query]);
+
+  const isLoading = status === 'fetching_itunes' || status === 'validating';
+  const isValidating = status === 'validating';
+
+  // During validation phase, show skeleton placeholders for items not yet found
+  const skeletonCount = isValidating ? Math.max(0, totalToCheck - results.length) : 0;
+
+  const sectionTitle = isLoading
+    ? isValidating
+      ? `LP 검증 중... (${results.length} / ${totalToCheck})`
+      : '검색 중...'
+    : results.length > 0
+      ? `검색 결과 (${results.length})`
+      : status === 'done'
+        ? 'Discogs에 등록된 LP가 없습니다'
+        : '장르';
 
   return (
     <div className={styles.container}>
@@ -74,61 +151,62 @@ export default function SearchPage() {
       <main className={styles.content}>
         <section>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>
-              {isSearching ? '검색 중...' : results.length > 0 ? '검색 결과' : '장르'}
-            </h2>
+            <h2 className={styles.sectionTitle}>{sectionTitle}</h2>
+            {isValidating && (
+              <div className={styles.progressBar}>
+                <div
+                  className={styles.progressFill}
+                  style={{ width: totalToCheck ? `${(results.length / totalToCheck) * 100}%` : '0%' }}
+                />
+              </div>
+            )}
             <button className={styles.viewAllBtn}>전체 →</button>
           </div>
 
           <div className={styles.masonryGrid}>
-            {isSearching ? (
+            {/* Actual found albums */}
+            {results.map((item) => (
+              <AlbumCard
+                key={item.id}
+                item={item}
+                onSelect={(a) => setSelectedAlbum({
+                  ALBUM_ID: a.id,
+                  TITLE: a.title,
+                  ARTIST: a.artist,
+                  IMAGE_URL: a.thumb,
+                  RELEASE_YEAR: a.year
+                })}
+              />
+            ))}
+
+            {/* Skeleton placeholders while validating */}
+            {Array.from({ length: skeletonCount }).map((_, i) => (
+              <SkeletonCard key={`sk-${i}`} />
+            ))}
+
+            {/* Genre cards when idle */}
+            {status === 'idle' && genres.map((genre, idx) => (
+              <div key={idx} className={styles.masonryItem}>
+                <img
+                  src={genre.img}
+                  alt={genre.title}
+                  className={styles.genreImage}
+                  style={{ height: genre.height }}
+                  loading="lazy"
+                />
+                <div className={styles.genreContent}>
+                  <h3 className={styles.genreTitle}>{genre.title}</h3>
+                  <p className={styles.genreSub}>{genre.sub}</p>
+                </div>
+              </div>
+            ))}
+
+            {/* Full-screen spinner only during iTunes fetch (before any results) */}
+            {status === 'fetching_itunes' && results.length === 0 && (
               <div className={styles.loadingState}>
                 <div className={styles.spinner} />
-                <p>로딩 중입니다...</p>
+                <p>Apple Music에서 검색 중...</p>
               </div>
-            ) : results.length > 0 ? (
-              results.map((item, idx) => (
-                <div 
-                  key={idx} 
-                  className={styles.masonryItem} 
-                  onClick={() => setSelectedAlbum({
-                    ALBUM_ID: item.id,
-                    TITLE: item.title,
-                    ARTIST: item.artist,
-                    IMAGE_URL: item.thumb,
-                    RELEASE_YEAR: item.year
-                  })}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <img
-                    src={item.thumb || 'https://via.placeholder.com/200'}
-                    alt={item.title}
-                    className={styles.genreImage}
-                    style={{ height: 260 }}
-                    loading="lazy"
-                  />
-                  <div className={styles.genreContent}>
-                    <h3 className={styles.genreTitle} style={{ fontSize: '18px' }}>{item.title}</h3>
-                    <p className={styles.genreSub}>{item.artist ? `${item.artist} • ` : ''}{item.format?.join(', ')}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              genres.map((genre, idx) => (
-                <div key={idx} className={styles.masonryItem}>
-                  <img
-                    src={genre.img}
-                    alt={genre.title}
-                    className={styles.genreImage}
-                    style={{ height: genre.height }}
-                    loading="lazy"
-                  />
-                  <div className={styles.genreContent}>
-                    <h3 className={styles.genreTitle}>{genre.title}</h3>
-                    <p className={styles.genreSub}>{genre.sub}</p>
-                  </div>
-                </div>
-              ))
             )}
           </div>
         </section>

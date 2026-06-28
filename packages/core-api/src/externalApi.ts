@@ -1,5 +1,17 @@
 import axios from 'axios';
 
+export type AlbumItem = {
+  id: number | string;
+  title: string;
+  artist: string;
+  thumb: string;
+  year: string;
+  genre?: string[];
+  format?: string[];
+};
+
+export type SearchStatus = 'idle' | 'fetching_itunes' | 'validating' | 'done';
+
 export const searchDiscogs = async (query: string) => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
@@ -97,6 +109,104 @@ export const searchDiscogs = async (query: string) => {
   }))).filter(Boolean);
 
   return validAlbums;
+};
+
+/**
+ * Streaming / lazy version of searchDiscogs.
+ * Calls `onItem` each time a new validated album is found,
+ * so the UI can render results progressively instead of waiting for all checks.
+ */
+export const searchDiscogsLazy = async (
+  query: string,
+  onItem: (album: AlbumItem) => void,
+  onStatusChange?: (status: SearchStatus, total?: number) => void
+): Promise<void> => {
+  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
+  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
+  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
+
+  const hasAuth = token || (key && secret);
+  const authParams = token ? { token } : { key, secret };
+
+  // 1. Fetch Apple Music results
+  onStatusChange?.('fetching_itunes');
+  let itunesResults: AlbumItem[] = [];
+  try {
+    const response = await axios.get('https://itunes.apple.com/search', {
+      params: { term: query, entity: 'album', limit: 20 }
+    });
+    itunesResults = response.data.results.map((item: any) => ({
+      id: item.collectionId,
+      title: item.collectionName,
+      artist: item.artistName,
+      thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb'),
+      year: item.releaseDate ? item.releaseDate.substring(0, 4) : '',
+      genre: [item.primaryGenreName]
+    }));
+  } catch (e) {
+    console.error('iTunes search failed:', e);
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  if (!hasAuth) {
+    itunesResults.slice(0, 15).forEach(onItem);
+    onStatusChange?.('done', itunesResults.length);
+    return;
+  }
+
+  // 2. Validate each album against Discogs one by one, calling onItem as we go
+  const topResults = itunesResults.slice(0, 15);
+  onStatusChange?.('validating', topResults.length);
+
+  // Run checks with a small concurrency limit (3 at a time) to avoid rate limiting
+  // while still being much faster than sequential
+  const CONCURRENCY = 3;
+  let found = 0;
+
+  const checkAlbum = async (album: AlbumItem) => {
+    try {
+      const cleanTitle = album.title.replace(/ - EP| - Single/g, '').replace(/\([^)]*\)/g, '').trim();
+
+      let dRes = await axios.get('https://api.discogs.com/database/search', {
+        params: { q: `${album.artist} ${cleanTitle}`, ...authParams, type: 'release', format: 'vinyl' }
+      });
+
+      let bestMatch = dRes.data.results?.find((r: any) => {
+        const t = (r.title || '').toLowerCase();
+        return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
+      });
+
+      if (!bestMatch) {
+        dRes = await axios.get('https://api.discogs.com/database/search', {
+          params: { q: `${query} ${cleanTitle}`, ...authParams, type: 'release', format: 'vinyl' }
+        });
+        bestMatch = dRes.data.results?.find((r: any) => {
+          const t = (r.title || '').toLowerCase();
+          return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
+        });
+      }
+
+      if (bestMatch) {
+        const rawTitle = bestMatch.title || '';
+        const parsedTitle = rawTitle.includes(' - ') ? rawTitle.split(' - ').slice(1).join(' - ').trim() : rawTitle;
+        found++;
+        onItem({ ...album, id: bestMatch.id, title: parsedTitle || album.title });
+      }
+    } catch (e: any) {
+      console.warn(`Discogs check failed for ${album.title}`, e.message);
+      // On error, surface the album anyway so user sees something
+      onItem(album);
+    }
+  };
+
+  // Process in batches of CONCURRENCY
+  for (let i = 0; i < topResults.length; i += CONCURRENCY) {
+    const batch = topResults.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(checkAlbum));
+  }
+
+  onStatusChange?.('done', found);
 };
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
