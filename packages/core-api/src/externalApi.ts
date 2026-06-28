@@ -38,9 +38,11 @@ export const searchDiscogs = async (query: string) => {
   }
 
   // 3. Filter Apple Music results by checking if they exist as Vinyl on Discogs
+  // Only check the top 8 to avoid hitting Discogs rate limit (60/min)
+  const topResults = itunesResults.slice(0, 8);
   const validAlbumIds = new Set();
   
-  await Promise.all(itunesResults.map(async (album) => {
+  await Promise.all(topResults.map(async (album) => {
     try {
       const cleanTitle = album.title.replace(/ - EP| - Single/g, '').trim();
       const dRes = await axios.get('https://api.discogs.com/database/search', {
@@ -54,12 +56,14 @@ export const searchDiscogs = async (query: string) => {
       if (dRes.data.results && dRes.data.results.length > 0) {
         validAlbumIds.add(album.id);
       }
-    } catch (e) {
-      console.warn(`Discogs check failed for ${album.title}`, e);
+    } catch (e: any) {
+      console.warn(`Discogs check failed for ${album.title}`, e.message);
+      // If we hit rate limits (429) or other API errors, let it pass through to prevent an empty screen
+      validAlbumIds.add(album.id);
     }
   }));
 
-  return itunesResults.filter(album => validAlbumIds.has(album.id));
+  return topResults.filter(album => validAlbumIds.has(album.id));
 };
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
