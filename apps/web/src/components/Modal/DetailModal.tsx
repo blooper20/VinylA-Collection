@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
-import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumTracks } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -10,6 +10,17 @@ interface DetailModalProps {
 
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const { user } = useAuthStore();
+  const [tracks, setTracks] = React.useState<string[]>(album.TRACKS || []);
+
+  React.useEffect(() => {
+    if (!album.TRACKS || album.TRACKS.length === 0) {
+      getAlbumTracks(album.ALBUM_ID).then(fetchedTracks => {
+        if (fetchedTracks.length > 0) {
+          setTracks(fetchedTracks);
+        }
+      });
+    }
+  }, [album.ALBUM_ID]);
 
   const handleYoutubeListen = async () => {
     const query = `${album.ARTIST} ${album.TITLE} full album`;
@@ -101,7 +112,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           <div className={styles.tracklistContainer}>
             <div className={styles.tracklistHeader}>Tracklist</div>
             <ul className={styles.tracklist}>
-              {album.TRACKS ? album.TRACKS.map((track, i) => (
+              {tracks.length > 0 ? tracks.map((track, i) => (
                 <li key={i}>
                   <span className={styles.trackNum}>{String(i + 1).padStart(2, '0')}</span>
                   <span className={styles.trackName}>{track}</span>

@@ -43,6 +43,48 @@ export const searchDiscogs = async (query: string) => {
   }
 };
 
+export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
+  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
+  
+  if (!token) {
+    try {
+      const response = await axios.get('https://itunes.apple.com/lookup', {
+        params: {
+          id: albumId,
+          entity: 'song'
+        }
+      });
+      const songs = response.data.results.filter((r: any) => r.wrapperType === 'track');
+      return songs.map((song: any) => song.trackName);
+    } catch (error) {
+      console.error('iTunes track fetch failed:', error);
+      return [];
+    }
+  }
+
+  try {
+    const response = await axios.get(`https://api.discogs.com/releases/${albumId}`, {
+      params: { token }
+    });
+    if (response.data.tracklist) {
+      return response.data.tracklist.map((t: any) => t.title);
+    }
+    return [];
+  } catch (error) {
+    try {
+      const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, {
+        params: { token }
+      });
+      if (masterRes.data.tracklist) {
+        return masterRes.data.tracklist.map((t: any) => t.title);
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+};
+
 // YouTube Data API Bridge Function
 export const searchYouTube = async (query: string) => {
   const apiKey = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
