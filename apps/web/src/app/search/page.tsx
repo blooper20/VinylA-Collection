@@ -21,6 +21,16 @@ export default function SearchPage() {
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleToast = (e: any) => {
+      setToastMessage(e.detail.message);
+      setTimeout(() => setToastMessage(null), 3000);
+    };
+    window.addEventListener('SHOW_TOAST', handleToast);
+    return () => window.removeEventListener('SHOW_TOAST', handleToast);
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +39,12 @@ export default function SearchPage() {
       return;
     }
     setIsSearching(true);
-    const data = await searchDiscogs(query);
-    setResults(data);
-    setIsSearching(false);
+    try {
+      const data = await searchDiscogs(query);
+      setResults(data);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -61,12 +74,19 @@ export default function SearchPage() {
       <main className={styles.content}>
         <section>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>{results.length > 0 ? '검색 결과' : '장르'}</h2>
+            <h2 className={styles.sectionTitle}>
+              {isSearching ? '검색 중...' : results.length > 0 ? '검색 결과' : '장르'}
+            </h2>
             <button className={styles.viewAllBtn}>전체 →</button>
           </div>
 
           <div className={styles.masonryGrid}>
-            {results.length > 0 ? (
+            {isSearching ? (
+              <div className={styles.loadingState}>
+                <div className={styles.spinner} />
+                <p>로딩 중입니다...</p>
+              </div>
+            ) : results.length > 0 ? (
               results.map((item, idx) => (
                 <div 
                   key={idx} 
@@ -116,6 +136,13 @@ export default function SearchPage() {
 
       {selectedAlbum && (
         <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />
+      )}
+
+      {toastMessage && (
+        <div className={styles.toast}>
+          <span className="material-symbols-outlined">check_circle</span>
+          {toastMessage}
+        </div>
       )}
     </div>
   );

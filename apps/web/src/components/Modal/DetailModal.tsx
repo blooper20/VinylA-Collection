@@ -48,6 +48,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     window.open(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`, '_blank');
   };
 
+  const [isSaving, setIsSaving] = React.useState(false);
+
   const handleSave = async (status: 'OWNED' | 'WISH') => {
     try {
       let master = await getAlbumMaster(album.ALBUM_ID);
@@ -73,17 +75,26 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         PURCHASE_PRICE: 0
       });
 
-      alert(`Successfully added to ${status === 'OWNED' ? 'Collection' : 'Wishlist'}!`);
-      onClose();
+      setIsSaving(true);
+      // Let animation play for 600ms
+      setTimeout(() => {
+        onClose();
+        // Dispatch custom event for Toast
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
+          detail: { message: `성공적으로 ${status === 'OWNED' ? '보관함' : '위시리스트'}에 추가되었습니다!` }
+        }));
+      }, 600);
     } catch (error) {
       console.error('Failed to save album:', error);
-      alert('Failed to save album.');
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
+        detail: { message: '추가에 실패했습니다. 다시 시도해주세요.' }
+      }));
     }
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className={`${styles.overlay} ${isSaving ? styles.overlaySavedAnim : ''}`} onClick={onClose}>
+      <div className={`${styles.modal} ${isSaving ? styles.modalSavedAnim : ''}`} onClick={(e) => e.stopPropagation()}>
         <button className={styles.closeBtn} onClick={onClose}>
           <span className="material-symbols-outlined">close</span>
         </button>

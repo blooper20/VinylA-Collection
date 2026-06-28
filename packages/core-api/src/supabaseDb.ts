@@ -27,7 +27,13 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
     .single();
 
   if (error) {
-    console.warn('createAlbumMaster error or DB not connected, simulating success:', error);
+    console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
+      const masters = JSON.parse(local);
+      masters[album.ALBUM_ID as number] = album;
+      localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
+    }
     return album as ALBUM_MASTER;
   }
   return data as ALBUM_MASTER;
@@ -43,12 +49,19 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
     .select('*, ALBUM_MASTER(*)')
     .eq('USER_ID', userId);
 
-  if (error) {
-    console.warn('getUserVinyls error:', error);
-    return [];
-  }
-  
-  if (!data || data.length === 0) {
+  if (error || !data || data.length === 0) {
+    if (typeof window !== 'undefined') {
+      const localV = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+      const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
+      if (localV) {
+        const vinyls = JSON.parse(localV);
+        const masters = localM ? JSON.parse(localM) : {};
+        return vinyls.map((v: any) => ({
+          ...v,
+          ALBUM_MASTER: masters[v.ALBUM_ID] || null
+        }));
+      }
+    }
     return [];
   }
 
@@ -63,7 +76,18 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
     .single();
 
   if (error) {
-    console.warn('upsertUserVinyl error or DB not connected, simulating success:', error);
+    console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+      let arr = local ? JSON.parse(local) : [];
+      const existingIdx = arr.findIndex((v: any) => v.ALBUM_ID === userVinyl.ALBUM_ID);
+      if (existingIdx > -1) {
+        arr[existingIdx] = { ...arr[existingIdx], ...userVinyl };
+      } else {
+        arr.push(userVinyl);
+      }
+      localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
+    }
     return userVinyl as USER_VINYL;
   }
   return data as USER_VINYL;
