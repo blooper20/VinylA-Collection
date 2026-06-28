@@ -6,6 +6,7 @@ interface AuthState {
   isLoading: boolean;
   setUser: (user: any | null) => void;
   initializeAuth: () => Promise<void>;
+  updateProfile: (displayName: string, interests: string[]) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -25,4 +26,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: false });
     }
   },
+  updateProfile: async (displayName: string, interests: string[]) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { displayName, interests }
+      });
+      if (error) throw error;
+      if (data.user) {
+        set({ user: data.user });
+      }
+    } catch (error) {
+      console.error('Failed to update profile', error);
+      throw error;
+    }
+  }
 }));

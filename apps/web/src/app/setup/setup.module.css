@@ -1,0 +1,126 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #000000;
+  padding: 2rem;
+}
+
+.setupBox {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4rem 3rem;
+  border-radius: 24px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  max-width: 500px;
+  width: 100%;
+}
+
+.title {
+  font-family: 'Bodoni Moda', serif;
+  font-size: 2.5rem;
+  color: #e9c349;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.formGroup {
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-family: var(--font-body);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+}
+
+.input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.input:focus {
+  border-color: #e9c349;
+}
+
+.tagsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.tag {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tag:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tagSelected {
+  background: #e9c349;
+  border-color: #e9c349;
+  color: #000000;
+  font-weight: 600;
+}
+
+.tagSelected:hover {
+  background: #d4b142;
+}
+
+.submitBtn {
+  margin-top: 2rem;
+  width: 100%;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 1.2rem;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.submitBtn:hover {
+  transform: translateY(-2px);
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}

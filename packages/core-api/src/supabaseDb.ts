@@ -44,16 +44,12 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
     .eq('USER_ID', userId);
 
   if (error) {
-    console.warn('getUserVinyls error or DB not connected, returning mock data:', error);
-    return [
-      { USER_VINYL_ID: 1, USER_ID: userId, ALBUM_ID: 1, STATUS: 'OWNED', PURCHASE_PRICE: 50000, ADDED_AT: new Date().toISOString() } as any,
-    ];
+    console.warn('getUserVinyls error:', error);
+    return [];
   }
   
   if (!data || data.length === 0) {
-    return [
-      { USER_VINYL_ID: 1, USER_ID: userId, ALBUM_ID: 1, STATUS: 'OWNED', PURCHASE_PRICE: 50000, ADDED_AT: new Date().toISOString() } as any,
-    ];
+    return [];
   }
 
   return data;

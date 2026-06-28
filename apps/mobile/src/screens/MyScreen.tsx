@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
+import { useAuthStore } from '@vinyla/core-api';
 
 const { width } = Dimensions.get('window');
 
@@ -15,6 +16,7 @@ const AnalyticsCard = ({ title, value, themeColors }: { title: string, value: st
 
 export const MyScreen = () => {
   const { theme, setTheme, themeColors } = useTheme();
+  const { user } = useAuthStore();
   const navigation = useNavigation<any>();
 
   const handleThemeChange = (newTheme: ThemeType) => {
@@ -32,9 +34,14 @@ export const MyScreen = () => {
       {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={[styles.avatarFrame, { borderColor: themeColors.accent }]}>
-          <Image source={{ uri: 'https://i.pravatar.cc/150?img=32' }} style={styles.avatar} />
+          <Image 
+            source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
+            style={styles.avatar} 
+          />
         </View>
-        <Text style={[styles.userName, { color: themeColors.textPrimary }]}>Alex Collector</Text>
+        <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
+          {user?.user_metadata?.displayName || 'Collector'}
+        </Text>
         <View style={[styles.badge, { backgroundColor: themeColors.accent }]}>
           <Text style={styles.badgeText}>Elite Curator</Text>
         </View>

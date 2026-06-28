@@ -20,10 +20,17 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
   const [isLoading, setIsLoading] = useState(true);
   
   const { user, initializeAuth } = useAuthStore();
+  const router = require('next/navigation').useRouter();
 
   useEffect(() => {
     initializeAuth();
   }, []);
+
+  useEffect(() => {
+    if (user && !user.user_metadata?.displayName) {
+      router.replace('/setup');
+    }
+  }, [user, router]);
 
   useEffect(() => {
     async function loadData() {
@@ -37,7 +44,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
         }
       }
 
-      const userId = user?.id || 1;
+      if (!user) {
+        setDbData([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const userId = user.id;
       const userVinyls = await getUserVinyls(userId);
       if (userVinyls && userVinyls.length > 0) {
         const mapped = userVinyls.map(v => mapToFrontendModel(v, null));

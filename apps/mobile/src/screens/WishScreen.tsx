@@ -25,7 +25,13 @@ export const WishScreen = () => {
         console.error('Failed to load from cache', e);
       }
 
-      const userId = user?.id || 1;
+      if (!user) {
+        setWishes([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const userId = user.id;
       const userVinyls = await getUserVinyls(userId);
       if (userVinyls && userVinyls.length > 0) {
         const mapped = userVinyls.map(v => mapToFrontendModel(v, null));

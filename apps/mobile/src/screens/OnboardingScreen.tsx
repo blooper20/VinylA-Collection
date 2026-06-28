@@ -53,8 +53,16 @@ export const OnboardingScreen = ({ navigation }: any) => {
           onPress={async () => {
             try {
               const { signInWithGoogle } = await import('@vinyla/core-api');
-              await signInWithGoogle();
-              navigation?.replace('Main');
+              const { makeRedirectUri } = await import('expo-auth-session');
+              
+              const redirectUri = makeRedirectUri({
+                scheme: 'vinyla',
+                path: 'auth/callback',
+              });
+              
+              await signInWithGoogle(redirectUri);
+              // In a real app, you would listen for deep links using Linking.addEventListener
+              // to handle the session once the browser redirects back to 'vinyla://auth/callback'.
             } catch (error) {
               console.error('Google login failed:', error);
             }
