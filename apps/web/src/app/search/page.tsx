@@ -76,7 +76,7 @@ export default function SearchPage() {
                   />
                   <div className={styles.genreContent}>
                     <h3 className={styles.genreTitle} style={{ fontSize: '18px' }}>{item.title}</h3>
-                    <p className={styles.genreSub}>{item.format?.join(', ')}</p>
+                    <p className={styles.genreSub}>{item.artist ? `${item.artist} • ` : ''}{item.format?.join(', ')}</p>
                   </div>
                 </div>
               ))

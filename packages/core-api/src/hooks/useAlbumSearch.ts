@@ -29,8 +29,8 @@ export const useAlbumSearch = (query: string) => {
         } else {
           const mapped = discogsResults.map((item: any) => ({
             ALBUM_ID: item.id || Date.now() + Math.random(),
-            TITLE: item.title?.split(' - ')[1] || item.title || 'Unknown Title',
-            ARTIST: item.title?.split(' - ')[0] || 'Unknown Artist',
+            TITLE: item.artist ? item.title : (item.title?.split(' - ')[1] || item.title || 'Unknown Title'),
+            ARTIST: item.artist || (item.title?.includes(' - ') ? item.title.split(' - ')[0] : 'Unknown Artist'),
             RELEASE_YEAR: parseInt(item.year) || new Date().getFullYear(),
             IMAGE_URL: item.cover_image || item.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
             VINYL_IMAGE_URL: '',

@@ -4,12 +4,27 @@ import axios from 'axios';
 export const searchDiscogs = async (query: string) => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   if (!token) {
-    console.warn('Discogs token is missing! Returning mock data for demonstration.');
-    // Return mock data for UI demo purposes when keys aren't set
-    return [
-      { id: 1, title: `${query} - Mock Result 1`, thumb: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=200&q=80', format: ['Vinyl', 'LP'] },
-      { id: 2, title: `${query} - Mock Result 2`, thumb: 'https://images.unsplash.com/photo-1518655048521-f130df041f66?w=200&q=80', format: ['Vinyl', '12"'] },
-    ];
+    console.warn('Discogs token is missing! Falling back to iTunes Search API for demo.');
+    try {
+      const response = await axios.get('https://itunes.apple.com/search', {
+        params: {
+          term: query,
+          entity: 'album',
+          limit: 10
+        }
+      });
+      return response.data.results.map((item: any) => ({
+        id: item.collectionId,
+        title: item.collectionName,
+        artist: item.artistName,
+        thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb'),
+        format: ['Album'],
+        year: item.releaseDate ? item.releaseDate.substring(0, 4) : ''
+      }));
+    } catch (e) {
+      console.error('iTunes fallback failed:', e);
+      return [];
+    }
   }
   
   try {
