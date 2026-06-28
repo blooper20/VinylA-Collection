@@ -63,50 +63,42 @@ export const searchDiscogs = async (query: string) => {
 };
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
+  // 1. Try iTunes Lookup first (since our primary ALBUM_ID is now from iTunes)
+  try {
+    const response = await axios.get('https://itunes.apple.com/lookup', {
+      params: { id: albumId, entity: 'song' }
+    });
+    const songs = response.data.results.filter((r: any) => r.wrapperType === 'track');
+    if (songs.length > 0) {
+      return songs.map((song: any) => song.trackName);
+    }
+  } catch (error) {
+    console.error('iTunes track fetch failed:', error);
+  }
+
+  // 2. Fallback to Discogs (for older saved albums that used Discogs IDs)
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
   const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-  
-  const hasAuth = token || (key && secret);
   const authParams = token ? { token } : { key, secret };
 
-  if (!hasAuth) {
-    try {
-      const response = await axios.get('https://itunes.apple.com/lookup', {
-        params: {
-          id: albumId,
-          entity: 'song'
-        }
-      });
-      const songs = response.data.results.filter((r: any) => r.wrapperType === 'track');
-      return songs.map((song: any) => song.trackName);
-    } catch (error) {
-      console.error('iTunes track fetch failed:', error);
-      return [];
-    }
-  }
-
   try {
-    const response = await axios.get(`https://api.discogs.com/releases/${albumId}`, {
-      params: authParams
-    });
+    const response = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
     if (response.data.tracklist) {
       return response.data.tracklist.map((t: any) => t.title);
     }
-    return [];
   } catch (error) {
     try {
-      const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, {
-        params: authParams
-      });
+      const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: authParams });
       if (masterRes.data.tracklist) {
         return masterRes.data.tracklist.map((t: any) => t.title);
       }
-      return [];
     } catch (e) {
-      return [];
+      // ignore
     }
   }
+
+  return [];
 };
 
 // YouTube Data API Bridge Function
