@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
 
@@ -14,6 +15,7 @@ const AnalyticsCard = ({ title, value, themeColors }: { title: string, value: st
 
 export const MyScreen = () => {
   const { theme, setTheme, themeColors } = useTheme();
+  const navigation = useNavigation<any>();
 
   const handleThemeChange = (newTheme: ThemeType) => {
     setTheme(newTheme);
@@ -59,6 +61,22 @@ export const MyScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+        
+        {/* Logout Button */}
+        <TouchableOpacity 
+          style={[styles.logoutBtn, { borderColor: themeColors.border }]}
+          onPress={async () => {
+            try {
+              const { signOut } = await import('@vinyla/core-api');
+              await signOut();
+              navigation.replace('Onboarding');
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          }}
+        >
+          <Text style={[styles.logoutBtnText, { color: themeColors.textPrimary }]}>Logout</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Analytics */}
@@ -215,6 +233,19 @@ const styles = StyleSheet.create({
   },
   themeBtnText: {
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  logoutBtn: {
+    marginTop: 24,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,0,0,0.05)',
+  },
+  logoutBtnText: {
+    fontSize: 14,
     fontWeight: 'bold',
   }
 });
