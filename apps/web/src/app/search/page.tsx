@@ -152,7 +152,7 @@ export default function SearchPage() {
         <section>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>{sectionTitle}</h2>
-            {isValidating && (
+            {isEnriching && (
               <div className={styles.progressBar}>
                 <div
                   className={styles.progressFill}
