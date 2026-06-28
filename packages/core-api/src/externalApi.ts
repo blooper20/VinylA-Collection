@@ -47,7 +47,8 @@ export const searchDiscogs = async (query: string) => {
       const cleanTitle = album.title.replace(/ - EP| - Single/g, '').trim();
       const dRes = await axios.get('https://api.discogs.com/database/search', {
         params: {
-          q: `${album.artist} ${cleanTitle}`,
+          artist: album.artist,
+          release_title: cleanTitle,
           ...authParams,
           type: 'release',
           format: 'vinyl'
