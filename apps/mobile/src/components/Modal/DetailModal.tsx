@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Alert, Easing, Pressable } from 'react-native';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
-import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -137,9 +137,14 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
   };
 
+  const { user } = useAuthStore();
+
   const handleSave = async (status: 'OWNED' | 'WISH') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!album) return;
+
     try {
+      // 1. Ensure Album exists in ALBUM_MASTER
       let master = await getAlbumMaster(album.ALBUM_ID);
       if (!master) {
         await createAlbumMaster({
@@ -154,13 +159,16 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           TRACKS: album.TRACKS || []
         });
       }
+
+      // 2. Insert into USER_VINYL
       await upsertUserVinyl({
-        USER_ID: 1,
+        USER_ID: user?.id || 1,
         ALBUM_ID: album.ALBUM_ID,
         STATUS: status,
         PURCHASE_DATE: new Date().toISOString(),
         PURCHASE_PRICE: 0
       });
+
       Alert.alert('Success', `Album saved as ${status}!`);
       handleClose();
     } catch (error) {

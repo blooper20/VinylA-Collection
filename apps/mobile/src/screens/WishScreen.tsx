@@ -2,41 +2,60 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '@vinyla/ui';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
-import { getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
 import { EmptyState } from '../components/EmptyState';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const WishScreen = () => {
   const { themeColors } = useTheme();
   const [wishes, setWishes] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigation = useNavigation<NavigationProp<any>>();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
-      const userVinyls = await getUserVinyls(1);
+      
+      try {
+        const cached = await AsyncStorage.getItem('@vinyls_wish');
+        if (cached) setWishes(JSON.parse(cached));
+      } catch (e) {
+        console.error('Failed to load from cache', e);
+      }
+
+      const userId = user?.id || 1;
+      const userVinyls = await getUserVinyls(userId);
       if (userVinyls && userVinyls.length > 0) {
         const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
-        setWishes(mapped.filter(a => a.STATUS === 'WISH'));
+        const wishesData = mapped.filter(a => a.STATUS === 'WISH');
+        setWishes(wishesData);
+        
+        try {
+          await AsyncStorage.setItem('@vinyls_wish', JSON.stringify(wishesData));
+        } catch (e) {
+          console.error('Failed to save cache', e);
+        }
       } else {
         setWishes([]);
       }
       setIsLoading(false);
     }
-    loadData();
+    
+    if (user !== undefined) loadData();
 
     const subscription = supabase
       .channel('public:USER_VINYL:mobile_wish')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, payload => {
-        loadData();
+        if (user) loadData();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, []);
+  }, [user]);
 
   const holyGrail = wishes[0];
   const list = wishes.slice(1);

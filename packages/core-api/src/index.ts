@@ -3,3 +3,4 @@ export * from './externalApi';
 export * from './supabase';
 export * from './supabaseDb';
 export * from './auth';
+export * from './store/useAuthStore';

@@ -112,6 +112,7 @@
   width: 100%;
   position: relative;
   white-space: nowrap;
+  font-family: var(--font-body);
 }
 
 .navItem:hover {
@@ -120,7 +121,7 @@
 }
 
 .navItem.active {
-  background: rgba(233, 195, 73, 0.08);
+  background: rgba(233, 195, 73, 0.08); /* Amber gold subtle background */
   color: var(--accent);
 }
 
@@ -130,11 +131,12 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 2px;
+  width: 3px;
   height: 60%;
-  background: var(--accent);
-  border-radius: 0 2px 2px 0;
-  box-shadow: 0 0 8px var(--accent);
+  background: var(--accent); /* #e9c349 */
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 12px rgba(233, 195, 73, 0.6);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navIcon {

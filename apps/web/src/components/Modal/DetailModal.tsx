@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
-import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -9,6 +9,8 @@ interface DetailModalProps {
 }
 
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
+  const { user } = useAuthStore();
+
   const handleYoutubeListen = async () => {
     const query = `${album.ARTIST} ${album.TITLE} full album`;
     const results = await searchYouTube(query);
@@ -53,7 +55,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       }
 
       await upsertUserVinyl({
-        USER_ID: 1, // mocked user
+        USER_ID: user?.id || 1,
         ALBUM_ID: album.ALBUM_ID,
         STATUS: status,
         PURCHASE_DATE: new Date().toISOString(),

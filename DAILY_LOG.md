@@ -25,6 +25,21 @@
 - `supabase_schema.sql`을 작성해 사용자 데이터베이스 테이블 생성 및 Realtime Publication 설정을 원활히 지원.
 - `.env.local` 및 `.env` 파일에 실 프로젝트 URL과 ANON KEY 적용 후 개발 서버 재구동.
 
+#### 5. 🔐 온보딩 및 OAuth 소셜 로그인 구축
+- **온보딩 스크린**: 앱 첫 실행 시 깊은 블랙톤과 하이엔드 폰트 조합의 3단계 스와이프 온보딩 UI 추가.
+- **인증 및 세션 동기화**: Supabase ANON KEY를 활용한 Apple 및 Google 소셜 로그인(Glassmorphism UI) 연동 완료. Zustand를 활용해 `useAuthStore`를 구현하고, 발급받은 `user.id`를 모바일/웹 양측의 데이터 테이블 외래키와 연결해 멀티 디바이스 실시간 세션 동기화 완성.
+
+#### 6. 🖥️ 데스크톱(Web) 실 데이터 렌더링 및 UI 폴리싱
+- **30구 진열장 연동**: 하드코딩된 웹 그리드를 걷어내고, Supabase에서 불러온 실 데이터 바인딩 로직 구현.
+- **Hover 인터랙션 최적화**: PC 환경에서 마우스 오버 시 프레임 드롭 방지를 위해 `transform: translateX` 및 `filter(brightness/contrast)` 효과를 활용해 부드럽게 핀조명을 받으며 앨범 알맹이가 슬라이드되는 애니메이션 고도화.
+- **사이드바(Sidebar) 개선**: Vinyl Noir 테마에 맞춰 Pretendard 폰트를 명시하고, 활성화 탭에 앰버 골드 글로우(glow) 이펙트 추가.
+
+#### 7. 🚀 프로덕션 빌드 파이프라인 및 로컬 캐싱
+- **오프라인 캐싱**: 모바일(`AsyncStorage`), 웹(`localStorage`)을 활용하여 앱 구동 시 방대한 커버 이미지를 캐시에서 우선 로드(Cache-first)하여 네트워크가 끊긴 환경에서도 보관함 열람이 가능하도록 방어 로직 구현.
+- **모바일 EAS / 웹 Vercel 배포 안정화**: 
+  - `eas.json` 프로덕션 프로필 및 `package.json` iOS/Android 빌드 스크립트 작성. API 키 주입 누락 방지(`prebuild`) 검증 추가.
+  - Vercel 호스팅을 위해 `next.config.ts`에 Discogs 등 외부 이미지 호스트 최적화(RemotePatterns) 도메인 등록.
+
 ---
 
 ## [2026-06-22]

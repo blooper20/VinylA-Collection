@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
-import { getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
 import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
@@ -18,35 +18,59 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
   const [activeFilter, setActiveFilter] = useState<FilterType>(initialFilter);
   const [dbData, setDbData] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { user, initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, []);
 
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
-      // Hardcode user ID to 1 for demonstration
-      const userVinyls = await getUserVinyls(1);
+
+      // Load from localStorage cache
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('vinyls_dbData');
+        if (cached) {
+          try { setDbData(JSON.parse(cached)); } catch(e){}
+        }
+      }
+
+      const userId = user?.id || 1;
+      const userVinyls = await getUserVinyls(userId);
       if (userVinyls && userVinyls.length > 0) {
         const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
         setDbData(mapped);
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('vinyls_dbData', JSON.stringify(mapped));
+        }
+      } else {
+        setDbData([]);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('vinyls_dbData', '[]');
+        }
       }
       setIsLoading(false);
     }
-    loadData();
+    
+    if (user !== undefined) loadData();
 
     const subscription = supabase
-      .channel('public:USER_VINYL')
+      .channel('public:USER_VINYL:web_home')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, payload => {
         console.log('Realtime change received!', payload);
-        // Refresh data
-        loadData();
+        if (user) loadData();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, []);
+  }, [user]);
 
-  const dataToUse = dbData.length > 0 ? dbData : mockVinyls;
+  const dataToUse = dbData;
   const displayedAlbums = dataToUse.filter(album =>
     activeFilter === 'ALL' || album.STATUS === activeFilter
   );

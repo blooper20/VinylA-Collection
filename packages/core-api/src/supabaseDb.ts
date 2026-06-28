@@ -37,7 +37,7 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 // USER_VINYL CRUD
 // =======================
 
-export const getUserVinyls = async (userId: number): Promise<any[]> => {
+export const getUserVinyls = async (userId: string | number): Promise<any[]> => {
   const { data, error } = await supabase
     .from('USER_VINYL')
     .select('*, ALBUM_MASTER(*)')

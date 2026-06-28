@@ -29,7 +29,7 @@ export interface USER_VINYL {
   /** 매핑 고유 식별자 */
   USER_VINYL_ID: number;
   /** 사용자 식별자 */
-  USER_ID: number;
+  USER_ID: string | number;
   /** 앨범 고유 식별자 */
   ALBUM_ID: number;
   /** 보유 상태 */
