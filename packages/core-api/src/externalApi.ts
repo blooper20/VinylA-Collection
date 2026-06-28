@@ -38,13 +38,16 @@ export const searchDiscogs = async (query: string) => {
   }
 
   // 3. Filter Apple Music results by checking if they exist as Vinyl on Discogs
-  // Only check the top 8 to avoid hitting Discogs rate limit (60/min)
-  const topResults = itunesResults.slice(0, 8);
+  // Increase slice to 15 to catch buried LPs, 15 is safe for Discogs 60/min limit
+  const topResults = itunesResults.slice(0, 15);
   
   const validAlbums = (await Promise.all(topResults.map(async (album) => {
     try {
-      const cleanTitle = album.title.replace(/ - EP| - Single/g, '').trim();
-      const dRes = await axios.get('https://api.discogs.com/database/search', {
+      // Remove (Special Edition), - EP, - Single to make matching easier
+      const cleanTitle = album.title.replace(/ - EP| - Single/g, '').replace(/\([^)]*\)/g, '').trim();
+      
+      // Try with Apple Music's Artist name first
+      let dRes = await axios.get('https://api.discogs.com/database/search', {
         params: {
           q: `${album.artist} ${cleanTitle}`,
           ...authParams,
@@ -52,9 +55,30 @@ export const searchDiscogs = async (query: string) => {
           format: 'vinyl'
         }
       });
+
+      // Find a result that actually matches the artist or original query
+      let bestMatch = dRes.data.results?.find((r: any) => {
+        const t = (r.title || '').toLowerCase();
+        return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
+      });
+
+      // If no valid match, try with the user's original query (fixes English/Korean artist name mismatch)
+      if (!bestMatch) {
+        dRes = await axios.get('https://api.discogs.com/database/search', {
+          params: {
+            q: `${query} ${cleanTitle}`,
+            ...authParams,
+            type: 'release',
+            format: 'vinyl'
+          }
+        });
+        bestMatch = dRes.data.results?.find((r: any) => {
+          const t = (r.title || '').toLowerCase();
+          return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
+        });
+      }
       
-      if (dRes.data.results && dRes.data.results.length > 0) {
-        const bestMatch = dRes.data.results[0];
+      if (bestMatch) {
         const rawTitle = bestMatch.title || '';
         // Discogs titles usually come as "Artist - Title", so we extract the Title
         const parsedTitle = rawTitle.includes(' - ') ? rawTitle.split(' - ').slice(1).join(' - ').trim() : rawTitle;
@@ -68,8 +92,7 @@ export const searchDiscogs = async (query: string) => {
       return null; // No vinyl found, filter it out
     } catch (e: any) {
       console.warn(`Discogs check failed for ${album.title}`, e.message);
-      // If we hit rate limits (429) or other API errors, let it pass through to prevent an empty screen
-      return album;
+      return album; // Fallback to showing it if API fails
     }
   }))).filter(Boolean);
 
