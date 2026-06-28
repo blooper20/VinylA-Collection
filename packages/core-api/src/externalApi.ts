@@ -3,8 +3,14 @@ import axios from 'axios';
 // Discogs API Search Function
 export const searchDiscogs = async (query: string) => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-  if (!token) {
-    console.warn('Discogs token is missing! Falling back to iTunes Search API for demo.');
+  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
+  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
+  
+  const hasAuth = token || (key && secret);
+  const authParams = token ? { token } : { key, secret };
+
+  if (!hasAuth) {
+    console.warn('Discogs token/key is missing! Falling back to iTunes Search API for demo.');
     try {
       const response = await axios.get('https://itunes.apple.com/search', {
         params: {
@@ -31,7 +37,7 @@ export const searchDiscogs = async (query: string) => {
     const response = await axios.get('https://api.discogs.com/database/search', {
       params: {
         q: query,
-        token: token,
+        ...authParams,
         type: 'release',
         format: 'vinyl'
       },
@@ -45,8 +51,13 @@ export const searchDiscogs = async (query: string) => {
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
+  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
+  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
   
-  if (!token) {
+  const hasAuth = token || (key && secret);
+  const authParams = token ? { token } : { key, secret };
+
+  if (!hasAuth) {
     try {
       const response = await axios.get('https://itunes.apple.com/lookup', {
         params: {
@@ -64,7 +75,7 @@ export const getAlbumTracks = async (albumId: string | number): Promise<string[]
 
   try {
     const response = await axios.get(`https://api.discogs.com/releases/${albumId}`, {
-      params: { token }
+      params: authParams
     });
     if (response.data.tracklist) {
       return response.data.tracklist.map((t: any) => t.title);
@@ -73,7 +84,7 @@ export const getAlbumTracks = async (albumId: string | number): Promise<string[]
   } catch (error) {
     try {
       const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, {
-        params: { token }
+        params: authParams
       });
       if (masterRes.data.tracklist) {
         return masterRes.data.tracklist.map((t: any) => t.title);
