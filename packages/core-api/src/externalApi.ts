@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Discogs API Search Function
 export const searchDiscogs = async (query: string) => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
@@ -9,44 +8,58 @@ export const searchDiscogs = async (query: string) => {
   const hasAuth = token || (key && secret);
   const authParams = token ? { token } : { key, secret };
 
-  if (!hasAuth) {
-    console.warn('Discogs token/key is missing! Falling back to iTunes Search API for demo.');
-    try {
-      const response = await axios.get('https://itunes.apple.com/search', {
-        params: {
-          term: query,
-          entity: 'album',
-          limit: 10
-        }
-      });
-      return response.data.results.map((item: any) => ({
-        id: item.collectionId,
-        title: item.collectionName,
-        artist: item.artistName,
-        thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb'),
-        format: ['Album'],
-        year: item.releaseDate ? item.releaseDate.substring(0, 4) : ''
-      }));
-    } catch (e) {
-      console.error('iTunes fallback failed:', e);
-      return [];
-    }
-  }
-  
+  // 1. First, search Apple Music for best relevancy and covers
+  let itunesResults: any[] = [];
   try {
-    const response = await axios.get('https://api.discogs.com/database/search', {
+    const response = await axios.get('https://itunes.apple.com/search', {
       params: {
-        q: query,
-        ...authParams,
-        type: 'release',
-        format: 'vinyl'
-      },
+        term: query,
+        entity: 'album',
+        limit: 20
+      }
     });
-    return response.data.results;
-  } catch (error) {
-    console.error('Discogs search failed:', error);
+    itunesResults = response.data.results.map((item: any) => ({
+      id: item.collectionId,
+      title: item.collectionName,
+      artist: item.artistName,
+      thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb'),
+      year: item.releaseDate ? item.releaseDate.substring(0, 4) : '',
+      genre: [item.primaryGenreName]
+    }));
+  } catch (e) {
+    console.error('iTunes search failed:', e);
     return [];
   }
+
+  // 2. If no auth for Discogs, just return all Apple Music results (fallback)
+  if (!hasAuth) {
+    console.warn('Discogs auth missing! Returning unfiltered Apple Music results.');
+    return itunesResults;
+  }
+
+  // 3. Filter Apple Music results by checking if they exist as Vinyl on Discogs
+  const validAlbumIds = new Set();
+  
+  await Promise.all(itunesResults.map(async (album) => {
+    try {
+      const cleanTitle = album.title.replace(/ - EP| - Single/g, '').trim();
+      const dRes = await axios.get('https://api.discogs.com/database/search', {
+        params: {
+          q: `${album.artist} ${cleanTitle}`,
+          ...authParams,
+          type: 'release',
+          format: 'vinyl'
+        }
+      });
+      if (dRes.data.results && dRes.data.results.length > 0) {
+        validAlbumIds.add(album.id);
+      }
+    } catch (e) {
+      console.warn(`Discogs check failed for ${album.title}`, e);
+    }
+  }));
+
+  return itunesResults.filter(album => validAlbumIds.has(album.id));
 };
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {

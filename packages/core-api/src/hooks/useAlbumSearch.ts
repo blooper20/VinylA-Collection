@@ -27,13 +27,12 @@ export const useAlbumSearch = (query: string) => {
         if (!discogsResults || discogsResults.length === 0) {
           setResults([]);
         } else {
-          // Map initial results with whatever Discogs has (fast rendering)
           const mapped = discogsResults.map((item: any) => ({
             ALBUM_ID: item.id || Date.now() + Math.random(),
-            TITLE: item.artist ? item.title : (item.title?.split(' - ')[1] || item.title || 'Unknown Title'),
-            ARTIST: item.artist || (item.title?.includes(' - ') ? item.title.split(' - ')[0] : 'Unknown Artist'),
+            TITLE: item.title || 'Unknown Title',
+            ARTIST: item.artist || 'Unknown Artist',
             RELEASE_YEAR: parseInt(item.year) || new Date().getFullYear(),
-            IMAGE_URL: item.cover_image || item.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
+            IMAGE_URL: item.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
             VINYL_IMAGE_URL: '',
             CUSTOM_COLOR_HEX: '#111',
             CUSTOM_STYLE_TYPE: 'SOLID',
@@ -41,14 +40,6 @@ export const useAlbumSearch = (query: string) => {
           }));
           
           setResults(mapped);
-
-          // Asynchronously fetch high quality iTunes covers to replace low-res Discogs images
-          Promise.all(mapped.slice(0, 15).map(async (item: any) => {
-            const hqUrl = await getHighQualityArtwork(item.TITLE, item.ARTIST, item.IMAGE_URL);
-            if (hqUrl !== item.IMAGE_URL && isMounted) {
-              setResults(prev => prev.map(p => p.ALBUM_ID === item.ALBUM_ID ? { ...p, IMAGE_URL: hqUrl } : p));
-            }
-          }));
         }
       } catch (err: any) {
         if (isMounted) setError(err);
