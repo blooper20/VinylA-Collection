@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MockVinylData } from '@vinyla/shared-types';
-import { searchDiscogs } from '../externalApi';
+import { searchDiscogs, getHighQualityArtwork } from '../externalApi';
 
 export const useAlbumSearch = (query: string) => {
   const [results, setResults] = useState<MockVinylData[]>([]);
@@ -27,6 +27,7 @@ export const useAlbumSearch = (query: string) => {
         if (!discogsResults || discogsResults.length === 0) {
           setResults([]);
         } else {
+          // Map initial results with whatever Discogs has (fast rendering)
           const mapped = discogsResults.map((item: any) => ({
             ALBUM_ID: item.id || Date.now() + Math.random(),
             TITLE: item.artist ? item.title : (item.title?.split(' - ')[1] || item.title || 'Unknown Title'),
@@ -38,7 +39,16 @@ export const useAlbumSearch = (query: string) => {
             CUSTOM_STYLE_TYPE: 'SOLID',
             GENRES: item.genre || ['Vinyl']
           }));
+          
           setResults(mapped);
+
+          // Asynchronously fetch high quality iTunes covers to replace low-res Discogs images
+          Promise.all(mapped.slice(0, 15).map(async (item: any) => {
+            const hqUrl = await getHighQualityArtwork(item.TITLE, item.ARTIST, item.IMAGE_URL);
+            if (hqUrl !== item.IMAGE_URL && isMounted) {
+              setResults(prev => prev.map(p => p.ALBUM_ID === item.ALBUM_ID ? { ...p, IMAGE_URL: hqUrl } : p));
+            }
+          }));
         }
       } catch (err: any) {
         if (isMounted) setError(err);

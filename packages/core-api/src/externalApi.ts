@@ -161,3 +161,21 @@ export const analyzeImageWithVisionAPI = async (base64Image: string) => {
   }
 };
 
+export const getHighQualityArtwork = async (title: string, artist: string, fallbackUrl: string): Promise<string> => {
+  try {
+    const response = await axios.get('https://itunes.apple.com/search', {
+      params: {
+        term: `${artist} ${title}`,
+        entity: 'album',
+        limit: 1
+      }
+    });
+    if (response.data.results && response.data.results.length > 0) {
+      return response.data.results[0].artworkUrl100?.replace('100x100bb', '600x600bb') || fallbackUrl;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch high quality artwork from iTunes', e);
+  }
+  return fallbackUrl;
+};
+
