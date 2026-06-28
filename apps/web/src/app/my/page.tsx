@@ -1,36 +1,58 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
-
-const stats = [
-  { label: '컬렉션 가치',  value: '18,450,000', unit: '₩', sub: '시장 추정가 기준' },
-  { label: '보유 LP',      value: '1,242',       unit: '',   sub: '이번 달 +12장 추가' },
-  { label: '주요 장르',    value: '쿨 재즈',      unit: '',   sub: '전체의 45%' },
-];
-
-const timeline = [
-  {
-    date: 'Oct 2023',
-    title: 'Kind of Blue 초판',
-    desc: '파리 지하 레코드샵에서 발견한 1959년 프레싱. 흠 하나 없는 상태입니다.',
-    img: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=200&auto=format&fit=crop',
-  },
-  {
-    date: 'Aug 2023',
-    title: '1,000장 돌파',
-    desc: '누적 보유 1,000장을 넘어섰습니다. 마스터 컬렉터 등급 달성.',
-    img: 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=200&auto=format&fit=crop',
-  },
-  {
-    date: 'May 2023',
-    title: '첫 직거래 완료',
-    desc: 'A Love Supreme 일본반, 교토 컬렉터와 성사. 정가의 2.3배.',
-    img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=200&auto=format&fit=crop',
-  },
-];
+import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 
 export default function MyProfilePage() {
+  const { user, initializeAuth } = useAuthStore();
+  const [collectionValue, setCollectionValue] = useState(0);
+  const [ownedCount, setOwnedCount] = useState(0);
+  const [topGenre, setTopGenre] = useState('-');
+  const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
+
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    async function loadStats() {
+      if (!user) return;
+      const data = await getUserVinyls(user.id);
+      if (data && data.length > 0) {
+        const mapped = data.map(v => mapToFrontendModel(v, null));
+        const owned = mapped.filter(v => v.STATUS === 'OWNED');
+        
+        setOwnedCount(owned.length);
+        
+        const value = owned.reduce((sum, item) => sum + (item.PURCHASE_PRICE || 0), 0);
+        setCollectionValue(value);
+
+        if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
+          setTopGenre(user.user_metadata.interests[0]);
+        }
+
+        // timeline: top 3 recent additions
+        // Assuming we have some date or just taking the last 3 for now
+        setRecentAdditions(owned.slice(0, 3));
+      } else {
+        if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
+          setTopGenre(user.user_metadata.interests[0]);
+        }
+      }
+    }
+    loadStats();
+  }, [user]);
+
+  const stats = [
+    { label: '컬렉션 가치',  value: collectionValue.toLocaleString(), unit: '₩', sub: '시장 추정가 기준' },
+    { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
+    { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
+  ];
+
+  const displayName = user?.user_metadata?.displayName || 'Collector';
+  const avatarUrl = user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32';
+
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
@@ -38,7 +60,7 @@ export default function MyProfilePage() {
         <div className={styles.heroInner}>
           <div className={styles.avatarRing}>
             <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop"
+              src={avatarUrl}
               alt="프로필"
               className={styles.avatarImage}
             />
@@ -48,11 +70,11 @@ export default function MyProfilePage() {
           </div>
 
           <div className={styles.profileInfo}>
-            <p className={styles.profileEyebrow}>Master Collector</p>
-            <h1 className={styles.profileName}>김재현</h1>
+            <p className={styles.profileEyebrow}>Vinyl Noir Member</p>
+            <h1 className={styles.profileName}>{displayName}</h1>
             <div className={styles.collectorBadge}>
               <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>diamond</span>
-              <span className={styles.collectorBadgeText}>Obsidian Grade · 1994년부터</span>
+              <span className={styles.collectorBadgeText}>Verified Collector</span>
             </div>
           </div>
         </div>
@@ -76,26 +98,28 @@ export default function MyProfilePage() {
       <section className={styles.journey}>
         <div className={styles.journeySectionHeader}>
           <div className={styles.journeyAccentLine} />
-          <h2 className={styles.journeySectionTitle}>수집 기록</h2>
+          <h2 className={styles.journeySectionTitle}>최근 수집 기록</h2>
         </div>
         <div className={styles.timeline}>
-          {timeline.map((item, i) => (
+          {recentAdditions.length > 0 ? recentAdditions.map((item, i) => (
             <div key={i} className={styles.timelineItem}>
               <div className={styles.timelineDot} />
-              <img src={item.img} alt={item.title} className={styles.timelineImage} />
+              <img src={item.COVER_URL || item.IMAGE_URL} alt={item.TITLE} className={styles.timelineImage} />
               <div className={styles.timelineText}>
-                <span className={styles.timelineDate}>{item.date}</span>
-                <div className={styles.timelineTitle}>{item.title}</div>
-                <div className={styles.timelineDesc}>{item.desc}</div>
+                <span className={styles.timelineDate}>Recently Added</span>
+                <div className={styles.timelineTitle}>{item.TITLE}</div>
+                <div className={styles.timelineDesc}>{item.ARTIST}</div>
               </div>
             </div>
-          ))}
+          )) : (
+            <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>아직 기록된 LP가 없습니다.</p>
+          )}
         </div>
       </section>
 
       <section className={styles.actions}>
         <button className={styles.btnPrimary}>컬렉션 편집</button>
-        <button className={styles.btnSecondary}>데이터 내보내기</button>
+        <button className={styles.btnSecondary} onClick={() => useAuthStore.getState().initializeAuth()}>데이터 동기화</button>
       </section>
     </div>
   );
