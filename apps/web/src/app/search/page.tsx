@@ -5,14 +5,14 @@ import { searchDiscogs } from '@vinyla/core-api';
 import styles from './page.module.css';
 
 const genres = [
-  { title: '재즈',          sub: 'Jazz',        count: '1,204',  height: 320, img: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=800&auto=format&fit=crop' },
-  { title: '일렉트로닉',    sub: 'Electronic',  count: '892',    height: 240, img: 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=800&auto=format&fit=crop' },
-  { title: '시네마틱',      sub: 'Cinematic',   count: '645',    height: 400, img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=800&auto=format&fit=crop' },
-  { title: '클래식',        sub: 'Classical',   count: '1,532',  height: 280, img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=800&auto=format&fit=crop' },
-  { title: '소울',          sub: 'Soul & Funk', count: '734',    height: 360, img: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=800&auto=format&fit=crop' },
-  { title: '앰비언트',      sub: 'Ambient',     count: '428',    height: 220, img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=800&auto=format&fit=crop' },
-  { title: '록',            sub: 'Rock',        count: '960',    height: 300, img: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=800&auto=format&fit=crop' },
-  { title: '월드',          sub: 'World',       count: '312',    height: 260, img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop' },
+  { title: '재즈',          sub: 'Jazz',        height: 320, img: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=800&auto=format&fit=crop' },
+  { title: '일렉트로닉',    sub: 'Electronic',  height: 240, img: 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=800&auto=format&fit=crop' },
+  { title: '시네마틱',      sub: 'Cinematic',   height: 400, img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=800&auto=format&fit=crop' },
+  { title: '클래식',        sub: 'Classical',   height: 280, img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=800&auto=format&fit=crop' },
+  { title: '소울',          sub: 'Soul & Funk', height: 360, img: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=800&auto=format&fit=crop' },
+  { title: '앰비언트',      sub: 'Ambient',     height: 220, img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=800&auto=format&fit=crop' },
+  { title: '록',            sub: 'Rock',        height: 300, img: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=800&auto=format&fit=crop' },
+  { title: '월드',          sub: 'World',       height: 260, img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop' },
 ];
 
 export default function SearchPage() {
@@ -93,7 +93,6 @@ export default function SearchPage() {
                   <div className={styles.genreContent}>
                     <h3 className={styles.genreTitle}>{genre.title}</h3>
                     <p className={styles.genreSub}>{genre.sub}</p>
-                    <p className={styles.genreCount}>{genre.count} Records</p>
                   </div>
                 </div>
               ))
