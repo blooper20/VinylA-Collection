@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
-import { searchYouTube, searchDiscogs } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -33,6 +33,39 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       }
     }
     window.open(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`, '_blank');
+  };
+
+  const handleSave = async (status: 'OWNED' | 'WISH') => {
+    try {
+      let master = await getAlbumMaster(album.ALBUM_ID);
+      if (!master) {
+        await createAlbumMaster({
+          ALBUM_ID: album.ALBUM_ID,
+          TITLE: album.TITLE,
+          ARTIST: album.ARTIST,
+          RELEASE_YEAR: album.RELEASE_YEAR,
+          IMAGE_URL: album.IMAGE_URL,
+          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
+          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
+          CUSTOM_STYLE_TYPE: 'SOLID',
+          TRACKS: album.TRACKS || []
+        });
+      }
+
+      await upsertUserVinyl({
+        USER_ID: 1, // mocked user
+        ALBUM_ID: album.ALBUM_ID,
+        STATUS: status,
+        PURCHASE_DATE: new Date().toISOString(),
+        PURCHASE_PRICE: 0
+      });
+
+      alert(`Successfully added to ${status === 'OWNED' ? 'Collection' : 'Wishlist'}!`);
+      onClose();
+    } catch (error) {
+      console.error('Failed to save album:', error);
+      alert('Failed to save album.');
+    }
   };
 
   return (
@@ -78,11 +111,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           </div>
           
           <div className={styles.actions}>
-            <button className={styles.btnPrimary}>
+            <button className={styles.btnPrimary} onClick={() => handleSave('OWNED')}>
               <span className="material-symbols-outlined">add</span>
               보관함 추가
             </button>
-            <button className={styles.btnSecondary}>
+            <button className={styles.btnSecondary} onClick={() => handleSave('WISH')}>
               <span className="material-symbols-outlined">bookmark_add</span>
               위시
             </button>

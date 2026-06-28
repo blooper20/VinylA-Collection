@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
-import { getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
 import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
@@ -31,6 +31,19 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
       setIsLoading(false);
     }
     loadData();
+
+    const subscription = supabase
+      .channel('public:USER_VINYL')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, payload => {
+        console.log('Realtime change received!', payload);
+        // Refresh data
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   const dataToUse = dbData.length > 0 ? dbData : mockVinyls;

@@ -1,11 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '@vinyla/ui';
-import { mockVinyls } from '@vinyla/shared-types';
+import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
+import { getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import { EmptyState } from '../components/EmptyState';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 
 export const WishScreen = () => {
   const { themeColors } = useTheme();
-  const wishes = mockVinyls.filter(v => v.STATUS === 'WISH');
+  const [wishes, setWishes] = useState<MockVinylData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigation = useNavigation<NavigationProp<any>>();
+
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      const userVinyls = await getUserVinyls(1);
+      if (userVinyls && userVinyls.length > 0) {
+        const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
+        setWishes(mapped.filter(a => a.STATUS === 'WISH'));
+      } else {
+        setWishes([]);
+      }
+      setIsLoading(false);
+    }
+    loadData();
+
+    const subscription = supabase
+      .channel('public:USER_VINYL:mobile_wish')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, payload => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
   const holyGrail = wishes[0];
   const list = wishes.slice(1);
   
@@ -28,34 +60,45 @@ export const WishScreen = () => {
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Text style={[styles.pageTitle, { color: themeColors.textPrimary }]}>Master List</Text>
       
-      <FlatList
-        ListHeaderComponent={renderHeader}
-        data={list}
-        keyExtractor={item => item.ALBUM_ID}
-        renderItem={({ item }) => (
-          <View style={[styles.listItem, { borderBottomColor: themeColors.border }]}>
-            <Image source={{ uri: item.IMAGE_URL }} style={styles.listCover} />
-            <View style={styles.listInfo}>
-              <Text style={[styles.listTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{item.TITLE}</Text>
-              <Text style={[styles.listArtist, { color: themeColors.textSecondary }]}>{item.ARTIST}</Text>
-              <View style={[styles.priorityBar, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                <View style={[styles.priorityFill, { backgroundColor: themeColors.accent, width: `${Math.floor(Math.random() * 60) + 40}%` }]} />
+      {!isLoading && wishes.length === 0 ? (
+        <EmptyState 
+          title="위시리스트가 비어 있습니다"
+          description="갖고 싶은 앨범을 검색하여 위시리스트에 추가해보세요."
+          buttonText="앨범 검색하기"
+          onPressAction={() => navigation.navigate('Search')}
+        />
+      ) : (
+        <FlatList
+          ListHeaderComponent={renderHeader}
+          data={list}
+          keyExtractor={item => item.ALBUM_ID.toString()}
+          renderItem={({ item }) => (
+            <View style={[styles.listItem, { borderBottomColor: themeColors.border }]}>
+              <Image source={{ uri: item.IMAGE_URL }} style={styles.listCover} />
+              <View style={styles.listInfo}>
+                <Text style={[styles.listTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{item.TITLE}</Text>
+                <Text style={[styles.listArtist, { color: themeColors.textSecondary }]}>{item.ARTIST}</Text>
+                <View style={[styles.priorityBar, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                  <View style={[styles.priorityFill, { backgroundColor: themeColors.accent, width: `${Math.floor(Math.random() * 60) + 40}%` }]} />
+                </View>
               </View>
+              <TouchableOpacity style={styles.deleteBtn}>
+                <Text style={{ color: themeColors.textSecondary, fontSize: 24 }}>✕</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.deleteBtn}>
-              <Text style={{ color: themeColors.textSecondary, fontSize: 24 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
 
-      {/* FAB for Note */}
-      <TouchableOpacity 
-        style={[styles.fab, { backgroundColor: themeColors.accent }]}
-        onPress={() => setNoteVisible(true)}
-      >
-        <Text style={styles.fabText}>📝</Text>
-      </TouchableOpacity>
+      {/* FAB for Note - only show if there are wishes */}
+      {!isLoading && wishes.length > 0 && (
+        <TouchableOpacity 
+          style={[styles.fab, { backgroundColor: themeColors.accent }]}
+          onPress={() => setNoteVisible(true)}
+        >
+          <Text style={styles.fabText}>📝</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Bottom Sheet Modal for Note */}
       <Modal visible={noteVisible} animationType="slide" transparent>

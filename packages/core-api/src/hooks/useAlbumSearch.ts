@@ -1,30 +1,57 @@
 import { useState, useEffect } from 'react';
-import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
+import { MockVinylData } from '@vinyla/shared-types';
+import { searchDiscogs } from '../externalApi';
 
 export const useAlbumSearch = (query: string) => {
   const [results, setResults] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setError(null);
       return;
     }
 
+    let isMounted = true;
     setIsLoading(true);
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      const lowerQuery = query.toLowerCase();
-      const filtered = mockVinyls.filter(album => 
-        album.TITLE.toLowerCase().includes(lowerQuery) || 
-        album.ARTIST.toLowerCase().includes(lowerQuery)
-      );
-      setResults(filtered);
-      setIsLoading(false);
+    setError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const discogsResults = await searchDiscogs(query);
+        
+        if (!isMounted) return;
+
+        if (!discogsResults || discogsResults.length === 0) {
+          setResults([]);
+        } else {
+          const mapped = discogsResults.map((item: any) => ({
+            ALBUM_ID: item.id || Date.now() + Math.random(),
+            TITLE: item.title?.split(' - ')[1] || item.title || 'Unknown Title',
+            ARTIST: item.title?.split(' - ')[0] || 'Unknown Artist',
+            RELEASE_YEAR: parseInt(item.year) || new Date().getFullYear(),
+            IMAGE_URL: item.cover_image || item.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
+            VINYL_IMAGE_URL: '',
+            CUSTOM_COLOR_HEX: '#111',
+            CUSTOM_STYLE_TYPE: 'SOLID',
+            GENRES: item.genre || ['Vinyl']
+          }));
+          setResults(mapped);
+        }
+      } catch (err: any) {
+        if (isMounted) setError(err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [query]);
 
-  return { results, isLoading };
+  return { results, isLoading, error };
 };

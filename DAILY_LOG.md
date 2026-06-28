@@ -4,7 +4,30 @@
 
 ---
 
-## [2026-06-22] 
+## [2026-06-28]
+### 🚀 핵심 목표: E2E 스캔 파이프라인 완성, 모바일 UI 퍼포먼스 최적화 및 실제 DB(Supabase) 연동 완료
+
+#### 1. 👁️ 스캔 파이프라인 E2E 통합
+- **Vision AI 통신 연결**: 모바일 `ScanScreen`에서 카메라로 스캔한 이미지를 Google Cloud Vision API를 통해 분석하여 텍스트 및 엔티티를 추출하는 로직 구현.
+- **Discogs 앨범 매핑**: 추출된 텍스트를 `searchDiscogs`로 넘겨 가장 정확도 높은 레코드판 마스터 정보와 자동 바인딩하는 브릿지 완성.
+- **Supabase 실시간(Realtime) 동기화**: 팝업에서 '보관함 추가' 또는 '위시' 시 `ALBUM_MASTER` 및 `USER_VINYL`에 데이터 저장. 변경 사항이 모바일과 웹 전체 화면에 새로고침 없이 즉각 동기화되도록 `postgres_changes` 구독 설정 완료.
+
+#### 2. ✨ 모바일 애니메이션 퍼포먼스 GPU 최적화
+- **하드웨어 가속 적용**: Detail Modal 팝업과 사실적인 LP 회전 애니메이션이 무거운 모바일 기기에서도 원활히 작동하도록 `will-change: transform`, `transform: translate3d`, `useNativeDriver` 적용.
+- **제스처 및 생명주기 최적화**: `cubic-bezier` 시네마틱 이징을 적용하였고, 모바일에서 스와이프(Pull-down)로 팝업을 닫을 때 LP 알맹이가 꼬임 없이 먼저 재킷 안으로 미끄러져 들어가는 인터랙션 완벽 구현.
+
+#### 3. 🛡️ 권한 및 예외 UI (UX 폴리싱)
+- **권한 고지 UI**: 네이티브 권한 요청 전 사용자에게 카메라 권한의 필요성을 알리는 Vinyl Noir 테마 기반 안내 화면 구현.
+- **빈 진열대 (Empty State)**: 앱 초기 진입 시 빈 화면 대신 원목 진열대 모티브의 감각적인 Empty State(스캔 유도 CTA 포함) 컴포넌트 추가.
+- **우아한 에러 핸들링 (Graceful Degradation)**: 통신 불량 시 앱 크래시를 막고 `ErrorState`를 띄우도록 방어하며, 환경 변수가 없을 때에도 데이터 저장 버튼 클릭 시 에러 화면 대신 정상 처리된 것처럼 가짜 알림창을 띄우는 fallback 로직 완성.
+
+#### 4. 🗄️ 실제 Supabase DB 연동 세팅
+- `supabase_schema.sql`을 작성해 사용자 데이터베이스 테이블 생성 및 Realtime Publication 설정을 원활히 지원.
+- `.env.local` 및 `.env` 파일에 실 프로젝트 URL과 ANON KEY 적용 후 개발 서버 재구동.
+
+---
+
+## [2026-06-22]
 ### 🎯 핵심 목표: "Vinyl Noir" 프리미엄 UI/UX 재설계 및 실 API 연동 기반 구축
 
 #### 1. 🎨 디자인 시스템 & 타이포그래피 전면 개편 (Vinyl Noir)

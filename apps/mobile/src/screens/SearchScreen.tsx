@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { useAlbumSearch } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
+import { ErrorState } from '../components/ErrorState';
 import { MockVinylData } from '@vinyla/shared-types';
 
 const { width } = Dimensions.get('window');
@@ -9,8 +10,15 @@ const itemSize = width / 2 - 24;
 
 export const SearchScreen = () => {
   const [query, setQuery] = useState('');
-  const { results, isLoading } = useAlbumSearch(query);
+  const { results, isLoading, error } = useAlbumSearch(query);
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
+
+  const retrySearch = () => {
+    // Re-trigger search by resetting and setting query
+    const currentQuery = query;
+    setQuery('');
+    setTimeout(() => setQuery(currentQuery), 100);
+  };
 
   return (
     <View style={styles.container}>
@@ -24,35 +32,39 @@ export const SearchScreen = () => {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {!query && (
-          <View>
-            <Text style={styles.sectionTitle}>Acoustic Landscapes</Text>
-            <View style={[styles.genreCard, { backgroundColor: '#1a2a6c' }]}>
-              <Text style={styles.genreText}>JAZZ</Text>
+      {error ? (
+        <ErrorState onRetry={retrySearch} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {!query && (
+            <View>
+              <Text style={styles.sectionTitle}>Acoustic Landscapes</Text>
+              <View style={[styles.genreCard, { backgroundColor: '#1a2a6c' }]}>
+                <Text style={styles.genreText}>JAZZ</Text>
+              </View>
+              <View style={[styles.genreCard, { backgroundColor: '#434343' }]}>
+                <Text style={styles.genreText}>ROCK'N ROLL</Text>
+              </View>
+              <View style={[styles.genreCard, { backgroundColor: '#12c2e9' }]}>
+                <Text style={styles.genreText}>ELECTRONIC</Text>
+              </View>
             </View>
-            <View style={[styles.genreCard, { backgroundColor: '#434343' }]}>
-              <Text style={styles.genreText}>ROCK'N ROLL</Text>
-            </View>
-            <View style={[styles.genreCard, { backgroundColor: '#12c2e9' }]}>
-              <Text style={styles.genreText}>ELECTRONIC</Text>
-            </View>
-          </View>
-        )}
+          )}
 
-        {!!query && (
-          <View>
-            <Text style={styles.sectionTitle}>Search Results {isLoading && '...'}</Text>
-            <View style={styles.resultsGrid}>
-              {results.map(album => (
-                <TouchableOpacity key={album.ALBUM_ID} style={styles.resultCard} onPress={() => setSelectedAlbum(album)}>
-                  <Image source={{ uri: album.IMAGE_URL }} style={styles.resultCover} />
-                </TouchableOpacity>
-              ))}
+          {!!query && (
+            <View>
+              <Text style={styles.sectionTitle}>Search Results {isLoading && '...'}</Text>
+              <View style={styles.resultsGrid}>
+                {results.map(album => (
+                  <TouchableOpacity key={album.ALBUM_ID} style={styles.resultCard} onPress={() => setSelectedAlbum(album)}>
+                    <Image source={{ uri: album.IMAGE_URL }} style={styles.resultCover} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        )}
-      </ScrollView>
+          )}
+        </ScrollView>
+      )}
 
       <DetailModal 
         album={selectedAlbum} 
