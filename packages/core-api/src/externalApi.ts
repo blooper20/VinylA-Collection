@@ -10,7 +10,125 @@ export type AlbumItem = {
   format?: string[];
 };
 
-export type SearchStatus = 'idle' | 'fetching_itunes' | 'validating' | 'done';
+export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done';
+
+// ─── NEW: Discogs-first search ────────────────────────────────────────────────
+// Strategy:
+//   1. Search Discogs directly for LP/Vinyl releases → guaranteed real vinyl results
+//   2. Deduplicate by master_id (same album reissued many times → one card)
+//   3. Enrich cover art from Apple Music (Discogs thumbs are often missing/low-res)
+//
+// Why Discogs-first?
+//   Apple Music returns singles-heavy results for prolific artists.
+//   Discogs `format=LP` gives us only actual LPs from the start.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const searchDiscogsLazy = async (
+  query: string,
+  onItem: (album: AlbumItem) => void,
+  onStatusChange?: (status: SearchStatus, total?: number) => void
+): Promise<void> => {
+  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
+  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
+  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
+  const authParams = token ? { token } : { key, secret };
+
+  onStatusChange?.('fetching_discogs');
+
+  // ── Step 1: Query Discogs for LP releases ──────────────────────────────────
+  let discogsResults: any[] = [];
+  try {
+    const res = await axios.get('https://api.discogs.com/database/search', {
+      params: {
+        q: query,
+        ...authParams,
+        type: 'release',
+        format: 'LP',   // Only full-length LPs
+        per_page: 50,   // Fetch more so deduplication still leaves plenty
+        sort: 'want',   // Sort by community want-list → popular LPs first
+        sort_order: 'desc',
+      },
+      headers: { 'User-Agent': 'VinylA/1.0.0' }
+    });
+    discogsResults = res.data.results || [];
+  } catch (e) {
+    console.error('Discogs search failed:', e);
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  if (discogsResults.length === 0) {
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  // ── Step 2: Deduplicate by master_id (keep highest-community first) ────────
+  const seenMasters = new Set<number>();
+  const seenTitles = new Set<string>();
+  const unique: any[] = [];
+
+  for (const r of discogsResults) {
+    if (r.master_id && seenMasters.has(r.master_id)) continue;
+    // Normalised title fallback dedup for releases without a master
+    const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (seenTitles.has(normTitle)) continue;
+
+    if (r.master_id) seenMasters.add(r.master_id);
+    seenTitles.add(normTitle);
+    unique.push(r);
+
+    if (unique.length >= 15) break; // Cap at 15 unique LPs
+  }
+
+  onStatusChange?.('enriching', unique.length);
+
+  // ── Step 3: Enrich each LP with Apple Music cover art (3 at a time) ────────
+  const CONCURRENCY = 3;
+
+  const enrich = async (r: any) => {
+    // Parse "Artist - Title" format from Discogs
+    const rawTitle = r.title || '';
+    let artist = '';
+    let title = rawTitle;
+    if (rawTitle.includes(' - ')) {
+      const parts = rawTitle.split(' - ');
+      artist = parts[0].trim();
+      title = parts.slice(1).join(' - ').trim();
+    }
+
+    // Use Discogs image first; fall back to Apple Music
+    let thumb = r.cover_image || r.thumb || '';
+
+    if (!thumb || thumb.includes('spacer')) {
+      // Try Apple Music for a better cover image
+      try {
+        const itRes = await axios.get('https://itunes.apple.com/search', {
+          params: { term: `${artist} ${title}`, entity: 'album', limit: 1 }
+        });
+        const hit = itRes.data.results?.[0];
+        if (hit) thumb = hit.artworkUrl100?.replace('100x100bb', '600x600bb') || thumb;
+      } catch (_) { /* ignore, use Discogs thumb */ }
+    }
+
+    const album: AlbumItem = {
+      id: r.master_id || r.id,     // Prefer master_id for stable tracklist lookups
+      title,
+      artist,
+      thumb,
+      year: r.year ? String(r.year) : '',
+      format: r.format || ['Vinyl', 'LP'],
+    };
+
+    onItem(album);
+  };
+
+  for (let i = 0; i < unique.length; i += CONCURRENCY) {
+    const batch = unique.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(enrich));
+  }
+
+  onStatusChange?.('done', unique.length);
+};
 
 export const searchDiscogs = async (query: string) => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
@@ -111,103 +229,6 @@ export const searchDiscogs = async (query: string) => {
   return validAlbums;
 };
 
-/**
- * Streaming / lazy version of searchDiscogs.
- * Calls `onItem` each time a new validated album is found,
- * so the UI can render results progressively instead of waiting for all checks.
- */
-export const searchDiscogsLazy = async (
-  query: string,
-  onItem: (album: AlbumItem) => void,
-  onStatusChange?: (status: SearchStatus, total?: number) => void
-): Promise<void> => {
-  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
-  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-
-  const hasAuth = token || (key && secret);
-  const authParams = token ? { token } : { key, secret };
-
-  // 1. Fetch Apple Music results
-  onStatusChange?.('fetching_itunes');
-  let itunesResults: AlbumItem[] = [];
-  try {
-    const response = await axios.get('https://itunes.apple.com/search', {
-      params: { term: query, entity: 'album', limit: 20 }
-    });
-    itunesResults = response.data.results.map((item: any) => ({
-      id: item.collectionId,
-      title: item.collectionName,
-      artist: item.artistName,
-      thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb'),
-      year: item.releaseDate ? item.releaseDate.substring(0, 4) : '',
-      genre: [item.primaryGenreName]
-    }));
-  } catch (e) {
-    console.error('iTunes search failed:', e);
-    onStatusChange?.('done', 0);
-    return;
-  }
-
-  if (!hasAuth) {
-    itunesResults.slice(0, 15).forEach(onItem);
-    onStatusChange?.('done', itunesResults.length);
-    return;
-  }
-
-  // 2. Validate each album against Discogs one by one, calling onItem as we go
-  const topResults = itunesResults.slice(0, 15);
-  onStatusChange?.('validating', topResults.length);
-
-  // Run checks with a small concurrency limit (3 at a time) to avoid rate limiting
-  // while still being much faster than sequential
-  const CONCURRENCY = 3;
-  let found = 0;
-
-  const checkAlbum = async (album: AlbumItem) => {
-    try {
-      const cleanTitle = album.title.replace(/ - EP| - Single/g, '').replace(/\([^)]*\)/g, '').trim();
-
-      let dRes = await axios.get('https://api.discogs.com/database/search', {
-        params: { q: `${album.artist} ${cleanTitle}`, ...authParams, type: 'release', format: 'vinyl' }
-      });
-
-      let bestMatch = dRes.data.results?.find((r: any) => {
-        const t = (r.title || '').toLowerCase();
-        return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
-      });
-
-      if (!bestMatch) {
-        dRes = await axios.get('https://api.discogs.com/database/search', {
-          params: { q: `${query} ${cleanTitle}`, ...authParams, type: 'release', format: 'vinyl' }
-        });
-        bestMatch = dRes.data.results?.find((r: any) => {
-          const t = (r.title || '').toLowerCase();
-          return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
-        });
-      }
-
-      if (bestMatch) {
-        const rawTitle = bestMatch.title || '';
-        const parsedTitle = rawTitle.includes(' - ') ? rawTitle.split(' - ').slice(1).join(' - ').trim() : rawTitle;
-        found++;
-        onItem({ ...album, id: bestMatch.id, title: parsedTitle || album.title });
-      }
-    } catch (e: any) {
-      console.warn(`Discogs check failed for ${album.title}`, e.message);
-      // On error, surface the album anyway so user sees something
-      onItem(album);
-    }
-  };
-
-  // Process in batches of CONCURRENCY
-  for (let i = 0; i < topResults.length; i += CONCURRENCY) {
-    const batch = topResults.slice(i, i + CONCURRENCY);
-    await Promise.all(batch.map(checkAlbum));
-  }
-
-  onStatusChange?.('done', found);
-};
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
   // 1. Try iTunes Lookup first (since our primary ALBUM_ID is now from iTunes)

@@ -108,18 +108,18 @@ export default function SearchPage() {
     );
   }, [query]);
 
-  const isLoading = status === 'fetching_itunes' || status === 'validating';
-  const isValidating = status === 'validating';
+  const isLoading = status === 'fetching_discogs' || status === 'enriching';
+  const isEnriching = status === 'enriching';
 
-  // During validation phase, show skeleton placeholders for items not yet found
-  const skeletonCount = isValidating ? Math.max(0, totalToCheck - results.length) : 0;
+  // During enriching phase, show skeleton placeholders for items not yet enriched
+  const skeletonCount = isEnriching ? Math.max(0, totalToCheck - results.length) : 0;
 
   const sectionTitle = isLoading
-    ? isValidating
-      ? `LP 검증 중... (${results.length} / ${totalToCheck})`
-      : '검색 중...'
+    ? isEnriching
+      ? `커버 이미지 불러오는 중... (${results.length} / ${totalToCheck})`
+      : 'Discogs에서 LP 검색 중...'
     : results.length > 0
-      ? `검색 결과 (${results.length})`
+      ? `LP 검색 결과 (${results.length})`
       : status === 'done'
         ? 'Discogs에 등록된 LP가 없습니다'
         : '장르';
@@ -201,11 +201,11 @@ export default function SearchPage() {
               </div>
             ))}
 
-            {/* Full-screen spinner only during iTunes fetch (before any results) */}
-            {status === 'fetching_itunes' && results.length === 0 && (
+            {/* Full-screen spinner only during initial Discogs fetch (before any results) */}
+            {status === 'fetching_discogs' && results.length === 0 && (
               <div className={styles.loadingState}>
                 <div className={styles.spinner} />
-                <p>Apple Music에서 검색 중...</p>
+                <p>Discogs에서 LP를 검색하는 중...</p>
               </div>
             )}
           </div>
