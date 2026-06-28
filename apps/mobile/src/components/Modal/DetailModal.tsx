@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking } from 'react-native';
+import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Alert, Easing, Pressable } from 'react-native';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
-import { searchYouTube, searchDiscogs } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -10,39 +10,106 @@ interface DetailModalProps {
   onClose: () => void;
 }
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const cinematicEasing = Easing.bezier(0.45, 0, 0.55, 1);
+
+const AnimatedButton = ({ onPress, style, children, isHeavy = false }: any) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  
+  const handlePressIn = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0.95,
+      duration: 100,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.ease)
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 100,
+      useNativeDriver: true,
+      easing: Easing.out(Easing.ease)
+    }).start();
+  };
+
+  return (
+    <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => {
+          Haptics.impactAsync(isHeavy ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium);
+          onPress?.();
+        }}
+        style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const vinylAnim = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
+  const modalAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible && album) {
       panY.setValue(0);
-      Animated.timing(vinylAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-        easing: (t) => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
-      }).start();
-    } else {
+      modalAnim.setValue(0);
       vinylAnim.setValue(0);
+      
+      Animated.parallel([
+        Animated.timing(modalAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+          easing: cinematicEasing,
+        }),
+        Animated.timing(vinylAnim, {
+          toValue: 1,
+          duration: 800,
+          delay: 150,
+          useNativeDriver: true,
+          easing: cinematicEasing,
+        })
+      ]).start();
     }
   }, [visible, album]);
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.timing(vinylAnim, {
-      toValue: 0,
-      duration: 500,
-      useNativeDriver: true,
-    }).start(() => {
+    
+    // Smooth exit: LP goes back inside while the modal slides down/fades
+    Animated.parallel([
+      Animated.timing(vinylAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+        easing: cinematicEasing,
+      }),
+      Animated.timing(modalAnim, {
+        toValue: 0,
+        duration: 500,
+        delay: 50,
+        useNativeDriver: true,
+        easing: cinematicEasing,
+      }),
+      Animated.timing(panY, {
+        toValue: height,
+        duration: 500,
+        useNativeDriver: true,
+        easing: cinematicEasing,
+      })
+    ]).start(() => {
       onClose();
     });
   };
 
   const handleYoutubeListen = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (!album) return;
     const query = `${album.ARTIST} ${album.TITLE} full album`;
     const results = await searchYouTube(query);
@@ -57,7 +124,6 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   };
 
   const handleDiscogsSearch = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (!album) return;
     const query = `${album.ARTIST} ${album.TITLE}`;
     const results = await searchDiscogs(query);
@@ -69,6 +135,38 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       }
     }
     Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
+  };
+
+  const handleSave = async (status: 'OWNED' | 'WISH') => {
+    if (!album) return;
+    try {
+      let master = await getAlbumMaster(album.ALBUM_ID);
+      if (!master) {
+        await createAlbumMaster({
+          ALBUM_ID: album.ALBUM_ID,
+          TITLE: album.TITLE,
+          ARTIST: album.ARTIST,
+          RELEASE_YEAR: album.RELEASE_YEAR,
+          IMAGE_URL: album.IMAGE_URL,
+          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
+          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
+          CUSTOM_STYLE_TYPE: 'SOLID',
+          TRACKS: album.TRACKS || []
+        });
+      }
+      await upsertUserVinyl({
+        USER_ID: 1,
+        ALBUM_ID: album.ALBUM_ID,
+        STATUS: status,
+        PURCHASE_DATE: new Date().toISOString(),
+        PURCHASE_PRICE: 0
+      });
+      Alert.alert('Success', `Album saved as ${status}!`);
+      handleClose();
+    } catch (error) {
+      console.error('Failed to save album:', error);
+      Alert.alert('Error', 'Failed to save album. Please try again.');
+    }
   };
 
   const panResponder = useRef(
@@ -95,7 +193,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
   const vinylTranslateX = vinylAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 80]
+    outputRange: [0, 100]
   });
 
   const vinylRotate = vinylAnim.interpolate({
@@ -103,78 +201,86 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     outputRange: ['0deg', '90deg']
   });
 
+  const modalScale = modalAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.95, 1]
+  });
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.container}>
+    <Modal visible={visible} animationType="none" transparent>
+      <Animated.View style={[styles.container, { opacity: modalAnim }]}>
         <Animated.View 
-          style={[styles.header, { transform: [{ translateY: panY }] }]} 
+          style={[{ flex: 1, transform: [{ scale: modalScale }, { translateY: panY }] }]}
           {...panResponder.panHandlers}
         >
-          <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-            <Text style={styles.closeText}>↓</Text>
-          </TouchableOpacity>
-        </Animated.View>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
+              <Text style={styles.closeText}>↓</Text>
+            </TouchableOpacity>
+          </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} {...panResponder.panHandlers}>
-          <Animated.View style={[styles.coverContainer, { transform: [{ translateY: panY }] }]}>
-            <Animated.View 
-              style={[
-                styles.vinyl, 
-                { 
-                  backgroundColor: album.CUSTOM_COLOR_HEX, 
-                  transform: [
-                    { translateX: vinylTranslateX },
-                    { rotate: vinylRotate }
-                  ] 
-                }
-              ]} 
-            />
-            <Image source={{ uri: album.IMAGE_URL }} style={styles.cover} />
-          </Animated.View>
-
-          <Animated.View style={[styles.info, { transform: [{ translateY: panY }] }]}>
-            <Text style={styles.title}>{album.TITLE}</Text>
-            <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
-
-            <View style={styles.tracklist}>
-              {album.TRACKS?.map((track, i) => (
-                <Text key={i} style={styles.track}>{i + 1}. {track}</Text>
-              ))}
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <View style={styles.coverContainer}>
+              <Animated.View 
+                style={[
+                  styles.vinyl, 
+                  { 
+                    backgroundColor: album.CUSTOM_COLOR_HEX || '#000', 
+                    transform: [
+                      { translateX: vinylTranslateX },
+                      { rotate: vinylRotate }
+                    ] 
+                  }
+                ]} 
+              />
+              <Image source={{ uri: album.IMAGE_URL }} style={styles.cover} />
             </View>
-          </Animated.View>
 
-          <Animated.View style={[styles.actions, { transform: [{ translateY: panY }] }]}>
-            <TouchableOpacity 
-              style={styles.btnPrimary}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
-            >
-              <Text style={styles.btnPrimaryText}>Add to Collection</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.btnOutline}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Text style={styles.btnOutlineText}>WISH</Text>
-            </TouchableOpacity>
-          </Animated.View>
-          
-          <Animated.View style={{ transform: [{ translateY: panY }] }}>
-            <TouchableOpacity 
-              style={styles.btnYoutube}
-              onPress={handleYoutubeListen}
-            >
-              <Text style={styles.btnYoutubeText}>LISTEN ON YOUTUBE</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.btnYoutube, { backgroundColor: '#333', marginTop: 10 }]}
-              onPress={handleDiscogsSearch}
-            >
-              <Text style={styles.btnYoutubeText}>SEARCH ON DISCOGS</Text>
-            </TouchableOpacity>
-          </Animated.View>
+            <View style={styles.info}>
+              <Text style={styles.title}>{album.TITLE}</Text>
+              <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
 
-        </ScrollView>
-      </View>
+              <View style={styles.tracklist}>
+                {album.TRACKS?.map((track, i) => (
+                  <Text key={i} style={styles.track}>{i + 1}. {track}</Text>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.actions}>
+              <AnimatedButton 
+                style={styles.btnPrimary}
+                onPress={() => handleSave('OWNED')}
+              >
+                <Text style={styles.btnPrimaryText}>Add to Collection</Text>
+              </AnimatedButton>
+              <AnimatedButton 
+                style={styles.btnOutline}
+                onPress={() => handleSave('WISH')}
+              >
+                <Text style={styles.btnOutlineText}>WISH</Text>
+              </AnimatedButton>
+            </View>
+            
+            <View>
+              <AnimatedButton 
+                style={styles.btnYoutube}
+                onPress={handleYoutubeListen}
+                isHeavy
+              >
+                <Text style={styles.btnYoutubeText}>LISTEN ON YOUTUBE</Text>
+              </AnimatedButton>
+              <AnimatedButton 
+                style={[styles.btnYoutube, { backgroundColor: '#333', marginTop: 10 }]}
+                onPress={handleDiscogsSearch}
+                isHeavy
+              >
+                <Text style={styles.btnYoutubeText}>SEARCH ON DISCOGS</Text>
+              </AnimatedButton>
+            </View>
+          </ScrollView>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };

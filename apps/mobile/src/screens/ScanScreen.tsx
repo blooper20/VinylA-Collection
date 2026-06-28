@@ -16,10 +16,13 @@ export const ScanScreen = () => {
 
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.guideText}>We need your permission to show the camera</Text>
+      <View style={styles.permissionContainer}>
+        <Text style={styles.permissionTitle}>카메라 권한 안내</Text>
+        <Text style={styles.permissionDesc}>
+          LP 앨범 커버를 인식하여 프라이빗 컬렉션에 추가하기 위해 카메라 권한이 필요합니다.
+        </Text>
         <TouchableOpacity style={styles.btnPrimary} onPress={requestPermission}>
-          <Text style={styles.btnPrimaryText}>Grant Permission</Text>
+          <Text style={styles.btnPrimaryText}>권한 허용하기</Text>
         </TouchableOpacity>
       </View>
     );
@@ -38,12 +41,44 @@ export const ScanScreen = () => {
       if (photo && photo.base64) {
         // Call Vision API
         const visionResult = await detectVinylCover(photo.base64);
-        console.log('Vision API result:', JSON.stringify(visionResult));
+        console.log('Vision API result extracted');
         
-        // Mock matching logic: just select a random mock vinyl for now
-        // In a real scenario, we'd use visionResult.webDetection or textAnnotations to query the database
-        const randomAlbum = mockVinyls[Math.floor(Math.random() * mockVinyls.length)];
-        setScannedAlbum(randomAlbum);
+        // Extract query from text or web detection
+        let query = '';
+        if (visionResult.webDetection?.webEntities?.length > 0) {
+          query = visionResult.webDetection.webEntities[0].description;
+        } else if (visionResult.textAnnotations?.length > 0) {
+          query = visionResult.textAnnotations[0].description.replace(/\n/g, ' ').substring(0, 50);
+        }
+
+        if (!query) {
+           throw new Error("Could not extract any text or entity from image.");
+        }
+
+        // Search Discogs
+        const { searchDiscogs } = await import('@vinyla/core-api');
+        const discogsResults = await searchDiscogs(query);
+
+        if (discogsResults && discogsResults.length > 0) {
+          const topMatch = discogsResults[0];
+          // Map to MockVinylData structure for UI
+          const mappedAlbum: MockVinylData = {
+            ALBUM_ID: topMatch.id || Date.now(),
+            TITLE: topMatch.title?.split(' - ')[1] || topMatch.title || 'Unknown Title',
+            ARTIST: topMatch.title?.split(' - ')[0] || 'Unknown Artist',
+            RELEASE_YEAR: parseInt(topMatch.year) || 2024,
+            IMAGE_URL: topMatch.cover_image || topMatch.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
+            VINYL_IMAGE_URL: '',
+            CUSTOM_COLOR_HEX: '#111',
+            CUSTOM_STYLE_TYPE: 'SOLID',
+            GENRES: topMatch.genre || ['Vinyl']
+          };
+          setScannedAlbum(mappedAlbum);
+        } else {
+           // Fallback to random if no match
+           const randomAlbum = mockVinyls[Math.floor(Math.random() * mockVinyls.length)];
+           setScannedAlbum(randomAlbum);
+        }
       }
     } catch (error) {
       console.error('Failed to take picture or detect:', error);
@@ -100,6 +135,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: '#0e0e0e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  permissionTitle: {
+    color: '#e9c349',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  permissionDesc: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
   },
   overlay: {
     flex: 1,
@@ -179,12 +234,13 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     backgroundColor: '#e9c349',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     borderRadius: 8,
-    marginTop: 20,
   },
   btnPrimaryText: {
     color: '#000',
     fontWeight: 'bold',
+    fontSize: 16,
   }
 });

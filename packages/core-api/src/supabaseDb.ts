@@ -37,10 +37,10 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 // USER_VINYL CRUD
 // =======================
 
-export const getUserVinyls = async (userId: number): Promise<USER_VINYL[]> => {
+export const getUserVinyls = async (userId: number): Promise<any[]> => {
   const { data, error } = await supabase
     .from('USER_VINYL')
-    .select('*')
+    .select('*, ALBUM_MASTER(*)')
     .eq('USER_ID', userId);
 
   if (error) {
@@ -56,7 +56,7 @@ export const getUserVinyls = async (userId: number): Promise<USER_VINYL[]> => {
     ];
   }
 
-  return data as USER_VINYL[];
+  return data;
 };
 
 export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
@@ -121,17 +121,18 @@ export const addVinylTag = async (tag: Partial<VINYL_TAG>): Promise<VINYL_TAG | 
 // UTILS: Map to Frontend
 // =======================
 
-export const mapToFrontendModel = (userVinyl: any, albumMaster: any) => {
+export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
+  const master = albumMaster || userVinyl?.ALBUM_MASTER;
   return {
-    ALBUM_ID: albumMaster?.ALBUM_ID || userVinyl?.ALBUM_ID,
-    TITLE: albumMaster?.TITLE || 'Unknown Title',
-    ARTIST: albumMaster?.ARTIST || 'Unknown Artist',
-    COVER_URL: albumMaster?.COVER_IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
-    IMAGE_URL: albumMaster?.COVER_IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
-    RELEASE_YEAR: albumMaster?.RELEASE_YEAR || 2024,
-    GENRES: ['Jazz'], // fallback
+    ALBUM_ID: master?.ALBUM_ID || userVinyl?.ALBUM_ID,
+    TITLE: master?.TITLE || 'Unknown Title',
+    ARTIST: master?.ARTIST || 'Unknown Artist',
+    COVER_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
+    IMAGE_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
+    RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
+    GENRES: ['Vinyl'], // fallback
     STATUS: userVinyl?.STATUS || 'WISH',
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE,
-    CUSTOM_COLOR_HEX: '#1a1c1c'
+    CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c'
   };
 };

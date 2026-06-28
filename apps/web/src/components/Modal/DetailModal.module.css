@@ -34,17 +34,17 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   display: flex;
   overflow: hidden;
-  animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scaleUp 0.6s cubic-bezier(0.45, 0, 0.55, 1) forwards;
 }
 
 @keyframes scaleUp {
   from { 
     opacity: 0;
-    transform: scale(0.98) translateY(10px); 
+    transform: scale(0.95) translate3d(0, 10px, 0); 
   }
   to { 
     opacity: 1;
-    transform: scale(1) translateY(0); 
+    transform: scale(1) translate3d(0, 0, 0); 
   }
 }
 
@@ -115,17 +115,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: slideOutVinyl 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s forwards, spinVinyl 10s linear infinite 1.4s;
+  will-change: transform;
+  animation: slideOutVinyl 1.2s cubic-bezier(0.45, 0, 0.55, 1) 0.2s forwards, spinVinyl 10s linear infinite 1.4s;
 }
 
 @keyframes slideOutVinyl {
-  from { transform: translateX(0) rotate(0deg); }
-  to { transform: translateX(45%) rotate(90deg); }
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to { transform: translate3d(45%, 0, 0) rotate(90deg); }
 }
 
 @keyframes spinVinyl {
-  from { transform: translateX(45%) rotate(90deg); }
-  to { transform: translateX(45%) rotate(450deg); }
+  from { transform: translate3d(45%, 0, 0) rotate(90deg); }
+  to { transform: translate3d(45%, 0, 0) rotate(450deg); }
 }
 
 /* Vinyl Center Label */
