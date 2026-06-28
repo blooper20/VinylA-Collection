@@ -48,10 +48,18 @@ export const OnboardingScreen = ({ navigation }: any) => {
       </View>
 
       <View style={styles.authContainer}>
-        <TouchableOpacity style={[styles.glassBtn, { marginBottom: 16 }]} onPress={() => navigation?.replace('Main')}>
-          <Text style={styles.btnText}>Continue with Apple</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.glassBtn} onPress={() => navigation?.replace('Main')}>
+        <TouchableOpacity 
+          style={styles.glassBtn} 
+          onPress={async () => {
+            try {
+              const { signInWithGoogle } = await import('@vinyla/core-api');
+              await signInWithGoogle();
+              navigation?.replace('Main');
+            } catch (error) {
+              console.error('Google login failed:', error);
+            }
+          }}
+        >
           <Text style={styles.btnText}>Continue with Google</Text>
         </TouchableOpacity>
       </View>
