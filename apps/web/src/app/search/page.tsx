@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { searchDiscogs } from '@vinyla/core-api';
+import { DetailModal } from '../../components/Modal/DetailModal';
 import styles from './page.module.css';
 
 const genres = [
@@ -19,6 +20,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +68,18 @@ export default function SearchPage() {
           <div className={styles.masonryGrid}>
             {results.length > 0 ? (
               results.map((item, idx) => (
-                <div key={idx} className={styles.masonryItem}>
+                <div 
+                  key={idx} 
+                  className={styles.masonryItem} 
+                  onClick={() => setSelectedAlbum({
+                    ALBUM_ID: item.id,
+                    TITLE: item.title,
+                    ARTIST: item.artist,
+                    IMAGE_URL: item.thumb,
+                    RELEASE_YEAR: item.year
+                  })}
+                  style={{ cursor: 'pointer' }}
+                >
                   <img
                     src={item.thumb || 'https://via.placeholder.com/200'}
                     alt={item.title}
@@ -100,6 +113,10 @@ export default function SearchPage() {
           </div>
         </section>
       </main>
+
+      {selectedAlbum && (
+        <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />
+      )}
     </div>
   );
 }
