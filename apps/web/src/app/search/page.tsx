@@ -15,7 +15,7 @@ const genres = [
   { title: '인디 / 포크',   sub: 'Folk',        height: 280, img: 'https://images.unsplash.com/photo-1460036521480-1a6e9a7e6b77?q=80&w=800&auto=format&fit=crop' },
   { title: '클래식',        sub: 'Classical',   height: 260, img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=800&auto=format&fit=crop' },
   { title: '블루스',        sub: 'Blues',       height: 240, img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=800&auto=format&fit=crop' },
-  { title: '레게',          sub: 'Reggae',      height: 300, img: 'https://images.unsplash.com/photo-1478146896981-b80fe463b330?q=80&w=800&auto=format&fit=crop' },
+  { title: '레게',          sub: 'Reggae',      height: 300, img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800&auto=format&fit=crop' },
   { title: '시네마틱',      sub: 'Cinematic',   height: 400, img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=800&auto=format&fit=crop' },
   { title: '앰비언트',      sub: 'Ambient',     height: 220, img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=800&auto=format&fit=crop' },
   { title: '월드',          sub: 'World',       height: 260, img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop' },
