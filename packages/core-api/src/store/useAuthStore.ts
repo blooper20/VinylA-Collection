@@ -6,7 +6,7 @@ interface AuthState {
   isLoading: boolean;
   setUser: (user: any | null) => void;
   initializeAuth: () => Promise<void>;
-  updateProfile: (displayName: string, interests: string[]) => Promise<void>;
+  updateProfile: (displayName: string, interests: string[], avatarUrl?: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -26,10 +26,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: false });
     }
   },
-  updateProfile: async (displayName: string, interests: string[]) => {
+  updateProfile: async (displayName: string, interests: string[], avatarUrl?: string) => {
     try {
+      const updateData: any = { displayName, interests };
+      if (avatarUrl !== undefined) {
+        updateData.avatar_url = avatarUrl;
+      }
       const { data, error } = await supabase.auth.updateUser({
-        data: { displayName, interests }
+        data: updateData
       });
       if (error) throw error;
       if (data.user) {

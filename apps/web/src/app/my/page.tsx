@@ -4,12 +4,30 @@ import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 
+const PRESET_AVATARS = [
+  'https://i.pravatar.cc/150?img=32',
+  'https://i.pravatar.cc/150?img=12',
+  'https://i.pravatar.cc/150?img=5',
+  'https://i.pravatar.cc/150?img=11',
+  'https://i.pravatar.cc/150?img=68',
+];
+
+const AVAILABLE_GENRES = [
+  'Pop', 'Rock', 'Jazz', 'Electronic', 'Hip Hop', 'R&B / Soul', 'Folk', 'Classical', 'Blues', 'Reggae', 'Cinematic', 'Ambient', 'World'
+];
+
 export default function MyProfilePage() {
-  const { user, initializeAuth } = useAuthStore();
+  const { user, initializeAuth, updateProfile } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
   const [topGenre, setTopGenre] = useState('-');
+  const [actualTopGenre, setActualTopGenre] = useState('-');
   const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
+  const [editGenre, setEditGenre] = useState('');
 
   useEffect(() => {
     initializeAuth();
@@ -18,6 +36,19 @@ export default function MyProfilePage() {
   useEffect(() => {
     async function loadStats() {
       if (!user) return;
+      
+      const currentName = user.user_metadata?.displayName || 'Collector';
+      const currentAvatar = user.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32';
+      let currentGenre = '-';
+      if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
+        currentGenre = user.user_metadata.interests[0];
+      }
+      
+      setTopGenre(currentGenre);
+      setEditName(currentName);
+      setEditAvatar(currentAvatar);
+      setEditGenre(currentGenre !== '-' ? currentGenre : 'Pop');
+
       const data = await getUserVinyls(user.id);
       if (data && data.length > 0) {
         const mapped = data.map(v => mapToFrontendModel(v, null));
@@ -28,26 +59,47 @@ export default function MyProfilePage() {
         const value = owned.reduce((sum, item) => sum + (item.PURCHASE_PRICE || 0), 0);
         setCollectionValue(value);
 
-        if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
-          setTopGenre(user.user_metadata.interests[0]);
+        // Compute actual top genre
+        const genreCounts: Record<string, number> = {};
+        owned.forEach(item => {
+          if (item.GENRES && Array.isArray(item.GENRES)) {
+            item.GENRES.forEach((g: string) => {
+              genreCounts[g] = (genreCounts[g] || 0) + 1;
+            });
+          }
+        });
+        
+        if (Object.keys(genreCounts).length > 0) {
+          const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
+          setActualTopGenre(sortedGenres[0][0]);
+        } else {
+          setActualTopGenre('-');
         }
 
         // timeline: top 3 recent additions
-        // Assuming we have some date or just taking the last 3 for now
         setRecentAdditions(owned.slice(0, 3));
       } else {
-        if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
-          setTopGenre(user.user_metadata.interests[0]);
-        }
+        setActualTopGenre('-');
       }
     }
     loadStats();
   }, [user]);
 
+  const handleSaveProfile = async () => {
+    try {
+      await updateProfile(editName, [editGenre], editAvatar);
+      setIsEditing(false);
+      setTopGenre(editGenre);
+    } catch (e) {
+      alert('프로필 업데이트에 실패했습니다.');
+    }
+  };
+
   const stats = [
     { label: '컬렉션 가치',  value: collectionValue.toLocaleString(), unit: '₩', sub: '시장 추정가 기준' },
     { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
     { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
+    { label: '실제 관심 장르', value: actualTopGenre,  unit: '',   sub: '내 콜렉션 데이터 기준' },
   ];
 
   const displayName = user?.user_metadata?.displayName || 'Collector';
@@ -58,25 +110,87 @@ export default function MyProfilePage() {
       <header className={styles.hero}>
         <div className={styles.heroBg} />
         <div className={styles.heroInner}>
-          <div className={styles.avatarRing}>
-            <img
-              src={avatarUrl}
-              alt="프로필"
-              className={styles.avatarImage}
-            />
-            <div className={styles.avatarBadge}>
-              <span className="material-symbols-outlined" style={{ fontSize: '16px', fontVariationSettings: "'FILL' 1" }}>verified</span>
-            </div>
-          </div>
+          {isEditing ? (
+            <div className={styles.editProfileBox}>
+              <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 700 }}>프로필 수정</h2>
+              
+              <div className={styles.editField}>
+                <label>프로필 사진 URL (또는 프리셋 선택)</label>
+                <div className={styles.avatarPresets}>
+                  {PRESET_AVATARS.map((url, idx) => (
+                    <img 
+                      key={idx} 
+                      src={url} 
+                      className={`${styles.presetAvatar} ${editAvatar === url ? styles.presetAvatarSelected : ''}`}
+                      onClick={() => setEditAvatar(url)}
+                      alt="preset"
+                    />
+                  ))}
+                </div>
+                <input 
+                  type="text" 
+                  value={editAvatar} 
+                  onChange={e => setEditAvatar(e.target.value)} 
+                  className={styles.editInput} 
+                  placeholder="이미지 URL 입력..."
+                />
+              </div>
 
-          <div className={styles.profileInfo}>
-            <p className={styles.profileEyebrow}>Vinyl Noir Member</p>
-            <h1 className={styles.profileName}>{displayName}</h1>
-            <div className={styles.collectorBadge}>
-              <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>diamond</span>
-              <span className={styles.collectorBadgeText}>Verified Collector</span>
+              <div className={styles.editField}>
+                <label>닉네임</label>
+                <input 
+                  type="text" 
+                  value={editName} 
+                  onChange={e => setEditName(e.target.value)} 
+                  className={styles.editInput} 
+                />
+              </div>
+
+              <div className={styles.editField}>
+                <label>관심 장르 설정</label>
+                <select 
+                  value={editGenre} 
+                  onChange={e => setEditGenre(e.target.value)} 
+                  className={styles.editSelect}
+                >
+                  {AVAILABLE_GENRES.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.editActions}>
+                <button className={styles.btnSecondary} onClick={() => setIsEditing(false)}>취소</button>
+                <button className={styles.btnPrimary} onClick={handleSaveProfile}>저장하기</button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className={styles.avatarRing}>
+                <img
+                  src={avatarUrl}
+                  alt="프로필"
+                  className={styles.avatarImage}
+                />
+                <div className={styles.avatarBadge}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', fontVariationSettings: "'FILL' 1" }}>verified</span>
+                </div>
+              </div>
+
+              <div className={styles.profileInfo}>
+                <p className={styles.profileEyebrow}>Vinyl Noir Member</p>
+                <h1 className={styles.profileName}>{displayName}</h1>
+                <div className={styles.collectorBadge}>
+                  <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>diamond</span>
+                  <span className={styles.collectorBadgeText}>Verified Collector</span>
+                </div>
+              </div>
+              
+              <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -115,11 +229,6 @@ export default function MyProfilePage() {
             <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>아직 기록된 LP가 없습니다.</p>
           )}
         </div>
-      </section>
-
-      <section className={styles.actions}>
-        <button className={styles.btnPrimary}>컬렉션 편집</button>
-        <button className={styles.btnSecondary} onClick={() => useAuthStore.getState().initializeAuth()}>데이터 동기화</button>
       </section>
     </div>
   );
