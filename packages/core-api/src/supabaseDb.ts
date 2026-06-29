@@ -186,7 +186,7 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     COVER_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     IMAGE_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
-    GENRES: ['Vinyl'], // fallback
+    GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     STATUS: userVinyl?.STATUS || 'WISH',
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE,
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c'
