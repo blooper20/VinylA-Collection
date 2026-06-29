@@ -15,7 +15,9 @@
   gap: 24px;
 }
 
-.headerLeft {}
+.headerLeft {
+  flex-shrink: 0;
+}
 
 .pageEyebrow {
   display: block;
@@ -36,6 +38,7 @@
   color: var(--text-primary);
   line-height: 0.95;
   letter-spacing: -0.04em;
+  white-space: nowrap;
 }
 
 .pageSubtitle {
@@ -48,11 +51,24 @@
 
 .headerRight {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
   padding-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex: 1;
+  justify-content: flex-end;
+  /* Mask gradient for smooth scroll edge */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 100%);
+  mask-image: linear-gradient(to right, transparent, black 5%, black 100%);
 }
+
+.headerRight::-webkit-scrollbar {
+  display: none;
+}
+
 
 .filterChip {
   display: flex;
@@ -69,6 +85,8 @@
   letter-spacing: 0.04em;
   transition: all 0.2s ease;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filterChip:hover {

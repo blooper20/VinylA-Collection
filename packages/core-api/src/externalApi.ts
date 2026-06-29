@@ -225,7 +225,11 @@ export const searchDiscogsLazy = async (
     }
 
     // Discogs typically gives `genre` and `style` as arrays. Combine them to get rich tags.
-    const combinedGenres = Array.from(new Set([...(r.genre || []), ...(r.style || [])]));
+    const combinedGenres = Array.from(new Set([
+      ...(r.genre || []),
+      ...(r.style || []),
+      ...(r.country ? [r.country] : [])
+    ]));
 
     onItem({
       id: r.master_id || r.id,
