@@ -228,6 +228,17 @@
   letter-spacing: 0.5px;
 }
 
+.actualValue {
+  display: flex;
+  align-items: center;
+  margin-top: -16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
 .artist {
   font-family: var(--font-body);
   font-size: 18px;
@@ -511,7 +522,25 @@
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.95rem;
   margin-bottom: 32px;
-  line-height: 1.5;
+  text-align: center;
+}
+
+.priceInput {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.priceInput:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .confirmActions {

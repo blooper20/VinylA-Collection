@@ -17,6 +17,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [coverUrl, setCoverUrl] = React.useState<string>(album.IMAGE_URL || '');
   const [confirmTarget, setConfirmTarget] = React.useState<'OWNED' | 'WISH' | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
+  const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
 
   React.useEffect(() => {
     // Prevent body and html scrolling while modal is open
@@ -70,7 +72,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const handleSave = async (status: 'OWNED' | 'WISH') => {
+  const handleSave = async (status: 'OWNED' | 'WISH', price: number = 0) => {
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
         // Strip any leftover country tags from old saves
@@ -103,7 +105,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         ALBUM_ID: album.ALBUM_ID,
         STATUS: status,
         PURCHASE_DATE: new Date().toISOString(),
-        PURCHASE_PRICE: 0
+        PURCHASE_PRICE: price
       });
 
       setIsSaving(true);
@@ -178,6 +180,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 return (price * 1400).toLocaleString();
               })()}
             </div>
+            {album.STATUS === 'OWNED' && album.PURCHASE_PRICE ? (
+              <div className={styles.actualValue}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>receipt_long</span>
+                실제 구입가: ₩{(album.PURCHASE_PRICE).toLocaleString()}
+              </div>
+            ) : null}
 
             {(() => {
               const KNOWN_COUNTRIES = [
@@ -247,7 +255,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             
             {album.STATUS === 'WISH' && (
               <>
-                <button className={styles.btnPrimary} onClick={() => handleSave('OWNED')} disabled={isSaving}>
+                <button className={styles.btnPrimary} onClick={() => setPricePromptOpen(true)} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
                   보관함 추가
                 </button>
@@ -265,7 +273,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
             {(!album.STATUS || (album.STATUS !== 'OWNED' && album.STATUS !== 'WISH')) && (
               <>
-                <button className={styles.btnPrimary} onClick={() => handleSave('OWNED')} disabled={isSaving}>
+                <button className={styles.btnPrimary} onClick={() => setPricePromptOpen(true)} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
                   보관함 추가
                 </button>
@@ -306,6 +314,46 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 </button>
                 <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)} disabled={isDeleting}>
                   {isDeleting ? '삭제 중...' : '삭제하기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Price Input Popup */}
+        {pricePromptOpen && (
+          <div className={styles.confirmOverlay} onClick={() => setPricePromptOpen(false)}>
+            <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.confirmIcon} style={{ color: 'var(--accent)', backgroundColor: 'rgba(233, 195, 73, 0.1)' }}>
+                <span className="material-symbols-outlined">payments</span>
+              </div>
+              <h3 className={styles.confirmTitle}>구입가 입력</h3>
+              <p className={styles.confirmMessage}>
+                이 LP를 얼마에 구매하셨나요? (숫자만 입력)
+              </p>
+              <input 
+                type="number" 
+                value={purchasePriceInput} 
+                onChange={(e) => setPurchasePriceInput(e.target.value)}
+                placeholder="예: 45000"
+                className={styles.priceInput}
+                autoFocus
+              />
+              <div className={styles.confirmActions}>
+                <button className={styles.btnCancel} onClick={() => setPricePromptOpen(false)} disabled={isSaving}>
+                  건너뛰기
+                </button>
+                <button 
+                  className={styles.btnPrimary} 
+                  style={{ flex: 1, padding: '12px' }}
+                  onClick={() => {
+                    const price = Number(purchasePriceInput) || 0;
+                    handleSave('OWNED', price);
+                    setPricePromptOpen(false);
+                  }} 
+                  disabled={isSaving}
+                >
+                  {isSaving ? '저장 중...' : '저장하기'}
                 </button>
               </div>
             </div>
