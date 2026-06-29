@@ -143,7 +143,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           });
           const json = await res.json();
           const result = json.results?.[0];
-
             let finalCountry = '';
             const hasHangul = /[가-힣]/.test(album.ARTIST) || 
                               /[가-힣]/.test(album.TITLE) || 
@@ -158,14 +157,14 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                 'ITA': 'Italy', 'SWE': 'Sweden', 'TWN': 'Taiwan', 'BRA': 'Brazil', 'RUS': 'Russia'
               };
               finalCountry = mapping[countryCode.toUpperCase()] || countryCode;
-            } else if (result.country) {
+            } else if (result?.country) {
               finalCountry = result.country;
             }
 
             // Discogs genres mapping
             const combinedGenres = Array.from(new Set([
-              ...(result.genre || []),
-              ...(result.style || []),
+              ...(result?.genre || []),
+              ...(result?.style || []),
               ...(finalCountry ? [finalCountry] : [])
             ]));
             
@@ -189,7 +188,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                 GENRES: finalGenres
               });
             }
-          }
         } catch (err) {
           console.warn(`Auto-heal failed for ${album.TITLE}:`, err);
         }
