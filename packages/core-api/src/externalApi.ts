@@ -72,15 +72,14 @@ export const searchDiscogsLazy = async (
   // ── Step 1: Discogs vinyl search (parallel pages) ──────────────────────────
   let raw: any[] = [];
   try {
-    const fetchPage = async (q: string, page: number) => {
+    const fetchPage = async (params: any) => {
       return axios.get('https://api.discogs.com/database/search', {
         params: {
-          q,
+          ...params,
           ...authParams,
           type: 'release',
           format: 'vinyl',
           per_page: 50,
-          page,
           sort: 'want',
           sort_order: 'desc',
         },
@@ -88,9 +87,11 @@ export const searchDiscogsLazy = async (
       }).then((r) => r.data.results || []).catch(() => []);
     };
 
-    const promises = [fetchPage(query, 1), fetchPage(query, 2)];
+    // Original query text search
+    const promises = [fetchPage({ q: query, page: 1 }), fetchPage({ q: query, page: 2 })];
+    // If we found an English alias, do an exact ARTIST search to avoid noise
     if (alias) {
-      promises.push(fetchPage(alias, 1));
+      promises.push(fetchPage({ artist: alias, page: 1 }));
     }
 
     const pages = await Promise.all(promises);
@@ -112,6 +113,7 @@ export const searchDiscogsLazy = async (
   const unique: { r: any, isFeature: boolean }[] = [];
   const queryLower = query.toLowerCase();
   const aliasLower = alias.toLowerCase();
+  const isKoreanQuery = /[가-힣]/.test(query);
 
   for (const r of raw) {
     const formats: string[] = r.format || [];
@@ -126,8 +128,19 @@ export const searchDiscogsLazy = async (
     const matchesAlias = aliasLower ? relArtLower.includes(aliasLower) : false;
     const isFeature = releaseArtist ? !(matchesQuery || matchesAlias) : false;
 
-    if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
     const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+    // Aggressive noise filtering for English queries:
+    // If it's marked as a feature, but the query is English, Discogs often returns random junk 
+    // (e.g. searching "wave to earth" returns "Kate Bush" because "earth" is in a track name).
+    // We discard these false features. Korean queries are safer and true features (e.g. 검정치마 in credits).
+    if (isFeature && !isKoreanQuery) {
+      if (!normTitle.includes(queryLower) && !(aliasLower && normTitle.includes(aliasLower))) {
+        continue;
+      }
+    }
+
+    if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
     if (seenTitles.has(normTitle)) continue;
 
     if (r.master_id && r.master_id !== 0) seenMasters.add(r.master_id);
