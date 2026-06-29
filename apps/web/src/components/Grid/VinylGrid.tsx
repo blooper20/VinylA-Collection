@@ -170,8 +170,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRES || []))).sort();
 
 
-  const countryTags = allTags.filter(tag => KNOWN_COUNTRIES.includes(tag));
-  const genreTags = allTags.filter(tag => !KNOWN_COUNTRIES.includes(tag));
+  const genreTags = allTags;
 
   const displayedAlbums = dataToUse.filter(album =>
     activeTag === 'ALL' || (album.GENRES && album.GENRES.includes(activeTag))
@@ -186,20 +185,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           <p className={styles.pageSubtitle}>{displayedAlbums.length} Records</p>
         </div>
         <div className={styles.headerRight}>
-          {countryTags.length > 0 && (
-            <div className={styles.tagRow}>
-              <div className={styles.spacer} />
-              {countryTags.map(tag => (
-                <button
-                  key={tag}
-                  className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
-                  onClick={() => setActiveTag(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          )}
           <div className={styles.tagRow}>
             <div className={styles.spacer} />
             <button
