@@ -354,9 +354,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 이 LP를 얼마에 구매하셨나요? (숫자만 입력)
               </p>
               <input 
-                type="number" 
+                type="text" 
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={purchasePriceInput} 
-                onChange={(e) => setPurchasePriceInput(e.target.value)}
+                onChange={(e) => setPurchasePriceInput(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="예: 45000"
                 className={styles.priceInput}
                 autoFocus
