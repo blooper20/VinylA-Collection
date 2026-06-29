@@ -357,6 +357,7 @@ export interface AlbumExtraDetails {
   copyright?: string;
   releaseDate?: string;
   highResCover?: string;
+  marketPrice?: number;
 }
 
 export const getAlbumExtraDetails = async (albumId: string | number, artist?: string, title?: string): Promise<AlbumExtraDetails> => {
@@ -376,6 +377,9 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
     if (masterRes.data?.notes) {
       details.notes = masterRes.data.notes;
     }
+    if (masterRes.data?.lowest_price) {
+      details.marketPrice = Math.round(masterRes.data.lowest_price * 1400); // Convert USD/EUR to KRW roughly
+    }
   } catch (e) {
     try {
       const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
@@ -384,6 +388,9 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
       }
       if (releaseRes.data?.notes) {
         details.notes = releaseRes.data.notes;
+      }
+      if (releaseRes.data?.lowest_price) {
+        details.marketPrice = Math.round(releaseRes.data.lowest_price * 1400);
       }
     } catch (e2) {
       // ignore

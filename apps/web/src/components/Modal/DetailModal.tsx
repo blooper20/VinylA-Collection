@@ -19,6 +19,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
+  const [marketPrice, setMarketPrice] = React.useState<number | null>((album as any).MARKET_PRICE || null);
 
   React.useEffect(() => {
     // Prevent body and html scrolling while modal is open
@@ -40,6 +41,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       if (details.releaseDate) setReleaseDate(details.releaseDate);
       if (details.highResCover && album.IMAGE_URL !== details.highResCover) {
         setCoverUrl(details.highResCover);
+      }
+      if (details.marketPrice && !marketPrice) {
+        setMarketPrice(details.marketPrice);
       }
     });
   }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
@@ -85,7 +89,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       });
 
       let master = await getAlbumMaster(album.ALBUM_ID);
-      if (!master || !master.GENRES || master.GENRES.length === 0) {
+      if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE)) {
         await createAlbumMaster({
           ALBUM_ID: album.ALBUM_ID,
           TITLE: album.TITLE,
@@ -96,7 +100,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: 'SOLID',
           TRACKS: tracks || [],
-          GENRES: finalGenres
+          GENRES: finalGenres,
+          MARKET_PRICE: marketPrice || 0
         });
       }
 
@@ -185,10 +190,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             
             <div className={styles.estimatedValue}>
               <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
-              시장 추정가: ₩{(() => {
-                const estimatedUsd = 35 + ((album.ALBUM_ID || 1) % 10);
-                return (estimatedUsd * 1400).toLocaleString();
-              })()}
+              시장 추정가: {marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}
             </div>
             {album.STATUS === 'OWNED' ? (
               <div className={styles.actualValue}>

@@ -22,6 +22,8 @@ export interface ALBUM_MASTER {
   TRACKS?: string[];
   /** 장르 태그 (UI 표시용) */
   GENRES?: string[];
+  /** Discogs 등 실제 시장 최저가 (KRW 기준) */
+  MARKET_PRICE?: number;
 }
 
 /**
