@@ -51,21 +51,29 @@
 
 .headerRight {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  padding-bottom: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tagRow {
+  display: flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
-  padding-bottom: 8px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  flex: 1;
-  justify-content: flex-end;
+  max-width: 100%;
   /* Mask gradient for smooth scroll edge */
   -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 100%);
   mask-image: linear-gradient(to right, transparent, black 5%, black 100%);
 }
 
-.headerRight::-webkit-scrollbar {
+.tagRow::-webkit-scrollbar {
   display: none;
 }
 

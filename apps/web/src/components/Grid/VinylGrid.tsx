@@ -91,6 +91,15 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   
   const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRES || []))).sort();
 
+  const KNOWN_COUNTRIES = [
+    'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
+    'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
+    'Sweden', 'Taiwan', 'Brazil', 'Russia'
+  ];
+
+  const countryTags = allTags.filter(tag => KNOWN_COUNTRIES.includes(tag));
+  const genreTags = allTags.filter(tag => !KNOWN_COUNTRIES.includes(tag));
+
   const displayedAlbums = dataToUse.filter(album =>
     activeTag === 'ALL' || (album.GENRES && album.GENRES.includes(activeTag))
   );
@@ -104,21 +113,36 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           <p className={styles.pageSubtitle}>{displayedAlbums.length} Records</p>
         </div>
         <div className={styles.headerRight}>
-          <button
-            className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`}
-            onClick={() => setActiveTag('ALL')}
-          >
-            전체
-          </button>
-          {allTags.map(tag => (
+          {countryTags.length > 0 && (
+            <div className={styles.tagRow}>
+              {countryTags.map(tag => (
+                <button
+                  key={tag}
+                  className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
+                  onClick={() => setActiveTag(tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className={styles.tagRow}>
             <button
-              key={tag}
-              className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
-              onClick={() => setActiveTag(tag)}
+              className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`}
+              onClick={() => setActiveTag('ALL')}
             >
-              {tag}
+              전체
             </button>
-          ))}
+            {genreTags.map(tag => (
+              <button
+                key={tag}
+                className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
+                onClick={() => setActiveTag(tag)}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
