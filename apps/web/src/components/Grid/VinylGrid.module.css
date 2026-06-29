@@ -7,13 +7,13 @@
 
 /* ---- Page Header ---- */
 .pageHeader {
-  padding: 56px 32px 40px; /* Reduced side padding from 56px to 32px to widen the tag area */
+  padding: 56px 56px 40px; /* Restored original side padding to 56px */
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px; /* Reduced gap from 24px to 16px */
+  gap: 24px; /* Restored original gap to 24px */
   width: 100%;
   box-sizing: border-box;
 }
@@ -140,10 +140,6 @@
   padding: 2px;
 }
 
-@media (min-width: 1200px) {
-  .grid { grid-template-columns: repeat(5, 1fr); }
-}
-
-@media (min-width: 1600px) {
-  .grid { grid-template-columns: repeat(6, 1fr); }
+@media (min-width: 1024px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
 }
