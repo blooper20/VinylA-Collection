@@ -97,7 +97,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   useEffect(() => {
     if (dbData.length === 0) return;
 
-    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v3') === 'true';
+    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v4') === 'true';
 
     const brokenAlbums = dbData.filter(album => {
       if (!migrationDone) return true; // Force one-time check for all to replace inaccurate Discogs countries
@@ -144,9 +144,14 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           const json = await res.json();
           const result = json.results?.[0];
 
-          if (result) {
             let finalCountry = '';
-            if (countryCode) {
+            const hasHangul = /[가-힣]/.test(album.ARTIST) || 
+                              /[가-힣]/.test(album.TITLE) || 
+                              (album.TRACKS && album.TRACKS.some(t => /[가-힣]/.test(t)));
+
+            if (hasHangul) {
+              finalCountry = 'South Korea';
+            } else if (countryCode) {
               const mapping: { [key: string]: string } = {
                 'KOR': 'South Korea', 'USA': 'US', 'JPN': 'Japan', 'GBR': 'UK',
                 'DEU': 'Germany', 'FRA': 'France', 'CAN': 'Canada', 'AUS': 'Australia',
@@ -157,11 +162,18 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               finalCountry = result.country;
             }
 
+            // Discogs genres mapping
             const combinedGenres = Array.from(new Set([
               ...(result.genre || []),
               ...(result.style || []),
               ...(finalCountry ? [finalCountry] : [])
             ]));
+            
+            // Clean up any double-country tags if they slipped in
+            let finalGenres = combinedGenres;
+            if (hasHangul) {
+              finalGenres = combinedGenres.filter(g => !KNOWN_COUNTRIES.includes(g) || g === 'South Korea');
+            }
 
             if (combinedGenres.length > 0) {
               await createAlbumMaster({
@@ -174,7 +186,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                 CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c',
                 CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID',
                 TRACKS: album.TRACKS || [],
-                GENRES: combinedGenres
+                GENRES: finalGenres
               });
             }
           }
@@ -183,7 +195,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         }
       }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('vinyls_migration_v3', 'true');
+        localStorage.setItem('vinyls_migration_v4', 'true');
       }
       // Refresh local UI state
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));

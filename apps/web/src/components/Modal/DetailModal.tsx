@@ -72,8 +72,23 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
   const handleSave = async (status: 'OWNED' | 'WISH') => {
     try {
+      let finalGenres = album.GENRES || [];
+      const hasHangul = /[가-힣]/.test(album.ARTIST) || 
+                        /[가-힣]/.test(album.TITLE) || 
+                        (album.TRACKS && album.TRACKS.some((t: string) => /[가-힣]/.test(t)));
+      
+      if (hasHangul) {
+        const KNOWN_COUNTRIES = [
+          'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
+          'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
+          'Sweden', 'Taiwan', 'Brazil', 'Russia'
+        ];
+        finalGenres = finalGenres.filter(g => !KNOWN_COUNTRIES.includes(g));
+        finalGenres.push('South Korea');
+      }
+
       let master = await getAlbumMaster(album.ALBUM_ID);
-      if (!master || !master.GENRES || master.GENRES.length === 0) {
+      if (!master || !master.GENRES || master.GENRES.length === 0 || hasHangul) {
         await createAlbumMaster({
           ALBUM_ID: album.ALBUM_ID,
           TITLE: album.TITLE,
@@ -84,7 +99,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: 'SOLID',
           TRACKS: album.TRACKS || [],
-          GENRES: album.GENRES || []
+          GENRES: finalGenres
         });
       }
 
