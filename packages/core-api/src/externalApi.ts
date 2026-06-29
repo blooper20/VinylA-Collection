@@ -266,39 +266,41 @@ export const searchDiscogs = async (query: string) => {
 
 
 export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
-  // 1. Try iTunes Lookup first (since our primary ALBUM_ID is now from iTunes)
-  try {
-    const response = await axios.get('https://itunes.apple.com/lookup', {
-      params: { id: albumId, entity: 'song' }
-    });
-    const songs = response.data.results.filter((r: any) => r.wrapperType === 'track');
-    if (songs.length > 0) {
-      return songs.map((song: any) => song.trackName);
-    }
-  } catch (error) {
-    console.error('iTunes track fetch failed:', error);
-  }
-
-  // 2. Fallback to Discogs (for older saved albums that used Discogs IDs)
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
   const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
   const authParams = token ? { token } : { key, secret };
 
+  // 1. Try Discogs first (since our primary ALBUM_ID is now a Discogs ID)
+  // We prefer checking /masters/ first because searchDiscogsLazy uses master_id when available
   try {
-    const response = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
-    if (response.data.tracklist) {
-      return response.data.tracklist.map((t: any) => t.title);
+    const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: authParams });
+    if (masterRes.data?.tracklist) {
+      return masterRes.data.tracklist.map((t: any) => t.title);
+    }
+  } catch (e) {
+    // If it's not a master release, try the regular release endpoint
+    try {
+      const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
+      if (releaseRes.data?.tracklist) {
+        return releaseRes.data.tracklist.map((t: any) => t.title);
+      }
+    } catch (e2) {
+      // ignore, fallback to iTunes below
+    }
+  }
+
+  // 2. Fallback to iTunes Lookup (for older saved albums that might have used iTunes collectionIds)
+  try {
+    const response = await axios.get('https://itunes.apple.com/lookup', {
+      params: { id: albumId, entity: 'song' }
+    });
+    const songs = response.data.results?.filter((r: any) => r.wrapperType === 'track') || [];
+    if (songs.length > 0) {
+      return songs.map((song: any) => song.trackName);
     }
   } catch (error) {
-    try {
-      const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: authParams });
-      if (masterRes.data.tracklist) {
-        return masterRes.data.tracklist.map((t: any) => t.title);
-      }
-    } catch (e) {
-      // ignore
-    }
+    console.error('iTunes track fetch failed:', error);
   }
 
   return [];
