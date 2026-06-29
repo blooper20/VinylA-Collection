@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
+import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 
 const PRESET_AVATARS = [
   '/logo.png',
@@ -17,13 +18,19 @@ const AVAILABLE_GENRES = [
 ];
 
 export default function MyProfilePage() {
-  const { user, initializeAuth, updateProfileWithAvatarFile } = useAuthStore();
+  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
   const [topGenre, setTopGenre] = useState('-');
   const [actualTopGenre, setActualTopGenre] = useState('-');
   const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
+  const [ownedAlbumsList, setOwnedAlbumsList] = useState<any[]>([]);
+
+  const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
+  const featuredAlbum = ownedAlbumsList.find(a => a.ALBUM_ID === featuredAlbumId);
+
+  const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -98,6 +105,8 @@ export default function MyProfilePage() {
         }
 
         const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
+        setOwnedAlbumsList(mappedOwned);
+        
         // timeline: top 3 recent additions
         setRecentAdditions(mappedOwned.slice(0, 3));
       } else {
@@ -227,6 +236,22 @@ export default function MyProfilePage() {
               </button>
             </>
           )}
+
+          {!isEditing && (
+            <div className={styles.featuredContainer}>
+              <span className={styles.featuredLabel}>Representative LP</span>
+              <div className={styles.featuredFrame} onClick={() => setIsFeaturedModalOpen(true)}>
+                {featuredAlbum ? (
+                  <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                ) : (
+                  <div className={styles.featuredEmpty}>
+                    <span className="material-symbols-outlined">add_circle</span>
+                    <p>대표 LP 설정</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -267,6 +292,14 @@ export default function MyProfilePage() {
           )}
         </div>
       </section>
+
+      <FeaturedLPModal 
+        isOpen={isFeaturedModalOpen}
+        onClose={() => setIsFeaturedModalOpen(false)}
+        ownedAlbums={ownedAlbumsList}
+        currentFeaturedId={featuredAlbumId}
+        onSelect={updateFeaturedAlbum}
+      />
     </div>
   );
 }

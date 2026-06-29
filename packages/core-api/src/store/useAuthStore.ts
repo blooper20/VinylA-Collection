@@ -8,6 +8,7 @@ interface AuthState {
   initializeAuth: () => Promise<void>;
   updateProfile: (displayName: string, interests: string[], avatarUrl?: string) => Promise<void>;
   updateProfileWithAvatarFile: (displayName: string, interests: string[], file?: File) => Promise<void>;
+  updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -84,6 +85,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     } catch (error) {
       console.error('Failed to update profile with avatar file', error);
+      throw error;
+    }
+  },
+  updateFeaturedAlbum: async (albumId: number | null) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { featured_album_id: albumId }
+      });
+      if (error) throw error;
+      if (data.user) {
+        set({ user: data.user });
+      }
+    } catch (error) {
+      console.error('Failed to update featured album', error);
       throw error;
     }
   }
