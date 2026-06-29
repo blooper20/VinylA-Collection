@@ -97,8 +97,9 @@ export default function MyProfilePage() {
           setActualTopGenre('-');
         }
 
+        const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
         // timeline: top 3 recent additions
-        setRecentAdditions(owned.slice(0, 3));
+        setRecentAdditions(mappedOwned.slice(0, 3));
       } else {
         setActualTopGenre('-');
       }
