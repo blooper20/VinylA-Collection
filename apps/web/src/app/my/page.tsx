@@ -154,9 +154,6 @@ export default function MyProfilePage() {
                         onChange={handleFileChange}
                       />
                     </label>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
-                      * Supabase Storage에 'avatars' 버킷이 필요합니다.
-                    </p>
                   </div>
                 </div>
               </div>

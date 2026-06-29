@@ -217,6 +217,17 @@
   margin-bottom: 12px;
 }
 
+.estimatedValue {
+  display: flex;
+  align-items: center;
+  margin-top: -8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 .artist {
   font-family: var(--font-body);
   font-size: 18px;
