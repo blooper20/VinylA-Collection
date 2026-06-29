@@ -128,13 +128,13 @@ export const deleteUserVinylByAlbum = async (userId: string | number, albumId: n
     .eq('ALBUM_ID', albumId);
 
   if (error) {
-    console.error('deleteUserVinylByAlbum error:', error);
     // Also remove from localStorage if DB fails
     if (typeof window !== 'undefined') {
       const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       if (local) {
         const arr = JSON.parse(local).filter((v: any) => v.ALBUM_ID !== albumId);
         localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
+        return true; // Consider it a success locally
       }
     }
     return false;

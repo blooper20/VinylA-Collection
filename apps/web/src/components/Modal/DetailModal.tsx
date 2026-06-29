@@ -104,6 +104,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   };
 
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
+    const isConfirmed = window.confirm(`정말로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?`);
+    if (!isConfirmed) return;
+
     try {
       setIsSaving(true);
       await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
@@ -181,7 +184,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           
           <div className={styles.actions}>
             {album.STATUS === 'OWNED' && (
-              <button className={styles.btnPrimary} onClick={() => handleDelete('OWNED')} disabled={isSaving}>
+              <button 
+                className={styles.btnPrimary} 
+                style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f' }}
+                onClick={() => handleDelete('OWNED')} 
+                disabled={isSaving}
+              >
                 <span className="material-symbols-outlined">delete</span>
                 보관함 삭제
               </button>
@@ -193,7 +201,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   <span className="material-symbols-outlined">add</span>
                   보관함 추가
                 </button>
-                <button className={styles.btnSecondary} onClick={() => handleDelete('WISH')} disabled={isSaving}>
+                <button 
+                  className={styles.btnSecondary} 
+                  style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f', color: 'white' }}
+                  onClick={() => handleDelete('WISH')} 
+                  disabled={isSaving}
+                >
                   <span className="material-symbols-outlined">delete</span>
                   위시 삭제
                 </button>
