@@ -137,11 +137,27 @@
   right: -80px;
   width: 340px;
   height: 450px;
-  background: linear-gradient(180deg, rgba(255, 245, 210, 0.15) 0%, rgba(255, 245, 210, 0.03) 60%, transparent 100%);
+  background: 
+    linear-gradient(180deg, rgba(255, 245, 210, 0.3) 0%, rgba(255, 245, 210, 0.05) 50%, transparent 100%),
+    linear-gradient(180deg, rgba(255, 245, 210, 0.1) 0%, rgba(255, 245, 210, 0.02) 80%, transparent 100%);
   clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
   pointer-events: none;
   z-index: -1;
-  filter: blur(24px);
+  filter: blur(20px);
+}
+
+.featuredContainer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -30px;
+  transform: translateY(-50%);
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 245, 210, 0.15) 0%, transparent 60%);
+  z-index: -2;
+  pointer-events: none;
 }
 
 .featuredFrame {
