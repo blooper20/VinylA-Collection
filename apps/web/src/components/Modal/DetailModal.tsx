@@ -114,12 +114,17 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       await upsertUserVinyl(payloadData);
 
       setIsSaving(true);
-      // Let animation play for 600ms
       setTimeout(() => {
         onClose();
+        
+        let message = `성공적으로 ${status === 'OWNED' ? '보관함' : '위시리스트'}에 추가되었습니다!`;
+        if (status === 'OWNED' && album.STATUS === 'OWNED') {
+          message = '구입가가 성공적으로 저장되었습니다!';
+        }
+
         // Dispatch custom event for Toast
         window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-          detail: { message: `성공적으로 ${status === 'OWNED' ? '보관함' : '위시리스트'}에 추가되었습니다!` }
+          detail: { message }
         }));
         window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
       }, 600);
