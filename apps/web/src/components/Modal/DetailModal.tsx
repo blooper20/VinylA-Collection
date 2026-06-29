@@ -16,6 +16,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [releaseDate, setReleaseDate] = React.useState<string>('');
   const [coverUrl, setCoverUrl] = React.useState<string>(album.IMAGE_URL || '');
   const [confirmTarget, setConfirmTarget] = React.useState<'OWNED' | 'WISH' | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   React.useEffect(() => {
     getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
@@ -105,22 +106,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   };
 
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
-    setConfirmTarget(null);
     try {
-      setIsSaving(true);
+      setIsDeleting(true);
       await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
-      setTimeout(() => {
-        onClose();
-        window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-          detail: { message: `성공적으로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제되었습니다.` }
-        }));
-        window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
-      }, 600);
+      onClose();
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
+        detail: { message: `성공적으로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제되었습니다.` }
+      }));
+      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     } catch (e) {
       console.error(e);
+      setConfirmTarget(null);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '삭제에 실패했습니다.' }}));
     } finally {
-      setIsSaving(false);
+      setIsDeleting(false);
     }
   };
 
@@ -250,11 +249,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 정말로 {confirmTarget === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?
               </p>
               <div className={styles.confirmActions}>
-                <button className={styles.btnCancel} onClick={() => setConfirmTarget(null)}>
+                <button className={styles.btnCancel} onClick={() => setConfirmTarget(null)} disabled={isDeleting}>
                   취소
                 </button>
-                <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)}>
-                  삭제하기
+                <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)} disabled={isDeleting}>
+                  {isDeleting ? '삭제 중...' : '삭제하기'}
                 </button>
               </div>
             </div>
