@@ -104,6 +104,10 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     activeTag === 'ALL' || (album.GENRES && album.GENRES.includes(activeTag))
   );
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.currentTarget.scrollLeft += e.deltaY;
+  };
+
   return (
     <div className={styles.pageWrapper}>
       <header className={styles.pageHeader}>
@@ -114,7 +118,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
         <div className={styles.headerRight}>
           {countryTags.length > 0 && (
-            <div className={styles.tagRow}>
+            <div className={styles.tagRow} onWheel={handleWheel}>
               {countryTags.map(tag => (
                 <button
                   key={tag}
@@ -126,7 +130,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               ))}
             </div>
           )}
-          <div className={styles.tagRow}>
+          <div className={styles.tagRow} onWheel={handleWheel}>
             <button
               className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`}
               onClick={() => setActiveTag('ALL')}

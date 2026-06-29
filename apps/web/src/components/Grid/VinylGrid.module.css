@@ -65,16 +65,28 @@
   align-items: center;
   gap: 6px;
   overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
   max-width: 100%;
-  /* Mask gradient for smooth scroll edge */
-  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 100%);
-  mask-image: linear-gradient(to right, transparent, black 5%, black 100%);
+  padding-bottom: 4px; /* Space for custom scrollbar */
+  /* Support horizontal scroll with mouse wheel on hover if supported, else normal scroll */
+  -webkit-overflow-scrolling: touch;
 }
 
 .tagRow::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.tagRow::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 2px;
+}
+
+.tagRow::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.tagRow::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 
