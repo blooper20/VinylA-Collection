@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
-import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore, createAlbumMaster } from '@vinyla/core-api';
 import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
@@ -86,6 +86,68 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       window.removeEventListener('REFRESH_VINYLS', handleRefresh);
     };
   }, [user]);
+
+  // Auto-heal logic: Automatically fetch and restore missing genres/countries for legacy items
+  useEffect(() => {
+    if (dbData.length === 0) return;
+
+    const brokenAlbums = dbData.filter(album => 
+      !album.GENRES || 
+      album.GENRES.length === 0 || 
+      (album.GENRES.length === 1 && album.GENRES[0] === 'Vinyl')
+    );
+
+    if (brokenAlbums.length === 0) return;
+
+    async function healData() {
+      const token = process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
+      const key = process.env.NEXT_PUBLIC_DISCOGS_KEY;
+      const secret = process.env.NEXT_PUBLIC_DISCOGS_SECRET;
+      
+      for (const album of brokenAlbums) {
+        try {
+          const query = encodeURIComponent(`${album.ARTIST} ${album.TITLE}`);
+          const authString = token ? `token=${token}` : `key=${key}&secret=${secret}`;
+          const res = await fetch(`https://api.discogs.com/database/search?q=${query}&type=release&format=vinyl&per_page=1&${authString}`, {
+            headers: { 'User-Agent': 'VinylA/1.0.0' }
+          });
+          const json = await res.json();
+          const result = json.results?.[0];
+
+          if (result) {
+            const combinedGenres = Array.from(new Set([
+              ...(result.genre || []),
+              ...(result.style || []),
+              ...(result.country ? [result.country] : [])
+            ]));
+
+            if (combinedGenres.length > 0) {
+              await createAlbumMaster({
+                ALBUM_ID: album.ALBUM_ID,
+                TITLE: album.TITLE,
+                ARTIST: album.ARTIST,
+                RELEASE_YEAR: album.RELEASE_YEAR,
+                IMAGE_URL: album.IMAGE_URL,
+                VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
+                CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c',
+                CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID',
+                TRACKS: album.TRACKS || [],
+                GENRES: combinedGenres
+              });
+            }
+          }
+        } catch (err) {
+          console.warn(`Auto-heal failed for ${album.TITLE}:`, err);
+        }
+      }
+      // Refresh local UI state
+      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+    }
+
+    // Delay slightly to prevent slamming during initial render
+    const timer = setTimeout(healData, 1000);
+    return () => clearTimeout(timer);
+  }, [dbData]);
 
   const dataToUse = dbData.filter(album => statusFilter === 'ALL' || album.STATUS === statusFilter);
   
