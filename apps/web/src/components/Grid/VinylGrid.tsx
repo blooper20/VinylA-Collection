@@ -13,9 +13,9 @@ interface VinylGridProps {
   statusFilter?: FilterType;
 }
 
-export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilter = 'OWNED' }) => {
+export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) => {
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterType>(initialFilter);
+  const [activeTag, setActiveTag] = useState<string>('ALL');
   const [dbData, setDbData] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -87,9 +87,12 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
     };
   }, [user]);
 
-  const dataToUse = dbData;
+  const dataToUse = dbData.filter(album => statusFilter === 'ALL' || album.STATUS === statusFilter);
+  
+  const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRE || []))).sort();
+
   const displayedAlbums = dataToUse.filter(album =>
-    activeFilter === 'ALL' || album.STATUS === activeFilter
+    activeTag === 'ALL' || (album.GENRE && album.GENRE.includes(activeTag))
   );
 
   return (
@@ -101,17 +104,19 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
           <p className={styles.pageSubtitle}>{displayedAlbums.length} Records</p>
         </div>
         <div className={styles.headerRight}>
-          {([
-            { value: 'ALL',   label: '전체' },
-            { value: 'OWNED', label: '보유 중' },
-            { value: 'WISH',  label: '위시' },
-          ] as { value: FilterType; label: string }[]).map(({ value, label }) => (
+          <button
+            className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`}
+            onClick={() => setActiveTag('ALL')}
+          >
+            전체
+          </button>
+          {allTags.map(tag => (
             <button
-              key={value}
-              className={`${styles.filterChip} ${activeFilter === value ? styles.active : ''}`}
-              onClick={() => setActiveFilter(value)}
+              key={tag}
+              className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
+              onClick={() => setActiveTag(tag)}
             >
-              {label}
+              {tag}
             </button>
           ))}
         </div>
