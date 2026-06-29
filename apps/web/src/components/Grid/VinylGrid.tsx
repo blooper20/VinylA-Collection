@@ -9,6 +9,12 @@ import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 
+const KNOWN_COUNTRIES = [
+  'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
+  'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
+  'Sweden', 'Taiwan', 'Brazil', 'Russia'
+];
+
 interface VinylGridProps {
   statusFilter?: FilterType;
 }
@@ -94,7 +100,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     const brokenAlbums = dbData.filter(album => 
       !album.GENRES || 
       album.GENRES.length === 0 || 
-      (album.GENRES.length === 1 && album.GENRES[0] === 'Vinyl')
+      (album.GENRES.length === 1 && album.GENRES[0] === 'Vinyl') ||
+      // Also heal if it has genres but is missing a country tag
+      !album.GENRES.some(tag => KNOWN_COUNTRIES.includes(tag))
     );
 
     if (brokenAlbums.length === 0) return;
@@ -153,11 +161,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   
   const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRES || []))).sort();
 
-  const KNOWN_COUNTRIES = [
-    'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
-    'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
-    'Sweden', 'Taiwan', 'Brazil', 'Russia'
-  ];
 
   const countryTags = allTags.filter(tag => KNOWN_COUNTRIES.includes(tag));
   const genreTags = allTags.filter(tag => !KNOWN_COUNTRIES.includes(tag));
