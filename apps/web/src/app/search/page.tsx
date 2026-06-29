@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { searchDiscogsLazy, AlbumItem, SearchStatus } from '@vinyla/core-api';
+import { searchDiscogsLazy, AlbumItem, SearchStatus, useAuthStore, getUserVinyls } from '@vinyla/core-api';
 import { DetailModal } from '../../components/Modal/DetailModal';
 import styles from './page.module.css';
 
@@ -60,6 +60,30 @@ export default function SearchPage() {
   const [totalToCheck, setTotalToCheck] = useState(0);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { user, initializeAuth } = useAuthStore();
+  const [userVinyls, setUserVinyls] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  React.useEffect(() => {
+    async function loadData() {
+      if (!user) {
+        setUserVinyls([]);
+        return;
+      }
+      const vinyls = await getUserVinyls(user.id);
+      setUserVinyls(vinyls || []);
+    }
+    
+    if (user !== undefined) loadData();
+
+    const handleRefresh = () => loadData();
+    window.addEventListener('REFRESH_VINYLS', handleRefresh);
+    return () => window.removeEventListener('REFRESH_VINYLS', handleRefresh);
+  }, [user]);
 
   // cancel token: if user starts a new search, discard stale callbacks
   const searchIdRef = useRef(0);
@@ -170,14 +194,18 @@ export default function SearchPage() {
               <AlbumCard
                 key={item.id}
                 item={item}
-                onSelect={(a) => setSelectedAlbum({
-                  ALBUM_ID: a.id,
-                  TITLE: a.title,
-                  ARTIST: a.artist,
-                  IMAGE_URL: a.thumb,
-                  RELEASE_YEAR: a.year,
-                  GENRES: a.genre
-                })}
+                onSelect={(a) => {
+                  const existing = userVinyls.find(v => v.ALBUM_ID === a.id);
+                  setSelectedAlbum({
+                    ALBUM_ID: a.id,
+                    TITLE: a.title,
+                    ARTIST: a.artist,
+                    IMAGE_URL: a.thumb,
+                    RELEASE_YEAR: a.year,
+                    GENRES: a.genre,
+                    STATUS: existing ? existing.STATUS : undefined
+                  });
+                }}
               />
             ))}
 
@@ -224,14 +252,18 @@ export default function SearchPage() {
                 <AlbumCard
                   key={item.id}
                   item={item}
-                  onSelect={(a) => setSelectedAlbum({
-                    ALBUM_ID: a.id,
-                    TITLE: a.title,
-                    ARTIST: a.artist,
-                    IMAGE_URL: a.thumb,
-                    RELEASE_YEAR: a.year,
-                    GENRES: a.genre
-                  })}
+                  onSelect={(a) => {
+                    const existing = userVinyls.find(v => v.ALBUM_ID === a.id);
+                    setSelectedAlbum({
+                      ALBUM_ID: a.id,
+                      TITLE: a.title,
+                      ARTIST: a.artist,
+                      IMAGE_URL: a.thumb,
+                      RELEASE_YEAR: a.year,
+                      GENRES: a.genre,
+                      STATUS: existing ? existing.STATUS : undefined
+                    });
+                  }}
                 />
               ))}
             </div>
