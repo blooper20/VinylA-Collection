@@ -64,7 +64,7 @@ export const searchDiscogsLazy = async (
   let alias = '';
   try {
     const itRes = await axios.get('https://itunes.apple.com/search', {
-      params: { term: query, entity: 'album', limit: 3 }
+      params: { term: query, entity: 'musicArtist', limit: 3 }
     });
     const artistName = itRes.data.results?.[0]?.artistName;
     if (artistName && artistName.toLowerCase() !== query.toLowerCase()) {
