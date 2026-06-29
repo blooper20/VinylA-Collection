@@ -8,6 +8,7 @@ export type AlbumItem = {
   year: string;
   genre?: string[];
   format?: string[];
+  isFeature?: boolean;
 };
 
 export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done';
@@ -88,7 +89,7 @@ export const searchDiscogsLazy = async (
   // ── Step 2: Client-side filter → LP/Album formats + artist must match query ──
   const seenMasters = new Set<number>();
   const seenTitles = new Set<string>();
-  const unique: any[] = [];
+  const unique: { r: any, isFeature: boolean }[] = [];
   const queryLower = query.toLowerCase();
 
   for (const r of raw) {
@@ -96,10 +97,10 @@ export const searchDiscogsLazy = async (
     if (!isAlbumFormat(formats)) continue; // skip 7" singles, 12" EPs etc.
 
     // Discogs title format: "Artist - Album Title"
-    // Verify the ARTIST part contains the search query to filter out
-    // "featured on" / tag-matched results (e.g. Chung Ha featuring 검정치마)
+    // If the ARTIST part does not contain the search query, it's a
+    // "featured on" / compilation result (e.g. Chung Ha featuring 검정치마, Various OSTs)
     const { artist: releaseArtist } = parseDiscogsTitle(r.title || '');
-    if (releaseArtist && !releaseArtist.toLowerCase().includes(queryLower)) continue;
+    const isFeature = releaseArtist ? !releaseArtist.toLowerCase().includes(queryLower) : false;
 
     if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
     const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -107,9 +108,10 @@ export const searchDiscogsLazy = async (
 
     if (r.master_id && r.master_id !== 0) seenMasters.add(r.master_id);
     seenTitles.add(normTitle);
-    unique.push(r);
+    unique.push({ r, isFeature });
 
-    if (unique.length >= 15) break;
+    // Stop if we have enough of both main and featured albums (max 20 total)
+    if (unique.length >= 20) break;
   }
 
   if (unique.length === 0) {
@@ -122,7 +124,7 @@ export const searchDiscogsLazy = async (
   // ── Step 3: Enrich each LP with Apple Music cover art (3 concurrent) ────────
   const CONCURRENCY = 3;
 
-  const enrich = async (r: any) => {
+  const enrich = async ({ r, isFeature }: { r: any, isFeature: boolean }) => {
     const { artist, title } = parseDiscogsTitle(r.title || '');
 
     // Discogs cover image (often available and decent quality)
@@ -152,6 +154,7 @@ export const searchDiscogsLazy = async (
       thumb,
       year: r.year ? String(r.year) : '',
       format: r.format || ['Vinyl', 'LP'],
+      isFeature,
     });
   };
 

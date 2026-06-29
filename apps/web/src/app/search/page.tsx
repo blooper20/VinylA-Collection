@@ -113,14 +113,17 @@ export default function SearchPage() {
 
   const skeletonCount = isEnriching ? Math.max(0, totalToCheck - results.length) : 0;
 
+  const mainResults = results.filter(r => !r.isFeature);
+  const featuredResults = results.filter(r => r.isFeature);
+
   const sectionTitle = isLoading
     ? isEnriching
       ? `커버 이미지 불러오는 중... (${results.length} / ${totalToCheck})`
       : 'Discogs에서 LP 검색 중...'
-    : results.length > 0
-      ? `LP 검색 결과 (${results.length})`
+    : mainResults.length > 0
+      ? `LP 검색 결과 (${mainResults.length})`
       : status === 'done'
-        ? 'Discogs에 등록된 LP가 없습니다'
+        ? 'Discogs에 등록된 정규 LP가 없습니다'
         : '장르';
 
   return (
@@ -159,12 +162,11 @@ export default function SearchPage() {
                 />
               </div>
             )}
-            <button className={styles.viewAllBtn}>전체 →</button>
           </div>
 
           <div className={styles.masonryGrid}>
             {/* Actual found albums */}
-            {results.map((item) => (
+            {mainResults.map((item) => (
               <AlbumCard
                 key={item.id}
                 item={item}
@@ -209,6 +211,30 @@ export default function SearchPage() {
             )}
           </div>
         </section>
+
+        {/* Featured / Compilation Section */}
+        {featuredResults.length > 0 && (
+          <section style={{ marginTop: '4rem' }}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>피처링 및 참여 앨범 ({featuredResults.length})</h2>
+            </div>
+            <div className={styles.masonryGrid}>
+              {featuredResults.map((item) => (
+                <AlbumCard
+                  key={item.id}
+                  item={item}
+                  onSelect={(a) => setSelectedAlbum({
+                    ALBUM_ID: a.id,
+                    TITLE: a.title,
+                    ARTIST: a.artist,
+                    IMAGE_URL: a.thumb,
+                    RELEASE_YEAR: a.year
+                  })}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {selectedAlbum && (
