@@ -450,3 +450,95 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
 }
+
+/* Custom Confirmation Popup */
+.confirmOverlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+}
+
+.confirmPopup {
+  background-color: #1a1c1c;
+  padding: 32px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.confirmIcon {
+  color: #d32f2f;
+  margin-bottom: 16px;
+}
+.confirmIcon span {
+  font-size: 48px;
+}
+
+.confirmTitle {
+  color: #fff;
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.confirmMessage {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  margin-bottom: 32px;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btnCancel {
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: transparent;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+.btnCancel:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.btnDelete {
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  background-color: #d32f2f;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+.btnDelete:hover {
+  background-color: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+}

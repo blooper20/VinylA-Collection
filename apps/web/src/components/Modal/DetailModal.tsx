@@ -15,6 +15,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [copyright, setCopyright] = React.useState<string>('');
   const [releaseDate, setReleaseDate] = React.useState<string>('');
   const [coverUrl, setCoverUrl] = React.useState<string>(album.IMAGE_URL || '');
+  const [confirmTarget, setConfirmTarget] = React.useState<'OWNED' | 'WISH' | null>(null);
 
   React.useEffect(() => {
     getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
@@ -104,9 +105,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   };
 
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
-    const isConfirmed = window.confirm(`정말로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?`);
-    if (!isConfirmed) return;
-
+    setConfirmTarget(null);
     try {
       setIsSaving(true);
       await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
@@ -187,7 +186,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
               <button 
                 className={styles.btnPrimary} 
                 style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f' }}
-                onClick={() => handleDelete('OWNED')} 
+                onClick={() => setConfirmTarget('OWNED')} 
                 disabled={isSaving}
               >
                 <span className="material-symbols-outlined">delete</span>
@@ -204,7 +203,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 <button 
                   className={styles.btnSecondary} 
                   style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f', color: 'white' }}
-                  onClick={() => handleDelete('WISH')} 
+                  onClick={() => setConfirmTarget('WISH')} 
                   disabled={isSaving}
                 >
                   <span className="material-symbols-outlined">delete</span>
@@ -238,6 +237,30 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             </button>
           </div>
         </div>
+
+        {/* Custom Confirmation Popup */}
+        {confirmTarget && (
+          <div className={styles.confirmOverlay} onClick={() => setConfirmTarget(null)}>
+            <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.confirmIcon}>
+                <span className="material-symbols-outlined">warning</span>
+              </div>
+              <h3 className={styles.confirmTitle}>삭제 확인</h3>
+              <p className={styles.confirmMessage}>
+                정말로 {confirmTarget === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?
+              </p>
+              <div className={styles.confirmActions}>
+                <button className={styles.btnCancel} onClick={() => setConfirmTarget(null)}>
+                  취소
+                </button>
+                <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)}>
+                  삭제하기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
