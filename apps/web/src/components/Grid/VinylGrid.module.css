@@ -83,6 +83,16 @@
   min-width: 0;
 }
 
+.genreRowContainer {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .tagRow::-webkit-scrollbar {
   height: 4px;
 }

@@ -127,23 +127,26 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               ))}
             </div>
           )}
-          <div className={styles.tagRow}>
+          <div className={styles.genreRowContainer}>
             <div className={styles.spacer} />
             <button
               className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`}
               onClick={() => setActiveTag('ALL')}
+              style={{ flexShrink: 0 }}
             >
               전체
             </button>
-            {genreTags.map(tag => (
-              <button
-                key={tag}
-                className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
-                onClick={() => setActiveTag(tag)}
-              >
-                {tag}
-              </button>
-            ))}
+            <div className={styles.tagRow}>
+              {genreTags.map(tag => (
+                <button
+                  key={tag}
+                  className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`}
+                  onClick={() => setActiveTag(tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
