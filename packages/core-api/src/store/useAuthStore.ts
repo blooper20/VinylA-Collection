@@ -9,9 +9,11 @@ interface AuthState {
   updateProfile: (displayName: string, interests: string[], avatarUrl?: string) => Promise<void>;
   updateProfileWithAvatarFile: (displayName: string, interests: string[], file?: File) => Promise<void>;
   updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
+  updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
+  updateSelectedBadge: (badgeId: string | null) => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   setUser: (user) => set({ user }),
@@ -99,6 +101,34 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     } catch (error) {
       console.error('Failed to update featured album', error);
+      throw error;
+    }
+  },
+  updateUnlockedBadges: async (badgeIds: string[]) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { unlocked_badges: badgeIds }
+      });
+      if (error) throw error;
+      if (data.user) {
+        set({ user: data.user });
+      }
+    } catch (error) {
+      console.error('Failed to update unlocked badges', error);
+      throw error;
+    }
+  },
+  updateSelectedBadge: async (badgeId: string | null) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { selected_badge: badgeId }
+      });
+      if (error) throw error;
+      if (data.user) {
+        set({ user: data.user });
+      }
+    } catch (error) {
+      console.error('Failed to update selected badge', error);
       throw error;
     }
   }

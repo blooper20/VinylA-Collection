@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
+import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
+import { UserStats, BADGES, evaluateBadges } from '../../lib/badges';
 
 const PRESET_AVATARS = [
   '/logo.png',
@@ -18,7 +20,7 @@ const AVAILABLE_GENRES = [
 ];
 
 export default function MyProfilePage() {
-  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum } = useAuthStore();
+  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
@@ -31,6 +33,11 @@ export default function MyProfilePage() {
   const featuredAlbum = allAlbumsList.find(a => a.ALBUM_ID === featuredAlbumId);
 
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+
+  const selectedBadgeId = user?.user_metadata?.selected_badge || null;
+  const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
+  const unlockedBadgeIds = user?.user_metadata?.unlocked_badges || [];
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -100,15 +107,59 @@ export default function MyProfilePage() {
         if (Object.keys(genreCounts).length > 0) {
           const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
           setActualTopGenre(sortedGenres[0][0]);
-        } else {
-          setActualTopGenre('-');
-        }
-
         const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
+        const mappedWish = mapped.filter(v => v.STATUS === 'WISH');
+
         setAllAlbumsList(mapped.filter(v => v.STATUS !== 'NONE'));
-        
-        // timeline: top 3 recent additions
         setRecentAdditions(mappedOwned.slice(0, 3));
+
+        // --- 호칭 획득 로직 ---
+        let highestMarketPrice = 0;
+        let highestPurchasePrice = 0;
+        mappedOwned.forEach(item => {
+          const mp = item.MARKET_PRICE || 0;
+          if (mp > highestMarketPrice) highestMarketPrice = mp;
+          if ((item.PURCHASE_PRICE || 0) > highestPurchasePrice) highestPurchasePrice = item.PURCHASE_PRICE || 0;
+        });
+
+        let totalWishPrice = 0;
+        const wishGenres: Record<string, number> = {};
+        mappedWish.forEach(item => {
+          totalWishPrice += (item.MARKET_PRICE || 0);
+          if (item.GENRES && Array.isArray(item.GENRES)) {
+            item.GENRES.forEach((g: string) => {
+              wishGenres[g] = (wishGenres[g] || 0) + 1;
+            });
+          }
+        });
+
+        const stats: UserStats = {
+          ownedCount: mappedOwned.length,
+          wishCount: mappedWish.length,
+          totalMarketPrice: value,
+          totalWishPrice,
+          highestMarketPrice,
+          highestPurchasePrice,
+          averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
+          favoriteGenre: currentGenre,
+          ownedGenres: genreCounts,
+          wishGenres
+        };
+
+        const newlyUnlocked = evaluateBadges(stats);
+        const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
+        
+        const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
+        if (newBadges.length > 0) {
+           const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
+           updateUnlockedBadges(nextBadges);
+           const newBadgeNames = newBadges.map(id => BADGES.find(b => b.id === id)?.name).filter(Boolean).join(', ');
+           
+           // Notify user
+           const event = new CustomEvent('SHOW_TOAST', { detail: { message: `🎉 새로운 호칭 획득: ${newBadgeNames}` } });
+           window.dispatchEvent(event);
+        }
+        // --- 끝 ---
       } else {
         setActualTopGenre('-');
       }
@@ -234,9 +285,19 @@ export default function MyProfilePage() {
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
                   </button>
                 </div>
-                <div className={styles.collectorBadge}>
-                  <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>diamond</span>
-                  <span className={styles.collectorBadgeText}>Verified Collector</span>
+                <div 
+                  className={styles.collectorBadge} 
+                  onClick={() => setIsBadgeModalOpen(true)}
+                  style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                  <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>
+                    {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
+                  </span>
+                  <span className={styles.collectorBadgeText}>
+                    {selectedBadgeObj ? selectedBadgeObj.name : 'Verified Collector'}
+                  </span>
                 </div>
               </div>
             </>
@@ -303,6 +364,16 @@ export default function MyProfilePage() {
         albums={allAlbumsList}
         currentFeaturedId={featuredAlbumId}
         onSelect={updateFeaturedAlbum}
+      />
+      
+      <BadgeSelectModal 
+        isOpen={isBadgeModalOpen}
+        onClose={() => setIsBadgeModalOpen(false)}
+        unlockedBadgeIds={unlockedBadgeIds}
+        selectedBadgeId={selectedBadgeId}
+        onEquip={async (badgeId) => {
+          await updateSelectedBadge(badgeId);
+        }}
       />
     </div>
   );

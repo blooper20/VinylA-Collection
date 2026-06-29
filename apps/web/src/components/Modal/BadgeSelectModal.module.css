@@ -1,0 +1,153 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.modal {
+  width: 100%;
+  max-width: 500px;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  border: 1px solid var(--border-mid);
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+
+.header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-mid);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-family: var(--font-headline);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.content {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.badgeItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-mid);
+  transition: all 0.2s ease;
+}
+
+.badgeItem.unlocked {
+  cursor: pointer;
+}
+
+.badgeItem.unlocked:hover {
+  border-color: var(--accent);
+  background: var(--bg-surface);
+}
+
+.badgeItem.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.badgeItem.selected {
+  border-color: var(--accent);
+  background: rgba(233, 195, 73, 0.05);
+}
+
+.iconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.badgeItem.unlocked .iconWrapper {
+  background: rgba(233, 195, 73, 0.1);
+  color: var(--accent);
+}
+
+.badgeInfo {
+  flex: 1;
+}
+
+.badgeName {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.badgeDesc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.equipBtn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  cursor: pointer;
+}
+
+.equippedBtn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #000;
+  border: 1px solid var(--accent);
+}
