@@ -161,13 +161,36 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <h2 className={styles.title}>{album.TITLE}</h2>
             <h3 className={styles.artist}>{album.ARTIST}</h3>
 
-            {album.GENRES && album.GENRES.length > 0 && (
-              <div className={styles.tagsContainer}>
-                {album.GENRES.slice(0, 4).map((tag, i) => (
-                  <span key={i} className={styles.tagLabel}>{tag}</span>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const KNOWN_COUNTRIES = [
+                'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
+                'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
+                'Sweden', 'Taiwan', 'Brazil', 'Russia'
+              ];
+              const genres = album.GENRES || [];
+              const countryTags = genres.filter(tag => KNOWN_COUNTRIES.includes(tag));
+              const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag));
+
+              return (
+                <>
+                  {countryTags.length > 0 && (
+                    <div className={styles.tagsContainer} style={{ marginBottom: '-8px' }}>
+                      {countryTags.map((tag, i) => (
+                        <span key={i} className={styles.tagLabel} style={{ borderColor: 'rgba(233, 195, 73, 0.4)', color: 'var(--accent)' }}>🌐 {tag}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {genreTags.length > 0 && (
+                    <div className={styles.tagsContainer}>
+                      {genreTags.slice(0, 4).map((tag, i) => (
+                        <span key={i} className={styles.tagLabel}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
           
           <div className={styles.tracklistContainer}>
