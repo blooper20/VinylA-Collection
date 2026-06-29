@@ -78,8 +78,12 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter: initialFilte
       })
       .subscribe();
 
+    const handleRefresh = () => loadData();
+    window.addEventListener('REFRESH_VINYLS', handleRefresh);
+
     return () => {
       supabase.removeChannel(subscription);
+      window.removeEventListener('REFRESH_VINYLS', handleRefresh);
     };
   }, [user]);
 

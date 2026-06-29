@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
-import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -91,12 +91,34 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
           detail: { message: `성공적으로 ${status === 'OWNED' ? '보관함' : '위시리스트'}에 추가되었습니다!` }
         }));
+        window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
       }, 600);
     } catch (error) {
       console.error('Failed to save album:', error);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
         detail: { message: '추가에 실패했습니다. 다시 시도해주세요.' }
       }));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (target: 'OWNED' | 'WISH') => {
+    try {
+      setIsSaving(true);
+      await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
+      setTimeout(() => {
+        onClose();
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
+          detail: { message: `성공적으로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제되었습니다.` }
+        }));
+        window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+      }, 600);
+    } catch (e) {
+      console.error(e);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '삭제에 실패했습니다.' }}));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -158,14 +180,38 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           </div>
           
           <div className={styles.actions}>
-            <button className={styles.btnPrimary} onClick={() => handleSave('OWNED')}>
-              <span className="material-symbols-outlined">add</span>
-              보관함 추가
-            </button>
-            <button className={styles.btnSecondary} onClick={() => handleSave('WISH')}>
-              <span className="material-symbols-outlined">bookmark_add</span>
-              위시
-            </button>
+            {album.STATUS === 'OWNED' && (
+              <button className={styles.btnPrimary} onClick={() => handleDelete('OWNED')} disabled={isSaving}>
+                <span className="material-symbols-outlined">delete</span>
+                보관함 삭제
+              </button>
+            )}
+            
+            {album.STATUS === 'WISH' && (
+              <>
+                <button className={styles.btnPrimary} onClick={() => handleSave('OWNED')} disabled={isSaving}>
+                  <span className="material-symbols-outlined">add</span>
+                  보관함 추가
+                </button>
+                <button className={styles.btnSecondary} onClick={() => handleDelete('WISH')} disabled={isSaving}>
+                  <span className="material-symbols-outlined">delete</span>
+                  위시 삭제
+                </button>
+              </>
+            )}
+
+            {(!album.STATUS || (album.STATUS !== 'OWNED' && album.STATUS !== 'WISH')) && (
+              <>
+                <button className={styles.btnPrimary} onClick={() => handleSave('OWNED')} disabled={isSaving}>
+                  <span className="material-symbols-outlined">add</span>
+                  보관함 추가
+                </button>
+                <button className={styles.btnSecondary} onClick={() => handleSave('WISH')} disabled={isSaving}>
+                  <span className="material-symbols-outlined">bookmark_add</span>
+                  위시
+                </button>
+              </>
+            )}
           </div>
 
           <div className={styles.externalLinks}>

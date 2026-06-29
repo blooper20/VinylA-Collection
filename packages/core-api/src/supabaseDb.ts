@@ -69,9 +69,23 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
 };
 
 export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
+  // First, check if the user already has this album
+  let existing = null;
+  if (userVinyl.USER_ID && userVinyl.ALBUM_ID) {
+    const { data } = await supabase
+      .from('USER_VINYL')
+      .select('*')
+      .eq('USER_ID', userVinyl.USER_ID)
+      .eq('ALBUM_ID', userVinyl.ALBUM_ID)
+      .single();
+    existing = data;
+  }
+
+  const payload = existing ? { ...existing, ...userVinyl } : userVinyl;
+
   const { data, error } = await supabase
     .from('USER_VINYL')
-    .upsert([userVinyl])
+    .upsert([payload])
     .select()
     .single();
 
@@ -101,6 +115,28 @@ export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => 
 
   if (error) {
     console.error('deleteUserVinyl error:', error);
+    return false;
+  }
+  return true;
+};
+
+export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .delete()
+    .eq('USER_ID', userId)
+    .eq('ALBUM_ID', albumId);
+
+  if (error) {
+    console.error('deleteUserVinylByAlbum error:', error);
+    // Also remove from localStorage if DB fails
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+      if (local) {
+        const arr = JSON.parse(local).filter((v: any) => v.ALBUM_ID !== albumId);
+        localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
+      }
+    }
     return false;
   }
   return true;
