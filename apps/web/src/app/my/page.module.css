@@ -506,23 +506,70 @@
   margin-bottom: 12px;
 }
 
-.avatarUploadContainer {
+.avatarUploadWrapper {
   display: flex;
   align-items: center;
   gap: 20px;
-  background: var(--bg-deep);
-  padding: 16px;
-  border-radius: 8px;
-  border: 1px dashed var(--border-mid);
+  padding: 8px 0;
+}
+
+.avatarUploadLabel {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  width: 72px;
+  height: 72px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.avatarUploadLabel:hover {
+  border-color: var(--accent);
 }
 
 .avatarPreview {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border: 2px solid var(--border-mid);
-  background: var(--bg-surface);
+  display: block;
+}
+
+.avatarUploadOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.avatarUploadLabel:hover .avatarUploadOverlay {
+  opacity: 1;
+}
+
+.avatarUploadText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.avatarUploadTitle {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.avatarUploadDesc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .avatarUploadAction {

@@ -159,22 +159,26 @@ export default function MyProfilePage() {
               
               <div className={styles.editField}>
                 <label>프로필 사진 업로드</label>
-                <div className={styles.avatarUploadContainer}>
-                  <img 
-                    src={previewAvatarUrl} 
-                    className={styles.avatarPreview}
-                    alt="preview"
-                  />
-                  <div className={styles.avatarUploadAction}>
-                    <label className={styles.btnSecondary} style={{ display: 'inline-block', cursor: 'pointer' }}>
-                      사진 선택
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleFileChange}
-                      />
-                    </label>
+                <div className={styles.avatarUploadWrapper}>
+                  <label className={styles.avatarUploadLabel}>
+                    <img 
+                      src={previewAvatarUrl} 
+                      className={styles.avatarPreview}
+                      alt="preview"
+                    />
+                    <div className={styles.avatarUploadOverlay}>
+                      <span className="material-symbols-outlined">photo_camera</span>
+                    </div>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                  <div className={styles.avatarUploadText}>
+                    <span className={styles.avatarUploadTitle}>사진 변경하기</span>
+                    <span className={styles.avatarUploadDesc}>클릭하여 새로운 프로필 사진을 선택하세요.</span>
                   </div>
                 </div>
               </div>
