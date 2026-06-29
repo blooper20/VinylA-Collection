@@ -97,13 +97,18 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   useEffect(() => {
     if (dbData.length === 0) return;
 
-    const brokenAlbums = dbData.filter(album => 
-      !album.GENRES || 
-      album.GENRES.length === 0 || 
-      (album.GENRES.length === 1 && album.GENRES[0] === 'Vinyl') ||
-      // Also heal if it has genres but is missing a country tag
-      !album.GENRES.some(tag => KNOWN_COUNTRIES.includes(tag))
-    );
+    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v3') === 'true';
+
+    const brokenAlbums = dbData.filter(album => {
+      if (!migrationDone) return true; // Force one-time check for all to replace inaccurate Discogs countries
+      return (
+        !album.GENRES || 
+        album.GENRES.length === 0 || 
+        (album.GENRES.length === 1 && album.GENRES[0] === 'Vinyl') ||
+        // Also heal if it has genres but is missing a country tag
+        !album.GENRES.some(tag => KNOWN_COUNTRIES.includes(tag))
+      );
+    });
 
     if (brokenAlbums.length === 0) return;
 
@@ -114,6 +119,23 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       
       for (const album of brokenAlbums) {
         try {
+          // 1. Try Apple Music first for artist's country
+          let countryCode = '';
+          try {
+            const cleanArtist = album.ARTIST.replace(/\s\(\d+\)$/, '').trim();
+            const cleanTitle = album.TITLE.split(' / ')[0].split('(')[0].trim();
+            const itRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanArtist + ' ' + cleanTitle)}&entity=album&limit=3`);
+            const itJson = await itRes.json();
+            const hit = itJson.results?.find((item: any) =>
+              item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
+              cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase())
+            );
+            if (hit?.country) {
+              countryCode = hit.country;
+            }
+          } catch (e) { /* ignore */ }
+
+          // 2. Fetch Discogs for genres/styles
           const query = encodeURIComponent(`${album.ARTIST} ${album.TITLE}`);
           const authString = token ? `token=${token}` : `key=${key}&secret=${secret}`;
           const res = await fetch(`https://api.discogs.com/database/search?q=${query}&type=release&format=vinyl&per_page=1&${authString}`, {
@@ -123,10 +145,22 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           const result = json.results?.[0];
 
           if (result) {
+            let finalCountry = '';
+            if (countryCode) {
+              const mapping: { [key: string]: string } = {
+                'KOR': 'South Korea', 'USA': 'US', 'JPN': 'Japan', 'GBR': 'UK',
+                'DEU': 'Germany', 'FRA': 'France', 'CAN': 'Canada', 'AUS': 'Australia',
+                'ITA': 'Italy', 'SWE': 'Sweden', 'TWN': 'Taiwan', 'BRA': 'Brazil', 'RUS': 'Russia'
+              };
+              finalCountry = mapping[countryCode.toUpperCase()] || countryCode;
+            } else if (result.country) {
+              finalCountry = result.country;
+            }
+
             const combinedGenres = Array.from(new Set([
               ...(result.genre || []),
               ...(result.style || []),
-              ...(result.country ? [result.country] : [])
+              ...(finalCountry ? [finalCountry] : [])
             ]));
 
             if (combinedGenres.length > 0) {
@@ -147,6 +181,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         } catch (err) {
           console.warn(`Auto-heal failed for ${album.TITLE}:`, err);
         }
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vinyls_migration_v3', 'true');
       }
       // Refresh local UI state
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));

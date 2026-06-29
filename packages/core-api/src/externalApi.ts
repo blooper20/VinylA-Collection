@@ -194,11 +194,31 @@ export const searchDiscogsLazy = async (
   // ── Step 3: Enrich each LP with Apple Music cover art (3 concurrent) ────────
   const CONCURRENCY = 3;
 
+  const mapItunesCountry = (code: string): string => {
+    const mapping: { [key: string]: string } = {
+      'KOR': 'South Korea',
+      'USA': 'US',
+      'JPN': 'Japan',
+      'GBR': 'UK',
+      'DEU': 'Germany',
+      'FRA': 'France',
+      'CAN': 'Canada',
+      'AUS': 'Australia',
+      'ITA': 'Italy',
+      'SWE': 'Sweden',
+      'TWN': 'Taiwan',
+      'BRA': 'Brazil',
+      'RUS': 'Russia'
+    };
+    return mapping[code.toUpperCase()] || code;
+  };
+
   const enrich = async ({ r, isFeature }: { r: any, isFeature: boolean }) => {
     const { artist, title } = parseDiscogsTitle(r.title || '');
 
     // 1. Unconditionally try Apple Music for a pristine digital cover
     let thumb = '';
+    let hit: any = null;
     try {
       const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
       const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
@@ -207,7 +227,7 @@ export const searchDiscogsLazy = async (
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
       // Pick the Apple Music result whose artist best matches
-      const hit = itRes.data.results?.find((item: any) =>
+      hit = itRes.data.results?.find((item: any) =>
         (!isGenreQuery && item.artistName?.toLowerCase().includes(query.toLowerCase())) ||
         item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
         cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase()) ||
@@ -224,11 +244,19 @@ export const searchDiscogsLazy = async (
       thumb = r.cover_image || r.thumb || '';
     }
 
+    // Try to get country from Apple Music, fallback to Discogs release country
+    let finalCountry = '';
+    if (hit?.country) {
+      finalCountry = mapItunesCountry(hit.country);
+    } else if (r.country) {
+      finalCountry = r.country;
+    }
+
     // Discogs typically gives `genre` and `style` as arrays. Combine them to get rich tags.
     const combinedGenres = Array.from(new Set([
       ...(r.genre || []),
       ...(r.style || []),
-      ...(r.country ? [r.country] : [])
+      ...(finalCountry ? [finalCountry] : [])
     ]));
 
     onItem({
