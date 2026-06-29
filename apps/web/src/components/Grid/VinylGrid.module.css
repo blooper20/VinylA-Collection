@@ -7,12 +7,13 @@
 
 /* ---- Page Header ---- */
 .pageHeader {
-  padding: 56px 56px 32px;
+  padding: 56px 56px 40px;
   border-bottom: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
-  align-items: stretch; /* Stretch children to fit parent width */
-  gap: 20px;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -54,9 +55,10 @@
 .headerRight {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-end;
   gap: 8px;
-  width: 100%;
+  padding-bottom: 8px;
+  flex: 1;
   min-width: 0; /* Prevent child content from blowing up width */
   box-sizing: border-box;
 }
@@ -65,7 +67,7 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-start; /* Kept flex-start for spacer trick */
   gap: 6px;
   overflow-x: auto;
   width: 100%;
@@ -73,6 +75,12 @@
   box-sizing: border-box;
   padding-bottom: 4px; /* Space for custom scrollbar */
   -webkit-overflow-scrolling: touch;
+}
+
+.spacer {
+  flex-grow: 1;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .tagRow::-webkit-scrollbar {

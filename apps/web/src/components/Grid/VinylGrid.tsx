@@ -115,6 +115,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         <div className={styles.headerRight}>
           {countryTags.length > 0 && (
             <div className={styles.tagRow}>
+              <div className={styles.spacer} />
               {countryTags.map(tag => (
                 <button
                   key={tag}
@@ -127,6 +128,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
             </div>
           )}
           <div className={styles.tagRow}>
+            <div className={styles.spacer} />
             <button
               className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`}
               onClick={() => setActiveTag('ALL')}
