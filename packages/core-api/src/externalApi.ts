@@ -26,13 +26,15 @@ export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done';
 //   Discogs website search is the ground-truth for vinyl availability.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Formats that indicate a full-length album (not a single/EP)
 const isAlbumFormat = (formats: string[]): boolean => {
   const f = formats.map((s) => s.toLowerCase());
-  // Must have LP or Album marker, and must NOT be a 7"/45RPM-only release
-  const hasAlbum = f.includes('lp') || f.includes('album');
-  const isSingle = f.includes('single') || (f.includes('7"') && !f.includes('lp') && !f.includes('album'));
-  return hasAlbum && !isSingle;
+  
+  // Exclude strict singles unless they are 12" maxis
+  if (f.includes('single') && !f.includes('12"')) return false;
+  if (f.includes('7"') && !f.includes('lp') && !f.includes('album') && !f.includes('ep')) return false;
+  
+  // Allow if it contains LP, Album, EP, Mini-Album, or 12"
+  return f.includes('lp') || f.includes('album') || f.includes('ep') || f.includes('mini-album') || f.includes('12"');
 };
 
 // Discogs titles come as "Artist - Title"; extract both parts
