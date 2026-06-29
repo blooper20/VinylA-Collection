@@ -97,40 +97,44 @@ export default function SearchPage() {
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  const handleSearch = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) {
+  const executeSearch = useCallback(async (q: string) => {
+    if (!q.trim()) {
       setResults([]);
       setStatus('idle');
       return;
     }
 
-    // Bump search ID so stale callbacks from a previous search are ignored
     const currentSearchId = ++searchIdRef.current;
-
     setResults([]);
-    setStatus('fetching_itunes');
+    setStatus('fetching_discogs');
     setTotalToCheck(0);
 
     await searchDiscogsLazy(
-      query,
-      // onItem — called each time a validated album is ready
+      q,
       (album) => {
-        if (searchIdRef.current !== currentSearchId) return; // stale, discard
+        if (searchIdRef.current !== currentSearchId) return;
         setResults((prev) => {
-          // Deduplicate by id
           if (prev.some((a) => a.id === album.id)) return prev;
           return [...prev, album];
         });
       },
-      // onStatusChange
       (newStatus, total) => {
         if (searchIdRef.current !== currentSearchId) return;
         setStatus(newStatus);
         if (total !== undefined) setTotalToCheck(total);
       }
     );
-  }, [query]);
+  }, []);
+
+  const handleSearch = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(query);
+  }, [query, executeSearch]);
+
+  const handleGenreClick = useCallback((genreTitle: string, genreSub: string) => {
+    setQuery(`#${genreSub}`); // Show in search bar for context
+    executeSearch(`#${genreSub}`);
+  }, [executeSearch]);
 
   const isLoading = status === 'fetching_discogs' || status === 'enriching';
   const isEnriching = status === 'enriching';
@@ -216,7 +220,12 @@ export default function SearchPage() {
 
             {/* Genre cards when idle */}
             {status === 'idle' && genres.map((genre, idx) => (
-              <div key={idx} className={styles.masonryItem}>
+              <div 
+                key={idx} 
+                className={styles.masonryItem}
+                onClick={() => handleGenreClick(genre.title, genre.sub)}
+                style={{ cursor: 'pointer' }}
+              >
                 <img
                   src={genre.img}
                   alt={genre.title}

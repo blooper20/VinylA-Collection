@@ -89,11 +89,22 @@ export const searchDiscogsLazy = async (
       }).then((r) => r.data.results || []).catch(() => []);
     };
 
-    // Original query text search
-    const promises = [fetchPage({ q: query, page: 1 }), fetchPage({ q: query, page: 2 })];
-    // If we found an English alias, do an exact ARTIST search to avoid noise
-    if (alias) {
-      promises.push(fetchPage({ artist: alias, page: 1 }));
+    const promises = [];
+    const isGenreQuery = query.startsWith('#');
+
+    if (isGenreQuery) {
+      const genre = query.substring(1);
+      // Fetch two random pages (1~10) of this genre to give diverse results on each click
+      const randomPage1 = Math.floor(Math.random() * 10) + 1;
+      const randomPage2 = Math.floor(Math.random() * 10) + 11;
+      promises.push(fetchPage({ genre, page: randomPage1 }), fetchPage({ genre, page: randomPage2 }));
+    } else {
+      // Original query text search
+      promises.push(fetchPage({ q: query, page: 1 }), fetchPage({ q: query, page: 2 }));
+      // If we found an English alias, do an exact ARTIST search to avoid noise
+      if (alias) {
+        promises.push(fetchPage({ artist: alias, page: 1 }));
+      }
     }
 
     const pages = await Promise.all(promises);
@@ -126,9 +137,9 @@ export const searchDiscogsLazy = async (
     const relArtLower = releaseArtist?.toLowerCase() || '';
     
     // Check if the artist matches the original query or the Apple Music alias
-    const matchesQuery = relArtLower.includes(queryLower);
+    const matchesQuery = isGenreQuery || relArtLower.includes(queryLower);
     const matchesAlias = aliasLower ? relArtLower.includes(aliasLower) : false;
-    const isFeature = releaseArtist ? !(matchesQuery || matchesAlias) : false;
+    const isFeature = isGenreQuery ? false : (releaseArtist ? !(matchesQuery || matchesAlias) : false);
 
     const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -136,7 +147,7 @@ export const searchDiscogsLazy = async (
     // If it's marked as a feature, but the query is English, Discogs often returns random junk 
     // (e.g. searching "wave to earth" returns "Kate Bush" because "earth" is in a track name).
     // We discard these false features. Korean queries are safer and true features (e.g. 검정치마 in credits).
-    if (isFeature && !isKoreanQuery) {
+    if (isFeature && !isKoreanQuery && !isGenreQuery) {
       if (!normTitle.includes(queryLower) && !(aliasLower && normTitle.includes(aliasLower))) {
         continue;
       }
@@ -175,8 +186,9 @@ export const searchDiscogsLazy = async (
       const itRes = await axios.get('https://itunes.apple.com/search', {
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
+      // Pick the Apple Music result whose artist best matches
       const hit = itRes.data.results?.find((item: any) =>
-        item.artistName?.toLowerCase().includes(query.toLowerCase()) ||
+        (!isGenreQuery && item.artistName?.toLowerCase().includes(query.toLowerCase())) ||
         item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
         cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase()) ||
         (alias && item.artistName?.toLowerCase().includes(alias.toLowerCase()))
