@@ -31,9 +31,19 @@ export default function MyProfilePage() {
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [previewAvatarUrl, setPreviewAvatarUrl] = useState('');
   const [editGenre, setEditGenre] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    const handleToast = (e: any) => {
+      setToastMessage(e.detail.message);
+      setTimeout(() => setToastMessage(null), 3000);
+    };
+    window.addEventListener('SHOW_TOAST', handleToast);
+    return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
   useEffect(() => {

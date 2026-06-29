@@ -22,6 +22,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { user, initializeAuth } = useAuthStore();
   const router = require('next/navigation').useRouter();
@@ -60,8 +61,20 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       .subscribe();
     const handleRefresh = () => loadData();
     window.addEventListener('REFRESH_VINYLS', handleRefresh);
-    return () => { supabase.removeChannel(subscription); window.removeEventListener('REFRESH_VINYLS', handleRefresh); };
+    return () => {
+        window.removeEventListener('REFRESH_VINYLS', handleRefresh);
+        subscription.unsubscribe();
+      };
   }, [user]);
+
+  useEffect(() => {
+    const handleToast = (e: any) => {
+      setToastMessage(e.detail.message);
+      setTimeout(() => setToastMessage(null), 3000);
+    };
+    window.addEventListener('SHOW_TOAST', handleToast);
+    return () => window.removeEventListener('SHOW_TOAST', handleToast);
+  }, []);
 
   // Auto-heal: strip country tags from existing records
   useEffect(() => {
@@ -133,7 +146,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           <p className={styles.pageSubtitle}>{displayedAlbums.length} Records</p>
         </div>
         <div className={styles.headerRight}>
-          {/* Controls Row */}
           <div className={styles.controlsRow}>
             <div className={styles.sortGroup}>
               {([
@@ -148,14 +160,12 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               ))}
             </div>
             <div className={styles.viewGroup}>
-              {/* 4-grid icon */}
               <button className={`${styles.viewBtn} ${viewMode === 'grid4' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid4')} title="4열 그리드">
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
                   <rect x="0" y="0" width="6" height="6"/><rect x="9" y="0" width="6" height="6"/>
                   <rect x="0" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/>
                 </svg>
               </button>
-              {/* 6-grid icon */}
               <button className={`${styles.viewBtn} ${viewMode === 'grid6' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid6')} title="조밀 그리드">
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
                   <rect x="0" y="0" width="3" height="3"/><rect x="6" y="0" width="3" height="3"/><rect x="12" y="0" width="3" height="3"/>
@@ -163,7 +173,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                   <rect x="0" y="12" width="3" height="3"/><rect x="6" y="12" width="3" height="3"/><rect x="12" y="12" width="3" height="3"/>
                 </svg>
               </button>
-              {/* Table icon */}
               <button className={`${styles.viewBtn} ${viewMode === 'table' ? styles.viewActive : ''}`} onClick={() => setViewMode('table')} title="테이블 보기">
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
                   <rect x="0" y="0" width="15" height="2.5"/><rect x="0" y="4.5" width="15" height="2.5"/>
@@ -172,8 +181,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               </button>
             </div>
           </div>
-
-          {/* Tag filter row */}
           <div className={styles.tagRow}>
             <div className={styles.spacer} />
             <button className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`} onClick={() => setActiveTag('ALL')}>전체</button>
@@ -184,7 +191,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
       </header>
 
-      {/* Grid / Table */}
       {viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {displayedAlbums.map(album => (
@@ -231,6 +237,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       )}
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
+
+      {toastMessage && (
+        <div className={styles.toast}>
+          <span className="material-symbols-outlined">check_circle</span>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 };
