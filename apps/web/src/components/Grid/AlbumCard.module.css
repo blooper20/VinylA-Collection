@@ -26,20 +26,25 @@
   display: block;
 }
 
-/* Vinyl disc peeking from right */
-.vinyl {
+/* Vinyl wrapper for translation */
+.vinylWrapper {
   position: absolute;
   top: 8%;
   right: 0;
   width: 88%;
   height: 88%;
-  border-radius: 50%;
   z-index: 1;
   /* Use transform for hardware acceleration to prevent frame drops */
   transform: translateX(-48%);
   transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
+}
 
+/* Vinyl disc inner element for rotation */
+.vinyl {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
   /* Vinyl disc appearance */
   background:
     radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 30%),
@@ -83,9 +88,19 @@
   filter: brightness(1.15) contrast(1.05) drop-shadow(0 0 15px rgba(233,195,73,0.15));
 }
 
+.card:hover .vinylWrapper {
+  /* Slides right more to show the vinyl */
+  transform: translateX(110px);
+}
+
 .card:hover .vinyl {
-  /* Slides right by approx 90px (using % or px, we use 90px as requested) */
-  transform: translateX(90px);
+  /* Spin while hovering */
+  animation: spinVinyl 3s linear infinite;
+}
+
+@keyframes spinVinyl {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Overlay gradient at bottom */
@@ -164,13 +179,15 @@
 }
 
 .badgeOwned {
-  background: rgba(233, 195, 73, 0.15);
-  border: 1px solid rgba(233, 195, 73, 0.4);
-  color: var(--accent);
+  background: rgba(233, 195, 73, 0.95);
+  border: 1px solid var(--accent);
+  color: #0a0a0a;
+  box-shadow: 0 4px 12px rgba(233, 195, 73, 0.4);
 }
 
 .badgeWish {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-mid);
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #fff;
+  color: #0a0a0a;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
