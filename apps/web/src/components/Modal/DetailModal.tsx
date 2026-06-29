@@ -73,7 +73,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const handleSave = async (status: 'OWNED' | 'WISH') => {
     try {
       let master = await getAlbumMaster(album.ALBUM_ID);
-      if (!master) {
+      if (!master || !master.GENRES || master.GENRES.length === 0) {
         await createAlbumMaster({
           ALBUM_ID: album.ALBUM_ID,
           TITLE: album.TITLE,
@@ -83,7 +83,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: 'SOLID',
-          TRACKS: album.TRACKS || []
+          TRACKS: album.TRACKS || [],
+          GENRES: album.GENRES || []
         });
       }
 

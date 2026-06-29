@@ -22,7 +22,7 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
-    .insert([album])
+    .upsert([album])
     .select()
     .single();
 
