@@ -5,7 +5,7 @@ import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 
 const PRESET_AVATARS = [
-  'https://i.pravatar.cc/150?img=32',
+  '/logo.png',
   'https://i.pravatar.cc/150?img=12',
   'https://i.pravatar.cc/150?img=5',
   'https://i.pravatar.cc/150?img=11',
@@ -40,7 +40,7 @@ export default function MyProfilePage() {
       if (!user) return;
       
       const currentName = user.user_metadata?.displayName || 'Collector';
-      const currentAvatar = user.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32';
+      const currentAvatar = user.user_metadata?.avatar_url || '/logo.png';
       let currentGenre = '-';
       if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
         currentGenre = user.user_metadata.interests[0];
@@ -116,7 +116,7 @@ export default function MyProfilePage() {
   ];
 
   const displayName = user?.user_metadata?.displayName || 'Collector';
-  const avatarUrl = user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32';
+  const avatarUrl = user?.user_metadata?.avatar_url || '/logo.png';
 
   return (
     <div className={styles.page}>
