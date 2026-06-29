@@ -26,7 +26,7 @@ export const SideNav: React.FC = () => {
       {/* Brand */}
       <div className={styles.brand}>
         <div className={styles.brandIcon}>
-          <span className="material-symbols-outlined">album</span>
+          <img src="/logo.png" alt="VinylA Logo" className={styles.logoImage} />
         </div>
         <div className={styles.brandText}>
           <span className={styles.brandName}>VinylA</span>
