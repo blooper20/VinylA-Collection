@@ -17,7 +17,7 @@ const AVAILABLE_GENRES = [
 ];
 
 export default function MyProfilePage() {
-  const { user, initializeAuth, updateProfile } = useAuthStore();
+  const { user, initializeAuth, updateProfileWithAvatarFile } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
   const [topGenre, setTopGenre] = useState('-');
@@ -25,8 +25,10 @@ export default function MyProfilePage() {
   const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editName, setEditName] = useState('');
-  const [editAvatar, setEditAvatar] = useState('');
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [previewAvatarUrl, setPreviewAvatarUrl] = useState('');
   const [editGenre, setEditGenre] = useState('');
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function MyProfilePage() {
       
       setTopGenre(currentGenre);
       setEditName(currentName);
-      setEditAvatar(currentAvatar);
+      setPreviewAvatarUrl(currentAvatar);
       setEditGenre(currentGenre !== '-' ? currentGenre : 'Pop');
 
       const data = await getUserVinyls(user.id);
@@ -87,11 +89,22 @@ export default function MyProfilePage() {
 
   const handleSaveProfile = async () => {
     try {
-      await updateProfile(editName, [editGenre], editAvatar);
+      setIsSaving(true);
+      await updateProfileWithAvatarFile(editName, [editGenre], selectedAvatarFile || undefined);
       setIsEditing(false);
       setTopGenre(editGenre);
     } catch (e) {
-      alert('프로필 업데이트에 실패했습니다.');
+      alert('프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedAvatarFile(file);
+      setPreviewAvatarUrl(URL.createObjectURL(file));
     }
   };
 
@@ -115,25 +128,28 @@ export default function MyProfilePage() {
               <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 700 }}>프로필 수정</h2>
               
               <div className={styles.editField}>
-                <label>프로필 사진 URL (또는 프리셋 선택)</label>
-                <div className={styles.avatarPresets}>
-                  {PRESET_AVATARS.map((url, idx) => (
-                    <img 
-                      key={idx} 
-                      src={url} 
-                      className={`${styles.presetAvatar} ${editAvatar === url ? styles.presetAvatarSelected : ''}`}
-                      onClick={() => setEditAvatar(url)}
-                      alt="preset"
-                    />
-                  ))}
+                <label>프로필 사진 업로드</label>
+                <div className={styles.avatarUploadContainer}>
+                  <img 
+                    src={previewAvatarUrl} 
+                    className={styles.avatarPreview}
+                    alt="preview"
+                  />
+                  <div className={styles.avatarUploadAction}>
+                    <label className={styles.btnSecondary} style={{ display: 'inline-block', cursor: 'pointer' }}>
+                      사진 선택
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                      * Supabase Storage에 'avatars' 버킷이 필요합니다.
+                    </p>
+                  </div>
                 </div>
-                <input 
-                  type="text" 
-                  value={editAvatar} 
-                  onChange={e => setEditAvatar(e.target.value)} 
-                  className={styles.editInput} 
-                  placeholder="이미지 URL 입력..."
-                />
               </div>
 
               <div className={styles.editField}>
@@ -160,8 +176,10 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.editActions}>
-                <button className={styles.btnSecondary} onClick={() => setIsEditing(false)}>취소</button>
-                <button className={styles.btnPrimary} onClick={handleSaveProfile}>저장하기</button>
+                <button className={styles.btnSecondary} onClick={() => setIsEditing(false)} disabled={isSaving}>취소</button>
+                <button className={styles.btnPrimary} onClick={handleSaveProfile} disabled={isSaving}>
+                  {isSaving ? '업로드 중...' : '저장하기'}
+                </button>
               </div>
             </div>
           ) : (

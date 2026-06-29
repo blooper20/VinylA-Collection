@@ -395,31 +395,27 @@
   margin-bottom: 12px;
 }
 
-.avatarPresets {
+.avatarUploadContainer {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  align-items: center;
+  gap: 20px;
+  background: var(--bg-deep);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-mid);
 }
 
-.presetAvatar {
-  width: 56px;
-  height: 56px;
+.avatarPreview {
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  cursor: pointer;
   object-fit: cover;
-  border: 2px solid transparent;
-  transition: all 0.2s ease;
-  opacity: 0.6;
+  border: 2px solid var(--border-mid);
+  background: var(--bg-surface);
 }
 
-.presetAvatar:hover {
-  opacity: 1;
-}
-
-.presetAvatarSelected {
-  opacity: 1;
-  border-color: var(--accent);
-  box-shadow: 0 0 12px rgba(233,195,73,0.3);
+.avatarUploadAction {
+  flex: 1;
 }
 
 .editInput, .editSelect {
