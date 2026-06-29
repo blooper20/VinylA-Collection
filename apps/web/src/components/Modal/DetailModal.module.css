@@ -296,12 +296,42 @@
 }
 
 .emptyTrack {
+  color: var(--text-tertiary);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.extraDetails {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailItem {
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 16px 0 !important;
-  border: none !important;
+  color: var(--text-secondary);
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 6px;
+}
+
+.detailNotes {
+  margin-top: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  white-space: pre-wrap;
+  background: var(--bg-tertiary);
+  padding: 12px;
+  border-radius: 8px;
 }
 
 /* ---- Actions ---- */

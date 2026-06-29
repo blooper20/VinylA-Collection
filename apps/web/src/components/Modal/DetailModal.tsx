@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
-import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumTracks } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -11,16 +11,20 @@ interface DetailModalProps {
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const { user } = useAuthStore();
   const [tracks, setTracks] = React.useState<string[]>(album.TRACKS || []);
+  const [notes, setNotes] = React.useState<string>('');
+  const [copyright, setCopyright] = React.useState<string>('');
+  const [releaseDate, setReleaseDate] = React.useState<string>('');
 
   React.useEffect(() => {
-    if (!album.TRACKS || album.TRACKS.length === 0) {
-      getAlbumTracks(album.ALBUM_ID).then(fetchedTracks => {
-        if (fetchedTracks.length > 0) {
-          setTracks(fetchedTracks);
-        }
-      });
-    }
-  }, [album.ALBUM_ID]);
+    getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
+      if (details.tracks.length > 0 && (!album.TRACKS || album.TRACKS.length === 0)) {
+        setTracks(details.tracks);
+      }
+      if (details.notes) setNotes(details.notes);
+      if (details.copyright) setCopyright(details.copyright);
+      if (details.releaseDate) setReleaseDate(details.releaseDate);
+    });
+  }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS]);
 
   const handleYoutubeListen = async () => {
     const query = `${album.ARTIST} ${album.TITLE} full album`;
@@ -140,6 +144,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 <li className={styles.emptyTrack}>No tracklist available</li>
               )}
             </ul>
+            {(releaseDate || copyright || notes) && (
+              <div className={styles.extraDetails}>
+                {releaseDate && <div className={styles.detailItem}><span className={styles.detailLabel}>발매일:</span> {releaseDate}</div>}
+                {copyright && <div className={styles.detailItem}><span className={styles.detailLabel}>소속사:</span> {copyright}</div>}
+                {notes && <div className={styles.detailNotes}>{notes}</div>}
+              </div>
+            )}
           </div>
           
           <div className={styles.actions}>

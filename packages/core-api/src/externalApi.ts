@@ -166,24 +166,26 @@ export const searchDiscogsLazy = async (
   const enrich = async ({ r, isFeature }: { r: any, isFeature: boolean }) => {
     const { artist, title } = parseDiscogsTitle(r.title || '');
 
-    // Discogs cover image (often available and decent quality)
-    let thumb = r.cover_image || r.thumb || '';
+    // 1. Unconditionally try Apple Music for a pristine digital cover
+    let thumb = '';
+    try {
+      const itRes = await axios.get('https://itunes.apple.com/search', {
+        params: { term: `${artist} ${title}`, entity: 'album', limit: 3 }
+      });
+      // Pick the Apple Music result whose artist best matches
+      const hit = itRes.data.results?.find((item: any) =>
+        item.artistName?.toLowerCase().includes(query.toLowerCase()) ||
+        item.artistName?.toLowerCase().includes(artist.toLowerCase())
+      ) || itRes.data.results?.[0];
 
-    // Try Apple Music for a better image
+      if (hit?.artworkUrl100) {
+        thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
+      }
+    } catch (e) { /* ignore */ }
+
+    // 2. Fallback to Discogs cover image if Apple Music failed
     if (!thumb || thumb.includes('spacer.gif')) {
-      try {
-        const itRes = await axios.get('https://itunes.apple.com/search', {
-          params: { term: `${artist} ${title}`, entity: 'album', limit: 3 }
-        });
-        // Pick the Apple Music result whose artist best matches
-        const hit = itRes.data.results?.find((item: any) =>
-          item.artistName?.toLowerCase().includes(query.toLowerCase()) ||
-          item.artistName?.toLowerCase().includes(artist.toLowerCase())
-        ) || itRes.data.results?.[0];
-        if (hit?.artworkUrl100) {
-          thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
-        }
-      } catch (_) { /* keep Discogs thumb */ }
+      thumb = r.cover_image || r.thumb || '';
     }
 
     // Discogs typically gives `genre` and `style` as arrays. Combine them to get rich tags.
@@ -308,45 +310,75 @@ export const searchDiscogs = async (query: string) => {
 };
 
 
-export const getAlbumTracks = async (albumId: string | number): Promise<string[]> => {
+export interface AlbumExtraDetails {
+  tracks: string[];
+  notes?: string;
+  copyright?: string;
+  releaseDate?: string;
+}
+
+export const getAlbumExtraDetails = async (albumId: string | number, artist?: string, title?: string): Promise<AlbumExtraDetails> => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
   const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
   const authParams = token ? { token } : { key, secret };
 
-  // 1. Try Discogs first (since our primary ALBUM_ID is now a Discogs ID)
-  // We prefer checking /masters/ first because searchDiscogsLazy uses master_id when available
+  const details: AlbumExtraDetails = { tracks: [] };
+
+  // 1. Try Discogs first
   try {
     const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: authParams });
     if (masterRes.data?.tracklist) {
-      return masterRes.data.tracklist.map((t: any) => t.title);
+      details.tracks = masterRes.data.tracklist.map((t: any) => t.title);
+    }
+    if (masterRes.data?.notes) {
+      details.notes = masterRes.data.notes;
     }
   } catch (e) {
-    // If it's not a master release, try the regular release endpoint
     try {
       const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
       if (releaseRes.data?.tracklist) {
-        return releaseRes.data.tracklist.map((t: any) => t.title);
+        details.tracks = releaseRes.data.tracklist.map((t: any) => t.title);
+      }
+      if (releaseRes.data?.notes) {
+        details.notes = releaseRes.data.notes;
       }
     } catch (e2) {
-      // ignore, fallback to iTunes below
+      // ignore
     }
   }
 
-  // 2. Fallback to iTunes Lookup (for older saved albums that might have used iTunes collectionIds)
+  // 2. Fetch extra details from iTunes (copyright, exact release date)
   try {
-    const response = await axios.get('https://itunes.apple.com/lookup', {
-      params: { id: albumId, entity: 'song' }
-    });
-    const songs = response.data.results?.filter((r: any) => r.wrapperType === 'track') || [];
-    if (songs.length > 0) {
-      return songs.map((song: any) => song.trackName);
+    if (artist && title) {
+      const itRes = await axios.get('https://itunes.apple.com/search', {
+        params: { term: `${artist} ${title}`, entity: 'album', limit: 3 }
+      });
+      const hit = itRes.data.results?.[0];
+      if (hit) {
+        details.copyright = hit.copyright;
+        if (hit.releaseDate) {
+          details.releaseDate = new Date(hit.releaseDate).toLocaleDateString('ko-KR', {
+            year: 'numeric', month: 'long', day: 'numeric'
+          });
+        }
+        if (details.tracks.length === 0) {
+          // Fallback to iTunes tracks if Discogs failed
+          const trackRes = await axios.get('https://itunes.apple.com/lookup', {
+            params: { id: hit.collectionId, entity: 'song' }
+          });
+          const songs = trackRes.data.results?.filter((r: any) => r.wrapperType === 'track') || [];
+          if (songs.length > 0) {
+            details.tracks = songs.map((s: any) => s.trackName);
+          }
+        }
+      }
     }
   } catch (error) {
-    console.error('iTunes track fetch failed:', error);
+    console.error('iTunes extra details fetch failed:', error);
   }
 
-  return [];
+  return details;
 };
 
 // YouTube Data API Bridge Function
