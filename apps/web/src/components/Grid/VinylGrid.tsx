@@ -208,7 +208,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               {displayedAlbums.map(album => (
                 <tr key={album.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(album)}>
                   <td className={styles.tdCover}>
-                    <img src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`} alt={album.TITLE} className={styles.tableThumb} />
+                    <div className={styles.tableCoverBox}>
+                      <img src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`} alt={album.TITLE} className={styles.tableThumb} />
+                    </div>
                   </td>
                   <td className={styles.tdTitle}>{album.TITLE}</td>
                   <td className={styles.tdArtist}>{album.ARTIST}</td>
