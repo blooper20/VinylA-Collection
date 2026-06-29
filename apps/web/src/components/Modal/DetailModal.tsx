@@ -42,8 +42,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       if (details.highResCover && album.IMAGE_URL !== details.highResCover) {
         setCoverUrl(details.highResCover);
       }
-      if (details.marketPrice && !marketPrice) {
+      if (details.marketPrice) {
         setMarketPrice(details.marketPrice);
+      } else if (!marketPrice) {
+        setMarketPrice(-1);
       }
     });
   }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
@@ -190,7 +192,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             
             <div className={styles.estimatedValue}>
               <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
-              시장 추정가: {marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}
+              시장 추정가: {marketPrice === -1 ? '정보 없음' : marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}
             </div>
             {album.STATUS === 'OWNED' ? (
               <div className={styles.actualValue}>
