@@ -60,6 +60,7 @@ export default function SearchPage() {
   const [totalToCheck, setTotalToCheck] = useState(0);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
   const [userVinyls, setUserVinyls] = useState<any[]>([]);
@@ -97,17 +98,19 @@ export default function SearchPage() {
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  const executeSearch = useCallback(async (q: string) => {
+  const executeSearch = useCallback(async (q: string, append: boolean = false) => {
     if (!q.trim()) {
-      setResults([]);
+      if (!append) setResults([]);
       setStatus('idle');
       return;
     }
 
     const currentSearchId = ++searchIdRef.current;
-    setResults([]);
+    if (!append) {
+      setResults([]);
+      setTotalToCheck(0);
+    }
     setStatus('fetching_discogs');
-    setTotalToCheck(0);
 
     await searchDiscogsLazy(
       q,
@@ -121,10 +124,27 @@ export default function SearchPage() {
       (newStatus, total) => {
         if (searchIdRef.current !== currentSearchId) return;
         setStatus(newStatus);
-        if (total !== undefined) setTotalToCheck(total);
+        if (total !== undefined) setTotalToCheck(prev => append ? prev + total : total);
       }
     );
   }, []);
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && query.startsWith('#') && status === 'done') {
+          executeSearch(query, true);
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [query, status, executeSearch]);
 
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -277,6 +297,13 @@ export default function SearchPage() {
               ))}
             </div>
           </section>
+        )}
+
+        {/* Loading indicator during infinite scroll fetching */}
+        {query.startsWith('#') && status !== 'idle' && (
+          <div ref={observerTarget} style={{ height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2rem' }}>
+            {status !== 'done' && <div className={styles.spinner} style={{ width: 30, height: 30, borderWidth: 3 }} />}
+          </div>
         )}
       </main>
 
