@@ -1,16 +1,31 @@
-/* Wishlist Minimal Gallery */
+/* Wishlist Page */
 
 .page {
-  padding: 64px;
   background: var(--bg-deep);
   min-height: 100dvh;
 }
 
 /* ---- Header ---- */
 .header {
-  margin-bottom: 48px;
+  padding: 56px 56px 32px;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 40px;
+}
+
+.headerTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.headerLeft { flex-shrink: 0; }
+
+.headerControls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding-bottom: 4px;
 }
 
 .eyebrow {
@@ -33,38 +48,105 @@
   letter-spacing: -0.04em;
   line-height: 0.95;
   margin-bottom: 16px;
+  white-space: nowrap;
 }
 
 .subtitle {
   font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 400;
+  font-size: 13px;
   color: var(--text-muted);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.08em;
 }
 
-/* ---- Simple Grid ---- */
-.simpleGrid {
+/* ---- Controls ---- */
+.sortGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.controlChip {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.controlChip:hover { border-color: var(--border-strong); color: var(--foreground); }
+
+.controlChip.controlActive {
+  background: rgba(255, 200, 60, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.viewGroup {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.viewBtn:last-child { border-right: none; }
+.viewBtn:hover { background: rgba(255,255,255,0.05); color: var(--foreground); }
+.viewBtn.viewActive { background: rgba(255,200,60,0.12); color: var(--accent); }
+
+/* ---- Grid 4 ---- */
+.grid4 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 40px 24px;
+  padding: 40px 56px;
 }
 
+@media (min-width: 1024px) {
+  .grid4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ---- Grid 6 ---- */
+.grid6 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 24px 12px;
+  padding: 32px 56px;
+}
+
+@media (min-width: 900px) { .grid6 { grid-template-columns: repeat(6, 1fr); } }
+@media (min-width: 1400px) { .grid6 { grid-template-columns: repeat(8, 1fr); } }
+
+/* ---- Card ---- */
 .card {
   display: flex;
   flex-direction: column;
   gap: 16px;
   cursor: pointer;
-  transition: opacity 0.2s ease;
 }
 
-.card:hover .coverWrapper {
-  box-shadow: 0 16px 32px rgba(0,0,0,0.4);
-}
-
-.card:hover .coverOverlay {
-  opacity: 1;
-}
+.card:hover .coverWrapper { box-shadow: 0 16px 32px rgba(0,0,0,0.4); }
+.card:hover .coverOverlay { opacity: 1; }
 
 .coverWrapper {
   position: relative;
@@ -83,9 +165,7 @@
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.card:hover .cover {
-  transform: scale(1.03);
-}
+.card:hover .cover { transform: scale(1.03); }
 
 .coverOverlay {
   position: absolute;
@@ -107,17 +187,9 @@
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.card:hover .coverOverlay span {
-  transform: translateY(0);
-}
+.card:hover .coverOverlay span { transform: translateY(0); }
 
-/* Info */
-.info {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-left: 2px;
-}
+.info { display: flex; flex-direction: column; gap: 6px; padding-left: 2px; }
 
 .albumTitle {
   font-family: var(--font-headline);
@@ -130,14 +202,105 @@
   text-overflow: ellipsis;
 }
 
-.albumArtist {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--text-secondary);
+.albumArtist { font-family: var(--font-body); font-size: 14px; color: var(--text-secondary); }
+.dot { color: var(--text-muted); opacity: 0.5; margin: 0 4px; }
+
+/* ---- Table View ---- */
+.tableWrapper { padding: 0 48px 48px; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.dot {
+.table thead tr { border-bottom: 1px solid var(--border); }
+
+.table thead th {
+  padding: 14px 12px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  opacity: 0.5;
-  margin: 0 4px;
+  text-align: left;
 }
+
+.thCover  { width: 62px; }
+.thTitle  { width: 35%; }
+.thArtist { width: 25%; }
+.thYear   { width: 80px; }
+.thTags   { width: auto; }
+
+.tableRow {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.tableRow:hover { background: rgba(255,255,255,0.04); }
+
+.table td { padding: 10px 12px; vertical-align: middle; }
+
+.tdCover { padding: 6px 12px; width: 62px; }
+
+.tableCoverBox {
+  width: 50px;
+  height: 50px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tableThumb {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.tdTitle {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
+
+.tdArtist {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
+
+.tdYear {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.tdTags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.tableTag {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 10px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ---- Empty ---- */
+.empty { padding: 2rem 56px; color: rgba(255,255,255,0.4); font-size: 14px; }

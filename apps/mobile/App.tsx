@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { TabNavigator } from './src/navigation/TabNavigator';
+import { RootNavigator } from './src/navigation/RootNavigator';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '@vinyla/ui';
 
@@ -12,7 +12,7 @@ const AppContent = () => {
   return (
     <NavigationContainer>
       <StatusBar style={statusBarStyle} />
-      <TabNavigator />
+      <RootNavigator />
     </NavigationContainer>
   );
 };

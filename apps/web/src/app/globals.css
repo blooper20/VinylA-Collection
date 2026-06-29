@@ -155,6 +155,7 @@ img {
 .main-content {
   margin-left: var(--sidebar-collapsed);
   flex: 1;
+  min-width: 0; /* Prevent inner flex contents from blowing up layout width */
   min-height: 100dvh;
   position: relative;
   transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);

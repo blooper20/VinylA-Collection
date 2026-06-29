@@ -217,12 +217,56 @@
   margin-bottom: 12px;
 }
 
+.estimatedValue {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.actualValue {
+  display: flex;
+  align-items: center;
+  margin-top: -16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
 .artist {
   font-family: var(--font-body);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--text-secondary);
   letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+
+.tagsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.tagLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 /* ---- Tracklist ---- */
@@ -274,12 +318,42 @@
 }
 
 .emptyTrack {
+  color: var(--text-tertiary);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.extraDetails {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailItem {
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 16px 0 !important;
-  border: none !important;
+  color: var(--text-secondary);
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 6px;
+}
+
+.detailNotes {
+  margin-top: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  white-space: pre-wrap;
+  background: var(--bg-tertiary);
+  padding: 12px;
+  border-radius: 8px;
 }
 
 /* ---- Actions ---- */
@@ -358,4 +432,173 @@
 
 .linkBtn span {
   font-size: 16px;
+}
+
+/* Saving Animation */
+.overlaySavedAnim {
+  animation: fadeOut 0.6s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.modalSavedAnim {
+  animation: swoopOut 0.6s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes swoopOut {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  100% {
+    /* Swoops down and slightly left towards the sidebar */
+    transform: scale(0.1) translate3d(-200%, 150%, 0);
+    opacity: 0;
+  }
+}
+
+.btnDanger {
+  composes: btnPrimary;
+  background-color: #d32f2f;
+  color: white;
+  border-color: #d32f2f;
+}
+
+.btnDanger:hover {
+  background-color: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+}
+
+/* Custom Confirmation Popup */
+.confirmOverlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+}
+
+.confirmPopup {
+  background-color: #1a1c1c;
+  padding: 32px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.confirmIcon {
+  color: #d32f2f;
+  margin-bottom: 16px;
+}
+.confirmIcon span {
+  font-size: 48px;
+}
+
+.confirmTitle {
+  color: #fff;
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.confirmMessage {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.priceInput {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.priceInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.editPriceBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editPriceBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--foreground);
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btnCancel {
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: transparent;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+.btnCancel:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.btnDelete {
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  background-color: #d32f2f;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+.btnDelete:hover {
+  background-color: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
 }

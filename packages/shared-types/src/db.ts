@@ -20,6 +20,10 @@ export interface ALBUM_MASTER {
   CUSTOM_STYLE_TYPE: 'SOLID' | 'TRANSLUCENT' | 'SPLATTER';
   /** 수록곡 리스트 */
   TRACKS?: string[];
+  /** 장르 태그 (UI 표시용) */
+  GENRES?: string[];
+  /** Discogs 등 실제 시장 최저가 (KRW 기준) */
+  MARKET_PRICE?: number;
 }
 
 /**
@@ -29,7 +33,7 @@ export interface USER_VINYL {
   /** 매핑 고유 식별자 */
   USER_VINYL_ID: number;
   /** 사용자 식별자 */
-  USER_ID: number;
+  USER_ID: string | number;
   /** 앨범 고유 식별자 */
   ALBUM_ID: number;
   /** 보유 상태 */

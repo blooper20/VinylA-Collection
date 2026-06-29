@@ -22,12 +22,18 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
-    .insert([album])
+    .upsert([album])
     .select()
     .single();
 
   if (error) {
-    console.warn('createAlbumMaster error or DB not connected, simulating success:', error);
+    console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
+      const masters = JSON.parse(local);
+      masters[album.ALBUM_ID as number] = album;
+      localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
+    }
     return album as ALBUM_MASTER;
   }
   return data as ALBUM_MASTER;
@@ -37,37 +43,65 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 // USER_VINYL CRUD
 // =======================
 
-export const getUserVinyls = async (userId: number): Promise<any[]> => {
+export const getUserVinyls = async (userId: string | number): Promise<any[]> => {
   const { data, error } = await supabase
     .from('USER_VINYL')
     .select('*, ALBUM_MASTER(*)')
     .eq('USER_ID', userId);
 
-  if (error) {
-    console.warn('getUserVinyls error or DB not connected, returning mock data:', error);
-    return [
-      { USER_VINYL_ID: 1, USER_ID: userId, ALBUM_ID: 1, STATUS: 'OWNED', PURCHASE_PRICE: 50000, ADDED_AT: new Date().toISOString() } as any,
-    ];
-  }
-  
-  if (!data || data.length === 0) {
-    return [
-      { USER_VINYL_ID: 1, USER_ID: userId, ALBUM_ID: 1, STATUS: 'OWNED', PURCHASE_PRICE: 50000, ADDED_AT: new Date().toISOString() } as any,
-    ];
+  if (error || !data || data.length === 0) {
+    if (typeof window !== 'undefined') {
+      const localV = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+      const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
+      if (localV) {
+        const vinyls = JSON.parse(localV);
+        const masters = localM ? JSON.parse(localM) : {};
+        return vinyls.map((v: any) => ({
+          ...v,
+          ALBUM_MASTER: masters[v.ALBUM_ID] || null
+        }));
+      }
+    }
+    return [];
   }
 
   return data;
 };
 
 export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
+  // First, check if the user already has this album
+  let existing = null;
+  if (userVinyl.USER_ID && userVinyl.ALBUM_ID) {
+    const { data } = await supabase
+      .from('USER_VINYL')
+      .select('*')
+      .eq('USER_ID', userVinyl.USER_ID)
+      .eq('ALBUM_ID', userVinyl.ALBUM_ID)
+      .single();
+    existing = data;
+  }
+
+  const payload = existing ? { ...existing, ...userVinyl } : userVinyl;
+
   const { data, error } = await supabase
     .from('USER_VINYL')
-    .upsert([userVinyl])
+    .upsert([payload])
     .select()
     .single();
 
   if (error) {
-    console.warn('upsertUserVinyl error or DB not connected, simulating success:', error);
+    console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+      let arr = local ? JSON.parse(local) : [];
+      const existingIdx = arr.findIndex((v: any) => v.ALBUM_ID === userVinyl.ALBUM_ID);
+      if (existingIdx > -1) {
+        arr[existingIdx] = { ...arr[existingIdx], ...userVinyl };
+      } else {
+        arr.push(userVinyl);
+      }
+      localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
+    }
     return userVinyl as USER_VINYL;
   }
   return data as USER_VINYL;
@@ -81,6 +115,28 @@ export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => 
 
   if (error) {
     console.error('deleteUserVinyl error:', error);
+    return false;
+  }
+  return true;
+};
+
+export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .delete()
+    .eq('USER_ID', userId)
+    .eq('ALBUM_ID', albumId);
+
+  if (error) {
+    // Also remove from localStorage if DB fails
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+      if (local) {
+        const arr = JSON.parse(local).filter((v: any) => v.ALBUM_ID !== albumId);
+        localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
+        return true; // Consider it a success locally
+      }
+    }
     return false;
   }
   return true;
@@ -130,9 +186,10 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     COVER_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     IMAGE_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
-    GENRES: ['Vinyl'], // fallback
+    GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     STATUS: userVinyl?.STATUS || 'WISH',
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE,
+    PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c'
   };
 };

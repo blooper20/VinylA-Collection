@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuthStore } from '@vinyla/core-api';
 import styles from './SideNav.module.css';
 
 const navItems = [
@@ -14,17 +15,22 @@ const navItems = [
 
 export const SideNav: React.FC = () => {
   const pathname = usePathname();
+  const { user, initializeAuth } = useAuthStore();
+
+  React.useEffect(() => {
+    initializeAuth();
+  }, []);
 
   return (
     <nav className={styles.sidebar}>
       {/* Brand */}
       <div className={styles.brand}>
         <div className={styles.brandIcon}>
-          <span className="material-symbols-outlined">album</span>
+          <img src="/logo.png" alt="VinylA Logo" className={styles.logoImage} />
         </div>
         <div className={styles.brandText}>
           <span className={styles.brandName}>VinylA</span>
-          <span className={styles.brandTagline}>vinyl archive</span>
+          <span className={styles.brandTagline}>Collection</span>
         </div>
       </div>
 
@@ -55,10 +61,21 @@ export const SideNav: React.FC = () => {
       {/* Bottom */}
       <div className={styles.bottom}>
         <div className={styles.bottomDivider} />
-        <div className={styles.navItem} style={{ color: 'var(--text-muted)' }}>
-          <span className={`material-symbols-outlined ${styles.navIcon}`}>settings</span>
-          <span className={styles.navLabel}>설정</span>
-        </div>
+        {user ? (
+          <div className={styles.navItem} style={{ color: 'var(--text-muted)' }} onClick={async () => {
+            const { signOut } = await import('@vinyla/core-api');
+            await signOut();
+            window.location.href = '/login';
+          }}>
+            <span className={`material-symbols-outlined ${styles.navIcon}`}>logout</span>
+            <span className={styles.navLabel}>로그아웃</span>
+          </div>
+        ) : (
+          <Link href="/login" className={styles.navItem} style={{ color: 'var(--text-muted)' }}>
+            <span className={`material-symbols-outlined ${styles.navIcon}`}>login</span>
+            <span className={styles.navLabel}>로그인</span>
+          </Link>
+        )}
       </div>
     </nav>
   );

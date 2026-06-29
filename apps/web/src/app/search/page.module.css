@@ -133,14 +133,24 @@
   letter-spacing: 0.18em;
 }
 
-/* ---- Masonry ---- */
+/* ---- Masonry (Changed to standard Grid for row-by-row rendering) ---- */
 .masonryGrid {
-  column-count: 2;
-  column-gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
-@media (min-width: 900px) { .masonryGrid { column-count: 3; } }
-@media (min-width: 1200px) { .masonryGrid { column-count: 4; } }
+@media (min-width: 900px) {
+  .masonryGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .masonryGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 
 .masonryItem {
   break-inside: avoid;
@@ -209,4 +219,129 @@
   color: var(--text-muted);
   margin-top: 4px;
   letter-spacing: 0.05em;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  width: 100%;
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 16px 24px;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border: 1px solid var(--border-light);
+  font-family: var(--font-body);
+  font-weight: 500;
+  z-index: 10000;
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, fadeOutToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) 2.6s forwards;
+}
+
+.toast span {
+  color: var(--accent);
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes fadeOutToast {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, 20px); }
+}
+
+/* ─── Skeleton loader ──────────────────────────────────────────────────── */
+.skeletonImage {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    rgba(255,255,255,0.06) 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.skeletonLine {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    rgba(255,255,255,0.06) 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  display: block;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Album card entrance animation ────────────────────────────────────── */
+.albumCardIn {
+  animation: cardPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes cardPop {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ─── Progress bar ──────────────────────────────────────────────────────── */
+.progressBar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 100px;
+  margin: 0 24px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent, #c8a96e);
+  border-radius: 100px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }

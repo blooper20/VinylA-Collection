@@ -11,9 +11,11 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
   return (
     <div className={styles.card} onClick={() => onClick(album)}>
       {/* Vinyl disc behind */}
-      <div className={styles.vinyl}>
-        <div className={styles.vinylLabel}>
-          <div className={styles.vinylHole} />
+      <div className={styles.vinylWrapper}>
+        <div className={styles.vinyl}>
+          <div className={styles.vinylLabel}>
+            <div className={styles.vinylHole} />
+          </div>
         </div>
       </div>
 

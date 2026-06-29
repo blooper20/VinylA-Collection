@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Alert, Easing, Pressable } from 'react-native';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
-import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumTracks } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -55,9 +55,19 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const vinylAnim = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
   const modalAnim = useRef(new Animated.Value(0)).current;
+  const [tracks, setTracks] = React.useState<string[]>([]);
 
   useEffect(() => {
     if (visible && album) {
+      setTracks(album.TRACKS || []);
+      if (!album.TRACKS || album.TRACKS.length === 0) {
+        getAlbumTracks(album.ALBUM_ID).then(fetchedTracks => {
+          if (fetchedTracks.length > 0) {
+            setTracks(fetchedTracks);
+          }
+        });
+      }
+
       panY.setValue(0);
       modalAnim.setValue(0);
       vinylAnim.setValue(0);
@@ -137,9 +147,14 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
   };
 
+  const { user } = useAuthStore();
+
   const handleSave = async (status: 'OWNED' | 'WISH') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!album) return;
+
     try {
+      // 1. Ensure Album exists in ALBUM_MASTER
       let master = await getAlbumMaster(album.ALBUM_ID);
       if (!master) {
         await createAlbumMaster({
@@ -154,13 +169,16 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           TRACKS: album.TRACKS || []
         });
       }
+
+      // 2. Insert into USER_VINYL
       await upsertUserVinyl({
-        USER_ID: 1,
+        USER_ID: user?.id || 1,
         ALBUM_ID: album.ALBUM_ID,
         STATUS: status,
         PURCHASE_DATE: new Date().toISOString(),
         PURCHASE_PRICE: 0
       });
+
       Alert.alert('Success', `Album saved as ${status}!`);
       handleClose();
     } catch (error) {
@@ -241,9 +259,11 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
 
               <View style={styles.tracklist}>
-                {album.TRACKS?.map((track, i) => (
+                {tracks.length > 0 ? tracks.map((track, i) => (
                   <Text key={i} style={styles.track}>{i + 1}. {track}</Text>
-                ))}
+                )) : (
+                  <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>No tracklist available</Text>
+                )}
               </View>
             </View>
 
