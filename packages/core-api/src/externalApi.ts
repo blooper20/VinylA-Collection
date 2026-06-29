@@ -147,6 +147,9 @@ export const searchDiscogsLazy = async (
       } catch (_) { /* keep Discogs thumb */ }
     }
 
+    // Discogs typically gives `genre` and `style` as arrays. Combine them to get rich tags.
+    const combinedGenres = Array.from(new Set([...(r.genre || []), ...(r.style || [])]));
+
     onItem({
       id: r.master_id || r.id,
       title,
@@ -154,6 +157,7 @@ export const searchDiscogsLazy = async (
       thumb,
       year: r.year ? String(r.year) : '',
       format: r.format || ['Vinyl', 'LP'],
+      genre: combinedGenres,
       isFeature,
     });
   };

@@ -175,7 +175,8 @@ export default function SearchPage() {
                   TITLE: a.title,
                   ARTIST: a.artist,
                   IMAGE_URL: a.thumb,
-                  RELEASE_YEAR: a.year
+                  RELEASE_YEAR: a.year,
+                  GENRES: a.genre
                 })}
               />
             ))}
@@ -228,7 +229,8 @@ export default function SearchPage() {
                     TITLE: a.title,
                     ARTIST: a.artist,
                     IMAGE_URL: a.thumb,
-                    RELEASE_YEAR: a.year
+                    RELEASE_YEAR: a.year,
+                    GENRES: a.genre
                   })}
                 />
               ))}

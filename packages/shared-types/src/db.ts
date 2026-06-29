@@ -20,6 +20,8 @@ export interface ALBUM_MASTER {
   CUSTOM_STYLE_TYPE: 'SOLID' | 'TRANSLUCENT' | 'SPLATTER';
   /** 수록곡 리스트 */
   TRACKS?: string[];
+  /** 장르 태그 (UI 표시용) */
+  GENRES?: string[];
 }
 
 /**

@@ -115,9 +115,17 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         
         <div className={styles.rightPanel}>
           <div className={styles.headerInfo}>
-            <div className={styles.eyebrow}>{album.RELEASE_YEAR} • {album.GENRES?.join(', ') || 'LP'}</div>
+            <div className={styles.eyebrow}>{album.RELEASE_YEAR || 'Unknown Year'} • LP</div>
             <h2 className={styles.title}>{album.TITLE}</h2>
             <h3 className={styles.artist}>{album.ARTIST}</h3>
+
+            {album.GENRES && album.GENRES.length > 0 && (
+              <div className={styles.tagsContainer}>
+                {album.GENRES.slice(0, 4).map((tag, i) => (
+                  <span key={i} className={styles.tagLabel}>{tag}</span>
+                ))}
+              </div>
+            )}
           </div>
           
           <div className={styles.tracklistContainer}>
