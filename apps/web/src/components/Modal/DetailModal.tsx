@@ -19,10 +19,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   React.useEffect(() => {
-    // Prevent body scrolling while modal is open
+    // Prevent body and html scrolling while modal is open
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
+      document.documentElement.style.overflow = 'unset';
     };
   }, []);
 

@@ -11,7 +11,7 @@ export type AlbumItem = {
   isFeature?: boolean;
 };
 
-export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done';
+export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done' | 'error';
 
 // ─── Discogs-first, Apple Music–enriched search ───────────────────────────────
 // Strategy:
@@ -109,9 +109,9 @@ export const searchDiscogsLazy = async (
 
     const pages = await Promise.all(promises);
     raw = pages.flat();
-  } catch (e) {
-    console.error('Discogs search failed:', e);
-    onStatusChange?.('done', 0);
+  } catch (e: any) {
+    console.error('Discogs search failed:', e?.message || 'Unknown error');
+    onStatusChange?.('error', 0);
     return;
   }
 
@@ -401,8 +401,8 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         }
       }
     }
-  } catch (error) {
-    console.error('iTunes extra details fetch failed:', error);
+  } catch (error: any) {
+    console.warn('iTunes extra details fetch failed:', error?.message || 'Unknown error');
   }
 
   return details;
@@ -427,8 +427,8 @@ export const searchYouTube = async (query: string) => {
       },
     });
     return response.data.items;
-  } catch (error) {
-    console.error('YouTube search failed:', error);
+  } catch (error: any) {
+    console.warn('YouTube search failed:', error?.message || 'Unknown error');
     return [];
   }
 };
@@ -485,8 +485,8 @@ export const getHighQualityArtwork = async (title: string, artist: string, fallb
     if (response.data.results && response.data.results.length > 0) {
       return response.data.results[0].artworkUrl100?.replace('100x100bb', '600x600bb') || fallbackUrl;
     }
-  } catch (e) {
-    console.warn('Failed to fetch high quality artwork from iTunes', e);
+  } catch (e: any) {
+    console.warn('Failed to fetch high quality artwork from iTunes', e?.message || 'Unknown error');
   }
   return fallbackUrl;
 };
