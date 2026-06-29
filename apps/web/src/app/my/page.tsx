@@ -69,11 +69,8 @@ export default function MyProfilePage() {
         
         // Calculate estimated market value
         const value = owned.reduce((sum, item) => {
-          let price = item.PURCHASE_PRICE;
-          if (!price) {
-            price = 35 + ((item.ALBUM_ID || 1) % 10);
-          }
-          return sum + (price * 1400);
+          const estimatedUsd = 35 + ((item.ALBUM_ID || 1) % 10);
+          return sum + (estimatedUsd * 1400);
         }, 0);
         setCollectionValue(value);
 

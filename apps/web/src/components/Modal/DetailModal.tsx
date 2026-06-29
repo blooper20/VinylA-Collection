@@ -186,8 +186,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <div className={styles.estimatedValue}>
               <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
               시장 추정가: ₩{(() => {
-                const price = album.PURCHASE_PRICE || (35 + ((album.ALBUM_ID || 1) % 10));
-                return (price * 1400).toLocaleString();
+                const estimatedUsd = 35 + ((album.ALBUM_ID || 1) % 10);
+                return (estimatedUsd * 1400).toLocaleString();
               })()}
             </div>
             {album.STATUS === 'OWNED' ? (
