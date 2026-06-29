@@ -97,7 +97,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   useEffect(() => {
     if (dbData.length === 0) return;
 
-    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v5') === 'true';
+    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v6') === 'true';
 
     const brokenAlbums = dbData.filter(album => {
       if (!migrationDone) return true; // Force one-time check for all to replace inaccurate Discogs countries
@@ -119,21 +119,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       
       for (const album of brokenAlbums) {
         try {
-          // 1. Try Apple Music first for artist's country
-          let countryCode = '';
-          try {
-            const cleanArtist = album.ARTIST.replace(/\s\(\d+\)$/, '').trim();
-            const cleanTitle = album.TITLE.split(' / ')[0].split('(')[0].trim();
-            const itRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanArtist + ' ' + cleanTitle)}&entity=album&limit=3`);
-            const itJson = await itRes.json();
-            const hit = itJson.results?.find((item: any) =>
-              item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
-              cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase())
-            );
-            if (hit?.country) {
-              countryCode = hit.country;
-            }
-          } catch (e) { /* ignore */ }
 
           // 2. Fetch Discogs for genres/styles
           const query = encodeURIComponent(`${album.ARTIST} ${album.TITLE}`);
@@ -161,13 +146,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
             if (hasHangul) {
               finalCountry = 'South Korea';
-            } else if (countryCode) {
-              const mapping: { [key: string]: string } = {
-                'KOR': 'South Korea', 'USA': 'US', 'JPN': 'Japan', 'GBR': 'UK',
-                'DEU': 'Germany', 'FRA': 'France', 'CAN': 'Canada', 'AUS': 'Australia',
-                'ITA': 'Italy', 'SWE': 'Sweden', 'TWN': 'Taiwan', 'BRA': 'Brazil', 'RUS': 'Russia'
-              };
-              finalCountry = mapping[countryCode.toUpperCase()] || countryCode;
             } else if (result?.country) {
               finalCountry = result.country;
             }
@@ -205,7 +183,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         }
       }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('vinyls_migration_v5', 'true');
+        localStorage.setItem('vinyls_migration_v6', 'true');
       }
       // Refresh local UI state
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));

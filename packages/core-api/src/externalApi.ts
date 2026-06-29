@@ -194,24 +194,6 @@ export const searchDiscogsLazy = async (
   // ── Step 3: Enrich each LP with Apple Music cover art (3 concurrent) ────────
   const CONCURRENCY = 3;
 
-  const mapItunesCountry = (code: string): string => {
-    const mapping: { [key: string]: string } = {
-      'KOR': 'South Korea',
-      'USA': 'US',
-      'JPN': 'Japan',
-      'GBR': 'UK',
-      'DEU': 'Germany',
-      'FRA': 'France',
-      'CAN': 'Canada',
-      'AUS': 'Australia',
-      'ITA': 'Italy',
-      'SWE': 'Sweden',
-      'TWN': 'Taiwan',
-      'BRA': 'Brazil',
-      'RUS': 'Russia'
-    };
-    return mapping[code.toUpperCase()] || code;
-  };
 
   const enrich = async ({ r, isFeature }: { r: any, isFeature: boolean }) => {
     const { artist, title } = parseDiscogsTitle(r.title || '');
@@ -245,9 +227,14 @@ export const searchDiscogsLazy = async (
     }
 
     // Try to get country from Apple Music, fallback to Discogs release country
+    // Enforce South Korea if Hangul is detected in artist, title, or query
     let finalCountry = '';
-    if (hit?.country) {
-      finalCountry = mapItunesCountry(hit.country);
+    const hasHangul = /[가-힣]/.test(artist) || 
+                      /[가-힣]/.test(title) || 
+                      (query && /[가-힣]/.test(query));
+
+    if (hasHangul) {
+      finalCountry = 'South Korea';
     } else if (r.country) {
       finalCountry = r.country;
     }
