@@ -226,24 +226,10 @@ export const searchDiscogsLazy = async (
       thumb = r.cover_image || r.thumb || '';
     }
 
-    // Try to get country from Apple Music, fallback to Discogs release country
-    // Enforce South Korea if Hangul is detected in artist, title, or query
-    let finalCountry = '';
-    const hasHangul = /[가-힣]/.test(artist) || 
-                      /[가-힣]/.test(title) || 
-                      (query && /[가-힣]/.test(query));
-
-    if (hasHangul) {
-      finalCountry = 'South Korea';
-    } else if (r.country) {
-      finalCountry = r.country;
-    }
-
-    // Discogs typically gives `genre` and `style` as arrays. Combine them to get rich tags.
+    // Discogs gives `genre` and `style` as arrays — no country tag.
     const combinedGenres = Array.from(new Set([
       ...(r.genre || []),
-      ...(r.style || []),
-      ...(finalCountry ? [finalCountry] : [])
+      ...(r.style || [])
     ]));
 
     onItem({

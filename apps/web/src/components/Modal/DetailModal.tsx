@@ -72,23 +72,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
   const handleSave = async (status: 'OWNED' | 'WISH') => {
     try {
-      let finalGenres = album.GENRES || [];
-      const hasHangul = /[가-힣]/.test(album.ARTIST) || 
-                        /[가-힣]/.test(album.TITLE) || 
-                        (tracks && tracks.some((t: string) => /[가-힣]/.test(t)));
-      
-      if (hasHangul) {
-        const KNOWN_COUNTRIES = [
-          'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
-          'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
+      const finalGenres = (album.GENRES || []).filter(g => {
+        // Strip any leftover country tags from old saves
+        const COUNTRY_TAGS = [
+          'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany',
+          'France', 'Netherlands', 'Canada', 'Australia', 'Italy',
           'Sweden', 'Taiwan', 'Brazil', 'Russia'
         ];
-        finalGenres = finalGenres.filter(g => !KNOWN_COUNTRIES.includes(g));
-        finalGenres.push('South Korea');
-      }
+        return !COUNTRY_TAGS.includes(g);
+      });
 
       let master = await getAlbumMaster(album.ALBUM_ID);
-      if (!master || !master.GENRES || master.GENRES.length === 0 || hasHangul) {
+      if (!master || !master.GENRES || master.GENRES.length === 0) {
         await createAlbumMaster({
           ALBUM_ID: album.ALBUM_ID,
           TITLE: album.TITLE,
