@@ -179,7 +179,9 @@ export default function SearchPage() {
       ? `LP 검색 결과 (${mainResults.length})`
       : status === 'done'
         ? 'Discogs에 등록된 정규 LP가 없습니다'
-        : '장르';
+        : status === 'error'
+          ? '서버 요청 한도 초과 (잠시 후 다시 시도해주세요)'
+          : '장르';
 
   return (
     <div className={styles.container}>

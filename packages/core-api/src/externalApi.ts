@@ -87,17 +87,35 @@ export const searchDiscogsLazy = async (
           sort_order: 'desc',
         },
         headers: { 'User-Agent': 'VinylA/1.0.0' }
-      }).then((r) => r.data.results || []).catch(() => []);
+      }).then((r) => r.data.results || []).catch((e) => { throw e; });
     };
 
     const promises = [];
 
     if (isGenreQuery) {
-      const genre = query.substring(1);
-      // Fetch two random pages (1~10) of this genre to give diverse results on each click
+      const genreKeyword = query.substring(1);
+      
+      // Map UI categories to correct Discogs parameters
+      let discogsParams: any = {};
+      switch (genreKeyword) {
+        case 'Ambient': discogsParams = { style: 'Ambient' }; break;
+        case 'Cinematic': discogsParams = { style: 'Soundtrack' }; break; // Stage & Screen / Soundtrack
+        case 'Soul & Funk': discogsParams = { genre: 'Funk / Soul' }; break;
+        case 'World': discogsParams = { genre: 'Folk, World, & Country' }; break;
+        case 'Electronic': discogsParams = { genre: 'Electronic' }; break;
+        case 'Jazz': discogsParams = { genre: 'Jazz' }; break;
+        case 'Classical': discogsParams = { genre: 'Classical' }; break;
+        case 'Rock': discogsParams = { genre: 'Rock' }; break;
+        default: discogsParams = { genre: genreKeyword }; break;
+      }
+
+      // Fetch two random pages (1~10) of this category to give diverse results on each click
       const randomPage1 = Math.floor(Math.random() * 10) + 1;
       const randomPage2 = Math.floor(Math.random() * 10) + 11;
-      promises.push(fetchPage({ genre, page: randomPage1 }), fetchPage({ genre, page: randomPage2 }));
+      promises.push(
+        fetchPage({ ...discogsParams, page: randomPage1 }), 
+        fetchPage({ ...discogsParams, page: randomPage2 })
+      );
     } else {
       // Original query text search
       promises.push(fetchPage({ q: query, page: 1 }), fetchPage({ q: query, page: 2 }));
