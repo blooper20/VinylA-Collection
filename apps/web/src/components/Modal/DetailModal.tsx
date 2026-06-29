@@ -190,9 +190,14 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <h2 className={styles.title}>{album.TITLE}</h2>
             <h3 className={styles.artist}>{album.ARTIST}</h3>
             
-            <div className={styles.estimatedValue}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
-              시장 추정가: {marketPrice === -1 ? '정보 없음' : marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}
+            <div style={{ marginBottom: 24 }}>
+              <div className={styles.estimatedValue} style={{ marginBottom: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
+                시장 추정가: {marketPrice === -1 ? '정보 없음' : marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginLeft: '22px', marginTop: '-2px' }}>
+                * Discogs 기준 최저가
+              </div>
             </div>
             {album.STATUS === 'OWNED' ? (
               <div className={styles.actualValue}>

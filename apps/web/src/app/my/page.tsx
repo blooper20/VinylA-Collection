@@ -128,7 +128,7 @@ export default function MyProfilePage() {
   };
 
   const stats = [
-    { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: '전체 보유 LP 기준' },
+    { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: 'Discogs 기준 최저가 합산' },
     { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' },
     { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
     { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
