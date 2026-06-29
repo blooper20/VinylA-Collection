@@ -88,50 +88,70 @@ export const searchDiscogsLazy = async (
     try {
       const cleanTitle = album.title
         .replace(/ - EP$| - Single$/i, '')
-        .replace(/\s*\(.*?\)\s*/g, '')  // remove parenthetical suffixes
+        .replace(/\s*\(.*?\)\s*/g, '')
         .trim();
 
-      // Try exact title match first (most accurate)
+      // Helper: check if a Discogs result actually belongs to this artist
+      const isValidHit = (r: any) => {
+        if (!r) return false;
+        const t = (r.title || '').toLowerCase();
+        // Must contain either the query keyword OR the Apple Music artist name
+        return (
+          t.includes(query.toLowerCase()) ||
+          t.includes(album.artist.toLowerCase())
+        );
+      };
+
+      // ── Strategy 1: query keyword + title (best for Korean artist names) ──
       let dRes = await axios.get('https://api.discogs.com/database/search', {
         params: {
-          release_title: cleanTitle,
-          artist: album.artist,
+          q: `${query} ${cleanTitle}`,
           ...authParams,
           type: 'release',
           format: 'vinyl',
         },
         headers: { 'User-Agent': 'VinylA/1.0.0' }
       });
+      let hit = dRes.data.results?.find(isValidHit);
 
-      let hit = dRes.data.results?.[0];
-
-      // Fallback: try with original query as artist name (Korean/English mismatch fix)
+      // ── Strategy 2: Apple Music artist name + title ────────────────────────
       if (!hit) {
         dRes = await axios.get('https://api.discogs.com/database/search', {
           params: {
-            release_title: cleanTitle,
-            artist: query,
+            q: `${album.artist} ${cleanTitle}`,
             ...authParams,
             type: 'release',
             format: 'vinyl',
           },
           headers: { 'User-Agent': 'VinylA/1.0.0' }
         });
-        hit = dRes.data.results?.[0];
+        hit = dRes.data.results?.find(isValidHit);
+      }
+
+      // ── Strategy 3: title alone (for short/numeric titles like "201") ──────
+      if (!hit && cleanTitle.length > 2) {
+        dRes = await axios.get('https://api.discogs.com/database/search', {
+          params: {
+            q: cleanTitle,
+            ...authParams,
+            type: 'release',
+            format: 'vinyl',
+          },
+          headers: { 'User-Agent': 'VinylA/1.0.0' }
+        });
+        hit = dRes.data.results?.find(isValidHit);
       }
 
       if (hit) {
-        // Use Discogs master_id if available for accurate tracklist fetching later
         onItem({
           ...album,
           id: hit.master_id || hit.id || album.id,
         });
       }
-      // No LP found → silently skip (don't surface digital-only or singles)
+      // No LP found → silently skip
     } catch (e: any) {
       console.warn(`Discogs verify failed for "${album.title}":`, e.message);
-      // On API error (e.g. rate limit), surface the album anyway
-      onItem(album);
+      onItem(album); // On rate-limit/error, surface it anyway
     }
   };
 
