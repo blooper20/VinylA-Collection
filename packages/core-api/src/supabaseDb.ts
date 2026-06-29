@@ -189,6 +189,7 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     STATUS: userVinyl?.STATUS || 'WISH',
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE,
+    PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c'
   };
 };
