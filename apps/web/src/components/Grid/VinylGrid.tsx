@@ -139,7 +139,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               {([
                 { key: 'latest', label: '최신순' },
                 { key: 'oldest', label: '오래된순' },
-                { key: 'alpha',  label: 'ㄱㄴㄷ순' },
+                { key: 'alpha',  label: '가나다순' },
                 { key: 'year',   label: '출시연도순' },
               ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
                 <button key={key} className={`${styles.controlChip} ${sortMode === key ? styles.controlActive : ''}`} onClick={() => setSortMode(key)}>
