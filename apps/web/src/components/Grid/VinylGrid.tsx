@@ -88,31 +88,64 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     };
   }, [user]);
 
-  // Auto-heal logic: Automatically fetch and restore missing genres/countries for legacy items
+  // Auto-heal logic: strip country tags and fetch missing genres
   useEffect(() => {
     if (dbData.length === 0) return;
 
-    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v7') === 'true';
+    const COUNTRY_TAGS = [
+      'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany',
+      'France', 'Netherlands', 'Canada', 'Australia', 'Italy',
+      'Sweden', 'Taiwan', 'Brazil', 'Russia'
+    ];
 
-    const brokenAlbums = dbData.filter(album => (
-      !album.GENRES || 
+    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v8') === 'true';
+    if (migrationDone) return;
+
+    const albumsWithCountry = dbData.filter(album =>
+      album.GENRES && album.GENRES.some(g => COUNTRY_TAGS.includes(g))
+    );
+
+    const albumsWithNoGenres = dbData.filter(album =>
+      !album.GENRES ||
       album.GENRES.length === 0 ||
       (album.GENRES.length === 1 && album.GENRES[0] === 'Vinyl')
-    ));
+    );
 
-    if (brokenAlbums.length === 0) return;
+    const allTargets = Array.from(new Set([...albumsWithCountry, ...albumsWithNoGenres]));
+
+    if (allTargets.length === 0) {
+      localStorage.setItem('vinyls_migration_v8', 'true');
+      return;
+    }
 
     async function healData() {
       const token = process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
       const key = process.env.NEXT_PUBLIC_DISCOGS_KEY;
       const secret = process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-      
-      for (const album of brokenAlbums) {
-        try {
+      const authString = token ? `token=${token}` : `key=${key}&secret=${secret}`;
 
-          // 2. Fetch Discogs for genres/styles
+      for (const album of allTargets) {
+        try {
+          // If album already has non-country genres, just strip country tags — no API call needed
+          const existingGenres = (album.GENRES || []).filter(g => !COUNTRY_TAGS.includes(g));
+          if (existingGenres.length > 0) {
+            await createAlbumMaster({
+              ALBUM_ID: album.ALBUM_ID,
+              TITLE: album.TITLE,
+              ARTIST: album.ARTIST,
+              RELEASE_YEAR: album.RELEASE_YEAR,
+              IMAGE_URL: album.IMAGE_URL,
+              VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
+              CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c',
+              CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID',
+              TRACKS: album.TRACKS || [],
+              GENRES: existingGenres
+            });
+            continue;
+          }
+
+          // Otherwise fetch from Discogs
           const query = encodeURIComponent(`${album.ARTIST} ${album.TITLE}`);
-          const authString = token ? `token=${token}` : `key=${key}&secret=${secret}`;
           const res = await fetch(`https://api.discogs.com/database/search?q=${query}&type=release&format=vinyl&per_page=1&${authString}`, {
             headers: { 'User-Agent': 'VinylA/1.0.0' }
           });
@@ -128,7 +161,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               discogsTracks = relJson.tracklist?.map((t: any) => t.title) || [];
             } catch (e) { /* ignore */ }
 
-            // Only use genre and style — no country
             const finalGenres = Array.from(new Set([
               ...(result?.genre || []),
               ...(result?.style || [])
@@ -154,16 +186,15 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         }
       }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('vinyls_migration_v7', 'true');
+        localStorage.setItem('vinyls_migration_v8', 'true');
       }
-      // Refresh local UI state
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     }
 
-    // Delay slightly to prevent slamming during initial render
     const timer = setTimeout(healData, 1000);
     return () => clearTimeout(timer);
   }, [dbData]);
+
 
   const dataToUse = dbData.filter(album => statusFilter === 'ALL' || album.STATUS === statusFilter);
   
