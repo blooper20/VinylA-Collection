@@ -543,6 +543,26 @@
   border-color: var(--accent);
 }
 
+.editPriceBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editPriceBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--foreground);
+}
+
 .confirmActions {
   display: flex;
   gap: 12px;

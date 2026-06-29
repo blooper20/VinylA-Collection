@@ -19,6 +19,7 @@ const AVAILABLE_GENRES = [
 export default function MyProfilePage() {
   const { user, initializeAuth, updateProfileWithAvatarFile } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
+  const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
   const [topGenre, setTopGenre] = useState('-');
   const [actualTopGenre, setActualTopGenre] = useState('-');
@@ -58,15 +59,17 @@ export default function MyProfilePage() {
         
         // Calculate estimated market value
         const value = owned.reduce((sum, item) => {
-          // If price is missing or 0, estimate it around $35-$45 based on ALBUM_ID
           let price = item.PURCHASE_PRICE;
           if (!price) {
             price = 35 + ((item.ALBUM_ID || 1) % 10);
           }
-          // Convert USD to KRW (approx 1,400 won per dollar)
           return sum + (price * 1400);
         }, 0);
         setCollectionValue(value);
+
+        // Calculate actual spent cost
+        const spent = owned.reduce((sum, item) => sum + (item.PURCHASE_PRICE || 0), 0);
+        setActualSpentValue(spent);
 
         const mapped = data.map(v => mapToFrontendModel(v, null));
         
@@ -118,7 +121,8 @@ export default function MyProfilePage() {
   };
 
   const stats = [
-    { label: '컬렉션 가치',  value: collectionValue.toLocaleString(), unit: '₩', sub: '시장 추정가 기준' },
+    { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: '전체 보유 LP 기준' },
+    { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' },
     { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
     { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
     { label: '실제 관심 장르', value: actualTopGenre,  unit: '',   sub: '내 콜렉션 데이터 기준' },
@@ -220,6 +224,7 @@ export default function MyProfilePage() {
 
       <section className={styles.analytics}>
         <div className={styles.analyticsGrid}>
+
           {stats.map((stat, i) => (
             <div key={i} className={styles.statCard}>
               <span className={styles.statLabel}>{stat.label}</span>

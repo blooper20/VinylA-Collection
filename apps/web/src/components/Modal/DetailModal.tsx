@@ -100,13 +100,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         });
       }
 
-      await upsertUserVinyl({
+      const payloadData: any = {
         USER_ID: user?.id || 1,
         ALBUM_ID: album.ALBUM_ID,
         STATUS: status,
-        PURCHASE_DATE: new Date().toISOString(),
         PURCHASE_PRICE: price
-      });
+      };
+
+      if (status === 'OWNED' && album.STATUS !== 'OWNED') {
+        payloadData.PURCHASE_DATE = new Date().toISOString();
+      }
+
+      await upsertUserVinyl(payloadData);
 
       setIsSaving(true);
       // Let animation play for 600ms
@@ -180,10 +185,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 return (price * 1400).toLocaleString();
               })()}
             </div>
-            {album.STATUS === 'OWNED' && album.PURCHASE_PRICE ? (
+            {album.STATUS === 'OWNED' ? (
               <div className={styles.actualValue}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>receipt_long</span>
-                실제 구입가: ₩{(album.PURCHASE_PRICE).toLocaleString()}
+                실제 구입가: {album.PURCHASE_PRICE ? `₩${(album.PURCHASE_PRICE).toLocaleString()}` : '미입력'}
+                <button 
+                  className={styles.editPriceBtn}
+                  onClick={() => {
+                    setPurchasePriceInput(album.PURCHASE_PRICE ? String(album.PURCHASE_PRICE) : '');
+                    setPricePromptOpen(true);
+                  }}
+                  title="구입가 수정"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                </button>
               </div>
             ) : null}
 
