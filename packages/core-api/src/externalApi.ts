@@ -315,6 +315,7 @@ export interface AlbumExtraDetails {
   notes?: string;
   copyright?: string;
   releaseDate?: string;
+  highResCover?: string;
 }
 
 export const getAlbumExtraDetails = async (albumId: string | number, artist?: string, title?: string): Promise<AlbumExtraDetails> => {
@@ -348,7 +349,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
     }
   }
 
-  // 2. Fetch extra details from iTunes (copyright, exact release date)
+  // 2. Fetch extra details from iTunes (copyright, exact release date, highResCover)
   try {
     if (artist && title) {
       const itRes = await axios.get('https://itunes.apple.com/search', {
@@ -357,6 +358,9 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
       const hit = itRes.data.results?.[0];
       if (hit) {
         details.copyright = hit.copyright;
+        if (hit.artworkUrl100) {
+          details.highResCover = hit.artworkUrl100.replace('100x100bb', '600x600bb');
+        }
         if (hit.releaseDate) {
           details.releaseDate = new Date(hit.releaseDate).toLocaleDateString('ko-KR', {
             year: 'numeric', month: 'long', day: 'numeric'

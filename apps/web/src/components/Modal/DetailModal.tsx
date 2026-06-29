@@ -14,6 +14,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [notes, setNotes] = React.useState<string>('');
   const [copyright, setCopyright] = React.useState<string>('');
   const [releaseDate, setReleaseDate] = React.useState<string>('');
+  const [coverUrl, setCoverUrl] = React.useState<string>(album.IMAGE_URL || '');
 
   React.useEffect(() => {
     getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
@@ -23,8 +24,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       if (details.notes) setNotes(details.notes);
       if (details.copyright) setCopyright(details.copyright);
       if (details.releaseDate) setReleaseDate(details.releaseDate);
+      if (details.highResCover && album.IMAGE_URL !== details.highResCover) {
+        setCoverUrl(details.highResCover);
+      }
     });
-  }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS]);
+  }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
 
   const handleYoutubeListen = async () => {
     const query = `${album.ARTIST} ${album.TITLE} full album`;
@@ -108,11 +112,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <div className={styles.vinyl}>
               <div 
                 className={styles.vinylLabel} 
-                style={{ backgroundImage: `url(${album.IMAGE_URL})` }} 
+                style={{ backgroundImage: `url(${coverUrl})` }} 
               />
             </div>
             <div className={styles.cover}>
-              <img src={album.IMAGE_URL} alt={album.TITLE} className={styles.coverImage} />
+              <img src={coverUrl} alt={album.TITLE} className={styles.coverImage} />
             </div>
           </div>
         </div>
