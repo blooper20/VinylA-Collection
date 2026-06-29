@@ -220,7 +220,6 @@
 .estimatedValue {
   display: flex;
   align-items: center;
-  margin-top: -8px;
   margin-bottom: 24px;
   font-size: 14px;
   color: var(--accent);
@@ -241,10 +240,11 @@
 
 .artist {
   font-family: var(--font-body);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--text-secondary);
   letter-spacing: -0.01em;
+  margin-bottom: 12px;
 }
 
 .tagsContainer {
