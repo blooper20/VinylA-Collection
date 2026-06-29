@@ -35,22 +35,28 @@ export const searchDiscogsLazy = async (
 
   onStatusChange?.('fetching_discogs');
 
-  // ── Step 1: Query Discogs for LP releases ──────────────────────────────────
+  // ── Step 1: Fetch 3 pages in parallel → 150 results to dedup from ──────────
+  // Reason: For popular artists (e.g. Radiohead), 50 results is dominated by many
+  // reissues of the same 4-5 albums. Fetching 3 pages gives us enough raw material
+  // to extract 10-15 truly distinct LPs after deduplication.
   let discogsResults: any[] = [];
   try {
-    const res = await axios.get('https://api.discogs.com/database/search', {
-      params: {
-        q: query,
-        ...authParams,
-        type: 'release',
-        format: 'LP',   // Only full-length LPs
-        per_page: 50,   // Fetch more so deduplication still leaves plenty
-        sort: 'want',   // Sort by community want-list → popular LPs first
-        sort_order: 'desc',
-      },
-      headers: { 'User-Agent': 'VinylA/1.0.0' }
-    });
-    discogsResults = res.data.results || [];
+    const pages = await Promise.all([1, 2, 3].map((page) =>
+      axios.get('https://api.discogs.com/database/search', {
+        params: {
+          q: query,
+          ...authParams,
+          type: 'release',
+          format: 'LP',
+          per_page: 50,
+          page,
+          sort: 'want',
+          sort_order: 'desc',
+        },
+        headers: { 'User-Agent': 'VinylA/1.0.0' }
+      }).then(r => r.data.results || []).catch(() => [])
+    ));
+    discogsResults = pages.flat();
   } catch (e) {
     console.error('Discogs search failed:', e);
     onStatusChange?.('done', 0);
@@ -62,14 +68,13 @@ export const searchDiscogsLazy = async (
     return;
   }
 
-  // ── Step 2: Deduplicate by master_id (keep highest-community first) ────────
+  // ── Step 2: Deduplicate by master_id across all 150 results ─────────────────
   const seenMasters = new Set<number>();
   const seenTitles = new Set<string>();
   const unique: any[] = [];
 
   for (const r of discogsResults) {
     if (r.master_id && seenMasters.has(r.master_id)) continue;
-    // Normalised title fallback dedup for releases without a master
     const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
     if (seenTitles.has(normTitle)) continue;
 
@@ -77,7 +82,7 @@ export const searchDiscogsLazy = async (
     seenTitles.add(normTitle);
     unique.push(r);
 
-    if (unique.length >= 15) break; // Cap at 15 unique LPs
+    if (unique.length >= 15) break;
   }
 
   onStatusChange?.('enriching', unique.length);
