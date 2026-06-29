@@ -224,16 +224,17 @@ export default function MyProfilePage() {
 
               <div className={styles.profileInfo}>
                 <p className={styles.profileEyebrow}>Vinyl Noir Member</p>
-                <h1 className={styles.profileName}>{displayName}</h1>
+                <div className={styles.nameRow}>
+                  <h1 className={styles.profileName}>{displayName}</h1>
+                  <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
+                  </button>
+                </div>
                 <div className={styles.collectorBadge}>
                   <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>diamond</span>
                   <span className={styles.collectorBadgeText}>Verified Collector</span>
                 </div>
               </div>
-              
-              <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
-              </button>
             </>
           )}
 

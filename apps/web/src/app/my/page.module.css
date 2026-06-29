@@ -80,6 +80,13 @@
   margin-bottom: 6px;
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
 .profileName {
   font-family: var(--font-headline);
   font-size: clamp(40px, 5vw, 72px);
@@ -87,7 +94,7 @@
   color: var(--text-primary);
   line-height: 0.95;
   letter-spacing: -0.04em;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .collectorBadge {
@@ -126,17 +133,17 @@
 .featuredContainer::before {
   content: '';
   position: absolute;
-  top: -80px;
-  right: -20px;
-  width: 200px;
-  height: 250px;
+  top: -120px;
+  right: -50px;
+  width: 280px;
+  height: 350px;
   background: linear-gradient(180deg, rgba(255, 248, 220, 0.08) 0%, rgba(255, 248, 220, 0.02) 60%, transparent 100%);
-  clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
-  transform: rotate(-15deg);
+  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
+  transform: rotate(-10deg);
   transform-origin: top center;
   pointer-events: none;
   z-index: -1;
-  filter: blur(10px);
+  filter: blur(12px);
 }
 
 .featuredFrame {
@@ -448,7 +455,7 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .editBtnToggle:hover {
