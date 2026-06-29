@@ -154,8 +154,7 @@ export const searchDiscogsLazy = async (
   }
 
   onStatusChange?.('done', unique.length);
-
-
+};
 
 export const searchDiscogs = async (query: string) => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
