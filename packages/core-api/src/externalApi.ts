@@ -169,13 +169,16 @@ export const searchDiscogsLazy = async (
     // 1. Unconditionally try Apple Music for a pristine digital cover
     let thumb = '';
     try {
+      const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+      const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
+
       const itRes = await axios.get('https://itunes.apple.com/search', {
-        params: { term: `${artist} ${title}`, entity: 'album', limit: 3 }
+        params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
       // Pick the Apple Music result whose artist best matches
       const hit = itRes.data.results?.find((item: any) =>
         item.artistName?.toLowerCase().includes(query.toLowerCase()) ||
-        item.artistName?.toLowerCase().includes(artist.toLowerCase())
+        item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase())
       ) || itRes.data.results?.[0];
 
       if (hit?.artworkUrl100) {
@@ -352,8 +355,11 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
   // 2. Fetch extra details from iTunes (copyright, exact release date, highResCover)
   try {
     if (artist && title) {
+      const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+      const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
+
       const itRes = await axios.get('https://itunes.apple.com/search', {
-        params: { term: `${artist} ${title}`, entity: 'album', limit: 3 }
+        params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
       const hit = itRes.data.results?.[0];
       if (hit) {
