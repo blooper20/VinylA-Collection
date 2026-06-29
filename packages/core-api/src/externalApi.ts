@@ -55,6 +55,7 @@ export const searchDiscogsLazy = async (
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
   const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
   const authParams = token ? { token } : { key, secret };
+  const isGenreQuery = query.startsWith('#');
 
   onStatusChange?.('fetching_discogs');
 
@@ -90,7 +91,6 @@ export const searchDiscogsLazy = async (
     };
 
     const promises = [];
-    const isGenreQuery = query.startsWith('#');
 
     if (isGenreQuery) {
       const genre = query.substring(1);
