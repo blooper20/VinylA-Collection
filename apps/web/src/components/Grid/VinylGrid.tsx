@@ -89,10 +89,10 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
   const dataToUse = dbData.filter(album => statusFilter === 'ALL' || album.STATUS === statusFilter);
   
-  const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRE || []))).sort();
+  const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRES || []))).sort();
 
   const displayedAlbums = dataToUse.filter(album =>
-    activeTag === 'ALL' || (album.GENRE && album.GENRE.includes(activeTag))
+    activeTag === 'ALL' || (album.GENRES && album.GENRES.includes(activeTag))
   );
 
   return (

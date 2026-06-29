@@ -86,8 +86,10 @@ export const searchDiscogsLazy = async (
           sort: 'want',
           sort_order: 'desc',
         },
-        headers: { 'User-Agent': 'VinylA/1.0.0' }
-      }).then((r) => r.data.results || []).catch((e) => { throw e; });
+      }).then((r) => r.data.results || []).catch((e) => { 
+        if (e.response && e.response.status === 404) return [];
+        throw e; 
+      });
     };
 
     const promises = [];
