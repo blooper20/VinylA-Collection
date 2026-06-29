@@ -97,7 +97,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   useEffect(() => {
     if (dbData.length === 0) return;
 
-    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v4') === 'true';
+    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v5') === 'true';
 
     const brokenAlbums = dbData.filter(album => {
       if (!migrationDone) return true; // Force one-time check for all to replace inaccurate Discogs countries
@@ -143,10 +143,21 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           });
           const json = await res.json();
           const result = json.results?.[0];
+          if (result) {
+            let discogsTracks: string[] = [];
+            try {
+              const relRes = await fetch(`https://api.discogs.com/releases/${result.id}?${authString}`, {
+                headers: { 'User-Agent': 'VinylA/1.0.0' }
+              });
+              const relJson = await relRes.json();
+              discogsTracks = relJson.tracklist?.map((t: any) => t.title) || [];
+            } catch (e) { /* ignore */ }
+
             let finalCountry = '';
             const hasHangul = /[가-힣]/.test(album.ARTIST) || 
                               /[가-힣]/.test(album.TITLE) || 
-                              (album.TRACKS && album.TRACKS.some(t => /[가-힣]/.test(t)));
+                              (album.TRACKS && album.TRACKS.some(t => /[가-힣]/.test(t))) ||
+                              (discogsTracks.some(t => /[가-힣]/.test(t)));
 
             if (hasHangul) {
               finalCountry = 'South Korea';
@@ -184,16 +195,17 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                 VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
                 CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c',
                 CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID',
-                TRACKS: album.TRACKS || [],
+                TRACKS: discogsTracks.length > 0 ? discogsTracks : (album.TRACKS || []),
                 GENRES: finalGenres
               });
             }
+          }
         } catch (err) {
           console.warn(`Auto-heal failed for ${album.TITLE}:`, err);
         }
       }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('vinyls_migration_v4', 'true');
+        localStorage.setItem('vinyls_migration_v5', 'true');
       }
       // Refresh local UI state
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));

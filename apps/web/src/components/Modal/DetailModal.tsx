@@ -75,7 +75,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       let finalGenres = album.GENRES || [];
       const hasHangul = /[가-힣]/.test(album.ARTIST) || 
                         /[가-힣]/.test(album.TITLE) || 
-                        (album.TRACKS && album.TRACKS.some((t: string) => /[가-힣]/.test(t)));
+                        (tracks && tracks.some((t: string) => /[가-힣]/.test(t)));
       
       if (hasHangul) {
         const KNOWN_COUNTRIES = [
@@ -98,7 +98,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: 'SOLID',
-          TRACKS: album.TRACKS || [],
+          TRACKS: tracks || [],
           GENRES: finalGenres
         });
       }
