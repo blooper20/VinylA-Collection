@@ -175,11 +175,12 @@ export const searchDiscogsLazy = async (
       const itRes = await axios.get('https://itunes.apple.com/search', {
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
-      // Pick the Apple Music result whose artist best matches
       const hit = itRes.data.results?.find((item: any) =>
         item.artistName?.toLowerCase().includes(query.toLowerCase()) ||
-        item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase())
-      ) || itRes.data.results?.[0];
+        item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
+        cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase()) ||
+        (alias && item.artistName?.toLowerCase().includes(alias.toLowerCase()))
+      );
 
       if (hit?.artworkUrl100) {
         thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
@@ -361,7 +362,11 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
       const itRes = await axios.get('https://itunes.apple.com/search', {
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
-      const hit = itRes.data.results?.[0];
+      // Ensure the artist matches before taking the hit
+      const hit = itRes.data.results?.find((item: any) =>
+        item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
+        cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase())
+      );
       if (hit) {
         details.copyright = hit.copyright;
         if (hit.artworkUrl100) {
