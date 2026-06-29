@@ -25,10 +25,10 @@ export default function MyProfilePage() {
   const [topGenre, setTopGenre] = useState('-');
   const [actualTopGenre, setActualTopGenre] = useState('-');
   const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
-  const [ownedAlbumsList, setOwnedAlbumsList] = useState<any[]>([]);
+  const [allAlbumsList, setAllAlbumsList] = useState<any[]>([]);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
-  const featuredAlbum = ownedAlbumsList.find(a => a.ALBUM_ID === featuredAlbumId);
+  const featuredAlbum = allAlbumsList.find(a => a.ALBUM_ID === featuredAlbumId);
 
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
 
@@ -105,7 +105,7 @@ export default function MyProfilePage() {
         }
 
         const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
-        setOwnedAlbumsList(mappedOwned);
+        setAllAlbumsList(mapped.filter(v => v.STATUS !== 'NONE'));
         
         // timeline: top 3 recent additions
         setRecentAdditions(mappedOwned.slice(0, 3));
@@ -296,7 +296,7 @@ export default function MyProfilePage() {
       <FeaturedLPModal 
         isOpen={isFeaturedModalOpen}
         onClose={() => setIsFeaturedModalOpen(false)}
-        ownedAlbums={ownedAlbumsList}
+        albums={allAlbumsList}
         currentFeaturedId={featuredAlbumId}
         onSelect={updateFeaturedAlbum}
       />

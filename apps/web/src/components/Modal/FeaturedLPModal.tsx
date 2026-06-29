@@ -4,12 +4,12 @@ import styles from './FeaturedLPModal.module.css';
 interface FeaturedLPModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ownedAlbums: any[];
+  albums: any[];
   currentFeaturedId: number | null;
   onSelect: (albumId: number) => Promise<void>;
 }
 
-export function FeaturedLPModal({ isOpen, onClose, ownedAlbums, currentFeaturedId, onSelect }: FeaturedLPModalProps) {
+export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, onSelect }: FeaturedLPModalProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
@@ -37,15 +37,21 @@ export function FeaturedLPModal({ isOpen, onClose, ownedAlbums, currentFeaturedI
         </div>
         
         <div className={styles.content}>
-          {ownedAlbums.length > 0 ? (
+          {albums.length > 0 ? (
             <div className={styles.grid}>
-              {ownedAlbums.map((album) => (
+              {albums.map((album) => (
                 <div 
                   key={album.ALBUM_ID} 
                   className={`${styles.item} ${currentFeaturedId === album.ALBUM_ID ? styles.itemActive : ''}`}
                   onClick={() => handleSelect(album.ALBUM_ID)}
                 >
                   <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={styles.cover} />
+                  
+                  {/* Status Badge */}
+                  <div className={`${styles.statusBadge} ${album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}`}>
+                    {album.STATUS === 'OWNED' ? '보유중' : '위시'}
+                  </div>
+
                   <div className={styles.itemInfo}>
                     <div className={styles.itemTitle}>{album.TITLE}</div>
                     <div className={styles.itemArtist}>{album.ARTIST}</div>
