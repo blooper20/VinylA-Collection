@@ -19,6 +19,14 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   React.useEffect(() => {
+    // Prevent body scrolling while modal is open
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
+  React.useEffect(() => {
     getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
       if (details.tracks.length > 0 && (!album.TRACKS || album.TRACKS.length === 0)) {
         setTracks(details.tracks);
