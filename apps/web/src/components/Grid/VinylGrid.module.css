@@ -70,7 +70,7 @@
   justify-content: flex-start; /* Kept flex-start for spacer trick */
   gap: 6px;
   overflow-x: auto;
-  width: 100%;
+  flex: 1; /* Occupy only remaining space without pushing parent width */
   min-width: 0; /* Crucial to enable overflow-x scrolling in flex */
   box-sizing: border-box;
   padding-bottom: 4px; /* Space for custom scrollbar */
