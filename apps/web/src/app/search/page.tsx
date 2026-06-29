@@ -58,6 +58,7 @@ export default function SearchPage() {
   const [results, setResults] = useState<AlbumItem[]>([]);
   const [status, setStatus] = useState<SearchStatus>('idle');
   const [totalToCheck, setTotalToCheck] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -109,6 +110,7 @@ export default function SearchPage() {
     if (!append) {
       setResults([]);
       setTotalToCheck(0);
+      setHasMore(true);
     }
     setStatus('fetching_discogs');
 
@@ -124,7 +126,12 @@ export default function SearchPage() {
       (newStatus, total) => {
         if (searchIdRef.current !== currentSearchId) return;
         setStatus(newStatus);
-        if (total !== undefined) setTotalToCheck(prev => append ? prev + total : total);
+        if (total !== undefined) {
+          setTotalToCheck(prev => append ? prev + total : total);
+          if ((newStatus === 'done' || newStatus === 'error') && total === 0) {
+            setHasMore(false);
+          }
+        }
       }
     );
   }, []);
@@ -132,7 +139,7 @@ export default function SearchPage() {
   React.useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0].isIntersecting && query.startsWith('#') && status === 'done') {
+        if (entries[0].isIntersecting && query.startsWith('#') && status === 'done' && hasMore) {
           executeSearch(query, true);
         }
       },
@@ -300,9 +307,9 @@ export default function SearchPage() {
         )}
 
         {/* Loading indicator during infinite scroll fetching */}
-        {query.startsWith('#') && status !== 'idle' && (
+        {query.startsWith('#') && status !== 'idle' && hasMore && (
           <div ref={observerTarget} style={{ height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2rem' }}>
-            {status !== 'done' && <div className={styles.spinner} style={{ width: 30, height: 30, borderWidth: 3 }} />}
+            {status !== 'done' && status !== 'error' && <div className={styles.spinner} style={{ width: 30, height: 30, borderWidth: 3 }} />}
           </div>
         )}
       </main>
