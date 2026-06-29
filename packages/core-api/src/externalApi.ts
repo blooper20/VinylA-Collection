@@ -85,15 +85,21 @@ export const searchDiscogsLazy = async (
     return;
   }
 
-  // ── Step 2: Client-side filter → LP/Album formats only ─────────────────────
-  // Then deduplicate by master_id
+  // ── Step 2: Client-side filter → LP/Album formats + artist must match query ──
   const seenMasters = new Set<number>();
   const seenTitles = new Set<string>();
   const unique: any[] = [];
+  const queryLower = query.toLowerCase();
 
   for (const r of raw) {
     const formats: string[] = r.format || [];
     if (!isAlbumFormat(formats)) continue; // skip 7" singles, 12" EPs etc.
+
+    // Discogs title format: "Artist - Album Title"
+    // Verify the ARTIST part contains the search query to filter out
+    // "featured on" / tag-matched results (e.g. Chung Ha featuring 검정치마)
+    const { artist: releaseArtist } = parseDiscogsTitle(r.title || '');
+    if (releaseArtist && !releaseArtist.toLowerCase().includes(queryLower)) continue;
 
     if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
     const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
