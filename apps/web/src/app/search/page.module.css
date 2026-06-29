@@ -133,14 +133,24 @@
   letter-spacing: 0.18em;
 }
 
-/* ---- Masonry ---- */
+/* ---- Masonry (Changed to standard Grid for row-by-row rendering) ---- */
 .masonryGrid {
-  column-count: 2;
-  column-gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
-@media (min-width: 900px) { .masonryGrid { column-count: 3; } }
-@media (min-width: 1200px) { .masonryGrid { column-count: 4; } }
+@media (min-width: 900px) {
+  .masonryGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .masonryGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 
 .masonryItem {
   break-inside: avoid;
