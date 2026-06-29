@@ -108,16 +108,16 @@ export default function SearchPage() {
     );
   }, [query]);
 
-  const isLoading = status === 'fetching_discogs' || status === 'enriching';
-  const isEnriching = status === 'enriching';
+  const isLoading = status === 'fetching_itunes' || status === 'validating';
+  const isValidating = status === 'validating';
 
-  // During enriching phase, show skeleton placeholders for items not yet enriched
-  const skeletonCount = isEnriching ? Math.max(0, totalToCheck - results.length) : 0;
+  // During validating phase, show skeleton placeholders for items not yet verified
+  const skeletonCount = isValidating ? Math.max(0, totalToCheck - results.length) : 0;
 
   const sectionTitle = isLoading
-    ? isEnriching
-      ? `커버 이미지 불러오는 중... (${results.length} / ${totalToCheck})`
-      : 'Discogs에서 LP 검색 중...'
+    ? isValidating
+      ? `LP 확인 중... (${results.length} / ${totalToCheck})`
+      : '앨범 검색 중...'
     : results.length > 0
       ? `LP 검색 결과 (${results.length})`
       : status === 'done'
@@ -152,7 +152,7 @@ export default function SearchPage() {
         <section>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>{sectionTitle}</h2>
-            {isEnriching && (
+            {isValidating && (
               <div className={styles.progressBar}>
                 <div
                   className={styles.progressFill}
@@ -201,11 +201,11 @@ export default function SearchPage() {
               </div>
             ))}
 
-            {/* Full-screen spinner only during initial Discogs fetch (before any results) */}
-            {status === 'fetching_discogs' && results.length === 0 && (
+            {/* Full-screen spinner only during initial iTunes fetch (before any results) */}
+            {status === 'fetching_itunes' && results.length === 0 && (
               <div className={styles.loadingState}>
                 <div className={styles.spinner} />
-                <p>Discogs에서 LP를 검색하는 중...</p>
+                <p>앨범 목록 불러오는 중...</p>
               </div>
             )}
           </div>

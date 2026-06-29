@@ -10,7 +10,137 @@ export type AlbumItem = {
   format?: string[];
 };
 
-export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done';
+export type SearchStatus = 'idle' | 'fetching_itunes' | 'validating' | 'done';
+
+// ─── Apple Music-first, Discogs-verified search ───────────────────────────────
+// Strategy:
+//   1. Apple Music: search albums, filter to collectionType="Album" + trackCount≥4
+//      This cleanly removes singles, EPs (most of them), and noise from results.
+//   2. Discogs: for each candidate, verify an LP exists using release_title exact match.
+//      Only albums confirmed as vinyl LP are surfaced.
+//   3. Cover art: always Apple Music quality (600×600), no Discogs fallback needed.
+//
+// Why this works better than Discogs-first:
+//   - Apple Music search relevance is superior (returns the right artist first)
+//   - collectionType="Album" filter is a clean Apple Music category flag
+//   - Discogs release_title match is more accurate than fuzzy q= search
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Keywords that indicate a cover/tribute/compilation album that isn't an original LP
+const NOISE_PATTERN = /tribute|lullaby|rendition|performs|piano|acoustic|cover|remix|rmx|8-bit|babies|baby|instrumental|bluegrass|dub|ambient|jazz symphony|ukulele|string quartet|cello|boiler room|sleepy|relaxing/i;
+
+export const searchDiscogsLazy = async (
+  query: string,
+  onItem: (album: AlbumItem) => void,
+  onStatusChange?: (status: SearchStatus, total?: number) => void
+): Promise<void> => {
+  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
+  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
+  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
+  const authParams = token ? { token } : { key, secret };
+
+  onStatusChange?.('fetching_itunes');
+
+  // ── Step 1: Apple Music – fetch albums and apply strict category filter ──────
+  let candidates: AlbumItem[] = [];
+  try {
+    const res = await axios.get('https://itunes.apple.com/search', {
+      params: { term: query, entity: 'album', limit: 200 }
+    });
+
+    const raw: any[] = res.data.results || [];
+
+    // Filter: must be a proper album (not single/EP bundle), at least 4 tracks,
+    // and title must not look like a tribute/cover/remix album
+    const albums = raw.filter((item) =>
+      item.collectionType === 'Album' &&
+      item.trackCount >= 4 &&
+      !NOISE_PATTERN.test(item.collectionName)
+    );
+
+    candidates = albums.map((item) => ({
+      id: item.collectionId,
+      title: item.collectionName,
+      artist: item.artistName,
+      thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb') || '',
+      year: item.releaseDate ? item.releaseDate.substring(0, 4) : '',
+      genre: [item.primaryGenreName],
+    }));
+  } catch (e) {
+    console.error('iTunes search failed:', e);
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  if (candidates.length === 0) {
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  // Cap at 20 to stay within Discogs rate limit
+  const toCheck = candidates.slice(0, 20);
+  onStatusChange?.('validating', toCheck.length);
+
+  // ── Step 2: Discogs – verify each album has an LP release ───────────────────
+  const CONCURRENCY = 3;
+
+  const verify = async (album: AlbumItem) => {
+    try {
+      const cleanTitle = album.title
+        .replace(/ - EP$| - Single$/i, '')
+        .replace(/\s*\(.*?\)\s*/g, '')  // remove parenthetical suffixes
+        .trim();
+
+      // Try exact title match first (most accurate)
+      let dRes = await axios.get('https://api.discogs.com/database/search', {
+        params: {
+          release_title: cleanTitle,
+          artist: album.artist,
+          ...authParams,
+          type: 'release',
+          format: 'vinyl',
+        },
+        headers: { 'User-Agent': 'VinylA/1.0.0' }
+      });
+
+      let hit = dRes.data.results?.[0];
+
+      // Fallback: try with original query as artist name (Korean/English mismatch fix)
+      if (!hit) {
+        dRes = await axios.get('https://api.discogs.com/database/search', {
+          params: {
+            release_title: cleanTitle,
+            artist: query,
+            ...authParams,
+            type: 'release',
+            format: 'vinyl',
+          },
+          headers: { 'User-Agent': 'VinylA/1.0.0' }
+        });
+        hit = dRes.data.results?.[0];
+      }
+
+      if (hit) {
+        // Use Discogs master_id if available for accurate tracklist fetching later
+        onItem({
+          ...album,
+          id: hit.master_id || hit.id || album.id,
+        });
+      }
+      // No LP found → silently skip (don't surface digital-only or singles)
+    } catch (e: any) {
+      console.warn(`Discogs verify failed for "${album.title}":`, e.message);
+      // On API error (e.g. rate limit), surface the album anyway
+      onItem(album);
+    }
+  };
+
+  for (let i = 0; i < toCheck.length; i += CONCURRENCY) {
+    await Promise.all(toCheck.slice(i, i + CONCURRENCY).map(verify));
+  }
+
+  onStatusChange?.('done');
+
 
 // ─── NEW: Discogs-first search ────────────────────────────────────────────────
 // Strategy:
