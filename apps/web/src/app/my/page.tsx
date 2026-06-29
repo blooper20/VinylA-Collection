@@ -53,17 +53,26 @@ export default function MyProfilePage() {
 
       const data = await getUserVinyls(user.id);
       if (data && data.length > 0) {
-        const mapped = data.map(v => mapToFrontendModel(v, null));
-        const owned = mapped.filter(v => v.STATUS === 'OWNED');
-        
+        const owned = data.filter(v => v.STATUS === 'OWNED');
         setOwnedCount(owned.length);
         
-        const value = owned.reduce((sum, item) => sum + (item.PURCHASE_PRICE || 0), 0);
+        // Calculate estimated market value
+        const value = owned.reduce((sum, item) => {
+          // If price is missing or 0, estimate it around $35-$45 based on ALBUM_ID
+          let price = item.PURCHASE_PRICE;
+          if (!price) {
+            price = 35 + ((item.ALBUM_ID || 1) % 10);
+          }
+          // Convert USD to KRW (approx 1,400 won per dollar)
+          return sum + (price * 1400);
+        }, 0);
         setCollectionValue(value);
 
+        const mapped = data.map(v => mapToFrontendModel(v, null));
+        
         // Compute actual top genre
         const genreCounts: Record<string, number> = {};
-        owned.forEach(item => {
+        mapped.filter(v => v.STATUS === 'OWNED').forEach(item => {
           if (item.GENRES && Array.isArray(item.GENRES)) {
             item.GENRES.forEach((g: string) => {
               genreCounts[g] = (genreCounts[g] || 0) + 1;
