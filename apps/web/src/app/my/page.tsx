@@ -107,6 +107,10 @@ export default function MyProfilePage() {
         if (Object.keys(genreCounts).length > 0) {
           const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
           setActualTopGenre(sortedGenres[0][0]);
+        } else {
+          setActualTopGenre('-');
+        }
+
         const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
         const mappedWish = mapped.filter(v => v.STATUS === 'WISH');
 
