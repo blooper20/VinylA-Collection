@@ -56,24 +56,44 @@ export const searchDiscogsLazy = async (
 
   onStatusChange?.('fetching_discogs');
 
-  // ── Step 1: Discogs vinyl search (2 pages in parallel = 100 candidates) ──────
+  // ── Step 0: Extract English Alias via iTunes (for Korean artist names) ───────
+  // E.g. "웨이브투어스" -> "wave to earth", "검정치마" -> "The Black Skirts"
+  let alias = '';
+  try {
+    const itRes = await axios.get('https://itunes.apple.com/search', {
+      params: { term: query, entity: 'album', limit: 3 }
+    });
+    const artistName = itRes.data.results?.[0]?.artistName;
+    if (artistName && artistName.toLowerCase() !== query.toLowerCase()) {
+      alias = artistName;
+    }
+  } catch (e) { /* ignore */ }
+
+  // ── Step 1: Discogs vinyl search (parallel pages) ──────────────────────────
   let raw: any[] = [];
   try {
-    const pages = await Promise.all([1, 2].map((page) =>
-      axios.get('https://api.discogs.com/database/search', {
+    const fetchPage = async (q: string, page: number) => {
+      return axios.get('https://api.discogs.com/database/search', {
         params: {
-          q: query,
+          q,
           ...authParams,
           type: 'release',
-          format: 'vinyl',   // broad vinyl filter — LP/7"/12"
+          format: 'vinyl',
           per_page: 50,
           page,
           sort: 'want',
           sort_order: 'desc',
         },
         headers: { 'User-Agent': 'VinylA/1.0.0' }
-      }).then((r) => r.data.results || []).catch(() => [])
-    ));
+      }).then((r) => r.data.results || []).catch(() => []);
+    };
+
+    const promises = [fetchPage(query, 1), fetchPage(query, 2)];
+    if (alias) {
+      promises.push(fetchPage(alias, 1));
+    }
+
+    const pages = await Promise.all(promises);
     raw = pages.flat();
   } catch (e) {
     console.error('Discogs search failed:', e);
@@ -91,16 +111,20 @@ export const searchDiscogsLazy = async (
   const seenTitles = new Set<string>();
   const unique: { r: any, isFeature: boolean }[] = [];
   const queryLower = query.toLowerCase();
+  const aliasLower = alias.toLowerCase();
 
   for (const r of raw) {
     const formats: string[] = r.format || [];
     if (!isAlbumFormat(formats)) continue; // skip 7" singles, 12" EPs etc.
 
     // Discogs title format: "Artist - Album Title"
-    // If the ARTIST part does not contain the search query, it's a
-    // "featured on" / compilation result (e.g. Chung Ha featuring 검정치마, Various OSTs)
     const { artist: releaseArtist } = parseDiscogsTitle(r.title || '');
-    const isFeature = releaseArtist ? !releaseArtist.toLowerCase().includes(queryLower) : false;
+    const relArtLower = releaseArtist?.toLowerCase() || '';
+    
+    // Check if the artist matches the original query or the Apple Music alias
+    const matchesQuery = relArtLower.includes(queryLower);
+    const matchesAlias = aliasLower ? relArtLower.includes(aliasLower) : false;
+    const isFeature = releaseArtist ? !(matchesQuery || matchesAlias) : false;
 
     if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
     const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
