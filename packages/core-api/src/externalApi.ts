@@ -10,24 +10,38 @@ export type AlbumItem = {
   format?: string[];
 };
 
-export type SearchStatus = 'idle' | 'fetching_itunes' | 'validating' | 'done';
+export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done';
 
-// ─── Apple Music-first, Discogs-verified search ───────────────────────────────
+// ─── Discogs-first, Apple Music–enriched search ───────────────────────────────
 // Strategy:
-//   1. Apple Music: search albums, filter to collectionType="Album" + trackCount≥4
-//      This cleanly removes singles, EPs (most of them), and noise from results.
-//   2. Discogs: for each candidate, verify an LP exists using release_title exact match.
-//      Only albums confirmed as vinyl LP are surfaced.
-//   3. Cover art: always Apple Music quality (600×600), no Discogs fallback needed.
+//   1. Discogs: query directly with format=vinyl → same results as the Discogs website.
+//      Client-side filter: format array must contain "LP" or "Album" (removes 7"/12" singles).
+//   2. Deduplicate by master_id: same album reissued many times → one card.
+//   3. Apple Music: enrich each result with a 600×600 cover image.
 //
-// Why this works better than Discogs-first:
-//   - Apple Music search relevance is superior (returns the right artist first)
-//   - collectionType="Album" filter is a clean Apple Music category flag
-//   - Discogs release_title match is more accurate than fuzzy q= search
+// Why not Apple Music-first?
+//   Apple Music misses albums not indexed under the search query (e.g., "검정치마" shows
+//   "The Black Skirts" works; Teen Troubles / Hollywood never appear in results).
+//   Discogs website search is the ground-truth for vinyl availability.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Keywords that indicate a cover/tribute/compilation album that isn't an original LP
-const NOISE_PATTERN = /tribute|lullaby|rendition|performs|piano|acoustic|cover|remix|rmx|8-bit|babies|baby|instrumental|bluegrass|dub|ambient|jazz symphony|ukulele|string quartet|cello|boiler room|sleepy|relaxing/i;
+// Formats that indicate a full-length album (not a single/EP)
+const isAlbumFormat = (formats: string[]): boolean => {
+  const f = formats.map((s) => s.toLowerCase());
+  // Must have LP or Album marker, and must NOT be a 7"/45RPM-only release
+  const hasAlbum = f.includes('lp') || f.includes('album');
+  const isSingle = f.includes('single') || (f.includes('7"') && !f.includes('lp') && !f.includes('album'));
+  return hasAlbum && !isSingle;
+};
+
+// Discogs titles come as "Artist - Title"; extract both parts
+const parseDiscogsTitle = (raw: string): { artist: string; title: string } => {
+  if (raw.includes(' - ')) {
+    const idx = raw.indexOf(' - ');
+    return { artist: raw.slice(0, idx).trim(), title: raw.slice(idx + 3).trim() };
+  }
+  return { artist: '', title: raw.trim() };
+};
 
 export const searchDiscogsLazy = async (
   query: string,
@@ -39,128 +53,108 @@ export const searchDiscogsLazy = async (
   const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
   const authParams = token ? { token } : { key, secret };
 
-  onStatusChange?.('fetching_itunes');
+  onStatusChange?.('fetching_discogs');
 
-  // ── Step 1: Apple Music – fetch albums and apply strict category filter ──────
-  let candidates: AlbumItem[] = [];
+  // ── Step 1: Discogs vinyl search (2 pages in parallel = 100 candidates) ──────
+  let raw: any[] = [];
   try {
-    const res = await axios.get('https://itunes.apple.com/search', {
-      params: { term: query, entity: 'album', limit: 200 }
-    });
-
-    const raw: any[] = res.data.results || [];
-
-    // Filter: must be a proper album (not single/EP bundle), at least 4 tracks,
-    // and title must not look like a tribute/cover/remix album
-    const albums = raw.filter((item) =>
-      item.collectionType === 'Album' &&
-      item.trackCount >= 4 &&
-      !NOISE_PATTERN.test(item.collectionName)
-    );
-
-    candidates = albums.map((item) => ({
-      id: item.collectionId,
-      title: item.collectionName,
-      artist: item.artistName,
-      thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb') || '',
-      year: item.releaseDate ? item.releaseDate.substring(0, 4) : '',
-      genre: [item.primaryGenreName],
-    }));
-  } catch (e) {
-    console.error('iTunes search failed:', e);
-    onStatusChange?.('done', 0);
-    return;
-  }
-
-  if (candidates.length === 0) {
-    onStatusChange?.('done', 0);
-    return;
-  }
-
-  // Cap at 20 to stay within Discogs rate limit
-  const toCheck = candidates.slice(0, 20);
-  onStatusChange?.('validating', toCheck.length);
-
-  // ── Step 2: Discogs – verify each album has an LP release ───────────────────
-  const CONCURRENCY = 3;
-
-  const verify = async (album: AlbumItem) => {
-    try {
-      const cleanTitle = album.title
-        .replace(/ - EP$| - Single$/i, '')
-        .replace(/\s*\(.*?\)\s*/g, '')
-        .trim();
-
-      // Helper: check if a Discogs result actually belongs to this artist
-      const isValidHit = (r: any) => {
-        if (!r) return false;
-        const t = (r.title || '').toLowerCase();
-        // Must contain either the query keyword OR the Apple Music artist name
-        return (
-          t.includes(query.toLowerCase()) ||
-          t.includes(album.artist.toLowerCase())
-        );
-      };
-
-      // ── Strategy 1: query keyword + title (best for Korean artist names) ──
-      let dRes = await axios.get('https://api.discogs.com/database/search', {
+    const pages = await Promise.all([1, 2].map((page) =>
+      axios.get('https://api.discogs.com/database/search', {
         params: {
-          q: `${query} ${cleanTitle}`,
+          q: query,
           ...authParams,
           type: 'release',
-          format: 'vinyl',
+          format: 'vinyl',   // broad vinyl filter — LP/7"/12"
+          per_page: 50,
+          page,
+          sort: 'want',
+          sort_order: 'desc',
         },
         headers: { 'User-Agent': 'VinylA/1.0.0' }
-      });
-      let hit = dRes.data.results?.find(isValidHit);
-
-      // ── Strategy 2: Apple Music artist name + title ────────────────────────
-      if (!hit) {
-        dRes = await axios.get('https://api.discogs.com/database/search', {
-          params: {
-            q: `${album.artist} ${cleanTitle}`,
-            ...authParams,
-            type: 'release',
-            format: 'vinyl',
-          },
-          headers: { 'User-Agent': 'VinylA/1.0.0' }
-        });
-        hit = dRes.data.results?.find(isValidHit);
-      }
-
-      // ── Strategy 3: title alone (for short/numeric titles like "201") ──────
-      if (!hit && cleanTitle.length > 2) {
-        dRes = await axios.get('https://api.discogs.com/database/search', {
-          params: {
-            q: cleanTitle,
-            ...authParams,
-            type: 'release',
-            format: 'vinyl',
-          },
-          headers: { 'User-Agent': 'VinylA/1.0.0' }
-        });
-        hit = dRes.data.results?.find(isValidHit);
-      }
-
-      if (hit) {
-        onItem({
-          ...album,
-          id: hit.master_id || hit.id || album.id,
-        });
-      }
-      // No LP found → silently skip
-    } catch (e: any) {
-      console.warn(`Discogs verify failed for "${album.title}":`, e.message);
-      onItem(album); // On rate-limit/error, surface it anyway
-    }
-  };
-
-  for (let i = 0; i < toCheck.length; i += CONCURRENCY) {
-    await Promise.all(toCheck.slice(i, i + CONCURRENCY).map(verify));
+      }).then((r) => r.data.results || []).catch(() => [])
+    ));
+    raw = pages.flat();
+  } catch (e) {
+    console.error('Discogs search failed:', e);
+    onStatusChange?.('done', 0);
+    return;
   }
 
-  onStatusChange?.('done');
-};
+  if (raw.length === 0) {
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  // ── Step 2: Client-side filter → LP/Album formats only ─────────────────────
+  // Then deduplicate by master_id
+  const seenMasters = new Set<number>();
+  const seenTitles = new Set<string>();
+  const unique: any[] = [];
+
+  for (const r of raw) {
+    const formats: string[] = r.format || [];
+    if (!isAlbumFormat(formats)) continue; // skip 7" singles, 12" EPs etc.
+
+    if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
+    const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (seenTitles.has(normTitle)) continue;
+
+    if (r.master_id && r.master_id !== 0) seenMasters.add(r.master_id);
+    seenTitles.add(normTitle);
+    unique.push(r);
+
+    if (unique.length >= 15) break;
+  }
+
+  if (unique.length === 0) {
+    onStatusChange?.('done', 0);
+    return;
+  }
+
+  onStatusChange?.('enriching', unique.length);
+
+  // ── Step 3: Enrich each LP with Apple Music cover art (3 concurrent) ────────
+  const CONCURRENCY = 3;
+
+  const enrich = async (r: any) => {
+    const { artist, title } = parseDiscogsTitle(r.title || '');
+
+    // Discogs cover image (often available and decent quality)
+    let thumb = r.cover_image || r.thumb || '';
+
+    // Try Apple Music for a better image
+    if (!thumb || thumb.includes('spacer.gif')) {
+      try {
+        const itRes = await axios.get('https://itunes.apple.com/search', {
+          params: { term: `${artist} ${title}`, entity: 'album', limit: 3 }
+        });
+        // Pick the Apple Music result whose artist best matches
+        const hit = itRes.data.results?.find((item: any) =>
+          item.artistName?.toLowerCase().includes(query.toLowerCase()) ||
+          item.artistName?.toLowerCase().includes(artist.toLowerCase())
+        ) || itRes.data.results?.[0];
+        if (hit?.artworkUrl100) {
+          thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
+        }
+      } catch (_) { /* keep Discogs thumb */ }
+    }
+
+    onItem({
+      id: r.master_id || r.id,
+      title,
+      artist,
+      thumb,
+      year: r.year ? String(r.year) : '',
+      format: r.format || ['Vinyl', 'LP'],
+    });
+  };
+
+  for (let i = 0; i < unique.length; i += CONCURRENCY) {
+    await Promise.all(unique.slice(i, i + CONCURRENCY).map(enrich));
+  }
+
+  onStatusChange?.('done', unique.length);
+
 
 
 export const searchDiscogs = async (query: string) => {
