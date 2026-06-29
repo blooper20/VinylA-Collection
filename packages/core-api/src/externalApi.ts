@@ -140,7 +140,7 @@ export const searchDiscogsLazy = async (
   }
 
   onStatusChange?.('done');
-
+};
 
 
 export const searchDiscogs = async (query: string) => {
