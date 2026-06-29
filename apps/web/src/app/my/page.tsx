@@ -239,7 +239,6 @@ export default function MyProfilePage() {
 
           {!isEditing && (
             <div className={styles.featuredContainer}>
-              <span className={styles.featuredLabel}>Representative LP</span>
               <div className={styles.featuredFrame} onClick={() => setIsFeaturedModalOpen(true)}>
                 {featuredAlbum ? (
                   <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
