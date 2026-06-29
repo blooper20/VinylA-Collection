@@ -30,7 +30,7 @@ export const SideNav: React.FC = () => {
         </div>
         <div className={styles.brandText}>
           <span className={styles.brandName}>VinylA</span>
-          <span className={styles.brandTagline}>vinyl archive</span>
+          <span className={styles.brandTagline}>Collection</span>
         </div>
       </div>
 
