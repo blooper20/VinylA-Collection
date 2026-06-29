@@ -7,13 +7,13 @@
 
 /* ---- Page Header ---- */
 .pageHeader {
-  padding: 56px 56px 40px;
+  padding: 56px 32px 40px; /* Reduced side padding from 56px to 32px to widen the tag area */
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px; /* Reduced gap from 24px to 16px */
   width: 100%;
   box-sizing: border-box;
 }
@@ -81,16 +81,6 @@
   flex-grow: 1;
   flex-shrink: 1;
   min-width: 0;
-}
-
-.genreRowContainer {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
 }
 
 .tagRow::-webkit-scrollbar {
