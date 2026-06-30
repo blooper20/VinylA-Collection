@@ -53,6 +53,7 @@ export default function MyProfilePage() {
   const [previewAvatarUrl, setPreviewAvatarUrl] = useState('');
   const [editGenre, setEditGenre] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSpentPublic, setIsSpentPublic] = useState(false);
 
   useEffect(() => {
     initializeAuth();
@@ -223,8 +224,9 @@ export default function MyProfilePage() {
       const badge = encodeURIComponent(user.user_metadata?.selected_badge || '');
       const genre = encodeURIComponent(topGenre || '');
       const featured = encodeURIComponent(user.user_metadata?.featured_album_id || '');
+      const sp = isSpentPublic ? '1' : '0';
       
-      const link = `${window.location.origin}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}`;
+      const link = `${window.location.origin}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
       await copyToClipboard(link);
       
       const event = new CustomEvent('SHOW_TOAST', { detail: { message: '프로필 링크가 복사되었습니다!' } });
@@ -234,7 +236,7 @@ export default function MyProfilePage() {
 
   const stats = [
     { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: 'Discogs 기준 최저가 합산' },
-    { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' },
+    { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산', isSpent: true },
     { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
     { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
     { label: '실제 관심 장르', value: actualTopGenre,  unit: '',   sub: '내 콜렉션 데이터 기준' },
@@ -387,7 +389,7 @@ export default function MyProfilePage() {
       <section className={styles.analytics}>
         <div className={styles.analyticsGrid}>
 
-          {stats.map((stat, i) => (
+          {stats.map((stat: any, i) => (
             <div key={i} className={styles.statCard}>
               <span className={styles.statLabel}>{stat.label}</span>
               <div className={styles.statValue}>
@@ -395,6 +397,30 @@ export default function MyProfilePage() {
                 {stat.value}
               </div>
               <div className={styles.statSub}>{stat.sub}</div>
+              {stat.isSpent && (
+                <button
+                  onClick={() => setIsSpentPublic(v => !v)}
+                  style={{
+                    marginTop: '8px',
+                    background: 'none',
+                    border: `1px solid ${isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)'}`,
+                    borderRadius: '20px',
+                    color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)',
+                    fontSize: '12px',
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>
+                    {isSpentPublic ? 'visibility' : 'visibility_off'}
+                  </span>
+                  {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
+                </button>
+              )}
             </div>
           ))}
         </div>
