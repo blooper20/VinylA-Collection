@@ -68,6 +68,20 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
   return data;
 };
 
+export const wipeUserData = async (userId: string): Promise<void> => {
+  // Tags should cascade if DB is set up that way, but let's delete explicitly just in case
+  // Wait, VINYL_TAG references USER_VINYL. We can just delete USER_VINYL and it should cascade,
+  // or we just delete USER_VINYL by USER_ID.
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .delete()
+    .eq('USER_ID', userId);
+    
+  if (error) {
+    console.warn('wipeUserData error:', error);
+  }
+};
+
 export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
   // First, check if the user already has this album
   let existing = null;

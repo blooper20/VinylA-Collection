@@ -24,16 +24,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       let activeUser = session?.user ?? null;
       if (activeUser?.user_metadata?.del_yn === 'N') {
-        await supabase.auth.signOut();
-        activeUser = null;
+        // 기존에 탈퇴했던 계정으로 다시 로그인한 경우 -> 완전 초기화 후 신규 가입 처리
+        const { wipeUserData } = await import('../supabaseDb');
+        await wipeUserData(activeUser.id);
+        
+        // 프로필 초기화 및 활성화
+        const { data, error } = await supabase.auth.updateUser({
+          data: {
+            del_yn: 'Y',
+            displayName: null,
+            interests: null,
+            avatar_url: null,
+            featured_album: null,
+            unlocked_badges: null,
+            selected_badge: null
+          }
+        });
+        
+        if (!error && data.user) {
+          activeUser = data.user;
+        }
       }
       set({ user: activeUser, isLoading: false });
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
         let newUser = session?.user ?? null;
         if (newUser?.user_metadata?.del_yn === 'N') {
-          await supabase.auth.signOut();
-          newUser = null;
+          // On-the-fly login with deleted account
+          const { wipeUserData } = await import('../supabaseDb');
+          await wipeUserData(newUser.id);
+          const { data } = await supabase.auth.updateUser({
+            data: {
+              del_yn: 'Y',
+              displayName: null,
+              interests: null,
+              avatar_url: null,
+              featured_album: null,
+              unlocked_badges: null,
+              selected_badge: null
+            }
+          });
+          if (data.user) newUser = data.user;
         }
         set({ user: newUser });
       });
