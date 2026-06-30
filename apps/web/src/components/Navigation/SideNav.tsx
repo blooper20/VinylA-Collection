@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@vinyla/core-api';
 import styles from './SideNav.module.css';
+import AccountRecoveryModal from '../Modal/AccountRecoveryModal';
 
 const navItems = [
   { name: '컬렉션', path: '/',         icon: 'shelves' },
@@ -22,41 +23,43 @@ export const SideNav: React.FC = () => {
   }, []);
 
   return (
-    <nav className={styles.sidebar}>
-      {/* Brand */}
-      <div className={styles.brand}>
-        <div className={styles.brandIcon}>
-          <img src="/logo.png" alt="VinylA Logo" className={styles.logoImage} />
+    <>
+      <AccountRecoveryModal />
+      <nav className={styles.sidebar}>
+        {/* Brand */}
+        <div className={styles.brand}>
+          <div className={styles.brandIcon}>
+            <img src="/logo.png" alt="VinylA Logo" className={styles.logoImage} />
+          </div>
+          <div className={styles.brandText}>
+            <span className={styles.brandName}>VinylA</span>
+            <span className={styles.brandTagline}>Collection</span>
+          </div>
         </div>
-        <div className={styles.brandText}>
-          <span className={styles.brandName}>VinylA</span>
-          <span className={styles.brandTagline}>Collection</span>
-        </div>
-      </div>
 
-      <div className={styles.divider} />
+        <div className={styles.divider} />
 
-      {/* Main Nav */}
-      <div className={styles.nav}>
-        {navItems.map((item) => {
-          const isActive = pathname === item.path;
-          return (
-            <Link
-              key={item.name}
-              href={item.path}
-              className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-            >
-              <span
-                className={`material-symbols-outlined ${styles.navIcon}`}
-                style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300" }}
+        {/* Main Nav */}
+        <div className={styles.nav}>
+          {navItems.map((item) => {
+            const isActive = pathname === item.path;
+            return (
+              <Link
+                key={item.name}
+                href={item.path}
+                className={`${styles.navItem} ${isActive ? styles.active : ''}`}
               >
-                {item.icon}
-              </span>
-              <span className={styles.navLabel}>{item.name}</span>
-            </Link>
-          );
-        })}
-      </div>
+                <span
+                  className={`material-symbols-outlined ${styles.navIcon}`}
+                  style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300" }}
+                >
+                  {item.icon}
+                </span>
+                <span className={styles.navLabel}>{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
 
       {/* Bottom */}
       <div className={styles.bottom}>
@@ -78,5 +81,6 @@ export const SideNav: React.FC = () => {
         )}
       </div>
     </nav>
+    </>
   );
 };
