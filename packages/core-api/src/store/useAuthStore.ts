@@ -12,34 +12,19 @@ interface AuthState {
   updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
   updateSelectedBadge: (badgeId: string | null) => Promise<void>;
   deleteAccount: () => Promise<void>;
-  isRecoveryPending: boolean;
-  recoverAccount: () => Promise<void>;
-  resetAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
-  isRecoveryPending: false,
   setUser: (user) => set({ user }),
   initializeAuth: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      let activeUser = session?.user ?? null;
-      let recovery = false;
-      if (activeUser?.user_metadata?.del_yn === 'N') {
-        recovery = true;
-      }
-      set({ user: activeUser, isLoading: false, isRecoveryPending: recovery });
+      set({ user: session?.user ?? null, isLoading: false });
 
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        let newUser = session?.user ?? null;
-        let isRec = false;
-        if (newUser?.user_metadata?.del_yn === 'N') {
-          isRec = true;
-        }
-        set({ user: newUser, isRecoveryPending: isRec });
+      supabase.auth.onAuthStateChange((_event, session) => {
+        set({ user: session?.user ?? null });
       });
     } catch (error) {
       console.error('Failed to initialize auth', error);
@@ -150,11 +135,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   deleteAccount: async () => {
     try {
-      // 1. 회원 상태 변경 (Soft Delete: del_yn = 'N')
-      const { error } = await supabase.auth.updateUser({
-        data: { del_yn: 'N' }
-      });
-      if (error) throw error;
+      // 1. (권장) Supabase DB에 delete_user() RPC 함수를 미리 만들어두어야 실제 Auth User가 삭제됩니다.
+      const { error: rpcError } = await supabase.rpc('delete_user');
+      if (rpcError) {
+         console.warn('delete_user RPC failed. Ensure the function is created in Supabase.', rpcError);
+         // Fallback: Delete their vinyls manually if RPC is not set up yet
+         const { data: { session } } = await supabase.auth.getSession();
+         if (session?.user?.id) {
+           await supabase.from('USER_VINYL').delete().eq('USER_ID', session.user.id);
+         }
+      }
       
       // 2. 클라이언트 세션 종료
       await supabase.auth.signOut();
@@ -165,55 +155,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         window.location.href = '/';
       }
     } catch (error) {
-      console.error('Failed to delete account (soft delete)', error);
-      throw error;
-    }
-  },
-  recoverAccount: async () => {
-    try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { del_yn: 'Y' }
-      });
-      if (error) throw error;
-      if (data.user) {
-        set({ user: data.user, isRecoveryPending: false });
-      }
-    } catch (error) {
-      console.error('Failed to recover account', error);
-      throw error;
-    }
-  },
-  resetAccount: async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) throw new Error("No user session");
-
-      // 1. 기존 USER_VINYL 물리 삭제
-      await supabase.from('USER_VINYL').delete().eq('USER_ID', session.user.id);
-
-      // 2. user_metadata 초기화 (빈 껍데기로 만들기)
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          del_yn: 'Y',
-          displayName: '',
-          interests: [],
-          unlocked_badges: [],
-          selected_badge: null,
-          featured_album: null
-        }
-      });
-      if (error) throw error;
-      
-      if (data.user) {
-        set({ user: data.user, isRecoveryPending: false });
-      }
-      
-      // 메인으로 가서 온보딩을 태우기 위해 새로고침
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
-    } catch (error) {
-      console.error('Failed to reset account', error);
+      console.error('Failed to delete account', error);
       throw error;
     }
   }

@@ -41,7 +41,7 @@ export default function DeleteAccountModal({
         <div className={styles.content}>
           <p>탈퇴 시 회원님의 모든 컬렉션, 호칭, 위시리스트 및 프로필 정보가 영구적으로 삭제됩니다.</p>
           <div className={styles.warning}>
-            이 작업은 되돌릴 수 없습니다. 삭제된 데이터는 복구할 수 없습니다.
+            이 작업은 되돌릴 수 없습니다. 삭제된 데이터는 복구할 수 없습니다. 정말 탈퇴하시겠습니까?
           </div>
         </div>
         <div className={styles.actions}>

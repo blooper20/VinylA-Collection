@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@vinyla/core-api';
 import styles from './SideNav.module.css';
-import AccountRecoveryModal from '../Modal/AccountRecoveryModal';
 
 const navItems = [
   { name: '컬렉션', path: '/',         icon: 'shelves' },
@@ -24,7 +23,6 @@ export const SideNav: React.FC = () => {
 
   return (
     <>
-      <AccountRecoveryModal />
       <nav className={styles.sidebar}>
         {/* Brand */}
         <div className={styles.brand}>
