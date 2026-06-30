@@ -91,11 +91,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw error;
     }
   },
-  updateProfileWithAvatarFile: async (displayName: string, interests: string[], file?: File) => {
+  updateProfileWithAvatarFile: async (displayName: string, interests: string[], file?: File | null, removeAvatar?: boolean) => {
     try {
       let avatarUrl = undefined;
       
-      if (file) {
+      if (removeAvatar) {
+        avatarUrl = '/logo.png';
+      } else if (file) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) throw new Error("User not authenticated");
         

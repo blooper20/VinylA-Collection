@@ -39,6 +39,7 @@ export default function MyProfilePage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
+  const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
 
   const selectedBadgeId = user?.user_metadata?.selected_badge || null;
   const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
@@ -179,9 +180,10 @@ export default function MyProfilePage() {
   const handleSaveProfile = async () => {
     try {
       setIsSaving(true);
-      await updateProfileWithAvatarFile(editName, [editGenre], selectedAvatarFile || undefined);
+      await updateProfileWithAvatarFile(editName, [editGenre], selectedAvatarFile || undefined, isAvatarRemoved);
       setIsEditing(false);
       setTopGenre(editGenre);
+      setIsAvatarRemoved(false);
     } catch (e) {
       alert('프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)');
     } finally {
@@ -202,8 +204,15 @@ export default function MyProfilePage() {
   const handleCropComplete = (croppedFile: File, croppedUrl: string) => {
     setSelectedAvatarFile(croppedFile);
     setPreviewAvatarUrl(croppedUrl);
+    setIsAvatarRemoved(false);
     setIsCropModalOpen(false);
     setTempImageUrl(null);
+  };
+
+  const handleRemoveAvatar = () => {
+    setSelectedAvatarFile(null);
+    setPreviewAvatarUrl('/logo.png');
+    setIsAvatarRemoved(true);
   };
 
   const stats = [
@@ -248,6 +257,15 @@ export default function MyProfilePage() {
                   <div className={styles.avatarUploadText}>
                     <span className={styles.avatarUploadTitle}>사진 변경하기</span>
                     <span className={styles.avatarUploadDesc}>클릭하여 새로운 프로필 사진을 선택하세요.</span>
+                    {previewAvatarUrl !== '/logo.png' && (
+                      <button 
+                        type="button" 
+                        onClick={handleRemoveAvatar}
+                        style={{ marginTop: '8px', background: 'none', border: 'none', color: '#eb5757', cursor: 'pointer', fontSize: '13px', padding: 0, textDecoration: 'underline' }}
+                      >
+                        현재 사진 삭제
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
