@@ -5,6 +5,7 @@ import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
+import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { UserStats, BADGES, evaluateBadges } from '../../lib/badges';
 
 const PRESET_AVATARS = [
@@ -20,7 +21,7 @@ const AVAILABLE_GENRES = [
 ];
 
 export default function MyProfilePage() {
-  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge } = useAuthStore();
+  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge, deleteAccount } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
@@ -34,6 +35,7 @@ export default function MyProfilePage() {
 
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const selectedBadgeId = user?.user_metadata?.selected_badge || null;
   const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
@@ -262,6 +264,14 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.editActions}>
+                <button 
+                  className={styles.btnSecondary} 
+                  style={{ color: '#eb5757', borderColor: 'transparent', marginRight: 'auto', paddingLeft: 0 }} 
+                  onClick={() => setIsDeleteModalOpen(true)} 
+                  disabled={isSaving}
+                >
+                  회원 탈퇴
+                </button>
                 <button className={styles.btnSecondary} onClick={() => setIsEditing(false)} disabled={isSaving}>취소</button>
                 <button className={styles.btnPrimary} onClick={handleSaveProfile} disabled={isSaving}>
                   {isSaving ? '업로드 중...' : '저장하기'}
@@ -377,6 +387,14 @@ export default function MyProfilePage() {
         selectedBadgeId={selectedBadgeId}
         onEquip={async (badgeId) => {
           await updateSelectedBadge(badgeId);
+        }}
+      />
+
+      <DeleteAccountModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={async () => {
+          await deleteAccount();
         }}
       />
     </div>

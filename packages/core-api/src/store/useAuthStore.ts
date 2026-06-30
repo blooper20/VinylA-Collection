@@ -11,6 +11,7 @@ interface AuthState {
   updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
   updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
   updateSelectedBadge: (badgeId: string | null) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -129,6 +130,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to update selected badge', error);
+      throw error;
+    }
+  },
+  deleteAccount: async () => {
+    try {
+      // 1. (권장) Supabase DB에 delete_user() RPC 함수를 미리 만들어두어야 실제 Auth User가 삭제됩니다.
+      const { error: rpcError } = await supabase.rpc('delete_user');
+      if (rpcError) {
+         console.warn('delete_user RPC failed. Ensure the function is created in Supabase.', rpcError);
+         // Fallback: Delete their vinyls manually if RPC is not set up yet
+         const { data: { session } } = await supabase.auth.getSession();
+         if (session?.user?.id) {
+           await supabase.from('USER_VINYL').delete().eq('USER_ID', session.user.id);
+         }
+      }
+      
+      // 2. 클라이언트 세션 종료
+      await supabase.auth.signOut();
+      set({ user: null });
+      
+      // 3. 메인으로 리다이렉트
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Failed to delete account', error);
       throw error;
     }
   }
