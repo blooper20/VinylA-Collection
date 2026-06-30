@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { EmptyState } from '../components/EmptyState';
@@ -89,6 +89,10 @@ export const HomeScreen = () => {
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
               <Image source={{ uri: item.IMAGE_URL }} style={styles.cover} />
+              <View style={styles.info}>
+                <Text style={styles.title} numberOfLines={1}>{item.TITLE}</Text>
+                <Text style={styles.artist} numberOfLines={1}>{item.ARTIST}</Text>
+              </View>
             </TouchableOpacity>
           )}
         />
@@ -113,12 +117,27 @@ const styles = StyleSheet.create({
   },
   card: {
     width: itemSize,
-    height: itemSize,
     margin: 8,
+    marginBottom: 16,
   },
   cover: {
-    width: '100%',
-    height: '100%',
+    width: itemSize,
+    height: itemSize,
     borderRadius: 8,
+    backgroundColor: '#222',
+  },
+  info: {
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  artist: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    marginTop: 2,
   }
 });

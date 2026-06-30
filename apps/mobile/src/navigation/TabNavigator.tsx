@@ -11,6 +11,14 @@ import { MyScreen } from '../screens/MyScreen';
 
 const Tab = createBottomTabNavigator();
 
+export const tabLinkingConfig = {
+  screens: {
+    My: {
+      path: ':username',
+    },
+  },
+};
+
 export const TabNavigator = () => {
   return (
     <Tab.Navigator
@@ -22,17 +30,18 @@ export const TabNavigator = () => {
         tabBarShowLabel: true,
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Wish" component={WishScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: '홈' }} />
+      <Tab.Screen name="Wish" component={WishScreen} options={{ tabBarLabel: '위시' }} />
       <Tab.Screen
         name="Scan"
         component={ScanScreen}
         options={{
+          tabBarLabel: '스캔',
           tabBarButton: (props) => <FloatingScanButton onPress={props.onPress} />
         }}
       />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="My" component={MyScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarLabel: '검색' }} />
+      <Tab.Screen name="My" component={MyScreen} options={{ tabBarLabel: '마이' }} />
     </Tab.Navigator>
   );
 };

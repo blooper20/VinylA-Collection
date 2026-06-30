@@ -3,7 +3,18 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { ProfileSetupScreen } from '../screens/ProfileSetupScreen';
 import { TabNavigator } from './TabNavigator';
+import { tabLinkingConfig } from './TabNavigator';
 import { useAuthStore } from '@vinyla/core-api';
+import { LinkingOptions } from '@react-navigation/native';
+
+export const linking: LinkingOptions<any> = {
+  prefixes: ['vinyla://'],
+  config: {
+    screens: {
+      Main: tabLinkingConfig,
+    },
+  },
+};
 
 const Stack = createNativeStackNavigator();
 

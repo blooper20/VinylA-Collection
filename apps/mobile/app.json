@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -35,7 +35,8 @@
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan vinyl records."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Alert, Easing, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Alert, Easing, Pressable, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
-import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumTracks } from '@vinyla/core-api';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -52,26 +55,23 @@ const AnimatedButton = ({ onPress, style, children, isHeavy = false }: any) => {
 };
 
 export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
+  const insets = useSafeAreaInsets();
   const vinylAnim = useRef(new Animated.Value(0)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
   const modalAnim = useRef(new Animated.Value(0)).current;
   const [tracks, setTracks] = React.useState<string[]>([]);
+  const [isTracksLoading, setIsTracksLoading] = React.useState<boolean>(false);
 
   useEffect(() => {
     if (visible && album) {
       setTracks(album.TRACKS || []);
-      if (!album.TRACKS || album.TRACKS.length === 0) {
-        getAlbumTracks(album.ALBUM_ID).then(fetchedTracks => {
-          if (fetchedTracks.length > 0) {
-            setTracks(fetchedTracks);
-          }
-        });
-      }
 
       panY.setValue(0);
       modalAnim.setValue(0);
       vinylAnim.setValue(0);
-      
+      spinAnim.setValue(0);
+
       Animated.parallel([
         Animated.timing(modalAnim, {
           toValue: 1,
@@ -86,7 +86,29 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           useNativeDriver: true,
           easing: cinematicEasing,
         })
-      ]).start();
+      ]).start(() => {
+        // Fetch tracklist after animation completes to prevent UI jank
+        if (!album.TRACKS || album.TRACKS.length === 0) {
+          setIsTracksLoading(true);
+          getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
+            if (details.tracks && details.tracks.length > 0) {
+              setTracks(details.tracks);
+            }
+          }).finally(() => {
+            setIsTracksLoading(false);
+          });
+        }
+
+        // Start infinite spin after vinyl slides out
+        Animated.loop(
+          Animated.timing(spinAnim, {
+            toValue: 1,
+            duration: 10000, // 10 seconds for a full rotation
+            useNativeDriver: true,
+            easing: Easing.linear
+          })
+        ).start();
+      });
     }
   }, [visible, album]);
 
@@ -154,19 +176,22 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
 
     try {
-      // 1. Ensure Album exists in ALBUM_MASTER
+      // 1. Ensure Album exists in ALBUM_MASTER, or update it if the new one has a better image
       let master = await getAlbumMaster(album.ALBUM_ID);
-      if (!master) {
+      
+      const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
+      
+      if (!master || isNewImageBetter) {
         await createAlbumMaster({
           ALBUM_ID: album.ALBUM_ID,
           TITLE: album.TITLE,
           ARTIST: album.ARTIST,
           RELEASE_YEAR: album.RELEASE_YEAR,
           IMAGE_URL: album.IMAGE_URL,
-          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
-          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
-          CUSTOM_STYLE_TYPE: 'SOLID',
-          TRACKS: album.TRACKS || []
+          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
+          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
+          CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
+          TRACKS: album.TRACKS && album.TRACKS.length > 0 ? album.TRACKS : (master?.TRACKS || [])
         });
       }
 
@@ -179,19 +204,33 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         PURCHASE_PRICE: 0
       });
 
-      Alert.alert('Success', `Album saved as ${status}!`);
+      Alert.alert('성공', `앨범이 저장되었습니다!`);
       handleClose();
     } catch (error) {
       console.error('Failed to save album:', error);
-      Alert.alert('Error', 'Failed to save album. Please try again.');
+      Alert.alert('오류', '앨범 저장에 실패했습니다. 다시 시도해 주세요.');
+    }
+  };
+
+  const handleDelete = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!album) return;
+    try {
+      await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
+      Alert.alert('성공', '보관함에서 삭제되었습니다.');
+      handleClose();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('오류', '삭제에 실패했습니다.');
     }
   };
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 10;
+        // Only intercept swipe down if started from the top area (header/cover)
+        return gestureState.dy > 10 && gestureState.y0 < height * 0.4;
       },
       onPanResponderMove: Animated.event([null, { dy: panY }], { useNativeDriver: false }),
       onPanResponderRelease: (_, gestureState) => {
@@ -209,14 +248,24 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
   if (!album) return null;
 
+  const coverTranslateX = vinylAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -35]
+  });
+
   const vinylTranslateX = vinylAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 100]
+    outputRange: [0, 95]
   });
 
   const vinylRotate = vinylAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '90deg']
+  });
+
+  const spinRotate = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
   });
 
   const modalScale = modalAnim.interpolate({
@@ -225,81 +274,130 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   });
 
   return (
-    <Modal visible={visible} animationType="none" transparent>
+    <Modal visible={visible} animationType="none" transparent statusBarTranslucent>
       <Animated.View style={[styles.container, { opacity: modalAnim }]}>
-        <Animated.View 
-          style={[{ flex: 1, transform: [{ scale: modalScale }, { translateY: panY }] }]}
-          {...panResponder.panHandlers}
-        >
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-              <Text style={styles.closeText}>↓</Text>
-            </TouchableOpacity>
-          </View>
+        <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={{ flex: 1, paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }}>
+          <Animated.View 
+            style={[{ flex: 1, transform: [{ scale: modalScale }, { translateY: panY }] }]}
+            {...panResponder.panHandlers}
+          >
+            <View style={styles.header}>
+              <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView contentContainerStyle={styles.scroll}>
-            <View style={styles.coverContainer}>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces={false}>
+            <Animated.View style={[styles.coverContainer, { transform: [{ translateX: coverTranslateX }] }]}>
               <Animated.View 
                 style={[
                   styles.vinyl, 
                   { 
-                    backgroundColor: album.CUSTOM_COLOR_HEX || '#000', 
                     transform: [
                       { translateX: vinylTranslateX },
-                      { rotate: vinylRotate }
+                      { rotate: vinylRotate },
+                      { rotate: spinRotate }
                     ] 
                   }
                 ]} 
-              />
+              >
+                <View style={styles.vinylGrooves} />
+                <View style={styles.vinylGrooves2} />
+                <View style={[styles.vinylLabel, { backgroundColor: album.CUSTOM_COLOR_HEX || '#222' }]}>
+                  <Image source={{ uri: album.IMAGE_URL }} style={StyleSheet.absoluteFill} />
+                  <View style={styles.vinylHole} />
+                </View>
+              </Animated.View>
               <Image source={{ uri: album.IMAGE_URL }} style={styles.cover} />
-            </View>
+            </Animated.View>
 
             <View style={styles.info}>
               <Text style={styles.title}>{album.TITLE}</Text>
               <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
 
               <View style={styles.tracklist}>
-                {tracks.length > 0 ? tracks.map((track, i) => (
+                {isTracksLoading ? (
+                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#e9c349" />
+                    <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0, marginTop: 10, color: '#888' }]}>트랙리스트를 불러오는 중입니다...</Text>
+                  </View>
+                ) : tracks.length > 0 ? tracks.map((track, i) => (
                   <Text key={i} style={styles.track}>{i + 1}. {track}</Text>
                 )) : (
-                  <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>No tracklist available</Text>
+                  <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>트랙리스트 정보가 없습니다</Text>
                 )}
               </View>
             </View>
 
-            <View style={styles.actions}>
-              <AnimatedButton 
-                style={styles.btnPrimary}
-                onPress={() => handleSave('OWNED')}
-              >
-                <Text style={styles.btnPrimaryText}>Add to Collection</Text>
-              </AnimatedButton>
-              <AnimatedButton 
-                style={styles.btnOutline}
-                onPress={() => handleSave('WISH')}
-              >
-                <Text style={styles.btnOutlineText}>WISH</Text>
-              </AnimatedButton>
-            </View>
+            {album.STATUS !== 'OWNED' && (
+              <View style={styles.actions}>
+                {album.STATUS === 'WISH' ? (
+                  <AnimatedButton 
+                    style={styles.btnPrimary}
+                    onPress={() => handleSave('OWNED')}
+                  >
+                    <Text style={styles.btnPrimaryText}>보관함 추가</Text>
+                  </AnimatedButton>
+                ) : (
+                  <>
+                    <AnimatedButton 
+                      style={styles.btnPrimary}
+                      onPress={() => handleSave('OWNED')}
+                    >
+                      <Text style={styles.btnPrimaryText}>내 콜렉션에 추가</Text>
+                    </AnimatedButton>
+                    <AnimatedButton 
+                      style={styles.btnOutline}
+                      onPress={() => handleSave('WISH')}
+                    >
+                      <Text style={styles.btnOutlineText}>위시 추가</Text>
+                    </AnimatedButton>
+                  </>
+                )}
+              </View>
+            )}
             
-            <View>
+            <View style={{ marginTop: album.STATUS === 'OWNED' ? 30 : 0 }}>
               <AnimatedButton 
-                style={styles.btnYoutube}
+                style={[styles.btnYoutube, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                 onPress={handleYoutubeListen}
                 isHeavy
               >
-                <Text style={styles.btnYoutubeText}>LISTEN ON YOUTUBE</Text>
+                <FontAwesome5 name="youtube" size={18} color="#fff" />
+                <Text style={[styles.btnYoutubeText, { marginLeft: 8 }]}>유튜브로 듣기</Text>
               </AnimatedButton>
               <AnimatedButton 
                 style={[styles.btnYoutube, { backgroundColor: '#333', marginTop: 10 }]}
                 onPress={handleDiscogsSearch}
                 isHeavy
               >
-                <Text style={styles.btnYoutubeText}>SEARCH ON DISCOGS</Text>
+                <Text style={styles.btnYoutubeText}>Discogs에서 검색</Text>
               </AnimatedButton>
             </View>
+
+            {(album.STATUS === 'OWNED' || album.STATUS === 'WISH') && (
+              <View style={[styles.actions, { marginTop: 10 }]}>
+                {album.STATUS === 'OWNED' ? (
+                  <AnimatedButton 
+                    style={[styles.btnPrimary, { backgroundColor: '#d32f2f', borderColor: '#d32f2f' }]}
+                    onPress={handleDelete}
+                  >
+                    <Text style={styles.btnPrimaryText}>보관함 삭제</Text>
+                  </AnimatedButton>
+                ) : (
+                  <AnimatedButton 
+                    style={[styles.btnOutline, { borderColor: '#d32f2f', flex: 1 }]}
+                    onPress={handleDelete}
+                  >
+                    <Text style={[styles.btnOutlineText, { color: '#d32f2f' }]}>위시 삭제</Text>
+                  </AnimatedButton>
+                )}
+              </View>
+            )}
           </ScrollView>
-        </Animated.View>
+          </Animated.View>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -308,35 +406,39 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(10, 10, 10, 0.95)',
+    backgroundColor: 'transparent',
   },
   scroll: {
-    padding: 20,
-    paddingBottom: 60,
+    padding: 24,
+    paddingBottom: 40,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 40,
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 10,
     width: '100%',
   },
   closeBtn: {
-    padding: 10,
-    paddingHorizontal: 40,
+    padding: 12,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
+    borderRadius: 30,
   },
   closeText: {
-    color: '#e9c349',
-    fontSize: 24,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   coverContainer: {
-    width: 250,
-    height: 250,
+    width: width * 0.55,
+    height: width * 0.55,
     alignSelf: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
   },
   cover: {
     width: '100%',
@@ -350,79 +452,129 @@ const styles = StyleSheet.create({
   },
   vinyl: {
     position: 'absolute',
-    top: '5%',
-    left: '5%',
-    width: '90%',
-    height: '90%',
-    borderRadius: 200,
+    top: '2%',
+    left: '2%',
+    width: '96%',
+    height: '96%',
+    borderRadius: 1000,
     zIndex: 1,
-    borderWidth: 10,
-    borderColor: '#111',
+    backgroundColor: '#0e0e0e',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  vinylGrooves: {
+    position: 'absolute',
+    width: '85%',
+    height: '85%',
+    borderRadius: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  vinylGrooves2: {
+    position: 'absolute',
+    width: '70%',
+    height: '70%',
+    borderRadius: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  vinylLabel: {
+    width: '45%',
+    height: '45%',
+    borderRadius: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  vinylHole: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#000',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   info: {
     alignItems: 'center',
   },
   title: {
     color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   artist: {
-    color: '#8e9192',
-    fontSize: 16,
-    marginTop: 8,
+    color: '#a0a0a0',
+    fontSize: 15,
+    marginTop: 6,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   tracklist: {
     width: '100%',
-    marginTop: 30,
-    paddingHorizontal: 10,
+    marginTop: 24,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16,
+    padding: 16,
+    paddingBottom: 8,
   },
   track: {
-    color: '#ccc',
+    color: '#ddd',
     fontSize: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 40,
-    gap: 16,
+    marginTop: 30,
+    gap: 12,
   },
   btnPrimary: {
     flex: 1,
-    backgroundColor: '#e9c349',
+    backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   btnPrimaryText: {
     color: '#000',
-    fontWeight: 'bold',
+    fontWeight: '800',
+    fontSize: 15,
   },
   btnOutline: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#e9c349',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   btnOutlineText: {
-    color: '#e9c349',
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
   btnYoutube: {
-    backgroundColor: '#ff0000',
+    backgroundColor: '#rgba(255,0,0,0.85)',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
   },
   btnYoutubeText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 1,
   }
 });
