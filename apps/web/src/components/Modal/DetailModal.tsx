@@ -4,6 +4,7 @@ import { MockVinylData } from '@vinyla/shared-types';
 import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
+import { SharePreviewModal } from '../Modal/SharePreviewModal';
 import { captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
 
 interface DetailModalProps {
@@ -28,6 +29,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isCapturing, setIsCapturing] = React.useState(false);
   const [isShareOpen, setIsShareOpen] = React.useState(false);
 
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+  const [previewBlob, setPreviewBlob] = React.useState<Blob | null>(null);
+  const [previewMode, setPreviewMode] = React.useState<'save' | 'copy' | null>(null);
+
   const captureStoryImage = async (format: 'jpeg' | 'png' = 'jpeg') => {
     if (!storyTemplateRef.current || isCapturing) return null;
     setIsCapturing(true);
@@ -39,25 +44,27 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
   const handleShareOptions = {
     copyUrl: async () => {
+      setIsShareOpen(false);
       const link = `${window.location.origin}/collection?album=${album.ALBUM_ID}`;
       await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
       alert('앨범 링크가 복사되었습니다!');
     },
     saveImage: async () => {
+      setIsShareOpen(false);
       const blob = await captureStoryImage('jpeg');
       if (blob) {
-        await import('../../utils/shareUtils').then(m => m.downloadImageBlob(blob, `vinyla-story-${album.ALBUM_ID}.jpg`));
+        setPreviewBlob(blob);
+        setPreviewMode('save');
+        setIsPreviewOpen(true);
       }
     },
     copyImage: async () => {
+      setIsShareOpen(false);
       const blob = await captureStoryImage('png');
       if (blob) {
-        const success = await import('../../utils/shareUtils').then(m => m.copyImageBlobToClipboard(blob));
-        if (success) {
-          alert('이미지가 클립보드에 복사되었습니다.');
-        } else {
-          alert('이 브라우저에서는 이미지 복사가 지원되지 않습니다.');
-        }
+        setPreviewBlob(blob);
+        setPreviewMode('copy');
+        setIsPreviewOpen(true);
       }
     },
     shareNative: async () => {
@@ -453,8 +460,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           { id: 'link', label: 'URL 복사', icon: 'link', action: handleShareOptions.copyUrl },
           { id: 'save', label: '이미지 저장', icon: 'download', action: handleShareOptions.saveImage },
           { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: handleShareOptions.copyImage },
-          { id: 'ig', label: '인스타 스토리', icon: 'camera', action: handleShareOptions.shareNative }
+          { id: 'ig', label: '인스타그램', icon: 'camera_alt', action: handleShareOptions.shareNative },
         ]}
+      />
+
+      <SharePreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        blob={previewBlob}
+        mode={previewMode}
       />
     </div>
   );

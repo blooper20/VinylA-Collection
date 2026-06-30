@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
-import { MockVinylData } from '@vinyla/shared-types';
-import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore, createAlbumMaster } from '@vinyla/core-api';
-import styles from './VinylGrid.module.css';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { ShareableGridTemplate } from '../Share/ShareableGridTemplate';
-import { captureElementAsBlob, shareImageNative, copyToClipboard } from '../../utils/shareUtils';
+import { SharePreviewModal } from '../Modal/SharePreviewModal';
+import { copyToClipboard, captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
+import { useAuthStore, createAlbumMaster, getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 type ViewMode = 'grid4' | 'grid6' | 'table';
@@ -19,14 +19,19 @@ interface VinylGridProps {
 }
 
 export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) => {
-  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
   const [activeTag, setActiveTag] = useState<string>('ALL');
-  const [dbData, setDbData] = useState<MockVinylData[]>([]);
+  const [dbData, setDbData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewMode, setPreviewMode] = useState<'save' | 'copy' | null>(null);
+
   const shareGridRef = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
@@ -88,7 +93,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v8') === 'true';
     if (migrationDone) return;
 
-    const albumsWithCountry = dbData.filter(a => a.GENRES && a.GENRES.some(g => COUNTRY_TAGS.includes(g)));
+    const albumsWithCountry = dbData.filter(a => a.GENRES && a.GENRES.some((g: string) => COUNTRY_TAGS.includes(g)));
     const albumsWithNoGenres = dbData.filter(a => !a.GENRES || a.GENRES.length === 0 || (a.GENRES.length === 1 && a.GENRES[0] === 'Vinyl'));
     const allTargets = Array.from(new Set([...albumsWithCountry, ...albumsWithNoGenres]));
 
@@ -102,7 +107,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
       for (const album of allTargets) {
         try {
-          const existingGenres = (album.GENRES || []).filter(g => !COUNTRY_TAGS.includes(g));
+          const existingGenres = (album.GENRES || []).filter((g: string) => !COUNTRY_TAGS.includes(g));
           if (existingGenres.length > 0) {
             await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: album.TRACKS || [], GENRES: existingGenres });
             continue;
@@ -250,7 +255,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                   <td className={styles.tdArtist}>{album.ARTIST}</td>
                   <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
                   <td className={styles.tdTags}>
-                    {(album.GENRES || []).slice(0, 3).map(g => <span key={g} className={styles.tableTag}>{g}</span>)}
+                    {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
                   </td>
                   <td className={styles.tdStatus}>
                     <span className={album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}>
@@ -278,28 +283,40 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         onClose={() => setIsShareOpen(false)}
         title="보관함 공유하기"
         options={[
-          { id: 'image', label: '이미지 저장', icon: 'download', action: handleShareImage },
+          { id: 'image', label: '이미지 저장', icon: 'download', action: async () => {
+              setIsShareOpen(false);
+              const blob = await captureElementAsBlob(shareGridRef.current!, 'jpeg');
+              if (blob) {
+                setPreviewBlob(blob);
+                setPreviewMode('save');
+                setIsPreviewOpen(true);
+              }
+            }
+          },
           { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: async () => {
+              setIsShareOpen(false);
               const blob = await captureElementAsBlob(shareGridRef.current!, 'png');
               if (blob) {
-                const success = await import('../../utils/shareUtils').then(m => m.copyImageBlobToClipboard(blob));
-                if (success) {
-                  setToastMessage('이미지가 복사되었습니다!');
-                  setTimeout(() => setToastMessage(null), 3000);
-                } else {
-                  alert('이미지 복사가 지원되지 않는 브라우저입니다.');
-                }
+                setPreviewBlob(blob);
+                setPreviewMode('copy');
+                setIsPreviewOpen(true);
               }
-              setIsShareOpen(false);
             } 
           },
           { id: 'link', label: '링크 복사', icon: 'link', action: handleShareLink }
         ]}
       />
 
+      <SharePreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        blob={previewBlob}
+        mode={previewMode}
+      />
+
       <ShareableGridTemplate 
         ref={shareGridRef}
-        albums={displayedAlbums}
+        albums={displayedAlbums.filter(a => a.STATUS !== 'WISH')}
         username={user?.user_metadata?.displayName || 'Collector'}
         title="보관함"
       />

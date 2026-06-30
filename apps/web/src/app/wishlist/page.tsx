@@ -1,7 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DetailModal } from '../../components/Modal/DetailModal';
+import { ShareBottomSheet } from '../../components/Modal/ShareBottomSheet';
+import { SharePreviewModal } from '../../components/Modal/SharePreviewModal';
+import { ShareableGridTemplate } from '../../components/Share/ShareableGridTemplate';
+import { captureElementAsBlob } from '../../utils/shareUtils';
 import { useAuthStore, getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
 import styles from './page.module.css';
 
@@ -14,6 +18,11 @@ export default function WishlistPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewMode, setPreviewMode] = useState<'save' | 'copy' | null>(null);
+  const shareGridRef = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
 
@@ -57,7 +66,12 @@ export default function WishlistPage() {
         <div className={styles.headerTop}>
           <div className={styles.headerLeft}>
             <span className={styles.eyebrow}>Archive</span>
-            <h1 className={styles.title}>위시리스트</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <h1 className={styles.title}>위시리스트</h1>
+              <button className={styles.shareBtn} onClick={() => setIsShareOpen(true)} title="공유하기" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
+              </button>
+            </div>
             <p className={styles.subtitle}>수집을 기다리는 {sorted.length}장의 바이닐</p>
           </div>
           <div className={styles.headerControls}>
@@ -155,6 +169,57 @@ export default function WishlistPage() {
       )}
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
+
+      <ShareBottomSheet 
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        title="위시리스트 공유하기"
+        options={[
+          { id: 'image', label: '이미지 저장', icon: 'download', action: async () => {
+              setIsShareOpen(false);
+              const blob = await captureElementAsBlob(shareGridRef.current!, 'jpeg');
+              if (blob) {
+                setPreviewBlob(blob);
+                setPreviewMode('save');
+                setIsPreviewOpen(true);
+              }
+            }
+          },
+          { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: async () => {
+              setIsShareOpen(false);
+              const blob = await captureElementAsBlob(shareGridRef.current!, 'png');
+              if (blob) {
+                setPreviewBlob(blob);
+                setPreviewMode('copy');
+                setIsPreviewOpen(true);
+              }
+            } 
+          },
+          { id: 'link', label: '링크 복사', icon: 'link', action: async () => {
+              setIsShareOpen(false);
+              if (user?.id) {
+                const link = `${window.location.origin}/user/${user.id}`;
+                await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
+                alert('프로필 링크가 복사되었습니다!');
+              }
+            } 
+          }
+        ]}
+      />
+
+      <SharePreviewModal 
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        blob={previewBlob}
+        mode={previewMode}
+      />
+
+      <ShareableGridTemplate 
+        ref={shareGridRef}
+        albums={sorted}
+        username={user?.user_metadata?.displayName || 'Collector'}
+        title="위시리스트"
+      />
     </div>
   );
 }
