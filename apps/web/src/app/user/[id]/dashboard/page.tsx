@@ -151,7 +151,12 @@ function PublicDashboardContent() {
                   <span className="material-symbols-outlined" style={{ animation: 'spin 1s linear infinite' }}>progress_activity</span>
                 </div>
               ) : featuredAlbum ? (
-                <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                <>
+                  <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                  {featuredAlbum.STATUS === 'WISH' && (
+                    <div className={styles.featuredWishBadge}>WISH</div>
+                  )}
+                </>
               ) : (
                 <div className={styles.featuredEmpty} style={{ cursor: 'default' }}>
                   <span className="material-symbols-outlined">album</span>

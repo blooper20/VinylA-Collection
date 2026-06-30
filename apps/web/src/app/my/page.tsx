@@ -373,7 +373,12 @@ export default function MyProfilePage() {
             <div className={styles.featuredContainer}>
               <div className={styles.featuredFrame} onClick={() => setIsFeaturedModalOpen(true)}>
                 {featuredAlbum ? (
-                  <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                  <>
+                    <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                    {featuredAlbum.STATUS === 'WISH' && (
+                      <div className={styles.featuredWishBadge}>WISH</div>
+                    )}
+                  </>
                 ) : (
                   <div className={styles.featuredEmpty}>
                     <span className="material-symbols-outlined">add_circle</span>
