@@ -223,11 +223,9 @@ export const searchDiscogsLazy = async (
                qTitle.includes(itemTitle);
       });
 
-      // If still no exact match, but we have results, Apple's search engine is usually right
-      if (!hit && itRes.data.results?.length > 0) {
-        hit = itRes.data.results[0];
-      }
-
+      // 만약 Apple Music에 정확히 일치하는 아티스트나 앨범이 없다면 엉뚱한 커버(예: 피켓전도뮤직 1집)를 
+      // 가져오는 대참사가 발생하므로, 무조건 첫 번째 결과를 믿는 로직을 완전히 삭제합니다!
+      // 일치하는 항목이 없을 때는 안전하게 Discogs 원본 커버로 Fallback 되도록 둡니다.
       if (hit?.artworkUrl100) {
         thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
       }
@@ -483,8 +481,9 @@ export const analyzeImageWithVisionAPI = async (base64Image: string) => {
   
   if (!apiKey) {
     console.warn('Google Vision API key is missing! Returning mock text.');
-    // Mock result for E2E testing
-    return 'The Dark Side of the Moon Pink Floyd LP';
+    return {
+      textAnnotations: [{ description: 'The Dark Side of the Moon Pink Floyd LP' }]
+    };
   }
 
   try {
@@ -497,23 +496,17 @@ export const analyzeImageWithVisionAPI = async (base64Image: string) => {
               content: base64Image,
             },
             features: [
-              {
-                type: 'TEXT_DETECTION',
-                maxResults: 10,
-              },
+              { type: 'TEXT_DETECTION', maxResults: 10 },
+              { type: 'WEB_DETECTION', maxResults: 5 }
             ],
           },
         ],
       }
     );
-    const textAnnotations = response.data.responses[0]?.textAnnotations;
-    if (textAnnotations && textAnnotations.length > 0) {
-      return textAnnotations[0].description;
-    }
-    return '';
-  } catch (error) {
-    console.error('Vision API failed:', error);
-    return '';
+    return response.data.responses[0];
+  } catch (error: any) {
+    console.error('Vision API failed:', error?.response?.data || error);
+    throw new Error(error?.response?.data?.error?.message || 'Google Vision API request failed');
   }
 };
 
