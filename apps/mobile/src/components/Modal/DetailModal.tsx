@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
+import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls } from '@vinyla/core-api';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -62,10 +62,24 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const modalAnim = useRef(new Animated.Value(0)).current;
   const [tracks, setTracks] = React.useState<string[]>([]);
   const [isTracksLoading, setIsTracksLoading] = React.useState<boolean>(false);
+  const [realStatus, setRealStatus] = React.useState<string | null>(null);
+
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (visible && album) {
       setTracks(album.TRACKS || []);
+      
+      // DB에서 이 앨범의 실제 상태(OWNED/WISH/없음)를 확인
+      setRealStatus(album.STATUS || null);
+      if (!album.STATUS && user?.id) {
+        getUserVinyls(user.id).then((vinyls: any[]) => {
+          const found = vinyls.find((v: any) => v.ALBUM_ID === album.ALBUM_ID);
+          if (found) {
+            setRealStatus(found.STATUS);
+          }
+        }).catch(() => {});
+      }
 
       panY.setValue(0);
       modalAnim.setValue(0);
@@ -169,7 +183,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
   };
 
-  const { user } = useAuthStore();
+  // user is already declared above via useAuthStore
 
   const handleSave = async (status: 'OWNED' | 'WISH') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -205,6 +219,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       });
 
       Alert.alert('성공', `앨범이 저장되었습니다!`);
+      setRealStatus(status); // 버튼 상태 즉시 갱신
       handleClose();
     } catch (error) {
       console.error('Failed to save album:', error);
@@ -305,11 +320,19 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 <View style={styles.vinylGrooves} />
                 <View style={styles.vinylGrooves2} />
                 <View style={[styles.vinylLabel, { backgroundColor: album.CUSTOM_COLOR_HEX || '#222' }]}>
-                  <Image source={{ uri: album.IMAGE_URL }} style={StyleSheet.absoluteFill} />
+                  <Image 
+                    source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
+                    style={StyleSheet.absoluteFill} 
+                    resizeMode={album.IMAGE_URL ? "cover" : "contain"}
+                  />
                   <View style={styles.vinylHole} />
                 </View>
               </Animated.View>
-              <Image source={{ uri: album.IMAGE_URL }} style={styles.cover} />
+              <Image 
+                source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
+                style={[styles.cover, !album.IMAGE_URL && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]} 
+                resizeMode={album.IMAGE_URL ? "cover" : "contain"}
+              />
             </Animated.View>
 
             <View style={styles.info}>
@@ -330,9 +353,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               </View>
             </View>
 
-            {album.STATUS !== 'OWNED' && (
+            {realStatus !== 'OWNED' && (
               <View style={styles.actions}>
-                {album.STATUS === 'WISH' ? (
+                {realStatus === 'WISH' ? (
                   <AnimatedButton 
                     style={styles.btnPrimary}
                     onPress={() => handleSave('OWNED')}
@@ -358,7 +381,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               </View>
             )}
             
-            <View style={{ marginTop: album.STATUS === 'OWNED' ? 30 : 0 }}>
+            <View style={{ marginTop: realStatus === 'OWNED' ? 30 : 0 }}>
               <AnimatedButton 
                 style={[styles.btnYoutube, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                 onPress={handleYoutubeListen}
@@ -376,9 +399,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               </AnimatedButton>
             </View>
 
-            {(album.STATUS === 'OWNED' || album.STATUS === 'WISH') && (
+            {(realStatus === 'OWNED' || realStatus === 'WISH') && (
               <View style={[styles.actions, { marginTop: 10 }]}>
-                {album.STATUS === 'OWNED' ? (
+                {realStatus === 'OWNED' ? (
                   <AnimatedButton 
                     style={[styles.btnPrimary, { backgroundColor: '#d32f2f', borderColor: '#d32f2f' }]}
                     onPress={handleDelete}
