@@ -23,6 +23,12 @@ export default function WishlistPage() {
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewMode, setPreviewMode] = useState<'save' | 'copy' | null>(null);
   const shareGridRef = useRef<HTMLDivElement>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const { user, initializeAuth } = useAuthStore();
 
@@ -202,7 +208,7 @@ export default function WishlistPage() {
                 const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
                 const link = `${window.location.origin}/user/${user.id}?n=${name}&a=${avatar}&type=wishlist`;
                 await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
-                alert('프로필 링크가 복사되었습니다!');
+                showToast('위시리스트 링크가 복사되었습니다!');
               }
             } 
           }
@@ -222,6 +228,34 @@ export default function WishlistPage() {
         username={user?.user_metadata?.displayName || 'Collector'}
         title="위시리스트"
       />
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '40px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(30, 27, 22, 0.95)',
+          border: '1px solid rgba(212, 175, 55, 0.4)',
+          borderRadius: '100px',
+          padding: '14px 28px',
+          color: '#fff',
+          fontSize: '15px',
+          fontWeight: 500,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 99999,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(12px)',
+          whiteSpace: 'nowrap',
+          animation: 'fadeInUp 0.3s ease',
+        }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#d4af37', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }
