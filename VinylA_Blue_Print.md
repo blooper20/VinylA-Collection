@@ -44,10 +44,12 @@
 ## 4. 백엔드 및 API 아키텍처 (Graceful Degradation)
 앱은 `.env.local`에 API 키가 없는 상황에서도 터지지 않도록 **방어 로직(Mock Data Fallback)**이 설계되어 있습니다.
 
-### 외부 연동 (packages/core-api)
-*   **Discogs API**: 전 세계 LP 데이터베이스 검색. (`searchDiscogs`)
-*   **YouTube Data API**: 앨범 트랙리스트나 Full Album 자동 매핑 청음. (`searchYouTube`)
-*   **Supabase (PostgreSQL)**: 유저의 컬렉션 및 위시리스트 데이터를 영구 보관. (`getUserVinyls`, `upsertVinyl`)
+### 외부 연동 (packages/core-api / apps/mobile/utils)
+*   **Google Cloud Vision API**: 이미지 스캔을 통한 OCR 및 Web Entity(역이미지 검색/시각 키워드) 추출 (`visionAPI.ts`)
+*   **VLM (Gemini-3-Pro)**: 추출된 텍스트 데이터를 분석하여 최적의 앨범명 유추 및 시각적 유사 앨범(Recommendation) 반환 (`VibeProxy` 기반 전송 최적화)
+*   **Discogs API**: 전 세계 LP 데이터베이스 검색 및 마스터 데이터 획득 (`searchDiscogs`)
+*   **YouTube Data API**: 앨범 트랙리스트나 Full Album 자동 매핑 청음 (`searchYouTube`)
+*   **Supabase (PostgreSQL)**: 유저의 컬렉션 및 위시리스트 데이터를 영구 보관 (`getUserVinyls`, `upsertUserVinyl`)
 
 ### 데이터 모델링 (`ALBUM_MASTER` / `USER_VINYL`)
 ```sql
