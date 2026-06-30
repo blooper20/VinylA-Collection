@@ -137,7 +137,11 @@ export const MyScreen = () => {
             <View key={album.ALBUM_ID} style={styles.timelineItem}>
               <View style={[styles.timelineLine, { backgroundColor: themeColors.border }]} />
               <View style={[styles.timelineDot, { backgroundColor: themeColors.accent }]} />
-              <Image source={{ uri: album.IMAGE_URL }} style={styles.timelineImage} />
+              <Image 
+                source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
+                style={styles.timelineImage} 
+                resizeMode={album.IMAGE_URL ? "cover" : "contain"}
+              />
               <View style={styles.timelineContent}>
                 <Text style={[styles.timelineTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{album.TITLE}</Text>
                 <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>2일 전 수집됨</Text>

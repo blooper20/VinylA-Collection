@@ -43,10 +43,16 @@ function AlbumCard({ item, onSelect }: { item: AlbumItem; onSelect: (item: Album
       style={{ cursor: 'pointer' }}
     >
       <img
-        src={item.thumb || 'https://via.placeholder.com/200'}
+        src={item.thumb || '/logo_real_transparent.png'}
         alt={item.title}
         className={styles.genreImage}
-        style={{ height: 260 }}
+        style={{ 
+          height: 260, 
+          objectFit: item.thumb ? 'cover' : 'contain', 
+          backgroundColor: item.thumb ? 'transparent' : '#161616',
+          padding: item.thumb ? 0 : 30,
+          border: item.thumb ? 'none' : '1px solid rgba(255,255,255,0.08)'
+        }}
         loading="lazy"
       />
       <div className={styles.genreContent}>

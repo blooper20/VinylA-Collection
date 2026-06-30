@@ -88,7 +88,11 @@ export const WishScreen = () => {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
-              <Image source={{ uri: item.IMAGE_URL }} style={styles.cover} />
+              <Image 
+                source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
+                style={styles.cover} 
+                resizeMode={item.IMAGE_URL ? "cover" : "contain"}
+              />
               <View style={styles.info}>
                 <Text style={styles.title} numberOfLines={1}>{item.TITLE}</Text>
                 <Text style={styles.artist} numberOfLines={1}>{item.ARTIST}</Text>

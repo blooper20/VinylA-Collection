@@ -19,6 +19,8 @@ export const tabLinkingConfig = {
   },
 };
 
+import { Feather } from '@expo/vector-icons';
+
 export const TabNavigator = () => {
   return (
     <Tab.Navigator
@@ -30,8 +32,22 @@ export const TabNavigator = () => {
         tabBarShowLabel: true,
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: '홈' }} />
-      <Tab.Screen name="Wish" component={WishScreen} options={{ tabBarLabel: '위시' }} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ 
+          tabBarLabel: '홈',
+          tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size} />
+        }} 
+      />
+      <Tab.Screen 
+        name="Wish" 
+        component={WishScreen} 
+        options={{ 
+          tabBarLabel: '위시',
+          tabBarIcon: ({ color, size }) => <Feather name="heart" color={color} size={size} />
+        }} 
+      />
       <Tab.Screen
         name="Scan"
         component={ScanScreen}
@@ -40,8 +56,22 @@ export const TabNavigator = () => {
           tabBarButton: (props) => <FloatingScanButton onPress={props.onPress} />
         }}
       />
-      <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarLabel: '검색' }} />
-      <Tab.Screen name="My" component={MyScreen} options={{ tabBarLabel: '마이' }} />
+      <Tab.Screen 
+        name="Search" 
+        component={SearchScreen} 
+        options={{ 
+          tabBarLabel: '검색',
+          tabBarIcon: ({ color, size }) => <Feather name="search" color={color} size={size} />
+        }} 
+      />
+      <Tab.Screen 
+        name="My" 
+        component={MyScreen} 
+        options={{ 
+          tabBarLabel: '마이',
+          tabBarIcon: ({ color, size }) => <Feather name="user" color={color} size={size} />
+        }} 
+      />
     </Tab.Navigator>
   );
 };
