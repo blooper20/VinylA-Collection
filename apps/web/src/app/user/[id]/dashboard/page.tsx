@@ -51,22 +51,19 @@ function PublicDashboardContent() {
         const data = await getUserVinyls(id);
         
         if (data && data.length > 0) {
-          // Find featured album from raw data first (raw ALBUM_ID from DB)
-          let foundFeatured: any = null;
-          if (featuredAlbumId) {
-            const rawFeatured = data.find((v: any) => 
-              v.ALBUM_ID === featuredAlbumId || 
-              v.ALBUM_MASTER?.ALBUM_ID === featuredAlbumId
-            );
-            if (rawFeatured) {
-              foundFeatured = mapToFrontendModel(rawFeatured, null);
-            }
-          }
-          setFeaturedAlbum(foundFeatured);
-
+          // Map all data first
           const mapped = data.map((v: any) => mapToFrontendModel(v, null));
           const mappedOwned = mapped.filter((v: any) => v.STATUS === 'OWNED');
           const mappedWish = mapped.filter((v: any) => v.STATUS === 'WISH');
+
+          // Find featured album by comparing ALBUM_ID as strings (handles int vs string mismatch)
+          let foundFeatured: any = null;
+          if (featuredAlbumId) {
+            foundFeatured = mapped.find((a: any) => 
+              String(a.ALBUM_ID) === String(featuredAlbumId)
+            ) || null;
+          }
+          setFeaturedAlbum(foundFeatured);
           
           setOwnedCount(mappedOwned.length);
           setOwnedAlbums(mappedOwned);
