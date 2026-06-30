@@ -21,10 +21,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initializeAuth: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      set({ user: session?.user ?? null, isLoading: false });
+      
+      let activeUser = session?.user ?? null;
+      if (activeUser?.user_metadata?.del_yn === 'N') {
+        await supabase.auth.signOut();
+        activeUser = null;
+      }
+      set({ user: activeUser, isLoading: false });
 
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({ user: session?.user ?? null });
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        let newUser = session?.user ?? null;
+        if (newUser?.user_metadata?.del_yn === 'N') {
+          await supabase.auth.signOut();
+          newUser = null;
+        }
+        set({ user: newUser });
       });
     } catch (error) {
       console.error('Failed to initialize auth', error);
@@ -135,16 +146,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   deleteAccount: async () => {
     try {
-      // 1. (권장) Supabase DB에 delete_user() RPC 함수를 미리 만들어두어야 실제 Auth User가 삭제됩니다.
-      const { error: rpcError } = await supabase.rpc('delete_user');
-      if (rpcError) {
-         console.warn('delete_user RPC failed. Ensure the function is created in Supabase.', rpcError);
-         // Fallback: Delete their vinyls manually if RPC is not set up yet
-         const { data: { session } } = await supabase.auth.getSession();
-         if (session?.user?.id) {
-           await supabase.from('USER_VINYL').delete().eq('USER_ID', session.user.id);
-         }
-      }
+      // 백단에서는 Soft Delete 처리 (UI상으로는 완전 삭제로 안내됨)
+      const { error } = await supabase.auth.updateUser({
+        data: { del_yn: 'N' }
+      });
+      if (error) throw error;
       
       // 2. 클라이언트 세션 종료
       await supabase.auth.signOut();
