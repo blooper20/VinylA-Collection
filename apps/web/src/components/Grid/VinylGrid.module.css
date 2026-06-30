@@ -205,7 +205,7 @@
 }
 
 @media (min-width: 1024px) {
-  .grid4 { grid-template-columns: repeat(4, 1fr); }
+  .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ---- Grid 6 (dense) ---- */
@@ -217,11 +217,11 @@
 }
 
 @media (min-width: 900px) {
-  .grid6 { grid-template-columns: repeat(6, 1fr); }
+  .grid6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 @media (min-width: 1400px) {
-  .grid6 { grid-template-columns: repeat(8, 1fr); }
+  .grid6 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 /* ---- Table View ---- */
