@@ -149,7 +149,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
   const handleShareLink = async () => {
     if (user?.id) {
-      const link = `${window.location.origin}/user/${user.id}`;
+      const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+      const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+      const link = `${window.location.origin}/user/${user.id}?n=${name}&a=${avatar}`;
       await copyToClipboard(link);
       setToastMessage('프로필 링크가 복사되었습니다!');
       setTimeout(() => setToastMessage(null), 3000);

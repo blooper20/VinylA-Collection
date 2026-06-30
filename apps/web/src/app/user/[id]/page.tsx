@@ -1,18 +1,27 @@
 'use client';
 
-import React from 'react';
-import { useParams } from 'next/navigation';
+import React, { Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { PublicGrid } from '../../../components/Grid/PublicGrid';
 
-export default function PublicProfilePage() {
+function PublicProfileContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params?.id as string;
+  const name = searchParams?.get('n') || 'Collector';
+  const avatar = searchParams?.get('a') || '/logo.png';
 
   if (!id) return null;
 
+  return <PublicGrid userId={id} initialName={name} initialAvatar={avatar} />;
+}
+
+export default function PublicProfilePage() {
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#000', color: '#fff' }}>
-      <PublicGrid userId={id} />
+      <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>Loading...</div>}>
+        <PublicProfileContent />
+      </Suspense>
     </main>
   );
 }

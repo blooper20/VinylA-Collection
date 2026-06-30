@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import styles from './PublicGrid.module.css';
 import { supabase } from '@vinyla/core-api/src/supabase';
 import { getUserVinyls } from '@vinyla/core-api';
 
 interface PublicGridProps {
   userId: string;
+  initialName?: string;
+  initialAvatar?: string;
 }
 
-export const PublicGrid: React.FC<PublicGridProps> = ({ userId }) => {
+export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'Collector', initialAvatar = '/logo.png' }) => {
   const [dbData, setDbData] = useState<any[]>([]);
-  const [profileName, setProfileName] = useState<string>('Collector');
-  const [avatarUrl, setAvatarUrl] = useState<string>('/logo.png');
+  const [profileName, setProfileName] = useState<string>(initialName);
+  const [avatarUrl, setAvatarUrl] = useState<string>(initialAvatar);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -45,17 +48,21 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId }) => {
   }
 
   const ownedCount = dbData.filter(v => v.STATUS === 'OWNED').length;
+  // Exclude WISH status for public view
+  const displayData = dbData.filter(v => v.STATUS !== 'WISH');
 
   return (
     <div className={styles.pageWrapper}>
       <header className={styles.header}>
-        <img src={avatarUrl} alt="Avatar" className={styles.avatar} />
+        <Link href={`/user/${userId}`}>
+          <img src={avatarUrl} alt="Avatar" className={styles.avatar} style={{ cursor: 'pointer' }} />
+        </Link>
         <h1 className={styles.title}>{profileName}'s Collection</h1>
         <p className={styles.subtitle}>{ownedCount} Records</p>
       </header>
 
       <div className={styles.grid}>
-        {dbData.map(album => (
+        {displayData.map(album => (
           <div key={album.ALBUM_ID} className={styles.card}>
             <div className={styles.coverWrapper}>
               <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={styles.cover} />
