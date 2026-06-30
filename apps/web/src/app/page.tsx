@@ -25,6 +25,7 @@ export default function LandingPage() {
       
       <main className={styles.main}>
         <div className={styles.heroContent}>
+          <img src="/logo.png" alt="VinylA" className={styles.heroLogo} />
           <div className={styles.badge}>VinylA Collection</div>
           <h1 className={styles.title}>
             당신만의 프리미엄<br />바이닐 아카이브

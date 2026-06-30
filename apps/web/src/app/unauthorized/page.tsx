@@ -10,6 +10,7 @@ export default function UnauthorizedPage() {
       <div className={styles.noiseOverlay} />
       
       <div className={styles.content}>
+        <img src="/logo.png" alt="VinylA" className={styles.logo} />
         <div className={styles.iconWrapper}>
           <span className="material-symbols-outlined">gpp_bad</span>
         </div>
@@ -23,6 +24,10 @@ export default function UnauthorizedPage() {
           <span className="material-symbols-outlined">home</span>
           메인으로 가기
         </Link>
+      </div>
+
+      <div className={styles.vinylDecoration}>
+        <div className={styles.brokenVinyl} />
       </div>
     </div>
   );

@@ -83,3 +83,39 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
 }
+
+.logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 24px;
+  opacity: 0.9;
+}
+
+.vinylDecoration {
+  position: absolute;
+  right: -20%;
+  bottom: -20%;
+  width: 60vw;
+  height: 60vw;
+  max-width: 800px;
+  max-height: 800px;
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.brokenVinyl {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: repeating-radial-gradient(#111 0, #111 2px, #0a0a0a 3px, #0a0a0a 4px);
+  box-shadow: inset 0 0 0 20px #050505;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 60% 100%, 50% 50%, 40% 100%, 0 100%);
+  animation: float 10s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}

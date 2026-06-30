@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@vinyla/core-api';
 import styles from './AuthGuard.module.css';
 
-const PUBLIC_ROUTES = ['/', '/login', '/unauthorized'];
+const PROTECTED_ROUTES = ['/collection', '/my', '/search', '/wishlist', '/setup'];
 
 export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading, initializeAuth } = useAuthStore();
@@ -23,12 +23,13 @@ export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children })
   useEffect(() => {
     if (!hasInitialized || isLoading) return;
 
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+    const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+    const isAuthRoute = pathname === '/' || pathname === '/login' || pathname === '/unauthorized';
 
-    if (!user && !isPublicRoute) {
+    if (!user && isProtectedRoute) {
       // 비로그인 (또는 del_yn === 'N'으로 인해 로그아웃된) 유저가 보호된 라우트 접근 시 에러 페이지 강제 이동
       router.replace('/unauthorized');
-    } else if (user && isPublicRoute) {
+    } else if (user && isAuthRoute) {
       // 로그인된 정상 유저가 랜딩 페이지나 에러 페이지 등에 접근 시 보관함으로 자동 이동
       router.replace('/collection');
     }
@@ -43,12 +44,14 @@ export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children })
   }
 
   // 랜딩 중일 때 잠깐 번쩍이는 것을 막기 위해 추가 방어
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-  if (!user && !isPublicRoute) {
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+  const isAuthRoute = pathname === '/' || pathname === '/login' || pathname === '/unauthorized';
+  
+  if (!user && isProtectedRoute) {
     return null; // 리다이렉트 전 렌더링 방지
   }
 
-  if (user && isPublicRoute) {
+  if (user && isAuthRoute) {
     return null; // 리다이렉트 전 렌더링 방지
   }
 

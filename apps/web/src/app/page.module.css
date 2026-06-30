@@ -61,6 +61,14 @@
   align-items: flex-start;
 }
 
+.heroLogo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 24px;
+  opacity: 0.9;
+}
+
 @media (max-width: 900px) {
   .heroContent {
     align-items: center;
