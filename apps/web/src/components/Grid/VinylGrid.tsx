@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
 import { MockVinylData } from '@vinyla/shared-types';
 import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore, createAlbumMaster } from '@vinyla/core-api';
 import styles from './VinylGrid.module.css';
+import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
+import { ShareableGridTemplate } from '../Share/ShareableGridTemplate';
+import { captureElementAsBlob, shareImageNative, copyToClipboard } from '../../utils/shareUtils';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 type ViewMode = 'grid4' | 'grid6' | 'table';
@@ -23,6 +26,8 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const shareGridRef = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
   const router = require('next/navigation').useRouter();
@@ -137,12 +142,35 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     }
   });
 
+  const handleShareLink = async () => {
+    if (user?.id) {
+      const link = `${window.location.origin}/user/${user.id}`;
+      await copyToClipboard(link);
+      setToastMessage('프로필 링크가 복사되었습니다!');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleShareImage = async () => {
+    if (shareGridRef.current) {
+      const blob = await captureElementAsBlob(shareGridRef.current);
+      if (blob) {
+        await shareImageNative(blob, 'vinyl-collection.jpg');
+      }
+    }
+  };
+
   return (
     <div className={styles.pageWrapper}>
       <header className={styles.pageHeader}>
         <div className={styles.headerLeft}>
           <span className={styles.pageEyebrow}>My Collection</span>
-          <h1 className={styles.pageTitle}>보관함</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <h1 className={styles.pageTitle}>보관함</h1>
+            <button className={styles.shareBtn} onClick={() => setIsShareOpen(true)} title="공유하기">
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
+            </button>
+          </div>
           <p className={styles.pageSubtitle}>{displayedAlbums.length} Records</p>
         </div>
         <div className={styles.headerRight}>
@@ -244,6 +272,23 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           {toastMessage}
         </div>
       )}
+
+      <ShareBottomSheet 
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        title="보관함 공유하기"
+        options={[
+          { id: 'link', label: '링크 복사', icon: 'link', action: handleShareLink },
+          { id: 'image', label: '이미지 저장', icon: 'image', action: handleShareImage }
+        ]}
+      />
+
+      <ShareableGridTemplate 
+        ref={shareGridRef}
+        albums={displayedAlbums}
+        username={user?.user_metadata?.displayName || 'Collector'}
+        title="보관함"
+      />
     </div>
   );
 };

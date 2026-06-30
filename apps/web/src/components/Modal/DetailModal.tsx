@@ -2,6 +2,8 @@ import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
 import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
+import { StoryTemplate } from '../Share/StoryTemplate';
+import { captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -20,6 +22,22 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
   const [marketPrice, setMarketPrice] = React.useState<number | null>((album as any).MARKET_PRICE || null);
+  
+  const storyTemplateRef = React.useRef<HTMLDivElement>(null);
+  const [isCapturing, setIsCapturing] = React.useState(false);
+
+  const handleShareStory = async () => {
+    if (!storyTemplateRef.current || isCapturing) return;
+    setIsCapturing(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const blob = await captureElementAsBlob(storyTemplateRef.current);
+    if (blob) {
+      await shareImageNative(blob, 'vinyla-story.jpg');
+    }
+    setIsCapturing(false);
+  };
 
   React.useEffect(() => {
     // Prevent body and html scrolling while modal is open
@@ -315,6 +333,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           </div>
 
           <div className={styles.externalLinks}>
+            <button className={styles.linkBtn} onClick={handleShareStory} disabled={isCapturing}>
+              <span className="material-symbols-outlined">camera</span>
+              인스타 스토리 생성
+            </button>
             <button className={styles.linkBtn} onClick={handleYoutubeListen}>
               <span className="material-symbols-outlined">play_circle</span>
               Listen on YouTube
@@ -392,6 +414,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         )}
 
       </div>
+      <StoryTemplate ref={storyTemplateRef} album={album} username={user?.user_metadata?.displayName || 'Collector'} />
     </div>
   );
 };
