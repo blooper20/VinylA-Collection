@@ -70,13 +70,13 @@ export const SideNav: React.FC = () => {
           <div className={styles.navItem} style={{ color: 'var(--text-muted)' }} onClick={async () => {
             const { signOut } = await import('@vinyla/core-api');
             await signOut();
-            window.location.href = '/login';
+            window.location.href = '/';
           }}>
             <span className={`material-symbols-outlined ${styles.navIcon}`}>logout</span>
             <span className={styles.navLabel}>로그아웃</span>
           </div>
         ) : (
-          <Link href="/login" className={styles.navItem} style={{ color: 'var(--text-muted)' }}>
+          <Link href="/" className={styles.navItem} style={{ color: 'var(--text-muted)' }}>
             <span className={`material-symbols-outlined ${styles.navIcon}`}>login</span>
             <span className={styles.navLabel}>로그인</span>
           </Link>
