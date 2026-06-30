@@ -145,19 +145,22 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       });
 
       let master = await getAlbumMaster(album.ALBUM_ID);
-      if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE)) {
+      
+      const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
+      
+      if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
         await createAlbumMaster({
           ALBUM_ID: album.ALBUM_ID,
           TITLE: album.TITLE,
           ARTIST: album.ARTIST,
           RELEASE_YEAR: album.RELEASE_YEAR,
           IMAGE_URL: album.IMAGE_URL,
-          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '',
-          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#000',
-          CUSTOM_STYLE_TYPE: 'SOLID',
-          TRACKS: tracks || [],
+          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
+          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
+          CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
+          TRACKS: tracks || master?.TRACKS || [],
           GENRES: finalGenres,
-          MARKET_PRICE: marketPrice || 0
+          MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
         });
       }
 

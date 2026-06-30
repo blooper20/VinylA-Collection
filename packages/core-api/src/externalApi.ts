@@ -208,13 +208,25 @@ export const searchDiscogsLazy = async (
       const itRes = await axios.get('https://itunes.apple.com/search', {
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
-      // Pick the Apple Music result whose artist best matches
-      hit = itRes.data.results?.find((item: any) =>
-        (!isGenreQuery && item.artistName?.toLowerCase().includes(query.toLowerCase())) ||
-        item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
-        cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase()) ||
-        (alias && item.artistName?.toLowerCase().includes(alias.toLowerCase()))
-      );
+      // Pick the Apple Music result whose artist or title best matches
+      hit = itRes.data.results?.find((item: any) => {
+        const itemArtist = item.artistName?.toLowerCase() || '';
+        const itemTitle = item.collectionName?.toLowerCase() || '';
+        const qArtist = cleanArtist.toLowerCase();
+        const qTitle = cleanTitle.toLowerCase();
+        
+        return (!isGenreQuery && itemArtist.includes(query.toLowerCase())) ||
+               itemArtist.includes(qArtist) ||
+               qArtist.includes(itemArtist) ||
+               (alias && itemArtist.includes(alias.toLowerCase())) ||
+               itemTitle.includes(qTitle) ||
+               qTitle.includes(itemTitle);
+      });
+
+      // If still no exact match, but we have results, Apple's search engine is usually right
+      if (!hit && itRes.data.results?.length > 0) {
+        hit = itRes.data.results[0];
+      }
 
       if (hit?.artworkUrl100) {
         thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');

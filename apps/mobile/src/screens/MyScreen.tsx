@@ -4,6 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
 import { useAuthStore } from '@vinyla/core-api';
+import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
+import { FlashEffect } from '../components/Share/FlashEffect';
+import { NativeToast } from '../components/Toast/NativeToast';
+import { shareToInstagramStory } from '../utils/nativeShare';
+import { ShareTemplate } from '../components/Share/ShareTemplate';
 
 const { width } = Dimensions.get('window');
 
@@ -19,19 +24,44 @@ export const MyScreen = () => {
   const { user } = useAuthStore();
   const navigation = useNavigation<any>();
 
+  const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
+  const [flashVisible, setFlashVisible] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState('');
+  const [isToastVisible, setIsToastVisible] = React.useState(false);
+  const viewRef = React.useRef(null);
+
+  // Example badgelist mapping from user unlocked badges
+  const availableBadges = [
+    { id: '1', name: '초보 컬렉터', isEarned: true },
+    { id: '2', name: '엘리트 큐레이터', isEarned: user?.user_metadata?.unlocked_badges?.includes('Elite Curator') || true },
+    { id: '3', name: '바이닐 마스터', isEarned: false },
+  ];
+
+  const handleShare = async () => {
+    setFlashVisible(true);
+    await shareToInstagramStory(viewRef);
+  };
+
+  const handleBadgeSelect = (badge: any) => {
+    setBadgeModalVisible(false);
+    setToastMessage(`'${badge.name}' 뱃지를 장착했습니다!`);
+    setIsToastVisible(true);
+  };
+
   const handleThemeChange = (newTheme: ThemeType) => {
     setTheme(newTheme);
   };
 
   const themes: { id: ThemeType, label: string }[] = [
-    { id: 'DARK_BLACK', label: 'Dark Black' },
-    { id: 'MOODY_WALNUT', label: 'Moody Walnut' },
-    { id: 'CLEAN_DOODLING', label: 'Clean Doodling' },
+    { id: 'DARK_BLACK', label: '다크 블랙' },
+    { id: 'MOODY_WALNUT', label: '무디 월넛' },
+    { id: 'CLEAN_DOODLING', label: '클린 두들' },
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
-      {/* Identity Section */}
+    <View style={{ flex: 1 }} ref={viewRef} collapsable={false}>
+      <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={[styles.avatarFrame, { borderColor: themeColors.accent }]}>
           <Image 
@@ -40,16 +70,19 @@ export const MyScreen = () => {
           />
         </View>
         <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
-          {user?.user_metadata?.displayName || 'Collector'}
+          {user?.user_metadata?.displayName || '컬렉터'}
         </Text>
-        <View style={[styles.badge, { backgroundColor: themeColors.accent }]}>
+        <TouchableOpacity 
+          style={[styles.badge, { backgroundColor: themeColors.accent }]}
+          onPress={() => setBadgeModalVisible(true)}
+        >
           <Text style={styles.badgeText}>Elite Curator</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Theme Switcher */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Theme</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>테마 설정</Text>
         <View style={styles.themeSwitcher}>
           {themes.map(t => (
             <TouchableOpacity 
@@ -82,23 +115,23 @@ export const MyScreen = () => {
             }
           }}
         >
-          <Text style={[styles.logoutBtnText, { color: themeColors.textPrimary }]}>Logout</Text>
+          <Text style={[styles.logoutBtnText, { color: themeColors.textPrimary }]}>로그아웃</Text>
         </TouchableOpacity>
       </View>
 
       {/* Analytics */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Vault Analytics</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-          <AnalyticsCard title="Collection Value" value="$4,250" themeColors={themeColors} />
-          <AnalyticsCard title="Total Records" value="142" themeColors={themeColors} />
-          <AnalyticsCard title="Top Genre" value="Jazz" themeColors={themeColors} />
+          <AnalyticsCard title="총 가치" value="$4,250" themeColors={themeColors} />
+          <AnalyticsCard title="보유 앨범" value="142" themeColors={themeColors} />
+          <AnalyticsCard title="최애 장르" value="재즈" themeColors={themeColors} />
         </ScrollView>
       </View>
 
       {/* Musical Journey (Timeline) */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Musical Journey</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>나의 레코드 여정</Text>
         <View style={styles.timeline}>
           {mockVinyls.slice(0, 3).map((album, index) => (
             <View key={album.ALBUM_ID} style={styles.timelineItem}>
@@ -107,13 +140,35 @@ export const MyScreen = () => {
               <Image source={{ uri: album.IMAGE_URL }} style={styles.timelineImage} />
               <View style={styles.timelineContent}>
                 <Text style={[styles.timelineTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{album.TITLE}</Text>
-                <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>Collected 2 days ago</Text>
+                <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>2일 전 수집됨</Text>
               </View>
             </View>
           ))}
         </View>
       </View>
-    </ScrollView>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>공유하기</Text>
+        <TouchableOpacity 
+          style={[styles.themeBtn, { borderColor: themeColors.border, backgroundColor: themeColors.accent, marginTop: 10, marginHorizontal: 20 }]}
+          onPress={handleShare}
+        >
+          <Text style={[styles.themeBtnText, { color: '#000', paddingVertical: 10 }]}>인스타그램 스토리에 공유하기</Text>
+        </TouchableOpacity>
+      </View>
+      </ScrollView>
+
+      {/* Absolute Overlays */}
+      <FlashEffect visible={flashVisible} onComplete={() => setFlashVisible(false)} />
+      <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
+      
+      <BadgeSelectModal
+        visible={isBadgeModalVisible}
+        onClose={() => setBadgeModalVisible(false)}
+        badges={availableBadges}
+        onSelect={handleBadgeSelect}
+      />
+    </View>
   );
 };
 

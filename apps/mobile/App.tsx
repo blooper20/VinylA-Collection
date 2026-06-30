@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { RootNavigator } from './src/navigation/RootNavigator';
+import { RootNavigator, linking } from './src/navigation/RootNavigator';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '@vinyla/ui';
 
@@ -10,7 +10,7 @@ const AppContent = () => {
   const statusBarStyle = theme === 'CLEAN_DOODLING' ? 'dark' : 'light';
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <StatusBar style={statusBarStyle} />
       <RootNavigator />
     </NavigationContainer>
