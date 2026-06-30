@@ -106,20 +106,20 @@
 /* Tonearm */
 .tonearm {
   position: absolute;
-  top: 5%;
-  right: 15%;
-  width: 60px;
-  height: 450px;
+  top: 0;
+  right: 5%;
+  width: 80px;
+  height: 500px;
   z-index: 3;
-  transform-origin: 30px 30px;
-  transform: rotate(28deg);
+  transform-origin: 40px 40px;
+  transform: rotate(15deg);
   pointer-events: none;
 }
 
 .tonearmPivot {
   position: absolute;
   top: 0;
-  left: 0;
+  left: 10px;
   width: 60px;
   height: 60px;
   background: radial-gradient(circle at 30% 30%, #555, #111);
@@ -142,9 +142,9 @@
 .tonearmRod {
   position: absolute;
   top: 30px;
-  left: 26px;
+  left: 36px;
   width: 8px;
-  height: 380px;
+  height: 350px;
   background: linear-gradient(90deg, #222, #777 50%, #111);
   box-shadow: 5px 15px 15px rgba(0,0,0,0.6);
   border-radius: 4px;
@@ -152,10 +152,10 @@
 
 .tonearmHead {
   position: absolute;
-  top: 390px;
-  left: 10px;
+  top: 370px;
+  left: 28px;
   width: 24px;
-  height: 50px;
+  height: 60px;
   background: #111;
   border: 1px solid #333;
   border-radius: 4px 4px 10px 10px;
