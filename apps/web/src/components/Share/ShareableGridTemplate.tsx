@@ -37,7 +37,9 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
         <div className={styles.gridContainer} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {albums.map((album) => (
             <div key={album.ALBUM_ID} className={styles.gridItem}>
-              <img src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} alt={album.TITLE} className={styles.cover} crossOrigin="anonymous" />
+              <div className={styles.coverWrapper}>
+                <img src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} alt={album.TITLE} className={styles.cover} crossOrigin="anonymous" />
+              </div>
               <div className={styles.info}>
                 <p className={styles.albumTitle}>{album.TITLE}</p>
                 <p className={styles.albumArtist}>{album.ARTIST}</p>
