@@ -11,25 +11,51 @@
 
 .vinylDecoration {
   position: absolute;
-  left: -20%;
-  top: -20%;
-  width: 70vw;
-  height: 70vw;
-  max-width: 900px;
-  max-height: 900px;
-  opacity: 0.15;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 900px;
+  height: 900px;
+  opacity: 0.8;
   pointer-events: none;
   z-index: 0;
-  filter: blur(8px);
+  filter: blur(6px);
 }
 
 .brokenVinyl {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: repeating-radial-gradient(#111 0, #111 2px, #0a0a0a 3px, #0a0a0a 4px);
-  box-shadow: inset 0 0 0 20px #050505;
-  animation: spin 20s linear infinite;
+  background: #111;
+  background-image: repeating-radial-gradient(
+      #2a2a2a 0,
+      #2a2a2a 2px,
+      #111 3px,
+      #111 4px
+    );
+  box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 0 20px #050505;
+  animation: spin 30s linear infinite;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vinylLabel {
+  width: 25%;
+  height: 25%;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,0.2), 0 0 10px rgba(0,0,0,0.5);
+}
+
+.vinylLabelInner {
+  width: 20px;
+  height: 20px;
+  background: #000;
+  border-radius: 50%;
 }
 
 @keyframes spin {
