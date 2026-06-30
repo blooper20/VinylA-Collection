@@ -64,6 +64,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: transform 0.2s ease;
+}
+
+.albumCard:hover {
+  transform: translateY(-4px);
 }
 
 .albumCover {

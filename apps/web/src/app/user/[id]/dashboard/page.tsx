@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 import { BADGES } from '../../../../lib/badges';
+import { DetailModal } from '../../../../components/Modal/DetailModal';
 import styles from '../../../my/page.module.css';
 import dashStyles from './dashboard.module.css';
 
@@ -33,6 +34,7 @@ function PublicDashboardContent() {
   const [featuredAlbum, setFeaturedAlbum] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
 
   useEffect(() => {
     async function loadStats() {
@@ -204,7 +206,7 @@ function PublicDashboardContent() {
         {activeTab === 'collection' && (
           <div className={dashStyles.albumGrid}>
             {ownedAlbums.length > 0 ? ownedAlbums.map((album, i) => (
-              <div key={i} className={dashStyles.albumCard}>
+              <div key={i} className={dashStyles.albumCard} onClick={() => setSelectedAlbum(album)} style={{ cursor: 'pointer' }}>
                 <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
                 <p className={dashStyles.albumTitle}>{album.TITLE}</p>
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
@@ -219,7 +221,7 @@ function PublicDashboardContent() {
         {activeTab === 'wishlist' && (
           <div className={dashStyles.albumGrid}>
             {wishAlbums.length > 0 ? wishAlbums.map((album, i) => (
-              <div key={i} className={dashStyles.albumCard}>
+              <div key={i} className={dashStyles.albumCard} onClick={() => setSelectedAlbum(album)} style={{ cursor: 'pointer' }}>
                 <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
                 <p className={dashStyles.albumTitle}>{album.TITLE}</p>
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
@@ -249,6 +251,8 @@ function PublicDashboardContent() {
           <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_forward</span>
         </Link>
       </div>
+
+      {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
     </div>
   );
 }
