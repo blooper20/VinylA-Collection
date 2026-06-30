@@ -278,8 +278,22 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         onClose={() => setIsShareOpen(false)}
         title="보관함 공유하기"
         options={[
-          { id: 'link', label: '링크 복사', icon: 'link', action: handleShareLink },
-          { id: 'image', label: '이미지 저장', icon: 'image', action: handleShareImage }
+          { id: 'image', label: '이미지 저장', icon: 'download', action: handleShareImage },
+          { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: async () => {
+              const blob = await captureElementAsBlob(shareGridRef.current!, 'png');
+              if (blob) {
+                const success = await import('../../utils/shareUtils').then(m => m.copyImageBlobToClipboard(blob));
+                if (success) {
+                  setToastMessage('이미지가 복사되었습니다!');
+                  setTimeout(() => setToastMessage(null), 3000);
+                } else {
+                  alert('이미지 복사가 지원되지 않는 브라우저입니다.');
+                }
+              }
+              setIsShareOpen(false);
+            } 
+          },
+          { id: 'link', label: '링크 복사', icon: 'link', action: handleShareLink }
         ]}
       />
 

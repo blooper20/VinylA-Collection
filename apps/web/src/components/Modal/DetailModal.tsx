@@ -448,7 +448,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       <ShareBottomSheet 
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        title="스토리 공유하기"
+        title="공유하기"
         options={[
           { id: 'link', label: 'URL 복사', icon: 'link', action: handleShareOptions.copyUrl },
           { id: 'save', label: '이미지 저장', icon: 'download', action: handleShareOptions.saveImage },

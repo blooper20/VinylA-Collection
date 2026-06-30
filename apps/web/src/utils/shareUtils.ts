@@ -24,15 +24,43 @@ export async function captureElementAsBlob(element: HTMLElement, format: 'jpeg' 
     }, 100);
   });
 
+  // Monkey patch CSSStyleSheet to bypass CORS SecurityError for external stylesheets (e.g. Google Fonts)
+  const originalRulesDescriptor = Object.getOwnPropertyDescriptor(CSSStyleSheet.prototype, 'cssRules');
+  if (originalRulesDescriptor) {
+    Object.defineProperty(CSSStyleSheet.prototype, 'cssRules', {
+      get() {
+        try {
+          return originalRulesDescriptor.get?.call(this) || [];
+        } catch (e: any) {
+          if (e.name === 'SecurityError') {
+            return []; // Return empty array to suppress the error
+          }
+          throw e;
+        }
+      },
+      configurable: true
+    });
+  }
+
   try {
+    const options = {
+      quality: format === 'png' ? 1 : 0.95,
+      imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    };
+    
     const dataUrl = format === 'png' 
-      ? await domToImage.toPng(element, { quality: 1 })
-      : await domToImage.toJpeg(element, { quality: 0.95 });
+      ? await domToImage.toPng(element, options)
+      : await domToImage.toJpeg(element, options);
     const res = await fetch(dataUrl);
     return await res.blob();
   } catch (err) {
     console.error('Failed to capture image', err);
     return null;
+  } finally {
+    // Restore the original descriptor
+    if (originalRulesDescriptor) {
+      Object.defineProperty(CSSStyleSheet.prototype, 'cssRules', originalRulesDescriptor);
+    }
   }
 }
 
