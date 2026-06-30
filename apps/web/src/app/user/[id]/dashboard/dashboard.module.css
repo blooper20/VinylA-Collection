@@ -1,0 +1,99 @@
+/* Public Dashboard — Tab & Grid styles */
+
+.tabSection {
+  padding: 48px 0 0;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.tabBar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 40px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 40px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 14px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: rgba(255,255,255,0.8);
+}
+
+.tabActive {
+  color: #fff;
+  border-bottom-color: #d4af37;
+}
+
+.tabCount {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+
+.tabActive .tabCount {
+  background: rgba(212,175,55,0.2);
+  color: #d4af37;
+}
+
+/* Album Grid */
+.albumGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 24px;
+  padding: 0 40px 48px;
+}
+
+.albumCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.2s ease;
+}
+
+.albumCard:hover {
+  transform: translateY(-4px);
+}
+
+.albumCover {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+}
+
+.albumTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.albumArtist {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

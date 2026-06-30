@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
+import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
+import { ImageCropModal } from '../../components/Modal/ImageCropModal';
 import { UserStats, BADGES, evaluateBadges } from '../../lib/badges';
+import { copyToClipboard } from '../../utils/shareUtils';
 
 const PRESET_AVATARS = [
   '/logo.png',
@@ -20,7 +23,7 @@ const AVAILABLE_GENRES = [
 ];
 
 export default function MyProfilePage() {
-  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge } = useAuthStore();
+  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge, deleteAccount } = useAuthStore();
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
@@ -34,6 +37,10 @@ export default function MyProfilePage() {
 
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
+  const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
 
   const selectedBadgeId = user?.user_metadata?.selected_badge || null;
   const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
@@ -46,6 +53,7 @@ export default function MyProfilePage() {
   const [previewAvatarUrl, setPreviewAvatarUrl] = useState('');
   const [editGenre, setEditGenre] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSpentPublic, setIsSpentPublic] = useState(false);
 
   useEffect(() => {
     initializeAuth();
@@ -174,9 +182,10 @@ export default function MyProfilePage() {
   const handleSaveProfile = async () => {
     try {
       setIsSaving(true);
-      await updateProfileWithAvatarFile(editName, [editGenre], selectedAvatarFile || undefined);
+      await updateProfileWithAvatarFile(editName, [editGenre], selectedAvatarFile || undefined, isAvatarRemoved);
       setIsEditing(false);
       setTopGenre(editGenre);
+      setIsAvatarRemoved(false);
     } catch (e) {
       alert('프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)');
     } finally {
@@ -187,14 +196,47 @@ export default function MyProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedAvatarFile(file);
-      setPreviewAvatarUrl(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      setTempImageUrl(url);
+      setIsCropModalOpen(true);
+      e.target.value = ''; // Reset input so same file can be selected again
+    }
+  };
+
+  const handleCropComplete = (croppedFile: File, croppedUrl: string) => {
+    setSelectedAvatarFile(croppedFile);
+    setPreviewAvatarUrl(croppedUrl);
+    setIsAvatarRemoved(false);
+    setIsCropModalOpen(false);
+    setTempImageUrl(null);
+  };
+
+  const handleRemoveAvatar = () => {
+    setSelectedAvatarFile(null);
+    setPreviewAvatarUrl('/logo.png');
+    setIsAvatarRemoved(true);
+  };
+
+  const handleShareProfile = async () => {
+    if (user?.id) {
+      const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+      const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+      const badge = encodeURIComponent(user.user_metadata?.selected_badge || '');
+      const genre = encodeURIComponent(topGenre || '');
+      const featured = encodeURIComponent(user.user_metadata?.featured_album_id || '');
+      const sp = isSpentPublic ? '1' : '0';
+      
+      const link = `${window.location.origin}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
+      await copyToClipboard(link);
+      
+      const event = new CustomEvent('SHOW_TOAST', { detail: { message: '프로필 링크가 복사되었습니다!' } });
+      window.dispatchEvent(event);
     }
   };
 
   const stats = [
     { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: 'Discogs 기준 최저가 합산' },
-    { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' },
+    { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산', isSpent: true },
     { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
     { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
     { label: '실제 관심 장르', value: actualTopGenre,  unit: '',   sub: '내 콜렉션 데이터 기준' },
@@ -234,6 +276,15 @@ export default function MyProfilePage() {
                   <div className={styles.avatarUploadText}>
                     <span className={styles.avatarUploadTitle}>사진 변경하기</span>
                     <span className={styles.avatarUploadDesc}>클릭하여 새로운 프로필 사진을 선택하세요.</span>
+                    {previewAvatarUrl !== '/logo.png' && (
+                      <button 
+                        type="button" 
+                        onClick={handleRemoveAvatar}
+                        style={{ marginTop: '8px', background: 'none', border: 'none', color: '#eb5757', cursor: 'pointer', fontSize: '13px', padding: 0, textDecoration: 'underline' }}
+                      >
+                        현재 사진 삭제
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -262,6 +313,14 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.editActions}>
+                <button 
+                  className={styles.btnSecondary} 
+                  style={{ color: '#eb5757', borderColor: 'transparent', marginRight: 'auto', paddingLeft: 0 }} 
+                  onClick={() => setIsDeleteModalOpen(true)} 
+                  disabled={isSaving}
+                >
+                  회원 탈퇴
+                </button>
                 <button className={styles.btnSecondary} onClick={() => setIsEditing(false)} disabled={isSaving}>취소</button>
                 <button className={styles.btnPrimary} onClick={handleSaveProfile} disabled={isSaving}>
                   {isSaving ? '업로드 중...' : '저장하기'}
@@ -276,17 +335,17 @@ export default function MyProfilePage() {
                   alt="프로필"
                   className={styles.avatarImage}
                 />
-                <div className={styles.avatarBadge}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', fontVariationSettings: "'FILL' 1" }}>verified</span>
-                </div>
               </div>
 
               <div className={styles.profileInfo}>
-                <p className={styles.profileEyebrow}>Vinyl Noir Member</p>
+                <p className={styles.profileEyebrow}>VinylA Member</p>
                 <div className={styles.nameRow}>
                   <h1 className={styles.profileName}>{displayName}</h1>
                   <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
+                  </button>
+                  <button className={styles.editBtnToggle} onClick={handleShareProfile} title="공유하기" style={{ marginLeft: '8px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
                   </button>
                 </div>
                 <div 
@@ -311,7 +370,12 @@ export default function MyProfilePage() {
             <div className={styles.featuredContainer}>
               <div className={styles.featuredFrame} onClick={() => setIsFeaturedModalOpen(true)}>
                 {featuredAlbum ? (
-                  <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                  <>
+                    <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                    {featuredAlbum.STATUS === 'WISH' && (
+                      <div className={styles.featuredWishBadge}>WISH</div>
+                    )}
+                  </>
                 ) : (
                   <div className={styles.featuredEmpty}>
                     <span className="material-symbols-outlined">add_circle</span>
@@ -327,7 +391,7 @@ export default function MyProfilePage() {
       <section className={styles.analytics}>
         <div className={styles.analyticsGrid}>
 
-          {stats.map((stat, i) => (
+          {stats.map((stat: any, i) => (
             <div key={i} className={styles.statCard}>
               <span className={styles.statLabel}>{stat.label}</span>
               <div className={styles.statValue}>
@@ -335,6 +399,30 @@ export default function MyProfilePage() {
                 {stat.value}
               </div>
               <div className={styles.statSub}>{stat.sub}</div>
+              {stat.isSpent && (
+                <button
+                  onClick={() => setIsSpentPublic(v => !v)}
+                  style={{
+                    marginTop: '8px',
+                    background: 'none',
+                    border: `1px solid ${isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)'}`,
+                    borderRadius: '20px',
+                    color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)',
+                    fontSize: '12px',
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>
+                    {isSpentPublic ? 'visibility' : 'visibility_off'}
+                  </span>
+                  {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -379,6 +467,52 @@ export default function MyProfilePage() {
           await updateSelectedBadge(badgeId);
         }}
       />
+
+      <DeleteAccountModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={async () => {
+          await deleteAccount();
+        }}
+      />
+
+      <ImageCropModal
+        isOpen={isCropModalOpen}
+        imageSrc={tempImageUrl || ''}
+        onClose={() => {
+          setIsCropModalOpen(false);
+          setTempImageUrl(null);
+        }}
+        onCropComplete={handleCropComplete}
+      />
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '40px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(30, 27, 22, 0.95)',
+          border: '1px solid rgba(212, 175, 55, 0.4)',
+          borderRadius: '100px',
+          padding: '14px 28px',
+          color: '#fff',
+          fontSize: '15px',
+          fontWeight: 500,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 99999,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(12px)',
+          whiteSpace: 'nowrap',
+          animation: 'fadeInUp 0.3s ease',
+        }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#d4af37', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

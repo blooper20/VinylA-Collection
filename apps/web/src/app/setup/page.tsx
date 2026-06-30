@@ -56,16 +56,33 @@ export default function SetupPage() {
 
   return (
     <div className={styles.container}>
+      <div className={styles.vinylDecoration}>
+        <div className={styles.vinylReflection} />
+        <div className={styles.spinningVinyl}>
+          <div className={styles.vinylLabel}>
+            <img src="/logo.png" alt="VinylA Logo" className={styles.labelLogo} />
+            <div className={styles.vinylLabelInner} />
+          </div>
+        </div>
+        <div className={styles.tonearm}>
+          <div className={styles.tonearmRod} />
+          <div className={styles.tonearmHead} />
+          <div className={styles.tonearmPivot}>
+            <div className={styles.tonearmPivotCenter} />
+          </div>
+        </div>
+      </div>
+
       <div className={styles.setupBox}>
-        <h1 className={styles.title}>Welcome to Vinyl Noir</h1>
+        <h1 className={styles.title}>Welcome to VinylA</h1>
         <p className={styles.subtitle}>당신만의 컬렉션을 시작하기 위해 프로필을 완성해주세요.</p>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>이름</label>
+          <label className={styles.label}>닉네임</label>
           <input 
             type="text" 
             className={styles.input}
-            placeholder="이름을 입력하세요"
+            placeholder="닉네임을 입력하세요"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

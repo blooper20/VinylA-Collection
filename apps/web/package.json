@@ -9,12 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vinyla/core-api": "*",
+    "@vinyla/shared-types": "*",
+    "@vinyla/ui": "*",
+    "dom-to-image-more": "^3.10.0",
+    "html-to-image": "^1.11.13",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "@vinyla/ui": "*",
-    "@vinyla/shared-types": "*",
-    "@vinyla/core-api": "*"
+    "react-easy-crop": "^6.0.2"
   },
   "devDependencies": {
     "@types/node": "^20",

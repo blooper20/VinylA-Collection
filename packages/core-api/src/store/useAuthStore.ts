@@ -11,6 +11,7 @@ interface AuthState {
   updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
   updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
   updateSelectedBadge: (badgeId: string | null) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -20,10 +21,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initializeAuth: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      set({ user: session?.user ?? null, isLoading: false });
+      
+      let activeUser = session?.user ?? null;
+      if (activeUser?.user_metadata?.del_yn === 'N') {
+        // 기존에 탈퇴했던 계정으로 다시 로그인한 경우 -> 완전 초기화 후 신규 가입 처리
+        const { wipeUserData } = await import('../supabaseDb');
+        await wipeUserData(activeUser.id);
+        
+        // 프로필 초기화 및 활성화
+        const { data, error } = await supabase.auth.updateUser({
+          data: {
+            del_yn: 'Y',
+            displayName: null,
+            interests: null,
+            avatar_url: null,
+            featured_album: null,
+            unlocked_badges: null,
+            selected_badge: null
+          }
+        });
+        
+        if (!error && data.user) {
+          activeUser = data.user;
+        }
+      }
+      set({ user: activeUser, isLoading: false });
 
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({ user: session?.user ?? null });
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        let newUser = session?.user ?? null;
+        if (newUser?.user_metadata?.del_yn === 'N') {
+          // On-the-fly login with deleted account
+          const { wipeUserData } = await import('../supabaseDb');
+          await wipeUserData(newUser.id);
+          const { data } = await supabase.auth.updateUser({
+            data: {
+              del_yn: 'Y',
+              displayName: null,
+              interests: null,
+              avatar_url: null,
+              featured_album: null,
+              unlocked_badges: null,
+              selected_badge: null
+            }
+          });
+          if (data.user) newUser = data.user;
+        }
+        set({ user: newUser });
       });
     } catch (error) {
       console.error('Failed to initialize auth', error);
@@ -48,11 +91,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw error;
     }
   },
-  updateProfileWithAvatarFile: async (displayName: string, interests: string[], file?: File) => {
+  updateProfileWithAvatarFile: async (displayName: string, interests: string[], file?: File | null, removeAvatar?: boolean) => {
     try {
       let avatarUrl = undefined;
       
-      if (file) {
+      if (removeAvatar) {
+        avatarUrl = '/logo.png';
+      } else if (file) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) throw new Error("User not authenticated");
         
@@ -129,6 +174,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to update selected badge', error);
+      throw error;
+    }
+  },
+  deleteAccount: async () => {
+    try {
+      // 백단에서는 Soft Delete 처리 (UI상으로는 완전 삭제로 안내됨)
+      const { error } = await supabase.auth.updateUser({
+        data: { del_yn: 'N' }
+      });
+      if (error) throw error;
+      
+      // 2. 클라이언트 세션 종료
+      await supabase.auth.signOut();
+      set({ user: null });
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('VINYL_A_LOCAL_COLLECTION');
+        localStorage.removeItem('vinyls_dbData');
+      }
+
+      // 3. 메인으로 리다이렉트
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Failed to delete account', error);
       throw error;
     }
   }

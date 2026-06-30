@@ -3,21 +3,193 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #000000;
+  background: radial-gradient(circle at top right, #c4ab86 0%, #6e583c 40%, #17130e 100%);
   padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/vanilla-pattern.png');
+  background-size: 400px;
+  background-repeat: repeat;
+  opacity: 0.3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.vinylDecoration {
+  position: absolute;
+  right: -5vw;
+  bottom: -10vh;
+  width: 700px;
+  height: 700px;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 100px rgba(0,0,0,0.8);
+}
+
+.vinylReflection {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    transparent 0deg,
+    rgba(255, 255, 255, 0.08) 45deg,
+    transparent 90deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.08) 225deg,
+    transparent 270deg
+  );
+  z-index: 2;
+}
+
+.spinningVinyl {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #0a0a0a;
+  background-image: repeating-radial-gradient(
+      #111 0,
+      #111 2px,
+      #080808 3px,
+      #080808 4px
+  );
+  box-shadow: inset 0 0 0 15px rgba(255,255,255,0.01);
+  animation: spin 15s linear infinite;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+}
+
+.vinylLabel {
+  width: 33%;
+  height: 33%;
+  background: #111;
+  border-radius: 50%;
+  border: 2px solid #222;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,0.4), 0 0 20px rgba(0,0,0,0.8);
+}
+
+.vinylLabel::before {
+  content: "VINYLA COLLECTION";
+  position: absolute;
+  color: #555;
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 2px;
+  top: 15%;
+  text-align: center;
+}
+
+.vinylLabelInner {
+  width: 15px;
+  height: 15px;
+  background: #000;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #1a1a1a;
+  z-index: 2;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.labelLogo {
+  position: absolute;
+  width: 55%;
+  height: 55%;
+  object-fit: contain;
+  z-index: 1;
+  opacity: 0.8;
+}
+
+/* Tonearm */
+.tonearm {
+  position: absolute;
+  top: -76px;
+  left: 413px;
+  width: 80px;
+  height: 450px;
+  z-index: 3;
+  transform-origin: 40px 40px;
+  transform: rotate(-11deg);
+  pointer-events: none;
+}
+
+.tonearmPivot {
+  position: absolute;
+  top: 0;
+  left: 10px;
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle at 30% 30%, #777, #222);
+  border-radius: 50%;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.8), inset 0 0 0 2px #333;
+  border: 4px solid #0a0a0a;
+}
+
+.tonearmPivotCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #111;
+  border-radius: 50%;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.2);
+}
+
+.tonearmRod {
+  position: absolute;
+  top: 30px;
+  left: 36px;
+  width: 8px;
+  height: 350px;
+  background: linear-gradient(90deg, #444, #999 50%, #222);
+  box-shadow: 5px 15px 15px rgba(0,0,0,0.8);
+  border-radius: 4px;
+}
+
+.tonearmHead {
+  position: absolute;
+  top: 370px;
+  left: 28px;
+  width: 24px;
+  height: 60px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 4px 4px 10px 10px;
+  transform-origin: top center;
+  transform: rotate(25deg);
+  box-shadow: 5px 10px 15px rgba(0,0,0,0.8), inset 0 2px 2px rgba(255,255,255,0.1);
 }
 
 .setupBox {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 230, 180, 0.15);
   padding: 4rem 3rem;
   border-radius: 24px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   max-width: 500px;
   width: 100%;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
 }
 
 .title {
