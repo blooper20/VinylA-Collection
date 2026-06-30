@@ -7,10 +7,10 @@ import { useAuthStore } from '@vinyla/core-api';
 import styles from './SideNav.module.css';
 
 const navItems = [
-  { name: '컬렉션', path: '/',         icon: 'shelves' },
-  { name: '탐색',   path: '/search',   icon: 'travel_explore' },
-  { name: '위시리스트', path: '/wishlist', icon: 'bookmark' },
-  { name: '마이페이지', path: '/my',    icon: 'person' },
+  { name: '컬렉션', path: '/collection', icon: 'shelves' },
+  { name: '탐색',   path: '/search',     icon: 'travel_explore' },
+  { name: '위시리스트', path: '/wishlist',   icon: 'bookmark' },
+  { name: '마이페이지', path: '/my',         icon: 'person' },
 ];
 
 export const SideNav: React.FC = () => {
@@ -20,6 +20,10 @@ export const SideNav: React.FC = () => {
   React.useEffect(() => {
     initializeAuth();
   }, []);
+
+  if (pathname === '/' || pathname === '/login') {
+    return null;
+  }
 
   return (
     <>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@vinyla/ui";
 import { ThemeSync } from "../components/Theme/ThemeSync";
 import { SideNav } from "../components/Navigation/SideNav";
+import { AuthGuard } from "../components/Auth/AuthGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,12 +33,14 @@ export default function RootLayout({
             {/* Film grain texture */}
             <div className="texture-overlay" />
             {/* Layout shell */}
-            <div className="layout-shell">
-              <SideNav />
-              <main className="main-content">
-                {children}
-              </main>
-            </div>
+            <AuthGuard>
+              <div className="layout-shell">
+                <SideNav />
+                <main className="main-content">
+                  {children}
+                </main>
+              </div>
+            </AuthGuard>
           </ThemeSync>
         </ThemeProvider>
       </body>
