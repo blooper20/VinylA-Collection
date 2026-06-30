@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Anima
 const { width, height } = Dimensions.get('window');
 
 const ONBOARDING_DATA = [
-  { id: '1', title: 'Vinyl Noir', description: '당신만의 프라이빗 LP 갤러리' },
+  { id: '1', title: 'VinylA', description: '당신만의 프라이빗 LP 갤러리' },
   { id: '2', title: 'Capture', description: '커버를 스캔하여 컬렉션에 추가하세요' },
   { id: '3', title: 'Discover', description: '새로운 디깅, 새로운 음악' },
 ];

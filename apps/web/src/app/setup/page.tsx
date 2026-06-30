@@ -57,7 +57,7 @@ export default function SetupPage() {
   return (
     <div className={styles.container}>
       <div className={styles.setupBox}>
-        <h1 className={styles.title}>Welcome to Vinyl Noir</h1>
+        <h1 className={styles.title}>Welcome to VinylA</h1>
         <p className={styles.subtitle}>당신만의 컬렉션을 시작하기 위해 프로필을 완성해주세요.</p>
 
         <div className={styles.formGroup}>

@@ -292,7 +292,7 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.profileInfo}>
-                <p className={styles.profileEyebrow}>Vinyl Noir Member</p>
+                <p className={styles.profileEyebrow}>VinylA Member</p>
                 <div className={styles.nameRow}>
                   <h1 className={styles.profileName}>{displayName}</h1>
                   <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>

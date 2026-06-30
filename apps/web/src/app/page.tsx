@@ -25,7 +25,7 @@ export default function LandingPage() {
       
       <main className={styles.main}>
         <div className={styles.heroContent}>
-          <div className={styles.badge}>Vinyl Noir Collection</div>
+          <div className={styles.badge}>VinylA Collection</div>
           <h1 className={styles.title}>
             당신만의 프리미엄<br />바이닐 아카이브
           </h1>

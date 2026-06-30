@@ -38,7 +38,7 @@ export const ProfileSetupScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Welcome to Vinyl Noir</Text>
+      <Text style={styles.title}>Welcome to VinylA</Text>
       <Text style={styles.subtitle}>당신만의 컬렉션을 시작하기 위해 프로필을 완성해주세요.</Text>
 
       <Text style={styles.label}>이름</Text>
