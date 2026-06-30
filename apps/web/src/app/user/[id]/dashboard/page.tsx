@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, useAuthStore } from '@vinyla/core-api';
 import { BADGES } from '../../../../lib/badges';
 import { DetailModal } from '../../../../components/Modal/DetailModal';
 import styles from '../../../my/page.module.css';
@@ -35,6 +35,11 @@ function PublicDashboardContent() {
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  const { user, initializeAuth } = useAuthStore();
+
+  useEffect(() => { initializeAuth(); }, []);
 
   useEffect(() => {
     async function loadStats() {
@@ -99,6 +104,14 @@ function PublicDashboardContent() {
   }, [id, featuredAlbumId]);
 
   if (!id) return null;
+
+  const handleAlbumClick = (album: any) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+    } else {
+      setSelectedAlbum(album);
+    }
+  };
 
   const stats = [
     ...(isSpentPublic ? [{ label: '실제 지출액', value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' }] : []),
@@ -206,7 +219,7 @@ function PublicDashboardContent() {
         {activeTab === 'collection' && (
           <div className={dashStyles.albumGrid}>
             {ownedAlbums.length > 0 ? ownedAlbums.map((album, i) => (
-              <div key={i} className={dashStyles.albumCard} onClick={() => setSelectedAlbum(album)} style={{ cursor: 'pointer' }}>
+              <div key={i} className={dashStyles.albumCard} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
                 <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
                 <p className={dashStyles.albumTitle}>{album.TITLE}</p>
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
@@ -221,7 +234,7 @@ function PublicDashboardContent() {
         {activeTab === 'wishlist' && (
           <div className={dashStyles.albumGrid}>
             {wishAlbums.length > 0 ? wishAlbums.map((album, i) => (
-              <div key={i} className={dashStyles.albumCard} onClick={() => setSelectedAlbum(album)} style={{ cursor: 'pointer' }}>
+              <div key={i} className={dashStyles.albumCard} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
                 <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
                 <p className={dashStyles.albumTitle}>{album.TITLE}</p>
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
@@ -253,6 +266,44 @@ function PublicDashboardContent() {
       </div>
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div onClick={() => setShowLoginPrompt(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, backdropFilter: 'blur(8px)'
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#1a1814',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '24px',
+            padding: '48px 40px',
+            width: '360px',
+            textAlign: 'center',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.6)'
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#d4af37', marginBottom: '16px', display: 'block', fontVariationSettings: "'FILL' 1" }}>lock</span>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>로그인이 필요해요</h3>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, margin: '0 0 32px' }}>
+              LP 상세 정보는 VinylA 회원만 볼 수 있어요.<br />로그인 후 이용해 주세요.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowLoginPrompt(false)} style={{
+                flex: 1, padding: '14px', borderRadius: '12px',
+                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.6)', fontSize: '15px', cursor: 'pointer'
+              }}>취소</button>
+              <a href="/login" style={{
+                flex: 1, padding: '14px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #d4af37, #f3e5ab)',
+                color: '#111', fontSize: '15px', fontWeight: 700,
+                textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>로그인</a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
