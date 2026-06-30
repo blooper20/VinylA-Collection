@@ -84,9 +84,12 @@
 
 .footer {
   margin-top: auto;
-  text-align: center;
   padding-top: 60px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
 }
 
 .brand {
