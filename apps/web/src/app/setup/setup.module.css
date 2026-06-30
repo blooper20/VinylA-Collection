@@ -11,10 +11,10 @@
 
 .vinylDecoration {
   position: absolute;
-  right: -15%;
-  bottom: -15%;
-  width: 800px;
-  height: 800px;
+  right: -5vw;
+  bottom: -10vh;
+  width: 700px;
+  height: 700px;
   pointer-events: none;
   z-index: 0;
   border-radius: 50%;
@@ -107,13 +107,13 @@
 /* Tonearm */
 .tonearm {
   position: absolute;
-  top: -5%;
-  right: 15%;
+  top: 5%;
+  right: 15%; /* Keep right: 15% to pull it into the screen */
   width: 80px;
-  height: 500px;
+  height: 450px;
   z-index: 3;
   transform-origin: 40px 40px;
-  transform: rotate(5deg);
+  transform: rotate(20deg);
   pointer-events: none;
 }
 
