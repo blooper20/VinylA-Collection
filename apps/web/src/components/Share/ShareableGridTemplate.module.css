@@ -7,13 +7,13 @@
 }
 
 .gridFrame {
-  width: 1080px;
+  width: 1920px;
   min-height: 1080px;
   background: #0f0c0a;
-  padding: 80px;
+  padding: 100px;
   display: flex;
   flex-direction: column;
-  gap: 64px;
+  gap: 80px;
   font-family: var(--font-body);
 }
 
@@ -23,14 +23,14 @@
 
 .title {
   font-family: var(--font-heading);
-  font-size: 64px;
+  font-size: 80px;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 16px;
+  margin: 0 0 24px;
 }
 
 .subtitle {
-  font-size: 32px;
+  font-size: 40px;
   color: rgba(255, 255, 255, 0.7);
   margin: 0;
   font-weight: 500;
@@ -38,23 +38,23 @@
 
 .gridContainer {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 40px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 60px 50px;
   width: 100%;
 }
 
 .gridItem {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .cover {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 8px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -63,17 +63,17 @@
 }
 
 .albumTitle {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
   color: #fff;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .albumArtist {
-  font-size: 16px;
+  font-size: 20px;
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
   overflow: hidden;
@@ -84,13 +84,13 @@
 .footer {
   margin-top: auto;
   text-align: center;
-  padding-top: 40px;
+  padding-top: 60px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .brand {
   font-family: var(--font-heading);
-  font-size: 32px;
+  font-size: 40px;
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
   letter-spacing: 2px;
