@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #000000;
+  background: radial-gradient(circle at top right, #ebdcc3 0%, #c4b092 100%);
   padding: 2rem;
   position: relative;
   overflow: hidden;
@@ -171,14 +171,15 @@
   z-index: 10;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(15, 12, 10, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 4rem 3rem;
   border-radius: 24px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   max-width: 500px;
   width: 100%;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
 }
 
 .title {
