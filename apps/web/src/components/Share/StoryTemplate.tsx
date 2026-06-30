@@ -28,14 +28,15 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
               }}>
                 <div className={styles.vinylGroove} />
                 <div className={styles.vinylLabel}>
-                  <img src={album.COVER_URL || album.IMAGE_URL} alt="label" />
+                  <img src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} alt="label" crossOrigin="anonymous" />
                 </div>
               </div>
               {/* The cover */}
               <img 
-                src={album.COVER_URL || album.IMAGE_URL} 
+                src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} 
                 alt="cover" 
-                className={styles.coverImage} 
+                className={styles.coverImage}
+                crossOrigin="anonymous"
               />
             </div>
           </div>
