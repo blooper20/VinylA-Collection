@@ -335,9 +335,6 @@ export default function MyProfilePage() {
                   alt="프로필"
                   className={styles.avatarImage}
                 />
-                <div className={styles.avatarBadge}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', fontVariationSettings: "'FILL' 1" }}>verified</span>
-                </div>
               </div>
 
               <div className={styles.profileInfo}>
