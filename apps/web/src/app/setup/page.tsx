@@ -60,7 +60,15 @@ export default function SetupPage() {
         <div className={styles.vinylReflection} />
         <div className={styles.spinningVinyl}>
           <div className={styles.vinylLabel}>
+            <img src="/logo.png" alt="VinylA Logo" className={styles.labelLogo} />
             <div className={styles.vinylLabelInner} />
+          </div>
+        </div>
+        <div className={styles.tonearm}>
+          <div className={styles.tonearmRod} />
+          <div className={styles.tonearmHead} />
+          <div className={styles.tonearmPivot}>
+            <div className={styles.tonearmPivotCenter} />
           </div>
         </div>
       </div>
