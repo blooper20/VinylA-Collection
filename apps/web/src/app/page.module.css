@@ -62,11 +62,12 @@
 }
 
 .heroLogo {
-  width: 80px;
-  height: 80px;
+  width: 140px;
+  height: 140px;
   object-fit: contain;
   margin-bottom: 24px;
-  opacity: 0.9;
+  opacity: 0.95;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.5));
 }
 
 @media (max-width: 900px) {
