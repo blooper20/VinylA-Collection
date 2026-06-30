@@ -9,6 +9,18 @@
   overflow: hidden;
 }
 
+.container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/vanilla-pattern.png');
+  background-size: 400px;
+  background-repeat: repeat;
+  opacity: 0.3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
 .vinylDecoration {
   position: absolute;
   right: -5vw;
