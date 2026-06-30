@@ -2,19 +2,26 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import styles from './PublicGrid.module.css';
 import { supabase } from '@vinyla/core-api/src/supabase';
-import { getUserVinyls } from '@vinyla/core-api';
+import { getUserVinyls, useAuthStore } from '@vinyla/core-api';
+import { DetailModal } from '../Modal/DetailModal';
 
 interface PublicGridProps {
   userId: string;
   initialName?: string;
   initialAvatar?: string;
+  filterType?: 'collection' | 'wishlist';
 }
 
-export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'Collector', initialAvatar = '/logo.png' }) => {
+export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'Collector', initialAvatar = '/logo.png', filterType = 'collection' }) => {
   const [dbData, setDbData] = useState<any[]>([]);
   const [profileName, setProfileName] = useState<string>(initialName);
   const [avatarUrl, setAvatarUrl] = useState<string>(initialAvatar);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  const { user, initializeAuth } = useAuthStore();
+  useEffect(() => { initializeAuth(); }, []);
 
   useEffect(() => {
     async function fetchPublicData() {
@@ -47,9 +54,19 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
     return <div className={styles.loading}>컬렉션 불러오는 중...</div>;
   }
 
-  const ownedCount = dbData.filter(v => v.STATUS === 'OWNED').length;
-  // Exclude WISH status for public view
-  const displayData = dbData.filter(v => v.STATUS !== 'WISH');
+  const handleAlbumClick = (album: any) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+    } else {
+      setSelectedAlbum(album);
+    }
+  };
+
+  // Filter based on the share link type
+  const isWishlist = filterType === 'wishlist';
+  const displayData = dbData.filter(v => isWishlist ? v.STATUS === 'WISH' : v.STATUS !== 'WISH');
+  const recordCount = displayData.length;
+  const pageTitle = isWishlist ? `${profileName}'s Wishlist` : `${profileName}'s Collection`;
 
   return (
     <div className={styles.pageWrapper}>
@@ -57,13 +74,13 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
         <Link href={`/user/${userId}`}>
           <img src={avatarUrl} alt="Avatar" className={styles.avatar} style={{ cursor: 'pointer' }} />
         </Link>
-        <h1 className={styles.title}>{profileName}'s Collection</h1>
-        <p className={styles.subtitle}>{ownedCount} Records</p>
+        <h1 className={styles.title}>{pageTitle}</h1>
+        <p className={styles.subtitle}>{recordCount} Records</p>
       </header>
 
       <div className={styles.grid}>
         {displayData.map(album => (
-          <div key={album.ALBUM_ID} className={styles.card}>
+          <div key={album.ALBUM_ID} className={styles.card} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
             <div className={styles.coverWrapper}>
               <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={styles.cover} />
               {album.STATUS === 'WISH' && <div className={styles.wishBadge}>WISH</div>}
@@ -75,6 +92,46 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
           </div>
         ))}
       </div>
+
+      {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div onClick={() => setShowLoginPrompt(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, backdropFilter: 'blur(8px)'
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#1a1814',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '24px',
+            padding: '48px 40px',
+            width: '360px',
+            textAlign: 'center',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.6)'
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#d4af37', marginBottom: '16px', display: 'block', fontVariationSettings: "'FILL' 1" }}>lock</span>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>로그인이 필요해요</h3>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, margin: '0 0 32px' }}>
+              LP 상세 정보는 VinylA 회원만 볼 수 있어요.<br />로그인 후 이용해 주세요.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowLoginPrompt(false)} style={{
+                flex: 1, padding: '14px', borderRadius: '12px',
+                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.6)', fontSize: '15px', cursor: 'pointer'
+              }}>취소</button>
+              <a href="/login" style={{
+                flex: 1, padding: '14px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #d4af37, #f3e5ab)',
+                color: '#111', fontSize: '15px', fontWeight: 700,
+                textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>로그인</a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
