@@ -8,6 +8,24 @@ interface ShareableGridTemplateProps {
 }
 
 export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTemplateProps>(({ albums, username, title }, ref) => {
+  const getOptimalColumns = (count: number) => {
+    if (count <= 4) return Math.max(count, 2); // 2~4
+    if (count <= 6) return 3;                  // 3x2
+    if (count <= 8) return 4;                  // 4x2
+    if (count <= 10) return 5;                 // 5x2
+    if (count <= 12) return 4;                 // 4x3
+    if (count <= 15) return 5;                 // 5x3
+    if (count <= 18) return 6;                 // 6x3
+    if (count <= 21) return 7;                 // 7x3
+    if (count <= 24) return 6;                 // 6x4
+    if (count <= 28) return 7;                 // 7x4
+    if (count <= 32) return 8;                 // 8x4
+    if (count <= 40) return 8;                 // 8x5
+    return 10;
+  };
+  
+  const columns = getOptimalColumns(albums.length);
+
   return (
     <div className={styles.offscreenContainer}>
       <div ref={ref} className={styles.gridFrame}>
@@ -16,7 +34,7 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
           <p className={styles.subtitle}>@{username}'s Collection</p>
         </div>
 
-        <div className={styles.gridContainer}>
+        <div className={styles.gridContainer} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {albums.map((album) => (
             <div key={album.ALBUM_ID} className={styles.gridItem}>
               <img src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} alt={album.TITLE} className={styles.cover} crossOrigin="anonymous" />
