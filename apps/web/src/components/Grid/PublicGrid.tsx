@@ -17,14 +17,17 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId }) => {
       setIsLoading(true);
       try {
         // Fetch user vinyls
-        const { data: vinyls } = await supabase
+        const { data: vinyls, error } = await supabase
           .from('USER_VINYL')
           .select(`
             *,
             ALBUM_MASTER!inner (*)
           `)
-          .eq('USER_ID', userId)
-          .eq('del_yn', 'N');
+          .eq('USER_ID', userId);
+
+        if (error) {
+          console.error('Supabase fetch error:', error);
+        }
 
         if (vinyls) {
           const formatted = vinyls.map((v: any) => ({
