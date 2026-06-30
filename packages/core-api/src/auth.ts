@@ -46,5 +46,10 @@ export const signOut = async () => {
     console.error('Error signing out:', error);
     throw error;
   }
+  
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('VINYL_A_LOCAL_COLLECTION');
+    localStorage.removeItem('vinyls_dbData');
+  }
 };
 

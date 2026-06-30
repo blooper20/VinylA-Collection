@@ -189,6 +189,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await supabase.auth.signOut();
       set({ user: null });
       
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('VINYL_A_LOCAL_COLLECTION');
+        localStorage.removeItem('vinyls_dbData');
+      }
+
       // 3. 메인으로 리다이렉트
       if (typeof window !== 'undefined') {
         window.location.href = '/';

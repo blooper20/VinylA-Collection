@@ -80,6 +80,11 @@ export const wipeUserData = async (userId: string): Promise<void> => {
   if (error) {
     console.warn('wipeUserData error:', error);
   }
+  
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('VINYL_A_LOCAL_COLLECTION');
+    localStorage.removeItem('vinyls_dbData');
+  }
 };
 
 export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
