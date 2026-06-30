@@ -21,7 +21,7 @@ export const SideNav: React.FC = () => {
     initializeAuth();
   }, []);
 
-  if (pathname === '/' || pathname === '/login') {
+  if (pathname === '/' || pathname === '/login' || pathname === '/unauthorized') {
     return null;
   }
 

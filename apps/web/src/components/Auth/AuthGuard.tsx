@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@vinyla/core-api';
 import styles from './AuthGuard.module.css';
 
-const PUBLIC_ROUTES = ['/', '/login'];
+const PUBLIC_ROUTES = ['/', '/login', '/unauthorized'];
 
 export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading, initializeAuth } = useAuthStore();
@@ -26,10 +26,10 @@ export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children })
     const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
     if (!user && !isPublicRoute) {
-      // 비로그인 (또는 del_yn === 'N'으로 인해 로그아웃된) 유저가 보호된 라우트 접근 시 메인(랜딩)으로 강제 이동
-      router.replace('/');
+      // 비로그인 (또는 del_yn === 'N'으로 인해 로그아웃된) 유저가 보호된 라우트 접근 시 에러 페이지 강제 이동
+      router.replace('/unauthorized');
     } else if (user && isPublicRoute) {
-      // 로그인된 정상 유저가 랜딩 페이지나 로그인 페이지에 접근 시 보관함으로 자동 이동
+      // 로그인된 정상 유저가 랜딩 페이지나 에러 페이지 등에 접근 시 보관함으로 자동 이동
       router.replace('/collection');
     }
   }, [user, isLoading, pathname, router, hasInitialized]);
