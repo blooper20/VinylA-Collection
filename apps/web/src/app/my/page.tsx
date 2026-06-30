@@ -6,6 +6,7 @@ import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-ap
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
+import { ImageCropModal } from '../../components/Modal/ImageCropModal';
 import { UserStats, BADGES, evaluateBadges } from '../../lib/badges';
 
 const PRESET_AVATARS = [
@@ -36,6 +37,8 @@ export default function MyProfilePage() {
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
 
   const selectedBadgeId = user?.user_metadata?.selected_badge || null;
   const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
@@ -189,9 +192,18 @@ export default function MyProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedAvatarFile(file);
-      setPreviewAvatarUrl(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      setTempImageUrl(url);
+      setIsCropModalOpen(true);
+      e.target.value = ''; // Reset input so same file can be selected again
     }
+  };
+
+  const handleCropComplete = (croppedFile: File, croppedUrl: string) => {
+    setSelectedAvatarFile(croppedFile);
+    setPreviewAvatarUrl(croppedUrl);
+    setIsCropModalOpen(false);
+    setTempImageUrl(null);
   };
 
   const stats = [
@@ -396,6 +408,16 @@ export default function MyProfilePage() {
         onConfirm={async () => {
           await deleteAccount();
         }}
+      />
+
+      <ImageCropModal
+        isOpen={isCropModalOpen}
+        imageSrc={tempImageUrl || ''}
+        onClose={() => {
+          setIsCropModalOpen(false);
+          setTempImageUrl(null);
+        }}
+        onCropComplete={handleCropComplete}
       />
     </div>
   );
