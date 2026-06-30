@@ -57,7 +57,8 @@ export default function SetupPage() {
   return (
     <div className={styles.container}>
       <div className={styles.vinylDecoration}>
-        <div className={styles.brokenVinyl}>
+        <div className={styles.vinylReflection} />
+        <div className={styles.spinningVinyl}>
           <div className={styles.vinylLabel}>
             <div className={styles.vinylLabelInner} />
           </div>

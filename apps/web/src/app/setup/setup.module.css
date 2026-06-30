@@ -11,51 +11,82 @@
 
 .vinylDecoration {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 900px;
-  height: 900px;
-  opacity: 0.8;
+  right: -15%;
+  bottom: -15%;
+  width: 800px;
+  height: 800px;
+  opacity: 0.6;
   pointer-events: none;
   z-index: 0;
-  filter: blur(6px);
+  border-radius: 50%;
+  box-shadow: 0 0 100px rgba(0,0,0,0.8);
 }
 
-.brokenVinyl {
-  width: 100%;
-  height: 100%;
+.vinylReflection {
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
-  background: #111;
+  background: conic-gradient(
+    transparent 0deg,
+    rgba(255, 255, 255, 0.08) 45deg,
+    transparent 90deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.08) 225deg,
+    transparent 270deg
+  );
+  z-index: 2;
+}
+
+.spinningVinyl {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #0a0a0a;
   background-image: repeating-radial-gradient(
-      #2a2a2a 0,
-      #2a2a2a 2px,
-      #111 3px,
-      #111 4px
-    );
-  box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 0 20px #050505;
-  animation: spin 30s linear infinite;
+      #111 0,
+      #111 2px,
+      #080808 3px,
+      #080808 4px
+  );
+  box-shadow: inset 0 0 0 15px rgba(255,255,255,0.01);
+  animation: spin 15s linear infinite;
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1;
 }
 
 .vinylLabel {
-  width: 25%;
-  height: 25%;
-  background: var(--accent);
+  width: 33%;
+  height: 33%;
+  background: #111;
   border-radius: 50%;
+  border: 2px solid #222;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: inset 0 0 0 4px rgba(0,0,0,0.2), 0 0 10px rgba(0,0,0,0.5);
+  position: relative;
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,0.4), 0 0 20px rgba(0,0,0,0.8);
+}
+
+.vinylLabel::before {
+  content: "VINYLA COLLECTION";
+  position: absolute;
+  color: #555;
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 2px;
+  top: 15%;
+  text-align: center;
 }
 
 .vinylLabelInner {
-  width: 20px;
-  height: 20px;
+  width: 15px;
+  height: 15px;
   background: #000;
   border-radius: 50%;
+  box-shadow: 0 0 0 4px #1a1a1a;
+  z-index: 2;
 }
 
 @keyframes spin {
