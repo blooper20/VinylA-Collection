@@ -32,6 +32,7 @@ export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, on
     try {
       if (mode === 'save') {
         await downloadImageBlob(blob, 'vinyla-share.jpg');
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '이미지가 저장되었습니다.' } }));
       } else if (mode === 'copy') {
         const success = await copyImageBlobToClipboard(blob);
         if (success) {

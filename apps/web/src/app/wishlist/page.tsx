@@ -34,6 +34,13 @@ export default function WishlistPage() {
 
   useEffect(() => { initializeAuth(); }, []);
 
+  // Listen for SHOW_TOAST events (e.g. from SharePreviewModal)
+  useEffect(() => {
+    const handler = (e: any) => showToast(e.detail.message);
+    window.addEventListener('SHOW_TOAST', handler);
+    return () => window.removeEventListener('SHOW_TOAST', handler);
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
