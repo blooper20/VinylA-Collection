@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: radial-gradient(circle at top right, #ebdcc3 0%, #c4b092 100%);
+  background: radial-gradient(circle at top right, #4a3f35 0%, #1f1a15 100%);
   padding: 2rem;
   position: relative;
   overflow: hidden;
@@ -34,7 +34,6 @@
     transparent 270deg
   );
   z-index: 2;
-  opacity: 0.6;
 }
 
 .spinningVinyl {
@@ -42,7 +41,6 @@
   inset: 0;
   border-radius: 50%;
   background: #0a0a0a;
-  opacity: 0.6;
   background-image: repeating-radial-gradient(
       #111 0,
       #111 2px,
