@@ -4,14 +4,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
-import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
-import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { ImageCropModal } from '../../components/Modal/ImageCropModal';
 import { UserStats, BADGES, evaluateBadges } from '../../lib/badges';
-import { ShareBottomSheet } from '../../components/Modal/ShareBottomSheet';
-import { SharePreviewModal } from '../../components/Modal/SharePreviewModal';
-import { ShareableProfileTemplate } from '../../components/Share/ShareableProfileTemplate';
-import { captureElementAsBlob, copyToClipboard } from '../../utils/shareUtils';
+import { copyToClipboard } from '../../utils/shareUtils';
 
 const PRESET_AVATARS = [
   '/logo.png',
@@ -56,13 +51,6 @@ export default function MyProfilePage() {
   const [previewAvatarUrl, setPreviewAvatarUrl] = useState('');
   const [editGenre, setEditGenre] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Share States
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
-  const [previewMode, setPreviewMode] = useState<'save' | 'copy' | null>(null);
-  const shareProfileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initializeAuth();
@@ -226,6 +214,22 @@ export default function MyProfilePage() {
     setIsAvatarRemoved(true);
   };
 
+  const handleShareProfile = async () => {
+    if (user?.id) {
+      const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+      const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+      const badge = encodeURIComponent(user.user_metadata?.selected_badge || '');
+      const genre = encodeURIComponent(topGenre || '');
+      const featured = encodeURIComponent(user.user_metadata?.featured_album_id || '');
+      
+      const link = `${window.location.origin}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}`;
+      await copyToClipboard(link);
+      
+      const event = new CustomEvent('SHOW_TOAST', { detail: { message: '프로필 링크가 복사되었습니다!' } });
+      window.dispatchEvent(event);
+    }
+  };
+
   const stats = [
     { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: 'Discogs 기준 최저가 합산' },
     { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' },
@@ -339,7 +343,7 @@ export default function MyProfilePage() {
                   <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
                   </button>
-                  <button className={styles.editBtnToggle} onClick={() => setIsShareOpen(true)} title="공유하기" style={{ marginLeft: '8px' }}>
+                  <button className={styles.editBtnToggle} onClick={handleShareProfile} title="공유하기" style={{ marginLeft: '8px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
                   </button>
                 </div>
@@ -450,67 +454,6 @@ export default function MyProfilePage() {
           setTempImageUrl(null);
         }}
         onCropComplete={handleCropComplete}
-      />
-
-      {/* Share UI */}
-      <ShareBottomSheet 
-        isOpen={isShareOpen}
-        onClose={() => setIsShareOpen(false)}
-        title="프로필 공유하기"
-        options={[
-          { id: 'image', label: '이미지 저장', icon: 'download', action: async () => {
-              setIsShareOpen(false);
-              const blob = await captureElementAsBlob(shareProfileRef.current!, 'jpeg');
-              if (blob) {
-                setPreviewBlob(blob);
-                setPreviewMode('save');
-                setIsPreviewOpen(true);
-              }
-            }
-          },
-          { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: async () => {
-              setIsShareOpen(false);
-              const blob = await captureElementAsBlob(shareProfileRef.current!, 'png');
-              if (blob) {
-                setPreviewBlob(blob);
-                setPreviewMode('copy');
-                setIsPreviewOpen(true);
-              }
-            } 
-          },
-          { id: 'link', label: '링크 복사', icon: 'link', action: async () => {
-              setIsShareOpen(false);
-              if (user?.id) {
-                const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
-                const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
-                const link = `${window.location.origin}/user/${user.id}?n=${name}&a=${avatar}`;
-                await copyToClipboard(link);
-                alert('프로필 링크가 복사되었습니다!');
-              }
-            } 
-          }
-        ]}
-      />
-
-      <SharePreviewModal 
-        isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        blob={previewBlob}
-        mode={previewMode}
-      />
-
-      <ShareableProfileTemplate 
-        ref={shareProfileRef}
-        user={user}
-        stats={{
-          collectionValue,
-          actualSpentValue,
-          ownedCount,
-          topGenre,
-          actualTopGenre
-        }}
-        featuredAlbum={featuredAlbum}
-        selectedBadgeObj={selectedBadgeObj}
       />
     </div>
   );
