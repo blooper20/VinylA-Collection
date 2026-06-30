@@ -483,6 +483,34 @@ export default function MyProfilePage() {
         }}
         onCropComplete={handleCropComplete}
       />
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '40px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(30, 27, 22, 0.95)',
+          border: '1px solid rgba(212, 175, 55, 0.4)',
+          borderRadius: '100px',
+          padding: '14px 28px',
+          color: '#fff',
+          fontSize: '15px',
+          fontWeight: 500,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 99999,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(12px)',
+          whiteSpace: 'nowrap',
+          animation: 'fadeInUp 0.3s ease',
+        }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#d4af37', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }
