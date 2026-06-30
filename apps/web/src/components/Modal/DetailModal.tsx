@@ -3,6 +3,7 @@ import styles from './DetailModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
 import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
 import { StoryTemplate } from '../Share/StoryTemplate';
+import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
 
 interface DetailModalProps {
@@ -25,18 +26,46 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   
   const storyTemplateRef = React.useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
+  const [isShareOpen, setIsShareOpen] = React.useState(false);
 
-  const handleShareStory = async () => {
-    if (!storyTemplateRef.current || isCapturing) return;
+  const captureStoryImage = async (format: 'jpeg' | 'png' = 'jpeg') => {
+    if (!storyTemplateRef.current || isCapturing) return null;
     setIsCapturing(true);
-    
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const blob = await captureElementAsBlob(storyTemplateRef.current);
-    if (blob) {
-      await shareImageNative(blob, 'vinyla-story.jpg');
-    }
+    const blob = await captureElementAsBlob(storyTemplateRef.current, format);
     setIsCapturing(false);
+    return blob;
+  };
+
+  const handleShareOptions = {
+    copyUrl: async () => {
+      const link = `${window.location.origin}/collection?album=${album.ALBUM_ID}`;
+      await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
+      alert('앨범 링크가 복사되었습니다!');
+    },
+    saveImage: async () => {
+      const blob = await captureStoryImage('jpeg');
+      if (blob) {
+        await import('../../utils/shareUtils').then(m => m.downloadImageBlob(blob, `vinyla-story-${album.ALBUM_ID}.jpg`));
+      }
+    },
+    copyImage: async () => {
+      const blob = await captureStoryImage('png');
+      if (blob) {
+        const success = await import('../../utils/shareUtils').then(m => m.copyImageBlobToClipboard(blob));
+        if (success) {
+          alert('이미지가 클립보드에 복사되었습니다.');
+        } else {
+          alert('이 브라우저에서는 이미지 복사가 지원되지 않습니다.');
+        }
+      }
+    },
+    shareNative: async () => {
+      const blob = await captureStoryImage('jpeg');
+      if (blob) {
+        await shareImageNative(blob, 'vinyla-story.jpg');
+      }
+    }
   };
 
   React.useEffect(() => {
@@ -333,9 +362,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           </div>
 
           <div className={styles.externalLinks}>
-            <button className={styles.linkBtn} onClick={handleShareStory} disabled={isCapturing}>
-              <span className="material-symbols-outlined">camera</span>
-              인스타 스토리 생성
+            <button className={styles.linkBtn} onClick={() => setIsShareOpen(true)} disabled={isCapturing}>
+              <span className="material-symbols-outlined">ios_share</span>
+              공유하기
             </button>
             <button className={styles.linkBtn} onClick={handleYoutubeListen}>
               <span className="material-symbols-outlined">play_circle</span>
@@ -346,75 +375,87 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
               Search on Discogs
             </button>
           </div>
-        </div>
-
-        {/* Custom Confirmation Popup */}
-        {confirmTarget && (
-          <div className={styles.confirmOverlay} onClick={() => setConfirmTarget(null)}>
-            <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.confirmIcon}>
-                <span className="material-symbols-outlined">warning</span>
-              </div>
-              <h3 className={styles.confirmTitle}>삭제 확인</h3>
-              <p className={styles.confirmMessage}>
-                정말로 {confirmTarget === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?
-              </p>
-              <div className={styles.confirmActions}>
-                <button className={styles.btnCancel} onClick={() => setConfirmTarget(null)} disabled={isDeleting}>
-                  취소
-                </button>
-                <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)} disabled={isDeleting}>
-                  {isDeleting ? '삭제 중...' : '삭제하기'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Price Input Popup */}
-        {pricePromptOpen && (
-          <div className={styles.confirmOverlay} onClick={() => setPricePromptOpen(false)}>
-            <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.confirmIcon} style={{ color: 'var(--accent)', backgroundColor: 'rgba(233, 195, 73, 0.1)' }}>
-                <span className="material-symbols-outlined">payments</span>
-              </div>
-              <h3 className={styles.confirmTitle}>구입가 입력</h3>
-              <p className={styles.confirmMessage}>
-                이 LP를 얼마에 구매하셨나요? (숫자만 입력)
-              </p>
-              <input 
-                type="text" 
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={purchasePriceInput} 
-                onChange={(e) => setPurchasePriceInput(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="예: 45000"
-                className={styles.priceInput}
-                autoFocus
-              />
-              <div className={styles.confirmActions}>
-                <button className={styles.btnCancel} onClick={() => setPricePromptOpen(false)} disabled={isSaving}>
-                  건너뛰기
-                </button>
-                <button 
-                  className={styles.btnPrimary} 
-                  style={{ flex: 1, padding: '12px' }}
-                  onClick={() => {
-                    const price = Number(purchasePriceInput) || 0;
-                    handleSave('OWNED', price);
-                    setPricePromptOpen(false);
-                  }} 
-                  disabled={isSaving}
-                >
-                  {isSaving ? '저장 중...' : '저장하기'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+      </div>
 
       </div>
+
+      {/* Custom Confirmation Popup */}
+      {confirmTarget && (
+        <div className={styles.confirmOverlay} onClick={() => setConfirmTarget(null)}>
+          <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.confirmIcon}>
+              <span className="material-symbols-outlined">warning</span>
+            </div>
+            <h3 className={styles.confirmTitle}>삭제 확인</h3>
+            <p className={styles.confirmMessage}>
+              정말로 {confirmTarget === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?
+            </p>
+            <div className={styles.confirmActions}>
+              <button className={styles.btnCancel} onClick={() => setConfirmTarget(null)} disabled={isDeleting}>
+                취소
+              </button>
+              <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)} disabled={isDeleting}>
+                {isDeleting ? '삭제 중...' : '삭제하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Price Input Popup */}
+      {pricePromptOpen && (
+        <div className={styles.confirmOverlay} onClick={() => setPricePromptOpen(false)}>
+          <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.confirmIcon} style={{ color: 'var(--accent)', backgroundColor: 'rgba(233, 195, 73, 0.1)' }}>
+              <span className="material-symbols-outlined">payments</span>
+            </div>
+            <h3 className={styles.confirmTitle}>구입가 입력</h3>
+            <p className={styles.confirmMessage}>
+              이 LP를 얼마에 구매하셨나요? (숫자만 입력)
+            </p>
+            <input 
+              type="text" 
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={purchasePriceInput} 
+              onChange={(e) => setPurchasePriceInput(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="예: 45000"
+              className={styles.priceInput}
+              autoFocus
+            />
+            <div className={styles.confirmActions}>
+              <button className={styles.btnCancel} onClick={() => setPricePromptOpen(false)} disabled={isSaving}>
+                건너뛰기
+              </button>
+              <button 
+                className={styles.btnPrimary} 
+                style={{ flex: 1, padding: '12px' }}
+                onClick={() => {
+                  const price = Number(purchasePriceInput) || 0;
+                  handleSave('OWNED', price);
+                  setPricePromptOpen(false);
+                }} 
+                disabled={isSaving}
+              >
+                {isSaving ? '저장 중...' : '저장하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <StoryTemplate ref={storyTemplateRef} album={album} username={user?.user_metadata?.displayName || 'Collector'} />
+      <ShareBottomSheet 
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        title="스토리 공유하기"
+        options={[
+          { id: 'link', label: 'URL 복사', icon: 'link', action: handleShareOptions.copyUrl },
+          { id: 'save', label: '이미지 저장', icon: 'download', action: handleShareOptions.saveImage },
+          { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: handleShareOptions.copyImage },
+          { id: 'ig', label: '인스타 스토리', icon: 'camera', action: handleShareOptions.shareNative }
+        ]}
+      />
     </div>
   );
 };

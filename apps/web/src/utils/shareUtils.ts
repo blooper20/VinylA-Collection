@@ -1,9 +1,9 @@
-import * as htmlToImage from 'html-to-image';
+import domToImage from 'dom-to-image-more';
 
 /**
  * Capture a DOM element as an image (Blob)
  */
-export async function captureElementAsBlob(element: HTMLElement): Promise<Blob | null> {
+export async function captureElementAsBlob(element: HTMLElement, format: 'jpeg' | 'png' = 'jpeg'): Promise<Blob | null> {
   // Flash effect (Motion Master)
   const flash = document.createElement('div');
   flash.style.position = 'fixed';
@@ -25,13 +25,41 @@ export async function captureElementAsBlob(element: HTMLElement): Promise<Blob |
   });
 
   try {
-    const dataUrl = await htmlToImage.toJpeg(element, { quality: 0.95 });
+    const dataUrl = format === 'png' 
+      ? await domToImage.toPng(element, { quality: 1 })
+      : await domToImage.toJpeg(element, { quality: 0.95 });
     const res = await fetch(dataUrl);
     return await res.blob();
   } catch (err) {
     console.error('Failed to capture image', err);
     return null;
   }
+}
+
+export async function downloadImageBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+export async function copyImageBlobToClipboard(blob: Blob) {
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      const item = new ClipboardItem({ [blob.type]: blob });
+      await navigator.clipboard.write([item]);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([10, 30, 10]);
+      }
+      return true;
+    }
+  } catch (err) {
+    console.error('Clipboard image copy failed', err);
+  }
+  return false;
 }
 
 /**
