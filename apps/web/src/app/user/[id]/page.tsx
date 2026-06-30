@@ -10,10 +10,11 @@ function PublicProfileContent() {
   const id = params?.id as string;
   const name = searchParams?.get('n') || 'Collector';
   const avatar = searchParams?.get('a') || '/logo.png';
+  const type = searchParams?.get('type') === 'wishlist' ? 'wishlist' : 'collection';
 
   if (!id) return null;
 
-  return <PublicGrid userId={id} initialName={name} initialAvatar={avatar} />;
+  return <PublicGrid userId={id} initialName={name} initialAvatar={avatar} filterType={type} />;
 }
 
 export default function PublicProfilePage() {
