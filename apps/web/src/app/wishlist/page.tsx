@@ -198,7 +198,9 @@ export default function WishlistPage() {
           { id: 'link', label: '링크 복사', icon: 'link', action: async () => {
               setIsShareOpen(false);
               if (user?.id) {
-                const link = `${window.location.origin}/user/${user.id}`;
+                const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+                const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+                const link = `${window.location.origin}/user/${user.id}?n=${name}&a=${avatar}&type=wishlist`;
                 await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
                 alert('프로필 링크가 복사되었습니다!');
               }
