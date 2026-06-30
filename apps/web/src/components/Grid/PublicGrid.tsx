@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './PublicGrid.module.css';
 import { supabase } from '@vinyla/core-api/src/supabase';
+import { getUserVinyls } from '@vinyla/core-api';
 
 interface PublicGridProps {
   userId: string;
@@ -16,34 +17,17 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId }) => {
     async function fetchPublicData() {
       setIsLoading(true);
       try {
-        // Fetch user vinyls
-        const { data: vinyls, error } = await supabase
-          .from('USER_VINYL')
-          .select(`
-            *,
-            ALBUM_MASTER!inner (*)
-          `)
-          .eq('USER_ID', userId);
+        const vinyls = await getUserVinyls(userId);
 
-        if (error) {
-          console.error('Supabase fetch error:', error);
-        }
-
-        if (vinyls) {
+        if (vinyls && vinyls.length > 0) {
           const formatted = vinyls.map((v: any) => ({
-            ...v.ALBUM_MASTER,
+            ...(v.ALBUM_MASTER || {}),
             STATUS: v.STATUS,
             PURCHASE_PRICE: v.PURCHASE_PRICE,
             PURCHASE_DATE: v.PURCHASE_DATE
           }));
           setDbData(formatted);
         }
-
-        // Ideally we'd fetch the user profile from a public profiles table,
-        // but since auth.users is not public by default, we just show a generic title
-        // or if there's a profiles table, we'd query it. 
-        // For now, we'll just show "Collector's Collection" if no public profile is available.
-        // In a real app with Supabase, you'd query a public `profiles` table.
       } catch (err) {
         console.error(err);
       } finally {
