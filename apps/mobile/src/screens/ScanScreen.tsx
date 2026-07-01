@@ -6,7 +6,11 @@ import { DetailModal } from '../components/Modal/DetailModal';
 import { detectVinylCover } from '../utils/visionAPI';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useNavigation } from '@react-navigation/native';
+import { Dimensions } from 'react-native';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const ScanScreen = () => {
   const navigation = useNavigation<any>();
   const [permission, requestPermission] = useCameraPermissions();
@@ -43,150 +47,70 @@ export const ScanScreen = () => {
       console.log('Vision API result extracted');
       let queries: string[] = [];
 
-      // 유틸: 숫자/특수문자가 대부분인 쓰레기 문자열인지 판별
-      const isGarbage = (s: string) => {
-        const letters = s.replace(/[^a-zA-Z가-힣]/g, '');
-        return letters.length < 2; // 알파벳/한글이 2자 미만이면 쓰레기
-      };
-
-      // ===== 1순위: Discogs URL 직접 추출 (역이미지 검색) =====
-      // 구글이 이 사진을 Discogs에서 찾았다면, URL 자체에 정답이 있음! (가장 정확)
-      if (visionResult.webDetection?.pagesWithMatchingImages?.length > 0) {
-        for (const page of visionResult.webDetection.pagesWithMatchingImages) {
-          if (page.url && page.url.includes('discogs.com/')) {
-            const match = page.url.match(/(?:release|master)\/\d+-([^/?]+)/);
-            if (match && match[1]) {
-              const exactAlbumName = match[1].replace(/-/g, ' ').replace(/_/g, ' ');
-              if (!isGarbage(exactAlbumName)) queries.push(exactAlbumName);
-            }
-          }
-        }
+      // 1순위: "아티스트 - 앨범명" 전체 조합
+      if (visionResult.artist && visionResult.album) {
+        queries.push(`${visionResult.artist} - ${visionResult.album}`);
+        queries.push(`${visionResult.artist} ${visionResult.album}`);
       }
 
-      // ===== 2순위: LLM 유추 결과 (VLM 성공 시) =====
-      if (visionResult.textAnnotations?.[0]?.description?.includes(' - ')) {
-        const llmGuess = visionResult.textAnnotations[0].description;
-        if (!queries.includes(llmGuess)) queries.unshift(llmGuess);
+      // 2순위: 앨범명 단독
+      if (visionResult.album) {
+        queries.push(visionResult.album);
       }
 
-      // ===== 3순위: OCR Text (커버에 적힌 글씨) =====
-      // 주의: 첫 N단어만 보지 않고, 모든 줄을 스캔하여 "의미 있는 텍스트"만 추출
-      if (visionResult.textAnnotations?.length > 0) {
-        const fullText = visionResult.textAnnotations[0].description || '';
-        const lines = fullText.split('\n')
-          .map((l: string) => l.replace(/[^a-zA-Z0-9가-힣\s.]/g, '').trim())
-          .filter((l: string) => l.length > 2 && !isGarbage(l));
-        
-        // 의미 있는 줄들 중 앞에서부터 최대 3줄을 검색어 후보로 추가
-        for (const line of lines.slice(0, 3)) {
-          if (!queries.includes(line)) queries.push(line);
-        }
+      // 3순위: 아티스트 단독
+      if (visionResult.artist) {
+        queries.push(visionResult.artist);
       }
 
-      // ===== 4순위: Web Entities (구글 비전이 인식한 키워드) =====
-      // OCR이 숫자 쓰레기만 읽었을 때 "wave to earth" 같은 핵심 키워드를 구해줌!
-      if (visionResult.webDetection?.webEntities?.length > 0) {
-        const ignoreList = ['book cover', 'album cover', 'vinyl', 'record', 'album', 'music', 'lp', 'phonograph record', 'rectangle', 'font', 'poster', 'art', 'illustration', 'graphic design', 'book', 'text', 'paper', 'document', 'black', 'white', 'compact disc', 'top', 'important', 'vintage', 'retro', 'woman', 'face', 'photography', 'photo', 'youtube', 'video', 'cover', 'design', 'painting', 'modern art', 'picture'];
-        const validEntities = visionResult.webDetection.webEntities
-          .filter((e: any) => e.score > 0.5) // 신뢰도 50% 이상만
-          .map((e: any) => e.description)
-          .filter((desc: string) => desc && !ignoreList.includes(desc.toLowerCase()) && !isGarbage(desc));
-          
-        // 가장 신뢰도 높은 entity 2개를 합친 것과 개별 1개를 후보에 추가
-        if (validEntities.length >= 2) {
-          const combined = validEntities.slice(0, 2).join(' ');
-          if (!queries.includes(combined)) queries.push(combined);
-        }
-        if (validEntities.length >= 1 && !queries.includes(validEntities[0])) {
-          queries.push(validEntities[0]);
-        }
+      // 4순위: 앨범 커버에서 읽어낸 트랙 제목들
+      if (visionResult.tracks && Array.isArray(visionResult.tracks)) {
+        queries.push(...visionResult.tracks);
       }
 
-      // 중복 제거 + 쓰레기 필터링 + 최대 5개 (Rate Limit 방지하되 충분한 재시도 보장)
-      queries = [...new Set(queries)].filter(q => q && q.length > 2 && !isGarbage(q)).slice(0, 5);
+      // 5순위: 시각적 분위기나 피사체 키워드
+      if (visionResult.keywords && Array.isArray(visionResult.keywords)) {
+        queries.push(...visionResult.keywords);
+      }
+
+      // 중복 제거 및 너무 짧은 텍스트 제외 (최대 8개로 넉넉하게 검색 시도)
+      queries = [...new Set(queries)].filter(q => q && q.trim().length > 1).slice(0, 8);
       
       console.log('Final search queries (ordered by priority):', JSON.stringify(queries));
 
       if (queries.length === 0) {
-         throw new Error("Could not visually identify the album from the image.");
+         throw new Error("Could not visually identify the album from the image. Gemini returned no data.");
       }
 
-      const { searchDiscogsLazy } = await import('@vinyla/core-api');
+      // 3. 백엔드(Node.js) 서버로 이미지와 검색어 전달하여 VLM 매칭
+      console.log('Sending request to Middle Server (http://192.168.1.3:3000/api/scan)...');
+      const response = await fetch('http://192.168.1.3:3000/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Image: base64Str, queries })
+      });
       
-      const results: any[] = [];
-      
-      // 검색어가 여러 개일 경우, 메인 앨범을 찾을 때까지 순차적으로 시도 (Fallback 로직)
-      for (let i = 0; i < queries.length; i++) {
-        const q = queries[i];
-        console.log(`Trying Discogs search for MAIN album with query: "${q}"`);
-        let foundMain = false;
-        await searchDiscogsLazy(q, (album: any) => {
-            if (results.some((a) => a.ALBUM_ID === Number(album.id))) return;
-            
-            results.push({
-              ALBUM_ID: Number(album.id) || Date.now() + Math.random(),
-              TITLE: album.title || 'Unknown Title',
-              ARTIST: album.artist || 'Unknown Artist',
-              RELEASE_YEAR: parseInt(album.year) || 2024,
-              IMAGE_URL: album.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
-              VINYL_IMAGE_URL: '',
-              CUSTOM_COLOR_HEX: '#111',
-              CUSTOM_STYLE_TYPE: 'SOLID',
-              GENRES: album.genre || ['Vinyl']
-            });
-            foundMain = true;
-        });
-
-        // 하나라도 결과가 나왔다면 성공! 메인 앨범 찾기 종료
-        if (foundMain) {
-          console.log(`Success! Found main album results using query: "${q}"`);
-          break;
-        }
-
-        // 실패 후 다음 검색어로 넘어가기 전에 1.5초 대기 (Discogs 429 Rate Limit 방지)
-        if (i < queries.length - 1) {
-          console.log('Sleeping 1.5s to prevent Rate Limit...');
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
       }
-      
-      // VLM이 추천해준 "시각적으로 유사한 앨범들"이 있다면 병렬로 검색하여 덧붙임
-      if (visionResult.similarAlbums && visionResult.similarAlbums.length > 0) {
-         console.log(`Found ${visionResult.similarAlbums.length} similar albums from VLM! Fetching...`);
-         for (const simQuery of visionResult.similarAlbums) {
-            await new Promise(resolve => setTimeout(resolve, 500)); // Rate limit 방지용 딜레이
-            console.log(`Trying Discogs search for SIMILAR album: "${simQuery}"`);
-            let added = false;
-            await searchDiscogsLazy(simQuery, (album: any) => {
-               // 유사 앨범당 딱 1개(가장 정확한 것)만 결과에 추가합니다.
-               if (added || results.some((a) => a.ALBUM_ID === Number(album.id))) return;
-               
-               results.push({
-                 ALBUM_ID: Number(album.id) || Date.now() + Math.random(),
-                 TITLE: album.title || 'Unknown Title',
-                 ARTIST: album.artist || 'Unknown Artist',
-                 RELEASE_YEAR: parseInt(album.year) || 2024,
-                 IMAGE_URL: album.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
-                 VINYL_IMAGE_URL: '',
-                 CUSTOM_COLOR_HEX: '#111',
-                 CUSTOM_STYLE_TYPE: 'SOLID',
-                 GENRES: album.genre || ['Vinyl']
-               });
-               added = true;
-            });
-         }
-      }
-      
-      if (results.length === 0) {
-        Alert.alert('검색 결과 없음', '해당 앨범과 일치하는 후보를 찾지 못했습니다.');
-        setImageSearchResults([]);
+
+      const data = await response.json();
+      console.log('Received response from Middle Server:', data.matchedIndex);
+
+      if (data.candidates && data.candidates.length > 0) {
+        // AI가 완벽하게 찾았든 못 찾았든, 무조건 후보군 리스트를 먼저 보여줍니다.
+        // 사용자가 직접 리스트에서 클릭하여 상세 페이지로 진입하도록 유도합니다.
+        setImageSearchResults(data.candidates);
       } else {
-        setImageSearchResults(results);
+        Alert.alert('검색 결과 없음', '해당 앨범과 일치하는 후보를 찾지 못했습니다.');
+        setImageSearchResults(null);
+        cameraRef.current?.resumePreview();
       }
 
     } catch (error) {
       console.error('Failed to process image:', error);
-      Alert.alert('인식 실패', '앨범 커버를 인식하지 못했습니다. 다시 시도해 주세요.');
+      Alert.alert('인식 실패', '앨범 커버를 인식하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.');
+      cameraRef.current?.resumePreview();
     } finally {
       setIsScanning(false);
     }
@@ -196,15 +120,42 @@ export const ScanScreen = () => {
     if (!cameraRef.current) return;
     try {
       setIsScanning(true);
-      const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.5 });
-      if (photo && photo.base64) {
-        await processImageBase64(photo.base64);
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.3 });
+      cameraRef.current.pausePreview();
+      
+      if (photo) {
+        // 화면의 가이드 프레임(300x300) 영역만큼만 크롭
+        const frameSize = 300;
+        const scale = Math.min(photo.width / screenWidth, photo.height / screenHeight);
+        const cropSize = frameSize * scale;
+        
+        const originX = (photo.width - cropSize) / 2;
+        const originY = (photo.height - cropSize) / 2;
+        
+        // 크롭 후 800픽셀로 대폭 리사이즈하여 인코딩 속도 최적화
+        const manipResult = await ImageManipulator.manipulateAsync(
+          photo.uri,
+          [
+            { crop: { originX, originY, width: cropSize, height: cropSize } },
+            { resize: { width: 800 } }
+          ],
+          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        
+        if (manipResult.base64) {
+          await processImageBase64(manipResult.base64);
+        } else {
+          cameraRef.current.resumePreview();
+          setIsScanning(false);
+        }
       } else {
+        cameraRef.current.resumePreview();
         setIsScanning(false);
       }
     } catch (error) {
       console.error('Failed to take picture:', error);
       Alert.alert('촬영 실패', '사진 촬영에 실패했습니다.');
+      cameraRef.current?.resumePreview();
       setIsScanning(false);
     }
   };
@@ -227,39 +178,6 @@ export const ScanScreen = () => {
     }
   };
 
-  if (imageSearchResults) {
-    return (
-      <View style={styles.resultsContainer}>
-        <View style={styles.resultsHeader}>
-           <Text style={styles.resultsTitle}>스캔 검색 결과 ({imageSearchResults.length})</Text>
-           <TouchableOpacity onPress={() => setImageSearchResults(null)}>
-             <Feather name="x" size={28} color="#fff" />
-           </TouchableOpacity>
-        </View>
-        <FlatList 
-          data={imageSearchResults}
-          keyExtractor={(item, index) => item.ALBUM_ID.toString() + index}
-          numColumns={2}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-             <TouchableOpacity style={styles.resultCard} onPress={() => setScannedAlbum(item)}>
-               <Image source={{ uri: item.IMAGE_URL }} style={styles.resultImage} />
-               <View style={styles.resultTextContainer}>
-                 <Text style={styles.resultTitle} numberOfLines={1}>{item.TITLE}</Text>
-                 <Text style={styles.resultArtist} numberOfLines={1}>{item.ARTIST}</Text>
-               </View>
-             </TouchableOpacity>
-          )}
-        />
-        <DetailModal 
-          album={scannedAlbum} 
-          visible={!!scannedAlbum} 
-          onClose={() => setScannedAlbum(null)} 
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <CameraView 
@@ -268,33 +186,64 @@ export const ScanScreen = () => {
         ref={cameraRef}
         flash={flash}
       >
-        <View style={styles.overlay}>
-          <View style={[styles.topDim, { justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 24 }]}>
-            <Text style={styles.guideText}>사각형 안에 앨범을 맞춰주세요</Text>
-          </View>
-          <View style={styles.middleRow}>
-            <View style={styles.sideDim} />
-            <View style={styles.frame}>
-              {isScanning && <ActivityIndicator size="large" color="#e9c349" style={styles.spinner} />}
+        {!imageSearchResults && (
+          <View style={styles.overlay}>
+            <View style={[styles.topDim, { justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 24 }]}>
+              <Text style={styles.guideText}>사각형 안에 앨범을 맞춰주세요</Text>
             </View>
-            <View style={styles.sideDim} />
-          </View>
-          <View style={styles.bottomDim}>
-            <View style={styles.controls}>
-              <TouchableOpacity style={[styles.controlBtn, flash === 'on' && styles.controlBtnActive]} onPress={toggleFlash}>
-                <Feather name={flash === 'on' ? 'zap' : 'zap-off'} size={24} color={flash === 'on' ? '#000' : '#fff'} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.shutterBtn} onPress={handleScan} disabled={isScanning}>
-                <View style={[styles.shutterInner, isScanning && { backgroundColor: '#ccc' }]} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.controlBtn} onPress={handlePickImage}>
-                <Feather name="image" size={24} color="#fff" />
-              </TouchableOpacity>
+            <View style={styles.middleRow}>
+              <View style={styles.sideDim} />
+              <View style={styles.frame}>
+                {isScanning && <ActivityIndicator size="large" color="#e9c349" style={styles.spinner} />}
+              </View>
+              <View style={styles.sideDim} />
+            </View>
+            <View style={styles.bottomDim}>
+              <View style={styles.controls}>
+                <TouchableOpacity style={[styles.controlBtn, flash === 'on' && styles.controlBtnActive]} onPress={toggleFlash}>
+                  <Feather name={flash === 'on' ? 'zap' : 'zap-off'} size={24} color={flash === 'on' ? '#000' : '#fff'} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.shutterBtn} onPress={handleScan} disabled={isScanning}>
+                  <View style={[styles.shutterInner, isScanning && { backgroundColor: '#ccc' }]} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.controlBtn} onPress={handlePickImage}>
+                  <Feather name="image" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </CameraView>
       
+      {imageSearchResults && (
+        <View style={[StyleSheet.absoluteFillObject, styles.resultsContainer]}>
+          <View style={styles.resultsHeader}>
+             <Text style={styles.resultsTitle}>스캔 검색 결과 ({imageSearchResults.length})</Text>
+             <TouchableOpacity onPress={() => {
+               setImageSearchResults(null);
+               cameraRef.current?.resumePreview();
+             }}>
+               <Feather name="x" size={28} color="#fff" />
+             </TouchableOpacity>
+          </View>
+          <FlatList 
+            data={imageSearchResults}
+            keyExtractor={(item, index) => item.ALBUM_ID.toString() + index}
+            numColumns={2}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => (
+               <TouchableOpacity style={styles.resultCard} onPress={() => setScannedAlbum(item)}>
+                 <Image source={{ uri: item.IMAGE_URL }} style={styles.resultImage} />
+                 <View style={styles.resultTextContainer}>
+                   <Text style={styles.resultTitle} numberOfLines={1}>{item.TITLE}</Text>
+                   <Text style={styles.resultArtist} numberOfLines={1}>{item.ARTIST}</Text>
+                 </View>
+               </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
       <DetailModal 
         album={scannedAlbum} 
         visible={!!scannedAlbum} 

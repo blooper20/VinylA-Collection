@@ -103,3 +103,51 @@
 - **`core-api` 고도화**: Discogs 및 YouTube 검색 API 통신 로직 구현 및 Supabase 데이터베이스 쿼리 함수(`getUserVinyls` 등) 연동.
 - **Graceful Degradation**: `.env.local`에 API 키가 없는 개발 초기 환경에서도 에러 없이 안전하게 Mock 데이터를 반환하여 UI가 정상 렌더링되도록 방어 로직 추가.
 - **프론트엔드 연결**: `Search` 페이지에서 디스코그스 검색 로직 연동 완료. `Home` 보관함 및 팝업에서 DB/외부 링크 버튼 연동 완료.
+
+## 2026-07-01 (Day 15)
+
+### 🎯 오늘의 목표
+Google Cloud Vision API 유료 과금 이슈 해결 및 100% 무료 Gemini 2.5 Flash 기반 VLM 파이프라인 전면 개편
+
+---
+
+### ✅ 완료된 작업 (커밋 순서)
+
+#### 1. `feat(mobile)` — Google Cloud Vision API 제거 및 Gemini 2.5 Flash 연동
+- 결제 연동(403 Error)을 요구하는 구글 비전 API를 완전히 제거.
+- `apps/mobile/src/utils/visionAPI.ts`: 이미지를 Gemini 2.5 Flash로 직접 전송하여 OCR 및 시각적 특징 추출(1단계)을 동시 수행하도록 교체.
+- 정규식(`match(/\{[\s\S]*\}/)`)을 도입하여 Gemini의 쓸데없는 텍스트 섞임 현상을 방어하고 순수 JSON만 추출.
+
+#### 2. `feat(api)` — VibeProxy 제거 및 백엔드 Gemini 직접 연동 (3단계)
+- Python 기반 VibeProxy를 제거하고, Node.js API 서버(`apps/api/src/index.ts`)에서 Gemini 2.5 Flash를 직접 호출하도록 구조 변경.
+- 프록시 없이 3단계 앨범 커버 대조(VLM 매칭)를 수행.
+
+#### 3. `fix(gemini)` — Token 예산 초과(잘림) 버그 수정
+- **이슈**: Gemini 2.5 Flash 모델이 "Thinking" 과정에서 토큰을 모두 소진하여 JSON이 `{` 한 글자만 나오고 잘리는 현상.
+- **해결**: `maxOutputTokens`를 300에서 2048로 확장하고, `thinkingConfig: { thinkingBudget: 0 }`을 설정하여 불필요한 사고 시간 및 토큰 낭비 원천 차단.
+
+#### 4. `feat(mobile)` — 카메라 촬영 속도 대폭 개선
+- `ImageManipulator`로 Base64 인코딩 전, 원본 고해상도 이미지를 `width: 800`으로 Resize하는 단계 추가.
+- `quality: 0.3`으로 설정하여 카메라 캡처부터 검색까지 걸리는 딜레이를 10배 이상 단축.
+
+#### 5. `feat(mobile)` — 다각화된 Discogs 검색망 (Query Builder)
+- Gemini 프롬프트를 고도화하여 아티스트, 앨범명, 수록곡(Tracks), 키워드를 분리해서 응답하도록 강제.
+- 한국 가수의 한글명 정확도 향상을 위한 프롬프트 가이드 추가.
+- `가수 - 앨범`, `가수`, `앨범`, `개별 트랙 제목`, `키워드`를 순차적으로 모두 쿼리에 담아 Discogs 검색 실패율을 극적으로 낮춤.
+
+#### 6. `feat(mobile)` — 스캔 결과 UX 개선
+- AI가 완벽 매칭을 찾았을 때 상세 모달을 강제로 팝업하지 않고, 후보군 리스트(`imageSearchResults`)를 우선 노출.
+- 사용자가 직접 눈으로 비교하고 앨범을 선택할 수 있도록 자유도 부여.
+
+---
+
+### 📦 오늘 변경된 주요 파일
+```
+apps/mobile/
+  src/utils/visionAPI.ts       ← 구글 비전 삭제, Gemini 2.5 Flash JSON/Thinking 최적화
+  src/screens/ScanScreen.tsx   ← 카메라 Resize 속도 개선, 검색 쿼리 다각화, 팝업 UX 변경
+  .env                         ← API Key 교체
+apps/api/
+  src/index.ts                 ← VibeProxy 제거, Gemini 직접 연동, Thinking 예산 차단
+  .env                         ← API Key 교체
+```
