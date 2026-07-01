@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Alert, Easing, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -72,6 +72,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [alertVisible, setAlertVisible] = React.useState(false);
   const [alertTitle, setAlertTitle] = React.useState('');
   const [alertMessage, setAlertMessage] = React.useState('');
+
+  const [pricePromptVisible, setPricePromptVisible] = React.useState(false);
+  const [priceInputValue, setPriceInputValue] = React.useState('');
+  const [isEditingPriceOnly, setIsEditingPriceOnly] = React.useState(false);
 
   const showAlert = (title: string, message: string) => {
     setAlertTitle(title);
@@ -188,49 +192,21 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     }
   };
 
-  const handleEditPrice = () => {
-    Alert.prompt(
-      '구입가 입력',
-      '이 LP를 얼마에 구매하셨나요? (숫자만 입력)',
-      [
-        { text: '취소', style: 'cancel' },
-        { 
-          text: '저장', 
-          onPress: async (val) => {
-            const price = Number(val?.replace(/[^0-9]/g, '')) || 0;
-            if (album && user?.id) {
-              try {
-                await upsertUserVinyl({
-                  USER_ID: user.id,
-                  ALBUM_ID: album.ALBUM_ID,
-                  STATUS: 'OWNED',
-                  PURCHASE_PRICE: price
-                });
-                setPurchasePrice(price);
-                showAlert('저장 완료', '구입가가 성공적으로 저장되었습니다.');
-              } catch (e) {
-                showAlert('오류', '구입가 저장에 실패했습니다.');
-              }
-            }
-          } 
-        }
-      ],
-      'plain-text',
-      purchasePrice ? String(purchasePrice) : '',
-      'numeric'
-    );
+  const formatNumberWithCommas = (text: string) => {
+    const numericValue = text.replace(/[^0-9]/g, '');
+    if (!numericValue) return '';
+    return parseInt(numericValue, 10).toLocaleString('ko-KR');
   };
 
-  const handleSave = async (status: 'OWNED' | 'WISH') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!album) return;
+  const handleEditPrice = () => {
+    setIsEditingPriceOnly(true);
+    setPriceInputValue(purchasePrice ? formatNumberWithCommas(String(purchasePrice)) : '');
+    setPricePromptVisible(true);
+  };
 
+  const executeSaveAlbum = async (finalPrice: number) => {
+    if (!album || !user) return;
     try {
-      if (!user) {
-        showAlert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
       const finalGenres = (album.GENRES || []).filter(g => {
         const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
         return !COUNTRY_TAGS.includes(g);
@@ -259,16 +235,77 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       await upsertUserVinyl({
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
-        STATUS: status,
+        STATUS: 'OWNED',
         PURCHASE_DATE: new Date().toISOString(),
-        PURCHASE_PRICE: purchasePrice || 0
+        PURCHASE_PRICE: finalPrice
       });
 
-      showAlert('성공', `앨범이 저장되었습니다!`);
-      setRealStatus(status);
+      setPurchasePrice(finalPrice);
+      setRealStatus('OWNED');
+      showAlert('성공', `앨범이 성공적으로 보관함에 저장되었습니다!`);
     } catch (error) {
       console.error('Error saving album to collection:', error);
       showAlert('오류', '앨범 저장에 실패했습니다. 다시 시도해 주세요.');
+    }
+  };
+
+  const executeUpdatePriceOnly = async (finalPrice: number) => {
+    if (!album || !user) return;
+    try {
+      await upsertUserVinyl({
+        USER_ID: user.id,
+        ALBUM_ID: Number(album.ALBUM_ID),
+        STATUS: 'OWNED',
+        PURCHASE_PRICE: finalPrice
+      });
+      setPurchasePrice(finalPrice);
+      showAlert('저장 완료', '구입가가 성공적으로 저장되었습니다.');
+    } catch (e) {
+      showAlert('오류', '구입가 저장에 실패했습니다.');
+    }
+  };
+
+  const handlePriceSubmit = (skipped: boolean) => {
+    setPricePromptVisible(false);
+    const numericPrice = skipped ? (purchasePrice || 0) : (Number(priceInputValue.replace(/[^0-9]/g, '')) || 0);
+    
+    if (isEditingPriceOnly) {
+      executeUpdatePriceOnly(numericPrice);
+    } else {
+      executeSaveAlbum(numericPrice);
+    }
+  };
+
+
+
+  const handleSave = async (status: 'OWNED' | 'WISH') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!album) return;
+
+    if (!user) {
+      showAlert('오류', '로그인이 필요합니다.');
+      return;
+    }
+
+    if (status === 'OWNED') {
+      setIsEditingPriceOnly(false);
+      setPriceInputValue(purchasePrice ? formatNumberWithCommas(String(purchasePrice)) : '');
+      setPricePromptVisible(true);
+    } else {
+      try {
+        const numericAlbumId = Number(album.ALBUM_ID);
+        await upsertUserVinyl({
+          USER_ID: user.id,
+          ALBUM_ID: numericAlbumId,
+          STATUS: 'WISH',
+          PURCHASE_PRICE: 0
+        });
+        setRealStatus('WISH');
+        showAlert('성공', `위시리스트에 저장되었습니다!`);
+      } catch (error) {
+        console.error('Error saving album to wish:', error);
+        showAlert('오류', '위시리스트 저장에 실패했습니다. 다시 시도해 주세요.');
+      }
     }
   };
 
@@ -492,6 +529,41 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           message={alertMessage}
           onClose={() => setAlertVisible(false)}
         />
+        {pricePromptVisible && (
+          <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }]}>
+            <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={{ width: '75%', padding: 24, borderRadius: 24, backgroundColor: 'rgba(20,20,20,0.8)', borderWidth: 1, borderColor: themeColors.border, alignItems: 'center' }}>
+              <Text style={{ color: themeColors.textPrimary, fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>구입가 입력</Text>
+              <Text style={{ color: themeColors.textSecondary, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>이 LP를 얼마에 구매하셨나요?</Text>
+              <TextInput
+                style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.05)', color: themeColors.textPrimary, padding: 16, borderRadius: 12, fontSize: 18, textAlign: 'center', marginBottom: 24, borderWidth: 1, borderColor: themeColors.border }}
+                keyboardType="numeric"
+                keyboardAppearance="dark"
+                placeholder="0"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={priceInputValue}
+                autoFocus={true}
+                onChangeText={(text) => setPriceInputValue(formatNumberWithCommas(text))}
+              />
+              <View style={{ flexDirection: 'row', width: '100%', gap: 10 }}>
+                <TouchableOpacity 
+                  style={{ flex: 1, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }} 
+                  onPress={() => handlePriceSubmit(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: 'bold' }}>생략</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={{ flex: 1, paddingVertical: 14, backgroundColor: themeColors.accent, borderRadius: 16, alignItems: 'center' }} 
+                  onPress={() => handlePriceSubmit(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#000', fontSize: 16, fontWeight: 'bold' }}>저장</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </Animated.View>
     </Modal>
   );

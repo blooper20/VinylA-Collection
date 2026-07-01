@@ -44,7 +44,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
           fontSize: 10,
           fontWeight: 'bold'
         }}>
-          {isSpentPublic ? '👁️ 공개됨' : '🙈 비공개 (링크에 숨김)'}
+          {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
         </Text>
       </TouchableOpacity>
     )}

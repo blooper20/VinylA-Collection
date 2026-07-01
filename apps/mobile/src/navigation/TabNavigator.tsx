@@ -90,6 +90,7 @@ const getStyles = (themeColors: any) => StyleSheet.create({
     backgroundColor: themeColors.background,
     borderTopWidth: 1,
     borderTopColor: themeColors.border,
+    overflow: 'visible',
   },
   screen: {
     flex: 1,

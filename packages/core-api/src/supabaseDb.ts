@@ -34,8 +34,6 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
 
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
   const payload = { ...album };
-  delete (payload as any).GENRES;
-  delete (payload as any).MARKET_PRICE;
   delete (payload as any).TRACKS;
   delete (payload as any).PURCHASE_PRICE;
   

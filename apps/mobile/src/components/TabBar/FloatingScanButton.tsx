@@ -2,17 +2,20 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useTheme, shadows } from '@vinyla/ui';
 
-export const FloatingScanButton = ({ onPress }: { onPress?: () => void }) => {
+export const FloatingScanButton = (props: any) => {
   const { themeColors } = useTheme();
   const styles = getStyles(themeColors, shadows);
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.button} onPress={onPress}>
-        <Image 
-          source={require('../../../assets/3d_logo.jpg')}
-          style={styles.logoImage}
-        />
-      </TouchableOpacity>
+    <View style={[props.style, { justifyContent: 'flex-start', alignItems: 'center' }]} pointerEvents="box-none">
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.button} onPress={props.onPress} activeOpacity={0.9}>
+          <Image 
+            source={require('../../../assets/3d_logo_transparent.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -20,29 +23,28 @@ export const FloatingScanButton = ({ onPress }: { onPress?: () => void }) => {
 const getStyles = (themeColors: any, shadows: any) => StyleSheet.create({
   container: {
     position: 'absolute',
-    top: -20,
+    top: -25, // Push it up above the tab bar
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: themeColors.background,
-    ...shadows.glow,
+    width: 70,
+    height: 70,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 10,
+    zIndex: 999,
   },
   button: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: themeColors.accent,
+    width: 70,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: themeColors.border,
   },
   logoImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 70,
+    height: 70,
+    // No border radius so we don't clip the transparent leaves!
   }
 });
