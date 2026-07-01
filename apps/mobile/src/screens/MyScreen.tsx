@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase } from '@vinyla/core-api';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
 import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
@@ -199,12 +201,51 @@ export const MyScreen = () => {
       {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
-          <View style={[styles.avatarFrame, { borderColor: themeColors.accent }]}>
+          <TouchableOpacity style={[styles.avatarFrame, { borderColor: themeColors.accent }]} onPress={async () => {
+            try {
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+              });
+
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                setToastMessage('프로필 이미지를 업로드하는 중입니다...');
+                setIsToastVisible(true);
+                
+                const uri = result.assets[0].uri;
+                const fileExt = uri.split('.').pop() || 'jpeg';
+                const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
+                
+                const response = await fetch(uri);
+                const blob = await response.blob();
+                
+                const { error } = await supabase.storage
+                  .from('avatars')
+                  .upload(filePath, blob, { contentType: `image/${fileExt}` });
+                  
+                if (error) throw error;
+                
+                const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                
+                const { updateProfile } = useAuthStore.getState();
+                await updateProfile(user?.user_metadata?.displayName || '컬렉터', user?.user_metadata?.interests || [], publicUrl);
+                
+                setToastMessage('프로필 사진이 변경되었습니다.');
+                setIsToastVisible(true);
+              }
+            } catch (error) {
+              console.error(error);
+              setToastMessage('업로드에 실패했습니다.');
+              setIsToastVisible(true);
+            }
+          }}>
             <Image 
               source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
               style={styles.avatar} 
             />
-          </View>
+          </TouchableOpacity>
           <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
             {user?.user_metadata?.displayName || '컬렉터'}
           </Text>
@@ -230,7 +271,10 @@ export const MyScreen = () => {
                     style={styles.featuredCover} 
                     resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
                   />
-                  <View style={styles.spotlight} />
+                  <LinearGradient 
+                    colors={['rgba(255,255,255,0.8)', 'transparent']}
+                    style={styles.spotlight}
+                  />
                 </View>
                 {featuredAlbum.STATUS === 'WISH' && (
                   <View style={styles.wishIconBadge}>
@@ -380,16 +424,15 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 3,
-    borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
   },
   avatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   userName: {
     fontSize: 24,
@@ -412,18 +455,21 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible', // allow spotlight to shine out
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 15,
   },
   featuredCoverWrapper: {
     width: '100%',
     height: '100%',
     position: 'relative',
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: 'visible', // allow spotlight to shine outside
   },
   featuredCover: {
     width: '100%',
@@ -432,12 +478,16 @@ const styles = StyleSheet.create({
   },
   spotlight: {
     position: 'absolute',
-    top: -20,
-    left: -50,
-    width: 200,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    transform: [{ rotate: '45deg' }],
+    top: -100, // Start higher up above the LP
+    left: '50%',
+    marginLeft: -60, // Half width
+    width: 120,
+    height: 300, // Shine all the way down
+    opacity: 0.5,
+    transform: [
+      { perspective: 200 },
+      { rotateX: '45deg' }, // Flare out at bottom
+    ],
   },
   wishIconBadge: {
     position: 'absolute',
