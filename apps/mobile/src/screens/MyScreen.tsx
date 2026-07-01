@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
 import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
 import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
@@ -12,7 +12,7 @@ import { ShareTemplate } from '../components/Share/ShareTemplate';
 
 const { width } = Dimensions.get('window');
 
-const AnalyticsCard = ({ title, value, themeColors }: { title: string, value: string, themeColors: any }) => (
+const AnalyticsCard = ({ title, value, themeColors }: { title: string, value: string | number, themeColors: any }) => (
   <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.02)' }]}>
     <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
     <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>{value}</Text>
@@ -21,7 +21,7 @@ const AnalyticsCard = ({ title, value, themeColors }: { title: string, value: st
 
 export const MyScreen = () => {
   const { theme, setTheme, themeColors } = useTheme();
-  const { user } = useAuthStore();
+  const { user, updateSelectedBadge } = useAuthStore();
   const navigation = useNavigation<any>();
 
   const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
@@ -30,22 +30,82 @@ export const MyScreen = () => {
   const [isToastVisible, setIsToastVisible] = React.useState(false);
   const viewRef = React.useRef(null);
 
-  // Example badgelist mapping from user unlocked badges
+  // States for real data
+  const [collectionValue, setCollectionValue] = React.useState(0);
+  const [ownedCount, setOwnedCount] = React.useState(0);
+  const [topGenre, setTopGenre] = React.useState('-');
+  const [recentAdditions, setRecentAdditions] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    async function loadStats() {
+      if (!user) return;
+      try {
+        let currentGenre = '-';
+        if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
+          currentGenre = user.user_metadata.interests[0];
+        }
+
+        const data = await getUserVinyls(user.id);
+        if (data && data.length > 0) {
+          const owned = data.filter(v => v.STATUS === 'OWNED');
+          setOwnedCount(owned.length);
+          
+          const value = owned.reduce((sum, item) => sum + (item.ALBUM_MASTER?.MARKET_PRICE || 0), 0);
+          setCollectionValue(value);
+
+          const mapped = data.map(v => mapToFrontendModel(v, null));
+          const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
+          setRecentAdditions(mappedOwned.slice(0, 3));
+
+          // Calculate actual top genre from collection
+          const genreCounts: Record<string, number> = {};
+          mappedOwned.forEach(item => {
+            if (item.GENRES && Array.isArray(item.GENRES)) {
+              item.GENRES.forEach((g: string) => {
+                genreCounts[g] = (genreCounts[g] || 0) + 1;
+              });
+            }
+          });
+          if (Object.keys(genreCounts).length > 0) {
+            const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
+            setTopGenre(sortedGenres[0][0]);
+          } else {
+            setTopGenre(currentGenre);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load stats', e);
+      }
+    }
+    loadStats();
+  }, [user]);
+
+  // Mock available badges, in real app this would sync with web's badges.ts
+  const unlockedBadges = user?.user_metadata?.unlocked_badges || [];
+  const selectedBadgeId = user?.user_metadata?.selected_badge || 'elite-curator';
   const availableBadges = [
-    { id: '1', name: '초보 컬렉터', isEarned: true },
-    { id: '2', name: '엘리트 큐레이터', isEarned: user?.user_metadata?.unlocked_badges?.includes('Elite Curator') || true },
-    { id: '3', name: '바이닐 마스터', isEarned: false },
+    { id: 'elite-curator', name: 'ELITE CURATOR', isEarned: unlockedBadges.includes('elite-curator') || true },
+    { id: 'vinyl-master', name: 'VINYL MASTER', isEarned: unlockedBadges.includes('vinyl-master') },
+    { id: 'jazz-cat', name: 'JAZZ CAT', isEarned: unlockedBadges.includes('jazz-cat') },
   ];
+
+  const selectedBadgeObj = availableBadges.find(b => b.id === selectedBadgeId) || availableBadges[0];
 
   const handleShare = async () => {
     setFlashVisible(true);
     await shareToInstagramStory(viewRef);
   };
 
-  const handleBadgeSelect = (badge: any) => {
+  const handleBadgeSelect = async (badge: any) => {
     setBadgeModalVisible(false);
-    setToastMessage(`'${badge.name}' 뱃지를 장착했습니다!`);
-    setIsToastVisible(true);
+    if (badge.isEarned) {
+      await updateSelectedBadge(badge.id);
+      setToastMessage(`'${badge.name}' 뱃지를 장착했습니다!`);
+      setIsToastVisible(true);
+    } else {
+      setToastMessage(`아직 획득하지 못한 뱃지입니다.`);
+      setIsToastVisible(true);
+    }
   };
 
   const handleThemeChange = (newTheme: ThemeType) => {
@@ -76,7 +136,7 @@ export const MyScreen = () => {
           style={[styles.badge, { backgroundColor: themeColors.accent }]}
           onPress={() => setBadgeModalVisible(true)}
         >
-          <Text style={styles.badgeText}>Elite Curator</Text>
+          <Text style={styles.badgeText}>{selectedBadgeObj.name}</Text>
         </TouchableOpacity>
       </View>
 
@@ -123,9 +183,9 @@ export const MyScreen = () => {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-          <AnalyticsCard title="총 가치" value="$4,250" themeColors={themeColors} />
-          <AnalyticsCard title="보유 앨범" value="142" themeColors={themeColors} />
-          <AnalyticsCard title="최애 장르" value="재즈" themeColors={themeColors} />
+          <AnalyticsCard title="총 가치" value={`$${collectionValue.toLocaleString()}`} themeColors={themeColors} />
+          <AnalyticsCard title="보유 앨범" value={ownedCount.toLocaleString()} themeColors={themeColors} />
+          <AnalyticsCard title="최애 장르" value={topGenre} themeColors={themeColors} />
         </ScrollView>
       </View>
 
@@ -133,8 +193,8 @@ export const MyScreen = () => {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>나의 레코드 여정</Text>
         <View style={styles.timeline}>
-          {mockVinyls.slice(0, 3).map((album, index) => (
-            <View key={album.ALBUM_ID} style={styles.timelineItem}>
+          {recentAdditions.length > 0 ? recentAdditions.map((album, index) => (
+            <View key={album.ALBUM_ID + '-' + index} style={styles.timelineItem}>
               <View style={[styles.timelineLine, { backgroundColor: themeColors.border }]} />
               <View style={[styles.timelineDot, { backgroundColor: themeColors.accent }]} />
               <Image 
@@ -144,10 +204,12 @@ export const MyScreen = () => {
               />
               <View style={styles.timelineContent}>
                 <Text style={[styles.timelineTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{album.TITLE}</Text>
-                <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>2일 전 수집됨</Text>
+                <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>최근 수집됨</Text>
               </View>
             </View>
-          ))}
+          )) : (
+            <Text style={{ color: themeColors.textSecondary, marginLeft: 20 }}>아직 기록된 LP가 없습니다.</Text>
+          )}
         </View>
       </View>
 
