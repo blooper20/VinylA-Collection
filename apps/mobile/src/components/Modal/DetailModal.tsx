@@ -6,6 +6,8 @@ import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls } from '@vinyla/core-api';
+import { useTheme, shadows, shape } from '@vinyla/ui';
+import { CustomAlert } from '../../providers/AlertProvider';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -63,6 +65,19 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [tracks, setTracks] = React.useState<string[]>([]);
   const [isTracksLoading, setIsTracksLoading] = React.useState<boolean>(false);
   const [realStatus, setRealStatus] = React.useState<string | null>(null);
+
+  const { themeColors, glassIntensity } = useTheme();
+  const styles = getStyles(themeColors, shadows, shape);
+
+  const [alertVisible, setAlertVisible] = React.useState(false);
+  const [alertTitle, setAlertTitle] = React.useState('');
+  const [alertMessage, setAlertMessage] = React.useState('');
+
+  const showAlert = (title: string, message: string) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
 
   // New detailed states
   const [marketPrice, setMarketPrice] = React.useState<number | null>(null);
@@ -192,9 +207,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                   PURCHASE_PRICE: price
                 });
                 setPurchasePrice(price);
-                Alert.alert('저장 완료', '구입가가 성공적으로 저장되었습니다.');
+                showAlert('저장 완료', '구입가가 성공적으로 저장되었습니다.');
               } catch (e) {
-                Alert.alert('오류', '구입가 저장에 실패했습니다.');
+                showAlert('오류', '구입가 저장에 실패했습니다.');
               }
             }
           } 
@@ -211,8 +226,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
 
     try {
-      if (!user?.id) {
-        Alert.alert('오류', '로그인이 필요합니다.');
+      if (!user) {
+        showAlert('오류', '로그인이 필요합니다.');
         return;
       }
 
@@ -249,15 +264,11 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         PURCHASE_PRICE: purchasePrice || 0
       });
 
-      Alert.alert('성공', `앨범이 저장되었습니다!`);
+      showAlert('성공', `앨범이 저장되었습니다!`);
       setRealStatus(status);
-      if (status === 'OWNED' && !purchasePrice) {
-        // Optionally prompt for price after saving
-        handleEditPrice();
-      }
     } catch (error) {
-      console.error('Failed to save album:', error);
-      Alert.alert('오류', '앨범 저장에 실패했습니다. 다시 시도해 주세요.');
+      console.error('Error saving album to collection:', error);
+      showAlert('오류', '앨범 저장에 실패했습니다. 다시 시도해 주세요.');
     }
   };
 
@@ -266,11 +277,12 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
     try {
       await deleteUserVinylByAlbum(user?.id || 1, Number(album.ALBUM_ID));
-      Alert.alert('성공', '보관함에서 삭제되었습니다.');
+      setRealStatus('NONE');
+      showAlert('성공', '보관함에서 삭제되었습니다.');
       handleClose();
     } catch (e) {
       console.error(e);
-      Alert.alert('오류', '삭제에 실패했습니다.');
+      showAlert('오류', '삭제에 실패했습니다.');
     }
   };
 
@@ -306,7 +318,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   return (
     <Modal visible={visible} animationType="none" transparent statusBarTranslucent>
       <Animated.View style={[styles.container, { opacity: modalAnim }]}>
-        <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={{ flex: 1, paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }}>
           <Animated.View 
             style={[{ flex: 1, transform: [{ scale: modalScale }, { translateY: panY }] }]}
@@ -472,14 +484,20 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               </View>
             )}
           </ScrollView>
-          </Animated.View>
-        </View>
+            </Animated.View>
+          </View>
+        <CustomAlert
+          visible={alertVisible}
+          title={alertTitle}
+          message={alertMessage}
+          onClose={() => setAlertVisible(false)}
+        />
       </Animated.View>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -511,20 +529,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 24,
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
+    ...shadows.strong,
   },
   cover: {
     width: '100%',
     height: '100%',
-    borderRadius: 4,
+    borderRadius: shape.sm,
     zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    ...shadows.medium,
   },
   vinyl: {
     position: 'absolute',
@@ -536,13 +548,10 @@ const styles = StyleSheet.create({
     zIndex: 1,
     backgroundColor: '#0e0e0e',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.05)', // Softer border
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
+    ...shadows.soft,
   },
   vinylGrooves: {
     position: 'absolute',
@@ -599,7 +608,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 24,
     backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 16,
+    borderRadius: shape.md,
     padding: 16,
     paddingBottom: 8,
   },
@@ -618,34 +627,38 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F0E6D2',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: shape.md,
     alignItems: 'center',
+    ...shadows.soft,
   },
   btnPrimaryText: {
-    color: '#000',
+    color: '#0a0a0a',
     fontWeight: '800',
     fontSize: 15,
   },
   btnOutline: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(197, 160, 89, 0.05)', // Softer inner glow
     padding: 16,
-    borderRadius: 12,
+    borderRadius: shape.md,
     alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197, 160, 89, 0.15)',
   },
   btnOutlineText: {
-    color: '#fff',
+    color: '#F0E6D2',
     fontWeight: '700',
     fontSize: 15,
   },
   btnYoutube: {
-    backgroundColor: '#rgba(255,0,0,0.85)',
+    backgroundColor: 'rgba(180, 50, 50, 0.85)',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: shape.md,
     alignItems: 'center',
     marginTop: 12,
+    ...shadows.soft,
   },
   btnYoutubeText: {
     color: '#fff',
@@ -684,10 +697,10 @@ const styles = StyleSheet.create({
   tagBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 16,
+    borderRadius: shape.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   tagText: {
     color: '#ddd',
@@ -705,7 +718,7 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 16,
     backgroundColor: 'rgba(255,255,255,0.02)',
-    borderRadius: 12,
+    borderRadius: shape.md,
   },
   extraDetailText: {
     color: '#bbb',

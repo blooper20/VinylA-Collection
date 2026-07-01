@@ -16,7 +16,7 @@ interface FeaturedLPModalProps {
 const { width, height } = Dimensions.get('window');
 
 export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, onSelect }: FeaturedLPModalProps) => {
-  const { themeColors } = useTheme();
+  const { themeColors, glassIntensity } = useTheme();
   
   const handleSelect = (id: number | null) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -27,8 +27,8 @@ export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, o
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.container}>
-        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={[styles.content, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+        <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[styles.content, { backgroundColor: 'rgba(20,20,20,0.6)', borderColor: themeColors.border }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: themeColors.textPrimary }]}>대표 LP 설정</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>

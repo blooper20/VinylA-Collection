@@ -6,11 +6,15 @@ import { EmptyState } from '../components/EmptyState';
 import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme, shadows, shape } from '@vinyla/ui';
+import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
 
 export const HomeScreen = () => {
+  const { themeColors, glassIntensity } = useTheme();
+  const styles = getStyles(themeColors, shadows, shape);
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [ownedAlbums, setOwnedAlbums] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +79,7 @@ export const HomeScreen = () => {
   }, [user]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       {!isLoading && ownedAlbums.length === 0 ? (
         <EmptyState 
           onPressAction={() => navigation.navigate('Scan')} 
@@ -90,13 +94,9 @@ export const HomeScreen = () => {
             <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
               <Image 
                 source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                style={styles.cover} 
+                style={[styles.cover, { backgroundColor: 'transparent' }]} 
                 resizeMode={item.IMAGE_URL ? "cover" : "contain"}
               />
-              <View style={styles.info}>
-                <Text style={styles.title} numberOfLines={1}>{item.TITLE}</Text>
-                <Text style={styles.artist} numberOfLines={1}>{item.ARTIST}</Text>
-              </View>
             </TouchableOpacity>
           )}
         />
@@ -110,10 +110,9 @@ export const HomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   list: {
     padding: 16,
@@ -121,27 +120,15 @@ const styles = StyleSheet.create({
   },
   card: {
     width: itemSize,
+    height: itemSize,
     margin: 8,
     marginBottom: 16,
+    borderRadius: shape.md,
+    ...shadows.strong,
   },
   cover: {
-    width: itemSize,
-    height: itemSize,
-    borderRadius: 8,
-    backgroundColor: '#222',
+    width: '100%',
+    height: '100%',
+    borderRadius: shape.md,
   },
-  info: {
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  artist: {
-    color: '#a0a0a0',
-    fontSize: 12,
-    marginTop: 2,
-  }
 });

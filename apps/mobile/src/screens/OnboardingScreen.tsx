@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Animated, Easing, Image } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeRedirectUri } from 'expo-auth-session';
-import { signInWithGoogle, useAuthStore } from '@vinyla/core-api';
-import { supabase } from '@vinyla/core-api/src/supabase';
+import { signInWithGoogle, useAuthStore, supabase } from '@vinyla/core-api';
+import { useTheme, shadows, shape } from '@vinyla/ui';
+import { useAlert } from '../providers/AlertProvider';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -51,6 +52,9 @@ const TouchableScale = ({ onPress, children, style }: any) => {
 };
 
 export const OnboardingScreen = ({ navigation }: any) => {
+  const { themeColors, glassIntensity } = useTheme();
+  const { showAlert } = useAlert();
+  const styles = getStyles(themeColors, shadows, shape);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -99,7 +103,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
         
         if (result.type === 'success' && result.url) {
           if (result.url.includes('error=')) {
-            Alert.alert('OAuth Error', decodeURIComponent(result.url));
+            showAlert('OAuth Error', decodeURIComponent(result.url));
             return;
           }
           
@@ -126,7 +130,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           }
           
           if (sessionError) {
-            Alert.alert('Session Error', sessionError.message);
+            showAlert('Session Error', sessionError.message);
           } else {
             useAuthStore.getState().initializeAuth();
           }
@@ -134,7 +138,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
       }
     } catch (error) {
       console.error('Google login failed:', error);
-      Alert.alert('Login Error', 'An unexpected error occurred during login.');
+      showAlert('Login Error', 'An unexpected error occurred during login.');
     }
   };
 
@@ -150,7 +154,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       {/* Absolute Dark Background */}
-      <View style={StyleSheet.absoluteFillObject} backgroundColor="#000000" />
+      <View style={StyleSheet.absoluteFillObject} backgroundColor={themeColors.background} />
       
       {/* Subtle Background Gradient */}
       <LinearGradient
@@ -227,7 +231,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           </Animated.View>
           
           <Animated.View style={[styles.visualAreaBottom, { transform: [{ translateX: getTranslateX(2, 0.6) }] }]}>
-            <View style={styles.loginPanel}>
+            <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.loginPanel}>
               <Text style={styles.panelTitle}>VinylA</Text>
               <Text style={styles.panelSubtitle}>프리미엄 컬렉터의 세계로</Text>
               
@@ -242,7 +246,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
                   <Text style={styles.loginBtnTextApple}>Continue with Apple</Text>
                 </View>
               </TouchableScale>
-            </View>
+            </BlurView>
           </Animated.View>
         </View>
 
@@ -273,10 +277,10 @@ export const OnboardingScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: themeColors.background,
   },
   page: {
     width,
@@ -310,7 +314,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Bodoni',
     fontSize: 36,
-    color: '#D4AF37',
+    color: themeColors.accent,
     textAlign: 'center',
     letterSpacing: 2,
     lineHeight: 44,
@@ -318,7 +322,7 @@ const styles = StyleSheet.create({
   title3: {
     fontFamily: 'Bodoni',
     fontSize: 42,
-    color: '#D4AF37',
+    color: themeColors.accent,
     textAlign: 'center',
     letterSpacing: 2,
     lineHeight: 50,
@@ -326,7 +330,7 @@ const styles = StyleSheet.create({
   description: {
     fontFamily: 'Pretendard',
     fontSize: 15,
-    color: '#ffffff',
+    color: themeColors.textPrimary,
     textAlign: 'center',
     marginTop: 24,
     marginBottom: 8,
@@ -336,7 +340,7 @@ const styles = StyleSheet.create({
   subDescription: {
     fontFamily: 'Pretendard',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: themeColors.textSecondary,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
@@ -350,7 +354,7 @@ const styles = StyleSheet.create({
   dot: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D4AF37',
+    backgroundColor: themeColors.accent,
     marginHorizontal: 4,
   },
   // --- Step 1 ---
@@ -366,13 +370,10 @@ const styles = StyleSheet.create({
     width: '75%',
     height: '100%',
     backgroundColor: '#111',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 10, height: 10 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: shape.sm,
+    ...shadows.strong,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
   coverText: {
     fontFamily: 'Bodoni',
     fontSize: 24,
-    color: 'rgba(212, 175, 55, 0.8)',
+    color: themeColors.accent,
     letterSpacing: 8,
   },
   vinylRecord: {
@@ -392,10 +393,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     borderWidth: 2,
     borderColor: '#1a1a1a',
-    shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    ...shadows.medium,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
@@ -422,7 +420,7 @@ const styles = StyleSheet.create({
     width: '35%',
     height: '35%',
     borderRadius: width,
-    backgroundColor: '#D4AF37',
+    backgroundColor: themeColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -443,7 +441,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 30,
-    borderColor: 'rgba(212, 175, 55, 0.6)',
+    borderColor: themeColors.accent,
   },
   topLeft: { top: 0, left: 0, borderTopWidth: 1, borderLeftWidth: 1 },
   topRight: { top: 0, right: 0, borderTopWidth: 1, borderRightWidth: 1 },
@@ -453,11 +451,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    backgroundColor: 'rgba(197, 160, 89, 0.05)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.glow,
   },
   scanBtnIcon: {
     fontSize: 24,
@@ -467,23 +466,25 @@ const styles = StyleSheet.create({
     width: width * 0.85,
     paddingVertical: 40,
     paddingHorizontal: 24,
-    borderRadius: 20,
-    backgroundColor: 'rgba(20, 20, 20, 0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: shape.lg,
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
     alignItems: 'center',
+    overflow: 'hidden',
+    ...shadows.glow,
   },
   panelTitle: {
     fontFamily: 'Bodoni',
     fontSize: 32,
-    color: '#fff',
+    color: themeColors.textPrimary,
     marginBottom: 6,
     letterSpacing: 2,
   },
   panelSubtitle: {
     fontFamily: 'Pretendard',
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: themeColors.textSecondary,
     marginBottom: 40,
     letterSpacing: 0.5,
   },
@@ -494,31 +495,32 @@ const styles = StyleSheet.create({
   loginBtnInnerGoogle: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: '#F0E6D2',
+    borderRadius: shape.md,
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.soft,
   },
   loginBtnTextGoogle: {
     fontFamily: 'Pretendard',
     fontSize: 15,
-    color: '#000000',
+    color: '#0a0a0a',
     fontWeight: '600',
   },
   loginBtnInnerApple: {
     width: '100%',
     height: '100%',
     backgroundColor: 'transparent',
-    borderRadius: 12,
+    borderRadius: shape.md,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
   },
   loginBtnTextApple: {
     fontFamily: 'Pretendard',
     fontSize: 15,
-    color: '#ffffff',
+    color: themeColors.textPrimary,
     fontWeight: '600',
   }
 });

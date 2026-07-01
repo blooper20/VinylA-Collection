@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useTheme, ThemeType } from '@vinyla/ui';
+import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
 import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase } from '@vinyla/core-api';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,13 +12,14 @@ import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { shareToInstagramStory } from '../utils/nativeShare';
 import { ShareTemplate } from '../components/Share/ShareTemplate';
+import { BlurView } from 'expo-blur';
 
 import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
 
 const { width } = Dimensions.get('window');
 
-const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent }: any) => (
-  <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.02)' }]}>
+const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent, glassIntensity }: any) => (
+  <BlurView intensity={glassIntensity || 30} tint="dark" style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(20,20,20,0.4)', overflow: 'hidden' }]}>
     <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
     <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
       {unit ? <Text style={styles.cardUnit}>{unit}</Text> : null}
@@ -47,11 +48,11 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
         </Text>
       </TouchableOpacity>
     )}
-  </View>
+  </BlurView>
 );
 
 export const MyScreen = () => {
-  const { theme, themeColors } = useTheme();
+  const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges } = useAuthStore();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -253,6 +254,7 @@ export const MyScreen = () => {
     <View style={{ flex: 1, backgroundColor: themeColors.background, paddingTop: insets.top }} ref={viewRef as any} collapsable={false}>
       <ScrollView 
         style={[styles.container, { backgroundColor: 'transparent' }]}
+        contentContainerStyle={{ paddingBottom: 160 }}
         bounces={true}
         alwaysBounceVertical={true}
         refreshControl={
@@ -427,6 +429,30 @@ export const MyScreen = () => {
         </View>
       </View>
 
+      {/* Glass Intensity Setting */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>글래스 효과 강도</Text>
+        <View style={{ flexDirection: 'row', paddingHorizontal: 20, justifyContent: 'space-between', gap: 8 }}>
+          {[10, 30, 50, 70, 90].map((val) => (
+            <TouchableOpacity 
+              key={val}
+              style={[
+                styles.themeBtn, 
+                { 
+                  borderColor: glassIntensity === val ? themeColors.accent : themeColors.border,
+                  backgroundColor: glassIntensity === val ? 'rgba(197, 160, 89, 0.15)' : 'rgba(255,255,255,0.02)'
+                }
+              ]}
+              onPress={() => setGlassIntensity(val)}
+            >
+              <Text style={[styles.themeBtnText, { color: glassIntensity === val ? themeColors.accent : themeColors.textSecondary }]}>
+                {val === 10 ? '약함' : val === 90 ? '강함' : val}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* Logout Button */}
       <View style={styles.section}>
         <TouchableOpacity 
@@ -449,7 +475,7 @@ export const MyScreen = () => {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-          <AnalyticsCard title="시장 추정가" value={collectionValue.toLocaleString()} unit="₩" sub="Discogs 기준 최저가 합산" themeColors={themeColors} />
+          <AnalyticsCard title="시장 추정가" value={collectionValue.toLocaleString()} unit="₩" sub="Discogs 기준 최저가 합산" themeColors={themeColors} glassIntensity={glassIntensity} />
           <AnalyticsCard 
             title="실제 지출액" 
             value={isSpentPublic ? actualSpentValue.toLocaleString() : '비공개'} 
@@ -459,10 +485,11 @@ export const MyScreen = () => {
             isSpent={true}
             isSpentPublic={isSpentPublic}
             onToggleSpent={() => setIsSpentPublic(!isSpentPublic)}
+            glassIntensity={glassIntensity}
           />
-          <AnalyticsCard title="보유 LP" value={ownedCount.toLocaleString()} sub="등록된 전체 LP 수" themeColors={themeColors} />
-          <AnalyticsCard title="관심 장르" value={topGenre} sub="프로필 설정 기준" themeColors={themeColors} />
-          <AnalyticsCard title="실제 관심 장르" value={actualTopGenre} sub="내 콜렉션 데이터 기준" themeColors={themeColors} />
+          <AnalyticsCard title="보유 LP" value={ownedCount.toLocaleString()} sub="등록된 전체 LP 수" themeColors={themeColors} glassIntensity={glassIntensity} />
+          <AnalyticsCard title="관심 장르" value={topGenre} sub="프로필 설정 기준" themeColors={themeColors} glassIntensity={glassIntensity} />
+          <AnalyticsCard title="실제 관심 장르" value={actualTopGenre} sub="내 콜렉션 데이터 기준" themeColors={themeColors} glassIntensity={glassIntensity} />
         </ScrollView>
       </View>
 
@@ -602,14 +629,11 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 5,
-    backgroundColor: '#000',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.2)',
+    ...shadows.strong,
+    backgroundColor: '#0a0a0a',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197, 160, 89, 0.15)',
+    borderRadius: shape.sm,
   },
   vinylDisc: {
     width: 86,
@@ -621,8 +645,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.05)',
     overflow: 'hidden',
   },
   vinylGrooves: {
@@ -667,22 +691,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#ffaa00',
-    backgroundColor: 'rgba(255, 170, 0, 0.1)',
-    shadowColor: '#ffaa00',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#C5A059',
+    backgroundColor: 'rgba(10, 10, 10, 0.8)',
+    ...shadows.glow,
     transform: [{ rotate: '5deg' }],
   },
   wishIconText: {
-    color: '#ffe5b4',
+    color: '#C5A059',
     fontWeight: '900',
     fontSize: 14,
     fontStyle: 'italic',
-    textShadowColor: '#ffaa00',
+    textShadowColor: 'rgba(197, 160, 89, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
@@ -693,22 +713,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#00e5ff',
-    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-    shadowColor: '#00e5ff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#C5A059',
+    backgroundColor: 'rgba(10, 10, 10, 0.8)',
+    ...shadows.glow,
     transform: [{ rotate: '-3deg' }],
   },
   ownedIconText: {
-    color: '#e0ffff',
+    color: '#F0E6D2',
     fontWeight: '900',
     fontSize: 14,
     fontStyle: 'italic',
-    textShadowColor: '#00e5ff',
+    textShadowColor: 'rgba(197, 160, 89, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
@@ -732,8 +748,9 @@ const styles = StyleSheet.create({
   card: {
     width: width * 0.4,
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: shape.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...shadows.soft,
   },
   cardTitle: {
     fontSize: 14,
@@ -779,8 +796,9 @@ const styles = StyleSheet.create({
   timelineImage: {
     width: 80,
     height: 80,
-    borderRadius: 8,
+    borderRadius: shape.sm,
     marginRight: 16,
+    ...shadows.soft,
   },
   timelineContent: {
     justifyContent: 'center',
@@ -801,11 +819,13 @@ const styles = StyleSheet.create({
   },
   themeBtn: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197, 160, 89, 0.3)',
     paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: shape.md,
     marginHorizontal: 4,
+    backgroundColor: 'rgba(197, 160, 89, 0.05)',
   },
   themeBtnText: {
     fontSize: 12,
@@ -814,11 +834,12 @@ const styles = StyleSheet.create({
   logoutBtn: {
     marginTop: 24,
     marginHorizontal: 20,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 100, 100, 0.3)',
     paddingVertical: 14,
     alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,0,0,0.05)',
+    borderRadius: shape.md,
+    backgroundColor: 'rgba(255, 0, 0, 0.03)',
   },
   logoutBtnText: {
     fontSize: 14,

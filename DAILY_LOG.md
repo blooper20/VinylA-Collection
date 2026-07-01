@@ -158,3 +158,10 @@ apps/api/
   - Added Market Value and Actual Spent Value calculations.
   - Ported dynamic Badge unlocking logic (`evaluateBadges`) by migrating `badges.ts` to `core-api`.
   - Added Featured LP Modal configuration for the mobile app profile.
+
+### 2026-07-01 (Part 3)
+- **UI/UX Polishing (Liquid Glass & Vinyl Noir Theme)**:
+  - Resolved iOS nested `<Modal>` freeze bug by refactoring `AlertProvider` to use an absolute inline `CustomAlert` component globally, with local integration in `DetailModal.tsx`.
+  - Reverted `HomeScreen.tsx` AlbumCards to display pure LP covers without the overlay text/info for a cleaner gallery look.
+  - Fixed `MyScreen.tsx` layout issue where the Glass Intensity setting was cut off by extending the `ScrollView` padding.
+  - Updated `RootNavigator.tsx` & `FloatingScanButton.tsx` to use a newly generated premium 3D gold vinyl logo for the central scan tab, replacing the standard icon.

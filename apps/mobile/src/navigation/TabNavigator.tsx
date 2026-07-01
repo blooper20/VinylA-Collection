@@ -20,15 +20,19 @@ export const tabLinkingConfig = {
 };
 
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@vinyla/ui';
 
 export const TabNavigator = () => {
+  const { themeColors } = useTheme();
+  const styles = getStyles(themeColors);
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#e9c349',
-        tabBarInactiveTintColor: '#8e9192',
+        tabBarActiveTintColor: themeColors.accent,
+        tabBarInactiveTintColor: themeColors.textSecondary,
         tabBarShowLabel: true,
       }}
     >
@@ -76,25 +80,25 @@ export const TabNavigator = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any) => StyleSheet.create({
   tabBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     height: 80,
-    backgroundColor: '#000000', // Pure Deep Black
+    backgroundColor: themeColors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: themeColors.border,
   },
   screen: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: themeColors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 24,
   }
 });

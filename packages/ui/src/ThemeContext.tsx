@@ -8,12 +8,15 @@ interface ThemeContextProps {
   theme: ThemeType;
   setTheme: (theme: ThemeType) => void;
   themeColors: typeof colors.theme.DARK_BLACK;
+  glassIntensity: number;
+  setGlassIntensity: (intensity: number) => void;
 }
 
 const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setTheme] = useState<ThemeType>('MOODY_WALNUT');
+  const [glassIntensity, setGlassIntensity] = useState<number>(30); // Default medium-low glass intensity
 
   // Handle CSS variables for Web inside a generic provider if needed, 
   // but it's cleaner to handle web `data-theme` inside Web's layout 
@@ -22,7 +25,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const themeColors = colors.theme[theme];
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, themeColors }}>
+    <ThemeContext.Provider value={{ theme, setTheme, themeColors, glassIntensity, setGlassIntensity }}>
       {children}
     </ThemeContext.Provider>
   );

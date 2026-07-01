@@ -1,17 +1,23 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useTheme, shadows } from '@vinyla/ui';
 
 export const FloatingScanButton = ({ onPress }: { onPress?: () => void }) => {
+  const { themeColors } = useTheme();
+  const styles = getStyles(themeColors, shadows);
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.button} onPress={onPress}>
-        <View style={styles.innerCircle} />
+        <Image 
+          source={require('../../../assets/3d_logo.jpg')}
+          style={styles.logoImage}
+        />
       </TouchableOpacity>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any, shadows: any) => StyleSheet.create({
   container: {
     position: 'absolute',
     top: -20,
@@ -21,26 +27,22 @@ const styles = StyleSheet.create({
     width: 66,
     height: 66,
     borderRadius: 33,
-    backgroundColor: '#000',
-    shadowColor: '#e9c349',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    backgroundColor: themeColors.background,
+    ...shadows.glow,
   },
   button: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#e9c349',
+    backgroundColor: themeColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
   },
-  innerCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 3,
-    borderColor: '#000',
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   }
 });

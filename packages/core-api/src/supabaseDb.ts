@@ -16,7 +16,20 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
     console.warn('getAlbumMaster error or DB not connected:', error);
     return null;
   }
-  return data as ALBUM_MASTER;
+  const master = data as ALBUM_MASTER;
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
+    if (local) {
+      try {
+        const masters = JSON.parse(local);
+        if (masters[albumId]) {
+          if (masters[albumId].GENRES) master.GENRES = masters[albumId].GENRES;
+          if (masters[albumId].MARKET_PRICE) master.MARKET_PRICE = masters[albumId].MARKET_PRICE;
+        }
+      } catch(e) {}
+    }
+  }
+  return master;
 };
 
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
@@ -80,8 +93,13 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
         try {
           const masters = JSON.parse(localM);
           data.forEach(d => {
-            if (d.ALBUM_MASTER && masters[d.ALBUM_ID] && masters[d.ALBUM_ID].MARKET_PRICE) {
-              d.ALBUM_MASTER.MARKET_PRICE = d.ALBUM_MASTER.MARKET_PRICE || masters[d.ALBUM_ID].MARKET_PRICE;
+            if (d.ALBUM_MASTER && masters[d.ALBUM_ID]) {
+              if (masters[d.ALBUM_ID].MARKET_PRICE) {
+                d.ALBUM_MASTER.MARKET_PRICE = d.ALBUM_MASTER.MARKET_PRICE || masters[d.ALBUM_ID].MARKET_PRICE;
+              }
+              if (masters[d.ALBUM_ID].GENRES) {
+                d.ALBUM_MASTER.GENRES = masters[d.ALBUM_ID].GENRES;
+              }
             }
           });
         } catch (e) {

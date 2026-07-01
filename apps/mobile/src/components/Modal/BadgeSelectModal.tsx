@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'rea
 import { BlurView } from 'expo-blur';
 import { Badge } from '@vinyla/core-api';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useTheme } from '@vinyla/ui';
 
 interface ExtendedBadge extends Badge {
   isEarned: boolean;
@@ -16,6 +17,7 @@ interface BadgeSelectModalProps {
 }
 
 export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onClose, badges, onSelect }) => {
+  const { glassIntensity } = useTheme();
   return (
     <Modal
       visible={visible}
@@ -25,7 +27,7 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
     >
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backgroundTouch} onPress={onClose} activeOpacity={1} />
-        <BlurView intensity={80} tint="dark" style={styles.bottomSheet}>
+        <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.bottomSheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>칭호 선택</Text>
           <ScrollView contentContainerStyle={styles.badgeContainer}>
