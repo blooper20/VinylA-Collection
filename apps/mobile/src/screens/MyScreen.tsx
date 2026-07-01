@@ -258,6 +258,8 @@ export const MyScreen = () => {
     <View style={{ flex: 1 }} ref={viewRef} collapsable={false}>
       <ScrollView 
         style={[styles.container, { backgroundColor: themeColors.background }]}
+        bounces={true}
+        alwaysBounceVertical={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
