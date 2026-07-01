@@ -293,8 +293,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const modalScale = modalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] });
 
+  const KNOWN_COUNTRIES = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
   const genres = album.GENRES || [];
-  const genreTags = genres.slice(0, 4); // Only display top 4 genres
+  const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
 
   return (
     <Modal visible={visible} animationType="none" transparent statusBarTranslucent>

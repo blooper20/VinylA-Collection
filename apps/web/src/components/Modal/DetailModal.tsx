@@ -274,8 +274,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             ) : null}
 
             {(() => {
+              const KNOWN_COUNTRIES = [
+                'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
+                'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
+                'Sweden', 'Taiwan', 'Brazil', 'Russia'
+              ];
               const genres = album.GENRES || [];
-              const genreTags = genres.slice(0, 4); // Only display top 4 genres
+              const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
 
               return (
                 <>
