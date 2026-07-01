@@ -121,3 +121,29 @@ apps/mobile/
 - Stitch Project ID: `6479699016643164123`
 - VinylA_Blue_Print.md — 프로젝트 최우선 설계서
 - Git: `826de1c` → `3a981a1` (9 commits pushed to `main`)
+
+## 2026-07-01: Vision API 결제 이슈 및 Gemini 2.5 Flash 100% 무료 전환기
+
+### 💥 이슈 1: Google Cloud Vision API 403 Permission Denied
+모바일 앱에서 앨범 커버의 텍스트(OCR)와 객체 키워드(Web Entities)를 추출하기 위해 사용하던 `Google Cloud Vision API`가 403 에러를 뱉기 시작함.
+- **원인**: 구글 클라우드 정책 상 Vision API는 결제 계정(신용카드)이 연결된 프로젝트에서만 작동함. 무료 할당량이 있더라도 결제 수단 등록은 필수.
+- **해결**: Vision API를 완전히 버리고, **멀티모달 처리에 능하고 무료 티어를 제공하는 Gemini 2.5 Flash**로 1단계(텍스트/키워드 추출) 로직을 전면 대체.
+
+### 💥 이슈 2: Gemini 2.5 Flash JSON 잘림 (Thinking Budget 버그)
+프롬프트에 순수 JSON 포맷 출력을 명시했으나, 반환값이 `{` 한 글자로 잘리거나 파싱 에러 발생.
+- **원인**: Gemini 2.5 Flash 모델은 내부적으로 "생각(Thinking)"을 거친 뒤 답변을 생성하는 사고형 모델. 생각 과정에 소모되는 토큰이 `maxOutputTokens` 예산에서 선차감됨. 기존 `maxOutputTokens: 300`으로는 생각만 하다가 예산이 바닥나 실제 JSON을 출력하지 못함.
+- **해결**:
+  1. `maxOutputTokens: 2048`로 대폭 확장.
+  2. `thinkingConfig: { thinkingBudget: 0 }` 옵션을 부여하여 내부 사고를 생략하고 즉시 답변을 뱉어내도록 강제 (응답 속도 대폭 향상).
+  3. AI 특성 상 가끔 "Here is the JSON:" 같은 인사말을 덧붙이므로, `responseText.match(/\{[\s\S]*\}/)` 정규식으로 순수 JSON 블록만 안전하게 추출하도록 파싱 로직 보강.
+
+### 🚀 최적화 1: 모바일 카메라 촬영/전송 속도 10배 향상
+- **문제**: `takePictureAsync` 시 딜레이가 길고, 셔터를 누른 후 로딩 스피너가 너무 오래 돎.
+- **원인**: 모바일 기기의 원본 해상도(수천 픽셀) 사진을 Crop하고 곧바로 Base64로 인코딩하려다 보니 연산량과 페이로드가 수십 MB 단위로 폭증.
+- **해결**: `takePictureAsync({ quality: 0.3 })`으로 1차 압축하고, `ImageManipulator` 단계에 `{ resize: { width: 800 } }` 액션을 추가하여 크롭 직후 이미지 크기를 획기적으로 줄인 뒤 인코딩. 전송 속도와 메모리 점유율을 대폭 개선.
+
+### 🚀 최적화 2: 한국어 앨범 인식률을 위한 Query 다각화
+- 기존에는 `"아티스트 - 앨범명"` 단일 문자열 하나에 의존하여 Discogs 검색 성공률이 낮았음 (특히 한글 앨범).
+- **해결**: Gemini에게 `artist`, `album`, `tracks`(수록곡), `keywords`를 명시적으로 분리해서 JSON으로 주도록 프롬프트를 고도화.
+  - "한국 가수면 정확히 한글로 유추하라"는 규칙 추가 (이문세를 '김두수' 등으로 오인하는 증상 방어).
+  - 추출된 데이터를 분해하여 `[아티스트 - 앨범, 앨범단독, 아티스트단독, 트랙1, 트랙2, 키워드]` 순으로 검색 쿼리 배열을 풍성하게 만들어 Discogs 탐색 그물망을 촘촘하게 짬.

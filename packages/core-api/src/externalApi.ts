@@ -215,12 +215,13 @@ export const searchDiscogsLazy = async (
         const qArtist = cleanArtist.toLowerCase();
         const qTitle = cleanTitle.toLowerCase();
         
-        return (!isGenreQuery && itemArtist.includes(query.toLowerCase())) ||
-               itemArtist.includes(qArtist) ||
-               qArtist.includes(itemArtist) ||
-               (alias && itemArtist.includes(alias.toLowerCase())) ||
-               itemTitle.includes(qTitle) ||
-               qTitle.includes(itemTitle);
+        const artistMatch = (!isGenreQuery && itemArtist.includes(query.toLowerCase())) ||
+                            itemArtist.includes(qArtist) ||
+                            qArtist.includes(itemArtist) ||
+                            (alias && itemArtist.includes(alias.toLowerCase()));
+        const titleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
+        
+        return artistMatch && titleMatch;
       });
 
       // 만약 Apple Music에 정확히 일치하는 아티스트나 앨범이 없다면 엉뚱한 커버(예: 피켓전도뮤직 1집)를 
@@ -417,10 +418,17 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
       // Ensure the artist matches before taking the hit
-      const hit = itRes.data.results?.find((item: any) =>
-        item.artistName?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
-        cleanArtist.toLowerCase().includes(item.artistName?.toLowerCase())
-      );
+      const hit = itRes.data.results?.find((item: any) => {
+        const itemArtist = item.artistName?.toLowerCase() || '';
+        const itemTitle = item.collectionName?.toLowerCase() || '';
+        const qArtist = cleanArtist.toLowerCase();
+        const qTitle = cleanTitle.toLowerCase();
+        
+        const artistMatch = itemArtist.includes(qArtist) || qArtist.includes(itemArtist);
+        const titleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
+        
+        return artistMatch && titleMatch;
+      });
       if (hit) {
         details.copyright = hit.copyright;
         if (hit.artworkUrl100) {
@@ -480,10 +488,7 @@ export const analyzeImageWithVisionAPI = async (base64Image: string) => {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_VISION_API_KEY;
   
   if (!apiKey) {
-    console.warn('Google Vision API key is missing! Returning mock text.');
-    return {
-      textAnnotations: [{ description: 'The Dark Side of the Moon Pink Floyd LP' }]
-    };
+    throw new Error('Google Vision API key is missing. Please add EXPO_PUBLIC_GOOGLE_VISION_API_KEY to your .env file.');
   }
 
   try {
