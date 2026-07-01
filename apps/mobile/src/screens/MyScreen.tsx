@@ -262,21 +262,21 @@ export const MyScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background, paddingTop: insets.top }} ref={viewRef as any} collapsable={false}>
       <ScrollView 
-        style={[styles.container, { backgroundColor: themeColors.background }]}
-          bounces={true}
-          alwaysBounceVertical={true}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={themeColors.accent}
-              title="새로고침 중..."
-              titleColor={themeColors.accent}
-              colors={[themeColors.accent]}
-              progressViewOffset={20}
-            />
-          }
-        >
+        style={[styles.container, { backgroundColor: 'transparent' }]}
+        bounces={true}
+        alwaysBounceVertical={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.accent || '#E9C349'}
+            title="새로고침 중..."
+            titleColor={themeColors.accent || '#E9C349'}
+            colors={[themeColors.accent || '#E9C349']}
+            progressViewOffset={20}
+          />
+        }
+      >
       {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
