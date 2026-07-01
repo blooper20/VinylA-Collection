@@ -71,6 +71,24 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
     return [];
   }
 
+  if (data && data.length > 0) {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
+      if (localM) {
+        try {
+          const masters = JSON.parse(localM);
+          data.forEach(d => {
+            if (d.ALBUM_MASTER && masters[d.ALBUM_ID] && masters[d.ALBUM_ID].MARKET_PRICE) {
+              d.ALBUM_MASTER.MARKET_PRICE = d.ALBUM_MASTER.MARKET_PRICE || masters[d.ALBUM_ID].MARKET_PRICE;
+            }
+          });
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+    }
+  }
+
   return data;
 };
 
@@ -213,8 +231,9 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     STATUS: userVinyl?.STATUS || 'WISH',
-    PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE,
+    PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE || 0,
     PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
-    CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c'
+    CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c',
+    MARKET_PRICE: master?.MARKET_PRICE || 0
   };
 };

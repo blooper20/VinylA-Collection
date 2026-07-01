@@ -16,7 +16,7 @@ import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
 
 const { width } = Dimensions.get('window');
 
-const AnalyticsCard = ({ title, value, unit, sub, themeColors }: { title: string, value: string | number, unit?: string, sub?: string, themeColors: any }) => (
+const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent }: any) => (
   <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.02)' }]}>
     <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
     <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
@@ -24,6 +24,28 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors }: { title: string
       {value}
     </Text>
     {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
+    {isSpent && (
+      <TouchableOpacity 
+        onPress={onToggleSpent}
+        style={{
+          marginTop: 8,
+          borderWidth: 1,
+          borderColor: isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)',
+          borderRadius: 12,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          alignSelf: 'flex-start'
+        }}
+      >
+        <Text style={{
+          color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)',
+          fontSize: 10,
+          fontWeight: 'bold'
+        }}>
+          {isSpentPublic ? '👁️ 공개됨' : '🙈 비공개 (링크에 숨김)'}
+        </Text>
+      </TouchableOpacity>
+    )}
   </View>
 );
 
@@ -37,6 +59,7 @@ export const MyScreen = () => {
   const [flashVisible, setFlashVisible] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
   const [isToastVisible, setIsToastVisible] = React.useState(false);
+  const [isSpentPublic, setIsSpentPublic] = React.useState(false);
   const viewRef = React.useRef(null);
 
   // States for real data
@@ -297,7 +320,7 @@ export const MyScreen = () => {
         </View>
 
         {/* Featured LP */}
-        <View style={styles.profileRight}>
+        <View style={[styles.profileRight, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <TouchableOpacity 
             style={[styles.featuredFrame, { backgroundColor: 'transparent' }]}
             onPress={() => setFeaturedModalVisible(true)}
@@ -406,7 +429,16 @@ export const MyScreen = () => {
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
           <AnalyticsCard title="시장 추정가" value={collectionValue.toLocaleString()} unit="₩" sub="Discogs 기준 최저가 합산" themeColors={themeColors} />
-          <AnalyticsCard title="실제 지출액" value={actualSpentValue.toLocaleString()} unit="₩" sub="입력된 구매가 합산" themeColors={themeColors} />
+          <AnalyticsCard 
+            title="실제 지출액" 
+            value={isSpentPublic ? actualSpentValue.toLocaleString() : '비공개'} 
+            unit={isSpentPublic ? "₩" : ""} 
+            sub="입력된 구매가 합산" 
+            themeColors={themeColors}
+            isSpent={true}
+            isSpentPublic={isSpentPublic}
+            onToggleSpent={() => setIsSpentPublic(!isSpentPublic)}
+          />
           <AnalyticsCard title="보유 LP" value={ownedCount.toLocaleString()} sub="등록된 전체 LP 수" themeColors={themeColors} />
           <AnalyticsCard title="관심 장르" value={topGenre} sub="프로필 설정 기준" themeColors={themeColors} />
           <AnalyticsCard title="실제 관심 장르" value={actualTopGenre} sub="내 콜렉션 데이터 기준" themeColors={themeColors} />
@@ -487,8 +519,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   profileRight: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   avatarFrame: {
     width: 120,
