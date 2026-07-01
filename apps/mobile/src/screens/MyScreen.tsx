@@ -51,6 +51,23 @@ export const MyScreen = () => {
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = allAlbums.find(a => Number(a.ALBUM_ID) === Number(featuredAlbumId));
 
+  const spinAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (featuredAlbum) {
+      Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 12000,
+          useNativeDriver: true,
+          easing: Easing.linear
+        })
+      ).start();
+    }
+  }, [featuredAlbum, spinAnim]);
+
+  const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
   React.useEffect(() => {
     async function loadStats() {
       if (!user) return;
@@ -277,7 +294,7 @@ export const MyScreen = () => {
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
-                {/* The LP itself sitting centered inside the modern vitrine */}
+                {/* The Wooden Frame */}
                 <View style={styles.albumShadowBox}>
                   <View style={styles.albumInner}>
                     <Image 
@@ -286,15 +303,22 @@ export const MyScreen = () => {
                       resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
                     />
                   </View>
+                  
+                  {/* The Spinning Vinyl */}
+                  <Animated.View style={[styles.vinylDisc, { transform: [{ rotate: spinRotate }] }]}>
+                    <View style={styles.vinylGrooves} />
+                    <View style={styles.vinylGrooves2} />
+                    <View style={[styles.vinylLabel, { backgroundColor: featuredAlbum.CUSTOM_COLOR_HEX || '#222' }]}>
+                      <Image 
+                        source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
+                        style={StyleSheet.absoluteFill} 
+                        resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
+                      />
+                      <View style={styles.vinylHole} />
+                    </View>
+                  </Animated.View>
                 </View>
 
-                {/* Soft atmospheric light wash from the top edge */}
-                <LinearGradient 
-                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.02)', 'transparent']}
-                  style={styles.cubbyLightWash}
-                  pointerEvents="none"
-                />
-                
                 {/* Wish badge */}
                 {featuredAlbum.STATUS === 'WISH' && (
                   <View style={styles.wishIconBadge}>
@@ -471,53 +495,82 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   featuredFrame: {
-    width: 140,
-    height: 140,
-    borderRadius: 20,
+    width: 200,
+    height: 120,
+    backgroundColor: '#fffcf5',
+    borderWidth: 6,
+    borderColor: '#e2caac',
     justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'visible',
+    paddingLeft: 10,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
-    shadowRadius: 20,
+    shadowRadius: 15,
     elevation: 10,
   },
   cubbyContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(20, 20, 20, 0.85)',
-    borderRadius: 20,
-    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    borderTopColor: 'rgba(255,255,255,0.15)', // Premium top highlight edge
-    overflow: 'hidden',
-  },
-  cubbyLightWash: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, height: '70%',
-    zIndex: 2,
   },
   albumShadowBox: {
-    width: 100,
-    height: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 10,
     zIndex: 1,
   },
   albumInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 4,
-    overflow: 'hidden',
+    width: 88,
+    height: 88,
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 5,
     backgroundColor: '#000',
+  },
+  vinylDisc: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#111',
+    position: 'absolute',
+    left: 75,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)', // Crisp modern edge
+    borderColor: '#222',
+  },
+  vinylGrooves: {
+    position: 'absolute',
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  vinylGrooves2: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  vinylLabel: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vinylHole: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fffcf5',
   },
   featuredCover: {
     width: '100%',
