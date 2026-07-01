@@ -387,10 +387,15 @@ export const MyScreen = () => {
                 </View>
                 
 
-                {/* Wish badge */}
+                {/* Status badges */}
                 {featuredAlbum.STATUS === 'WISH' && (
                   <View style={styles.wishIconBadge}>
                     <Text style={styles.wishIconText}>WISH</Text>
+                  </View>
+                )}
+                {featuredAlbum.STATUS === 'OWNED' && (
+                  <View style={styles.ownedIconBadge}>
+                    <Text style={styles.ownedIconText}>COLLECTED</Text>
                   </View>
                 )}
               </View>
@@ -681,6 +686,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
     textShadowColor: '#ffaa00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  ownedIconBadge: {
+    position: 'absolute',
+    top: -20,
+    right: -10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#00e5ff',
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    shadowColor: '#00e5ff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 5,
+    transform: [{ rotate: '-3deg' }],
+  },
+  ownedIconText: {
+    color: '#e0ffff',
+    fontWeight: '900',
+    fontSize: 14,
+    fontStyle: 'italic',
+    textShadowColor: '#00e5ff',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },

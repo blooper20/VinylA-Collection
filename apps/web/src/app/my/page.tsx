@@ -374,6 +374,9 @@ export default function MyProfilePage() {
                     {featuredAlbum.STATUS === 'WISH' && (
                       <div className={styles.featuredWishBadge}>WISH</div>
                     )}
+                    {featuredAlbum.STATUS === 'OWNED' && (
+                      <div className={styles.featuredOwnedBadge}>COLLECTED</div>
+                    )}
                   </>
                 ) : (
                   <div className={styles.featuredEmpty}>
