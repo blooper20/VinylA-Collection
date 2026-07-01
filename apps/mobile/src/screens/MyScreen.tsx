@@ -202,7 +202,7 @@ export const MyScreen = () => {
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
           <TouchableOpacity 
-            style={[styles.avatarFrame, { backgroundColor: 'rgba(255,255,255,0.05)' }]} 
+            style={[styles.avatarFrame, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: themeColors.accent, borderWidth: 1.5 }]} 
             onPress={async () => {
               try {
                 const result = await ImagePicker.launchImageLibraryAsync({
@@ -276,14 +276,11 @@ export const MyScreen = () => {
           >
             {featuredAlbum ? (
               <View style={styles.exhibitContainer}>
-                {/* Spotlight beam coming from the ceiling */}
+                {/* Museum style soft light pool on the wall */}
                 <LinearGradient 
-                  colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
-                  style={styles.spotlightBeam}
+                  colors={['rgba(255, 230, 190, 0.25)', 'rgba(255, 230, 190, 0.05)', 'rgba(255, 230, 190, 0)']}
+                  style={styles.wallLightPool}
                 />
-                
-                {/* Light pool hitting the wall behind the LP */}
-                <View style={styles.wallLightPool} />
 
                 {/* The LP itself floating with a shadow */}
                 <View style={styles.albumShadowBox}>
@@ -449,18 +446,17 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   avatarFrame: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     overflow: 'hidden',
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: '100%',
+    height: '100%',
   },
   userName: {
     fontSize: 24,
@@ -493,29 +489,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'visible',
   },
-  spotlightBeam: {
-    position: 'absolute',
-    top: -150, // Way above the LP
-    width: 160,
-    height: 300,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
-    transform: [
-      { perspective: 400 },
-      { rotateX: '60deg' },
-    ],
-  },
   wallLightPool: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 30,
-    elevation: 0,
+    top: -60,
+    width: 240,
+    height: 320,
+    borderRadius: 120, // Elliptical soft glow
   },
   albumShadowBox: {
     width: 120,
