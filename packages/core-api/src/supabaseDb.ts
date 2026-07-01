@@ -34,15 +34,17 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 
   if (error) {
     console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
-      const masters = JSON.parse(local);
-      masters[album.ALBUM_ID as number] = album;
-      localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
-    }
-    return album as ALBUM_MASTER;
   }
-  return data as ALBUM_MASTER;
+  
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
+    const masters = JSON.parse(local);
+    // Always preserve the full album containing MARKET_PRICE, GENRES, TRACKS
+    masters[album.ALBUM_ID as number] = { ...(masters[album.ALBUM_ID as number] || {}), ...album };
+    localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
+  }
+
+  return error ? (album as ALBUM_MASTER) : (data as ALBUM_MASTER);
 };
 
 // =======================

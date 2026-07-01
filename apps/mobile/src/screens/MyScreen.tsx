@@ -321,21 +321,6 @@ export const MyScreen = () => {
 
         {/* Featured LP */}
         <View style={styles.profileRight}>
-          {/* Physical Track Light (Pin light) Fixture */}
-          <View style={{ position: 'absolute', top: -20, right: 155/2 - 12, alignItems: 'center', zIndex: 10 }}>
-            <View style={{ width: 24, height: 4, backgroundColor: '#555', borderRadius: 2 }} />
-            <View style={{ width: 4, height: 6, backgroundColor: '#777' }} />
-            <View style={{
-              width: 16, height: 12, backgroundColor: '#222', 
-              borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
-              borderTopLeftRadius: 2, borderTopRightRadius: 2,
-              borderWidth: 1, borderColor: '#555'
-            }}>
-               {/* Bulb Glow */}
-               <View style={{ position: 'absolute', bottom: -2, left: 3, right: 3, height: 4, backgroundColor: '#fff5cc', borderRadius: 4, shadowColor: '#fff5cc', shadowOpacity: 1, shadowRadius: 5 }} />
-            </View>
-          </View>
-
           <TouchableOpacity 
             style={styles.featuredFrame}
             onPress={() => setFeaturedModalVisible(true)}
@@ -343,36 +328,21 @@ export const MyScreen = () => {
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
-                {/* Spotlight Beam */}
+                {/* Elegant Warm Backlight */}
                 <View style={{
                   position: 'absolute',
-                  top: -40,
+                  top: '50%',
                   left: '50%',
+                  marginTop: -40,
                   marginLeft: -40,
                   width: 80,
-                  height: 180,
-                  zIndex: 5,
-                  pointerEvents: 'none',
-                }}>
-                  <LinearGradient
-                    colors={['rgba(255, 240, 200, 0.4)', 'rgba(255, 240, 200, 0.0)']}
-                    style={{ flex: 1 }}
-                  />
-                </View>
-
-                {/* Intense Warm Backlight */}
-                <View style={{
-                  position: 'absolute',
-                  top: '10%',
-                  left: '10%',
-                  right: '10%',
-                  bottom: '10%',
+                  height: 80,
                   backgroundColor: '#ff8c00', // Amber glow
-                  borderRadius: 60,
+                  borderRadius: 40,
                   shadowColor: '#ffaa00',
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 1,
-                  shadowRadius: 25,
+                  shadowRadius: 40,
                   elevation: 20,
                   zIndex: 0
                 }} />
