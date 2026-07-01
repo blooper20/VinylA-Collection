@@ -293,10 +293,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const modalScale = modalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] });
 
-  const KNOWN_COUNTRIES = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
   const genres = album.GENRES || [];
-  const countryTags = genres.filter(tag => KNOWN_COUNTRIES.includes(tag));
-  const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag));
+  const genreTags = genres.slice(0, 4); // Only display top 4 genres
 
   return (
     <Modal visible={visible} animationType="none" transparent statusBarTranslucent>
@@ -367,14 +365,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               </View>
 
               {/* Tags Section */}
-              {(countryTags.length > 0 || genreTags.length > 0) && (
+              {(genreTags.length > 0) && (
                 <View style={styles.tagsContainer}>
-                  {countryTags.map((tag, i) => (
-                    <View key={`c-${i}`} style={[styles.tagBadge, { borderColor: 'rgba(233, 195, 73, 0.4)' }]}>
-                      <Text style={[styles.tagText, { color: '#e9c349' }]}>🌐 {tag}</Text>
-                    </View>
-                  ))}
-                  {genreTags.slice(0, 4).map((tag, i) => (
+                  {genreTags.map((tag, i) => (
                     <View key={`g-${i}`} style={styles.tagBadge}>
                       <Text style={styles.tagText}>{tag}</Text>
                     </View>
