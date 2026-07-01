@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
@@ -60,6 +60,7 @@ export const MyScreen = () => {
   const [toastMessage, setToastMessage] = React.useState('');
   const [isToastVisible, setIsToastVisible] = React.useState(false);
   const [isSpentPublic, setIsSpentPublic] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
   const viewRef = React.useRef(null);
 
   // States for real data
@@ -102,105 +103,112 @@ export const MyScreen = () => {
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const shimmerTranslate = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-200, 200] });
 
-  React.useEffect(() => {
-    async function loadStats() {
-      if (!user) return;
-      try {
-        let currentGenre = '-';
-        if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
-          currentGenre = user.user_metadata.interests[0];
-        }
+  const loadStats = React.useCallback(async () => {
+    if (!user) return;
+    try {
+      let currentGenre = '-';
+      if (user.user_metadata?.interests && user.user_metadata.interests.length > 0) {
+        currentGenre = user.user_metadata.interests[0];
+      }
 
-        const data = await getUserVinyls(user.id);
-        if (data && data.length > 0) {
-          const owned = data.filter(v => v.STATUS === 'OWNED');
-          setOwnedCount(owned.length);
-          
-          const value = owned.reduce((sum, item) => sum + (item.ALBUM_MASTER?.MARKET_PRICE || 0), 0);
-          setCollectionValue(value);
+      const data = await getUserVinyls(user.id);
+      if (data && data.length > 0) {
+        const owned = data.filter(v => v.STATUS === 'OWNED');
+        setOwnedCount(owned.length);
+        
+        const value = owned.reduce((sum, item) => sum + (item.ALBUM_MASTER?.MARKET_PRICE || 0), 0);
+        setCollectionValue(value);
 
-          const spent = owned.reduce((sum, item) => sum + (item.PURCHASE_PRICE || 0), 0);
-          setActualSpentValue(spent);
+        const spent = owned.reduce((sum, item) => sum + (item.PURCHASE_PRICE || 0), 0);
+        setActualSpentValue(spent);
 
-          const mapped = data.map(v => mapToFrontendModel(v, null));
-          const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
-          const mappedWish = mapped.filter(v => v.STATUS === 'WISH');
-          setRecentAdditions(mappedOwned.slice(0, 3));
-          setAllAlbums(mapped.filter(v => v.STATUS !== 'NONE'));
+        const mapped = data.map(v => mapToFrontendModel(v, null));
+        const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
+        const mappedWish = mapped.filter(v => v.STATUS === 'WISH');
+        setRecentAdditions(mappedOwned.slice(0, 3));
+        setAllAlbums(mapped.filter(v => v.STATUS !== 'NONE'));
 
-          // Calculate actual top genre from collection
-          const genreCounts: Record<string, number> = {};
-          mappedOwned.forEach(item => {
-            if (item.GENRES && Array.isArray(item.GENRES)) {
-              item.GENRES.forEach((g: string) => {
-                genreCounts[g] = (genreCounts[g] || 0) + 1;
-              });
-            }
-          });
-          if (Object.keys(genreCounts).length > 0) {
-            const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
-            setActualTopGenre(sortedGenres[0][0]);
-          } else {
-            setActualTopGenre('-');
+        // Calculate actual top genre from collection
+        const genreCounts: Record<string, number> = {};
+        mappedOwned.forEach(item => {
+          if (item.GENRES && Array.isArray(item.GENRES)) {
+            item.GENRES.forEach((g: string) => {
+              genreCounts[g] = (genreCounts[g] || 0) + 1;
+            });
           }
-          setTopGenre(currentGenre);
-
-          // Evaluate Badges
-          let highestMarketPrice = 0;
-          let highestPurchasePrice = 0;
-          mappedOwned.forEach(item => {
-            const mp = item.MARKET_PRICE || 0;
-            if (mp > highestMarketPrice) highestMarketPrice = mp;
-            if ((item.PURCHASE_PRICE || 0) > highestPurchasePrice) highestPurchasePrice = item.PURCHASE_PRICE || 0;
-          });
-
-          let totalWishPrice = 0;
-          const wishGenres: Record<string, number> = {};
-          mappedWish.forEach(item => {
-            totalWishPrice += (item.MARKET_PRICE || 0);
-            if (item.GENRES && Array.isArray(item.GENRES)) {
-              item.GENRES.forEach((g: string) => {
-                wishGenres[g] = (wishGenres[g] || 0) + 1;
-              });
-            }
-          });
-
-          const stats: UserStats = {
-            ownedCount: mappedOwned.length,
-            wishCount: mappedWish.length,
-            totalMarketPrice: value,
-            totalWishPrice,
-            highestMarketPrice,
-            highestPurchasePrice,
-            averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
-            favoriteGenre: currentGenre,
-            ownedGenres: genreCounts,
-            wishGenres
-          };
-
-          const newlyUnlocked = evaluateBadges(stats);
-          const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
-          
-          const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
-          if (newBadges.length > 0) {
-             const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
-             await updateUnlockedBadges(nextBadges);
-             const newBadgeNames = newBadges.map(id => BADGES.find(b => b.id === id)?.name).filter(Boolean).join(', ');
-             
-             setToastMessage(`🎉 새로운 호칭 획득: ${newBadgeNames}`);
-             setIsToastVisible(true);
-          }
-
+        });
+        if (Object.keys(genreCounts).length > 0) {
+          const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
+          setActualTopGenre(sortedGenres[0][0]);
         } else {
-          setTopGenre(currentGenre);
           setActualTopGenre('-');
         }
-      } catch (e) {
-        console.error('Failed to load stats', e);
+        setTopGenre(currentGenre);
+
+        // Evaluate Badges
+        let highestMarketPrice = 0;
+        let highestPurchasePrice = 0;
+        mappedOwned.forEach(item => {
+          const mp = item.MARKET_PRICE || 0;
+          if (mp > highestMarketPrice) highestMarketPrice = mp;
+          if ((item.PURCHASE_PRICE || 0) > highestPurchasePrice) highestPurchasePrice = item.PURCHASE_PRICE || 0;
+        });
+
+        let totalWishPrice = 0;
+        const wishGenres: Record<string, number> = {};
+        mappedWish.forEach(item => {
+          totalWishPrice += (item.MARKET_PRICE || 0);
+          if (item.GENRES && Array.isArray(item.GENRES)) {
+            item.GENRES.forEach((g: string) => {
+              wishGenres[g] = (wishGenres[g] || 0) + 1;
+            });
+          }
+        });
+
+        const stats: UserStats = {
+          ownedCount: mappedOwned.length,
+          wishCount: mappedWish.length,
+          totalMarketPrice: value,
+          totalWishPrice,
+          highestMarketPrice,
+          highestPurchasePrice,
+          averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
+          favoriteGenre: currentGenre,
+          ownedGenres: genreCounts,
+          wishGenres
+        };
+
+        const newlyUnlocked = evaluateBadges(stats);
+        const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
+        
+        const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
+        if (newBadges.length > 0) {
+           const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
+           await updateUnlockedBadges(nextBadges);
+           const newBadgeNames = newBadges.map(id => BADGES.find(b => b.id === id)?.name).filter(Boolean).join(', ');
+           
+           setToastMessage(`🎉 새로운 호칭 획득: ${newBadgeNames}`);
+           setIsToastVisible(true);
+        }
+
+      } else {
+        setTopGenre(currentGenre);
+        setActualTopGenre('-');
       }
+    } catch (e) {
+      console.error('Failed to load stats', e);
     }
+  }, [user, updateUnlockedBadges]);
+
+  React.useEffect(() => {
     loadStats();
-  }, [user]);
+  }, [loadStats]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await loadStats();
+    setRefreshing(false);
+  }, [loadStats]);
 
   const unlockedBadges = user?.user_metadata?.unlocked_badges || [];
   const selectedBadgeId = user?.user_metadata?.selected_badge || 'owned_1';
@@ -248,7 +256,17 @@ export const MyScreen = () => {
 
   return (
     <View style={{ flex: 1 }} ref={viewRef} collapsable={false}>
-      <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <ScrollView 
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.accent}
+            colors={[themeColors.accent]}
+          />
+        }
+      >
       {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
