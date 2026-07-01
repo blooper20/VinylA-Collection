@@ -271,16 +271,13 @@ export const MyScreen = () => {
         {/* Featured LP */}
         <View style={styles.profileRight}>
           <TouchableOpacity 
-            style={[styles.featuredFrame, { borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.02)' }]}
+            style={[styles.featuredFrame, { backgroundColor: 'transparent' }]}
             onPress={() => setFeaturedModalVisible(true)}
             activeOpacity={0.8}
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
-                {/* The LED light strip at the top inner edge */}
-                <View style={styles.cubbyLedStrip} />
-
-                {/* The LP itself sitting inside the cubby */}
+                {/* The LP itself sitting centered inside the modern vitrine */}
                 <View style={styles.albumShadowBox}>
                   <View style={styles.albumInner}>
                     <Image 
@@ -291,9 +288,9 @@ export const MyScreen = () => {
                   </View>
                 </View>
 
-                {/* The light wash from the LED down the wall and LP */}
+                {/* Soft atmospheric light wash from the top edge */}
                 <LinearGradient 
-                  colors={['rgba(255, 250, 230, 0.4)', 'rgba(255, 250, 230, 0.05)', 'transparent']}
+                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.02)', 'transparent']}
                   style={styles.cubbyLightWash}
                   pointerEvents="none"
                 />
@@ -476,55 +473,51 @@ const styles = StyleSheet.create({
   featuredFrame: {
     width: 140,
     height: 140,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   cubbyContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#151515', // Dark shelf interior
+    backgroundColor: 'rgba(20, 20, 20, 0.85)',
+    borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'flex-end', // Rest the LP at the bottom
-    paddingBottom: 10,
-    borderRadius: 8,
-    overflow: 'hidden', // Keep light strictly inside the shelf
-  },
-  cubbyLedStrip: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: 3,
-    backgroundColor: '#fff',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 3,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: 'rgba(255,255,255,0.15)', // Premium top highlight edge
+    overflow: 'hidden',
   },
   cubbyLightWash: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, height: '100%',
-    zIndex: 2, // Overlays the LP and wall
+    top: 0, left: 0, right: 0, height: '70%',
+    zIndex: 2,
   },
   albumShadowBox: {
-    width: 105,
-    height: 105,
+    width: 100,
+    height: 100,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.9,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
     shadowRadius: 15,
-    elevation: 15,
+    elevation: 10,
     zIndex: 1,
   },
   albumInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 4,
     overflow: 'hidden',
     backgroundColor: '#000',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', // Crisp modern edge
   },
   featuredCover: {
     width: '100%',
