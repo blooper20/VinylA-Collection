@@ -298,7 +298,7 @@ export const MyScreen = () => {
                 {/* Wish badge */}
                 {featuredAlbum.STATUS === 'WISH' && (
                   <View style={styles.wishIconBadge}>
-                    <Text style={styles.wishIconText}>☁️</Text>
+                    <Text style={styles.wishIconText}>WISH</Text>
                   </View>
                 )}
               </View>
@@ -525,12 +525,12 @@ const styles = StyleSheet.create({
   },
   wishIconBadge: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: 8,
+    right: 8,
     backgroundColor: 'rgba(255,255,255,0.9)',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -540,7 +540,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   wishIconText: {
-    fontSize: 12,
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#000',
+    letterSpacing: 1,
   },
   featuredEmpty: {
     alignItems: 'center',
