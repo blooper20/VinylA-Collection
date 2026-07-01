@@ -72,14 +72,20 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [alertVisible, setAlertVisible] = React.useState(false);
   const [alertTitle, setAlertTitle] = React.useState('');
   const [alertMessage, setAlertMessage] = React.useState('');
+  const [onAlertClose, setOnAlertClose] = React.useState<(() => void) | null>(null);
 
   const [pricePromptVisible, setPricePromptVisible] = React.useState(false);
   const [priceInputValue, setPriceInputValue] = React.useState('');
   const [isEditingPriceOnly, setIsEditingPriceOnly] = React.useState(false);
 
-  const showAlert = (title: string, message: string) => {
+  const showAlert = (title: string, message: string, onCloseCallback?: () => void) => {
     setAlertTitle(title);
     setAlertMessage(message);
+    if (onCloseCallback) {
+      setOnAlertClose(() => onCloseCallback);
+    } else {
+      setOnAlertClose(null);
+    }
     setAlertVisible(true);
   };
 
@@ -100,6 +106,14 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       setReleaseDate('');
       setCopyright('');
       setNotes('');
+
+      setAlertVisible(false);
+      setAlertTitle('');
+      setAlertMessage('');
+      setOnAlertClose(null);
+      setPricePromptVisible(false);
+      setPriceInputValue('');
+      setIsEditingPriceOnly(false);
       
       // DB에서 이 앨범의 실제 상태(OWNED/WISH/없음)를 확인
       setRealStatus(album.STATUS || null);
@@ -327,8 +341,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     try {
       await deleteUserVinylByAlbum(user?.id || 1, Number(album.ALBUM_ID));
       setRealStatus('NONE');
-      showAlert('성공', '보관함에서 삭제되었습니다.');
-      handleClose();
+      showAlert('성공', '보관함에서 삭제되었습니다.', () => {
+        handleClose();
+      });
     } catch (e) {
       console.error(e);
       showAlert('오류', '삭제에 실패했습니다.');
@@ -539,7 +554,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           visible={alertVisible}
           title={alertTitle}
           message={alertMessage}
-          onClose={() => setAlertVisible(false)}
+          onClose={() => {
+            setAlertVisible(false);
+            if (onAlertClose) onAlertClose();
+          }}
         />
         {pricePromptVisible && (
           <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }]}>
