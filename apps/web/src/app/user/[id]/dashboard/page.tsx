@@ -3,8 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getUserVinyls, mapToFrontendModel, useAuthStore } from '@vinyla/core-api';
-import { BADGES } from '../../../../lib/badges';
+import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES } from '@vinyla/core-api';
 import { DetailModal } from '../../../../components/Modal/DetailModal';
 import styles from '../../../my/page.module.css';
 import dashStyles from './dashboard.module.css';

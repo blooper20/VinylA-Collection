@@ -297,7 +297,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   {(genreTags.length > 0) && (
                     <div className={styles.tagsContainer}>
                       {genreTags.map((tag, i) => (
-                        <div key={`g-${i}`} className={styles.tagBadge}>
+                        <div key={`g-${i}`} className={styles.tagLabel}>
                           {tag}
                         </div>
                       ))}

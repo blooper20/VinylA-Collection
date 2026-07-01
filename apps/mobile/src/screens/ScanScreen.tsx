@@ -88,8 +88,8 @@ export const ScanScreen = () => {
       }
 
       // 3. 백엔드(Node.js) 서버로 이미지와 검색어 전달하여 VLM 매칭
-      console.log('Sending request to Middle Server (http://192.168.1.3:3001/api/scan)...');
-      const response = await fetch('http://192.168.1.3:3001/api/scan', {
+      console.log('Sending request to Middle Server (http://192.168.0.20:3001/api/scan)...');
+      const response = await fetch('http://192.168.0.20:3001/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base64Image: base64Str, queries })

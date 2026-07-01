@@ -13,6 +13,7 @@ import { NativeToast } from '../components/Toast/NativeToast';
 import { shareToInstagramStory } from '../utils/nativeShare';
 import { ShareTemplate } from '../components/Share/ShareTemplate';
 import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
 
@@ -243,7 +244,7 @@ export const MyScreen = () => {
       const featured = encodeURIComponent(user.user_metadata?.featured_album_id || '');
       const sp = isSpentPublic ? '1' : '0';
       
-      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'http://192.168.0.20:3000';
       const link = `${baseUrl}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
       
       try {
@@ -315,16 +316,12 @@ export const MyScreen = () => {
                     const fileExt = uri.split('.').pop() || 'jpeg';
                     const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
                     
-                    const formData = new FormData();
-                    formData.append('file', {
-                      uri: uri,
-                      name: filePath,
-                      type: `image/${fileExt}`
-                    } as any);
+                    const response = await fetch(uri);
+                    const blob = await response.blob();
                     
                     const { error } = await supabase.storage
                       .from('avatars')
-                      .upload(filePath, formData);
+                      .upload(filePath, blob, { contentType: `image/${fileExt}` });
                       
                     if (error) throw error;
                     
@@ -475,7 +472,12 @@ export const MyScreen = () => {
                   backgroundColor: glassIntensity === val ? 'rgba(197, 160, 89, 0.15)' : 'rgba(255,255,255,0.02)'
                 }
               ]}
-              onPress={() => setGlassIntensity(val)}
+              onPress={async () => {
+                setGlassIntensity(val);
+                try {
+                  await AsyncStorage.setItem('glassIntensity', val.toString());
+                } catch (e) {}
+              }}
             >
               <Text style={[styles.themeBtnText, { color: glassIntensity === val ? themeColors.accent : themeColors.textSecondary }]}>
                 {val === 10 ? '약함' : val === 90 ? '강함' : val}
