@@ -51,7 +51,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
 );
 
 export const MyScreen = () => {
-  const { theme, setTheme, themeColors } = useTheme();
+  const { theme, themeColors } = useTheme();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges } = useAuthStore();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -242,22 +242,12 @@ export const MyScreen = () => {
     }
   };
 
-  const handleThemeChange = (newTheme: ThemeType) => {
-    setTheme(newTheme);
-  };
-
   const handleFeaturedSelect = async (albumId: string | number | null) => {
     const numericId = albumId ? Number(albumId) : null;
     await updateFeaturedAlbum(numericId);
     setToastMessage(numericId ? '대표 LP가 설정되었습니다.' : '대표 LP 설정이 해제되었습니다.');
     setIsToastVisible(true);
   };
-
-  const themes: { id: ThemeType, label: string }[] = [
-    { id: 'DARK_BLACK', label: '다크 블랙' },
-    { id: 'MOODY_WALNUT', label: '무디 월넛' },
-    { id: 'CLEAN_DOODLING', label: '클린 두들' },
-  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background, paddingTop: insets.top }} ref={viewRef as any} collapsable={false}>
@@ -437,29 +427,8 @@ export const MyScreen = () => {
         </View>
       </View>
 
-      {/* Theme Switcher */}
+      {/* Logout Button */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>테마 설정</Text>
-        <View style={styles.themeSwitcher}>
-          {themes.map(t => (
-            <TouchableOpacity 
-              key={t.id} 
-              style={[
-                styles.themeBtn, 
-                { borderColor: themeColors.border },
-                theme === t.id && { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
-              ]}
-              onPress={() => handleThemeChange(t.id)}
-            >
-              <Text style={[
-                styles.themeBtnText, 
-                { color: theme === t.id ? '#000' : themeColors.textSecondary }
-              ]}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        
-        {/* Logout Button */}
         <TouchableOpacity 
           style={[styles.logoutBtn, { borderColor: themeColors.border }]}
           onPress={async () => {

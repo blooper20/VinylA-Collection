@@ -13,7 +13,7 @@ interface ThemeContextProps {
 const ThemeContext = createContext<ThemeContextProps | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<ThemeType>('DARK_BLACK');
+  const [theme, setTheme] = useState<ThemeType>('MOODY_WALNUT');
 
   // Handle CSS variables for Web inside a generic provider if needed, 
   // but it's cleaner to handle web `data-theme` inside Web's layout 
