@@ -72,14 +72,20 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [alertVisible, setAlertVisible] = React.useState(false);
   const [alertTitle, setAlertTitle] = React.useState('');
   const [alertMessage, setAlertMessage] = React.useState('');
+  const [onAlertClose, setOnAlertClose] = React.useState<(() => void) | null>(null);
 
   const [pricePromptVisible, setPricePromptVisible] = React.useState(false);
   const [priceInputValue, setPriceInputValue] = React.useState('');
   const [isEditingPriceOnly, setIsEditingPriceOnly] = React.useState(false);
 
-  const showAlert = (title: string, message: string) => {
+  const showAlert = (title: string, message: string, onCloseCallback?: () => void) => {
     setAlertTitle(title);
     setAlertMessage(message);
+    if (onCloseCallback) {
+      setOnAlertClose(() => onCloseCallback);
+    } else {
+      setOnAlertClose(null);
+    }
     setAlertVisible(true);
   };
 
@@ -100,6 +106,14 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       setReleaseDate('');
       setCopyright('');
       setNotes('');
+
+      setAlertVisible(false);
+      setAlertTitle('');
+      setAlertMessage('');
+      setOnAlertClose(null);
+      setPricePromptVisible(false);
+      setPriceInputValue('');
+      setIsEditingPriceOnly(false);
       
       // DB에서 이 앨범의 실제 상태(OWNED/WISH/없음)를 확인
       setRealStatus(album.STATUS || null);
@@ -204,33 +218,38 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     setPricePromptVisible(true);
   };
 
+  const syncAlbumMasterIfNeeded = async (numericAlbumId: number, finalGenres: string[]) => {
+    let master = await getAlbumMaster(numericAlbumId);
+    const isNewImageBetter = album!.IMAGE_URL?.includes('mzstatic.com') || album!.IMAGE_URL?.includes('apple.com') || (album!.IMAGE_URL && !master?.IMAGE_URL);
+    
+    // Web앱과 동일한 조건: master가 없거나, 장르 태그가 누락되었거나(단순 'Vinyl'만 있는 경우 포함), 이미지가 더 좋은 경우 ALBUM_MASTER 업데이트
+    if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
+      await createAlbumMaster({
+        ALBUM_ID: numericAlbumId,
+        TITLE: album!.TITLE,
+        ARTIST: album!.ARTIST,
+        RELEASE_YEAR: album!.RELEASE_YEAR,
+        IMAGE_URL: album!.IMAGE_URL,
+        VINYL_IMAGE_URL: album!.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
+        CUSTOM_COLOR_HEX: album!.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
+        CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
+        TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
+        GENRES: finalGenres,
+        MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
+      });
+    }
+  };
+
   const executeSaveAlbum = async (finalPrice: number) => {
     if (!album || !user) return;
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
-        const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
-        return !COUNTRY_TAGS.includes(g);
+        const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
+        return !EXCLUDED_TAGS.includes(g);
       });
 
       const numericAlbumId = Number(album.ALBUM_ID);
-      let master = await getAlbumMaster(numericAlbumId);
-      const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
-      
-      if (!master || isNewImageBetter) {
-        await createAlbumMaster({
-          ALBUM_ID: numericAlbumId,
-          TITLE: album.TITLE,
-          ARTIST: album.ARTIST,
-          RELEASE_YEAR: album.RELEASE_YEAR,
-          IMAGE_URL: album.IMAGE_URL,
-          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
-          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
-          CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
-          TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
-          GENRES: finalGenres,
-          MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
-        });
-      }
+      await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
 
       await upsertUserVinyl({
         USER_ID: user.id,
@@ -294,6 +313,13 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     } else {
       try {
         const numericAlbumId = Number(album.ALBUM_ID);
+        const finalGenres = (album.GENRES || []).filter(g => {
+          const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
+          return !EXCLUDED_TAGS.includes(g);
+        });
+        
+        await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
+
         await upsertUserVinyl({
           USER_ID: user.id,
           ALBUM_ID: numericAlbumId,
@@ -315,8 +341,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     try {
       await deleteUserVinylByAlbum(user?.id || 1, Number(album.ALBUM_ID));
       setRealStatus('NONE');
-      showAlert('성공', '보관함에서 삭제되었습니다.');
-      handleClose();
+      showAlert('성공', '보관함에서 삭제되었습니다.', () => {
+        handleClose();
+      });
     } catch (e) {
       console.error(e);
       showAlert('오류', '삭제에 실패했습니다.');
@@ -348,9 +375,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const modalScale = modalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] });
 
-  const KNOWN_COUNTRIES = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
+  const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
   const genres = album.GENRES || [];
-  const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
+  const genreTags = genres.filter(tag => !EXCLUDED_TAGS.includes(tag)).slice(0, 4); // Only display top 4 genres
 
   return (
     <Modal visible={visible} animationType="none" transparent statusBarTranslucent>
@@ -527,7 +554,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           visible={alertVisible}
           title={alertTitle}
           message={alertMessage}
-          onClose={() => setAlertVisible(false)}
+          onClose={() => {
+            setAlertVisible(false);
+            if (onAlertClose) onAlertClose();
+          }}
         />
         {pricePromptVisible && (
           <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }]}>

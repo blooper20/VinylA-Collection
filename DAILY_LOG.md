@@ -178,3 +178,17 @@ apps/api/
 - **Original 3D Logo Integration**:
   - Generated a new premium 3D gold and liquid glass variation based strictly on the project's original transparent logo (`logo_real_transparent.png`).
   - Replaced the previously hallucinated logo with this authentic, upgraded 3D version in the central scan Tab Bar.
+
+### 2026-07-01 (Part 5)
+- **Supabase DB Schema Redesign**:
+  - Discovered that the `GENRES` array column was missing from the `ALBUM_MASTER` table, causing silent failures when saving tags.
+  - Completely re-architected the tag storage logic in `supabaseDb.ts` to use a separate relational `VINYL_TAG` table. Genre tags are now inserted into `VINYL_TAG` and fetched using a `VINYL_TAG(*)` join, perfectly persisting tags when saving to the library.
+- **MyScreen (Mobile) Refinements**:
+  - Relocated the 'Logout' button to the very bottom, below the Timeline section.
+  - Made the '관심 장르' (Favorite Genres) AnalyticsCard interactive, navigating to the `ProfileSetupScreen` upon press.
+  - Introduced an `ActivityIndicator` overlay during profile picture uploads to prevent the illusion of an unresponsive UI while the image processes.
+  - Replaced the original Logout button position with a 'Share' (공유하기) button. Transitioned the sharing mechanism from an Instagram Story image generation to a native system URL share (`https://vinyla.vercel.app/...`), perfectly mimicking the Web Dashboard sharing logic with full URL parameters.
+- **Monorepo & Infrastructure Enhancements**:
+  - Added the `"dev": "expo start"` script to `apps/mobile/package.json` to integrate with Turborepo.
+  - Resolved a severe port collision issue (both Next.js and Express defaulting to `3000`) by explicitly shifting the `api` server and its corresponding Mobile `ScanScreen` fetch endpoints to port `3001`.
+  - Established a seamless local development pipeline: running `npm run dev` at the monorepo root now flawlessly launches Web (3000), API (3001), and Mobile (Expo 8081) concurrently.

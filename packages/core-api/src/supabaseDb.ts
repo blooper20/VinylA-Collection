@@ -8,7 +8,7 @@ import { ALBUM_MASTER, USER_VINYL, VINYL_TAG } from '@vinyla/shared-types';
 export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | null> => {
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
-    .select('*')
+    .select('*, VINYL_TAG(*)')
     .eq('ALBUM_ID', albumId)
     .single();
 
@@ -16,7 +16,11 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
     console.warn('getAlbumMaster error or DB not connected:', error);
     return null;
   }
-  const master = data as ALBUM_MASTER;
+  const master = data as any; // Cast to any to access VINYL_TAG easily
+  if (master.VINYL_TAG && master.VINYL_TAG.length > 0) {
+    master.GENRES = master.VINYL_TAG.map((t: any) => t.TAG_NAME);
+  }
+  
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
     if (local) {
@@ -34,8 +38,11 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
 
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
   const payload = { ...album };
+  const genresToSave = payload.GENRES;
   delete (payload as any).TRACKS;
   delete (payload as any).PURCHASE_PRICE;
+  delete (payload as any).GENRES;
+  delete (payload as any).MARKET_PRICE;
   
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
@@ -45,6 +52,17 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 
   if (error) {
     console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
+  } else if (genresToSave !== undefined) {
+    // Delete existing tags before inserting new ones
+    await supabase.from('VINYL_TAG').delete().eq('ALBUM_ID', album.ALBUM_ID);
+    if (genresToSave.length > 0) {
+      const tagsToInsert = genresToSave.map(g => ({
+        ALBUM_ID: album.ALBUM_ID,
+        TAG_TYPE: 'GENRE',
+        TAG_NAME: g
+      }));
+      await supabase.from('VINYL_TAG').insert(tagsToInsert);
+    }
   }
   
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -65,7 +83,7 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 export const getUserVinyls = async (userId: string | number): Promise<any[]> => {
   const { data, error } = await supabase
     .from('USER_VINYL')
-    .select('*, ALBUM_MASTER(*)')
+    .select('*, ALBUM_MASTER(*, VINYL_TAG(*))')
     .eq('USER_ID', userId);
 
   if (error || !data || data.length === 0) {
@@ -85,6 +103,12 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
   }
 
   if (data && data.length > 0) {
+    data.forEach(d => {
+      if (d.ALBUM_MASTER && d.ALBUM_MASTER.VINYL_TAG && d.ALBUM_MASTER.VINYL_TAG.length > 0) {
+        d.ALBUM_MASTER.GENRES = d.ALBUM_MASTER.VINYL_TAG.map((t: any) => t.TAG_NAME);
+      }
+    });
+
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
       if (localM) {
@@ -95,7 +119,7 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
               if (masters[d.ALBUM_ID].MARKET_PRICE) {
                 d.ALBUM_MASTER.MARKET_PRICE = d.ALBUM_MASTER.MARKET_PRICE || masters[d.ALBUM_ID].MARKET_PRICE;
               }
-              if (masters[d.ALBUM_ID].GENRES) {
+              if (masters[d.ALBUM_ID].GENRES && (!d.ALBUM_MASTER.GENRES || d.ALBUM_MASTER.GENRES.length === 0)) {
                 d.ALBUM_MASTER.GENRES = masters[d.ALBUM_ID].GENRES;
               }
             }

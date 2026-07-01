@@ -136,12 +136,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
         // Strip any leftover country tags from old saves
-        const COUNTRY_TAGS = [
+        const EXCLUDED_TAGS = [
           'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany',
           'France', 'Netherlands', 'Canada', 'Australia', 'Italy',
-          'Sweden', 'Taiwan', 'Brazil', 'Russia'
+          'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'
         ];
-        return !COUNTRY_TAGS.includes(g);
+        return !EXCLUDED_TAGS.includes(g);
       });
 
       if (!user?.id) {
@@ -156,7 +156,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
-      if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
+      if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
         await createAlbumMaster({
           ALBUM_ID: numericAlbumId,
           TITLE: album.TITLE,
@@ -283,13 +283,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             ) : null}
 
             {(() => {
-              const KNOWN_COUNTRIES = [
+              const EXCLUDED_TAGS = [
                 'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
                 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
-                'Sweden', 'Taiwan', 'Brazil', 'Russia'
+                'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'
               ];
               const genres = album.GENRES || [];
-              const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
+              const genreTags = genres.filter(tag => !EXCLUDED_TAGS.includes(tag)).slice(0, 4); // Only display top 4 genres
 
               return (
                 <>
@@ -297,7 +297,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   {(genreTags.length > 0) && (
                     <div className={styles.tagsContainer}>
                       {genreTags.map((tag, i) => (
-                        <div key={`g-${i}`} className={styles.tagBadge}>
+                        <div key={`g-${i}`} className={styles.tagLabel}>
                           {tag}
                         </div>
                       ))}

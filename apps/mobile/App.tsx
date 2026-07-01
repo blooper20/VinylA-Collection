@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { RootNavigator, linking } from './src/navigation/RootNavigator';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '@vinyla/ui';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AppContent = () => {
-  const { theme } = useTheme();
+  const { theme, setGlassIntensity } = useTheme();
+  
+  useEffect(() => {
+    AsyncStorage.getItem('glassIntensity').then((val) => {
+      if (val) setGlassIntensity(Number(val));
+    });
+  }, [setGlassIntensity]);
+
   // We can dynamically change status bar style based on theme
   const statusBarStyle = theme === 'CLEAN_DOODLING' ? 'dark' : 'light';
 
