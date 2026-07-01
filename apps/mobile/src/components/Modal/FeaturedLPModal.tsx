@@ -70,6 +70,20 @@ export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, o
                   <Text style={[styles.albumTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{album.TITLE}</Text>
                   <Text style={[styles.albumArtist, { color: themeColors.textSecondary }]} numberOfLines={1}>{album.ARTIST}</Text>
                 </View>
+                <View style={[
+                  styles.statusBadge, 
+                  { 
+                    backgroundColor: album.STATUS === 'WISH' ? 'rgba(255, 152, 0, 0.1)' : 'rgba(0, 255, 255, 0.1)', 
+                    borderColor: album.STATUS === 'WISH' ? '#ff9800' : '#00ffff' 
+                  }
+                ]}>
+                  <Text style={[
+                    styles.statusText, 
+                    { color: album.STATUS === 'WISH' ? '#ff9800' : '#00ffff' }
+                  ]}>
+                    {album.STATUS === 'WISH' ? 'WISH' : 'COLLECTED'}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -143,5 +157,16 @@ const styles = StyleSheet.create({
   },
   albumArtist: {
     fontSize: 14,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginLeft: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
   }
 });
