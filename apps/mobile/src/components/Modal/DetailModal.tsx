@@ -204,6 +204,28 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     setPricePromptVisible(true);
   };
 
+  const syncAlbumMasterIfNeeded = async (numericAlbumId: number, finalGenres: string[]) => {
+    let master = await getAlbumMaster(numericAlbumId);
+    const isNewImageBetter = album!.IMAGE_URL?.includes('mzstatic.com') || album!.IMAGE_URL?.includes('apple.com') || (album!.IMAGE_URL && !master?.IMAGE_URL);
+    
+    // Web앱과 동일한 조건: master가 없거나, 장르 태그가 누락되었거나, 이미지가 더 좋은 경우 ALBUM_MASTER 업데이트
+    if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
+      await createAlbumMaster({
+        ALBUM_ID: numericAlbumId,
+        TITLE: album!.TITLE,
+        ARTIST: album!.ARTIST,
+        RELEASE_YEAR: album!.RELEASE_YEAR,
+        IMAGE_URL: album!.IMAGE_URL,
+        VINYL_IMAGE_URL: album!.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
+        CUSTOM_COLOR_HEX: album!.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
+        CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
+        TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
+        GENRES: finalGenres,
+        MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
+      });
+    }
+  };
+
   const executeSaveAlbum = async (finalPrice: number) => {
     if (!album || !user) return;
     try {
@@ -213,24 +235,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       });
 
       const numericAlbumId = Number(album.ALBUM_ID);
-      let master = await getAlbumMaster(numericAlbumId);
-      const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
-      
-      if (!master || isNewImageBetter) {
-        await createAlbumMaster({
-          ALBUM_ID: numericAlbumId,
-          TITLE: album.TITLE,
-          ARTIST: album.ARTIST,
-          RELEASE_YEAR: album.RELEASE_YEAR,
-          IMAGE_URL: album.IMAGE_URL,
-          VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
-          CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
-          CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
-          TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
-          GENRES: finalGenres,
-          MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
-        });
-      }
+      await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
 
       await upsertUserVinyl({
         USER_ID: user.id,
@@ -294,6 +299,13 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     } else {
       try {
         const numericAlbumId = Number(album.ALBUM_ID);
+        const finalGenres = (album.GENRES || []).filter(g => {
+          const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
+          return !COUNTRY_TAGS.includes(g);
+        });
+        
+        await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
+
         await upsertUserVinyl({
           USER_ID: user.id,
           ALBUM_ID: numericAlbumId,
