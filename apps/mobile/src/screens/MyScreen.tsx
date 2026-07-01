@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
@@ -53,6 +54,7 @@ export const MyScreen = () => {
   const { theme, setTheme, themeColors } = useTheme();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges } = useAuthStore();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
   const [isFeaturedModalVisible, setFeaturedModalVisible] = React.useState(false);
@@ -206,7 +208,10 @@ export const MyScreen = () => {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await loadStats();
+    await Promise.all([
+      loadStats(),
+      new Promise(resolve => setTimeout(resolve, 800)) // ensure spinner shows
+    ]);
     setRefreshing(false);
   }, [loadStats]);
 
@@ -255,20 +260,23 @@ export const MyScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }} ref={viewRef as any} collapsable={false}>
+    <View style={{ flex: 1, backgroundColor: themeColors.background, paddingTop: insets.top }} ref={viewRef as any} collapsable={false}>
       <ScrollView 
         style={[styles.container, { backgroundColor: themeColors.background }]}
-        bounces={true}
-        alwaysBounceVertical={true}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={themeColors.accent}
-            colors={[themeColors.accent]}
-          />
-        }
-      >
+          bounces={true}
+          alwaysBounceVertical={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={themeColors.accent}
+              title="새로고침 중..."
+              titleColor={themeColors.accent}
+              colors={[themeColors.accent]}
+              progressViewOffset={20}
+            />
+          }
+        >
       {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
@@ -535,14 +543,14 @@ export const MyScreen = () => {
         onSelect={handleBadgeSelect}
       />
 
-      <FeaturedLPModal
-        visible={isFeaturedModalVisible}
-        onClose={() => setFeaturedModalVisible(false)}
-        albums={allAlbums}
-        currentFeaturedId={featuredAlbumId ? Number(featuredAlbumId) : null}
-        onSelect={handleFeaturedSelect}
-      />
-    </SafeAreaView>
+        <FeaturedLPModal
+          visible={isFeaturedModalVisible}
+          onClose={() => setFeaturedModalVisible(false)}
+          albums={allAlbums}
+          currentFeaturedId={featuredAlbumId ? Number(featuredAlbumId) : null}
+          onSelect={handleFeaturedSelect}
+        />
+    </View>
   );
 };
 
