@@ -14,6 +14,8 @@ import { shareToInstagramStory } from '../utils/nativeShare';
 import { ShareTemplate } from '../components/Share/ShareTemplate';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
 
@@ -316,12 +318,11 @@ export const MyScreen = () => {
                     const fileExt = uri.split('.').pop() || 'jpeg';
                     const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
                     
-                    const response = await fetch(uri);
-                    const blob = await response.blob();
+                    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
                     
                     const { error } = await supabase.storage
                       .from('avatars')
-                      .upload(filePath, blob, { contentType: `image/${fileExt}` });
+                      .upload(filePath, decode(base64), { contentType: `image/${fileExt}` });
                       
                     if (error) throw error;
                     
