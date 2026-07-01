@@ -175,3 +175,6 @@ apps/api/
   - Redesigned the `pricePromptVisible` overlay (Purchase Price entry UI) to perfectly match the `CustomAlert`'s visual language and structure.
   - Implemented real-time comma-separated formatting (e.g. `1,000,000`) for the price input `TextInput`.
   - Added a dedicated 'Skip' (생략) button alongside the 'Save' button, preserving the UI uniformity of the app's prompt layers.
+- **Original 3D Logo Integration**:
+  - Generated a new premium 3D gold and liquid glass variation based strictly on the project's original transparent logo (`logo_real_transparent.png`).
+  - Replaced the previously hallucinated logo with this authentic, upgraded 3D version in the central scan Tab Bar.
