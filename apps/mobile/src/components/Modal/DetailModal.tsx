@@ -64,11 +64,23 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [isTracksLoading, setIsTracksLoading] = React.useState<boolean>(false);
   const [realStatus, setRealStatus] = React.useState<string | null>(null);
 
+  // New detailed states
+  const [marketPrice, setMarketPrice] = React.useState<number | null>(null);
+  const [purchasePrice, setPurchasePrice] = React.useState<number | null>(null);
+  const [releaseDate, setReleaseDate] = React.useState<string>('');
+  const [copyright, setCopyright] = React.useState<string>('');
+  const [notes, setNotes] = React.useState<string>('');
+
   const { user } = useAuthStore();
 
   useEffect(() => {
     if (visible && album) {
       setTracks(album.TRACKS || []);
+      setPurchasePrice((album as any).PURCHASE_PRICE || null);
+      setMarketPrice((album as any).MARKET_PRICE || null);
+      setReleaseDate('');
+      setCopyright('');
+      setNotes('');
       
       // DB에서 이 앨범의 실제 상태(OWNED/WISH/없음)를 확인
       setRealStatus(album.STATUS || null);
@@ -77,6 +89,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           const found = vinyls.find((v: any) => v.ALBUM_ID === album.ALBUM_ID);
           if (found) {
             setRealStatus(found.STATUS);
+            setPurchasePrice(found.PURCHASE_PRICE || null);
           }
         }).catch(() => {});
       }
@@ -101,17 +114,18 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           easing: cinematicEasing,
         })
       ]).start(() => {
-        // Fetch tracklist after animation completes to prevent UI jank
-        if (!album.TRACKS || album.TRACKS.length === 0) {
-          setIsTracksLoading(true);
-          getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
-            if (details.tracks && details.tracks.length > 0) {
-              setTracks(details.tracks);
-            }
-          }).finally(() => {
-            setIsTracksLoading(false);
-          });
-        }
+        // Fetch tracklist & details after animation completes to prevent UI jank
+        setIsTracksLoading(true);
+        getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
+          if (details.tracks && details.tracks.length > 0) setTracks(details.tracks);
+          if (details.marketPrice) setMarketPrice(details.marketPrice);
+          else if (!marketPrice && !(album as any).MARKET_PRICE) setMarketPrice(-1);
+          if (details.releaseDate) setReleaseDate(details.releaseDate);
+          if (details.copyright) setCopyright(details.copyright);
+          if (details.notes) setNotes(details.notes);
+        }).finally(() => {
+          setIsTracksLoading(false);
+        });
 
         // Start infinite spin after vinyl slides out
         Animated.loop(
@@ -128,28 +142,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Smooth exit: LP goes back inside while the modal slides down/fades
     Animated.parallel([
-      Animated.timing(vinylAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-        easing: cinematicEasing,
-      }),
-      Animated.timing(modalAnim, {
-        toValue: 0,
-        duration: 500,
-        delay: 50,
-        useNativeDriver: true,
-        easing: cinematicEasing,
-      }),
-      Animated.timing(panY, {
-        toValue: height,
-        duration: 500,
-        useNativeDriver: true,
-        easing: cinematicEasing,
-      })
+      Animated.timing(vinylAnim, { toValue: 0, duration: 400, useNativeDriver: true, easing: cinematicEasing }),
+      Animated.timing(modalAnim, { toValue: 0, duration: 500, delay: 50, useNativeDriver: true, easing: cinematicEasing }),
+      Animated.timing(panY, { toValue: height, duration: 500, useNativeDriver: true, easing: cinematicEasing })
     ]).start(() => {
       onClose();
     });
@@ -159,40 +155,68 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
     const query = `${album.ARTIST} ${album.TITLE} full album`;
     const results = await searchYouTube(query);
-    if (results && results.length > 0) {
-      const videoId = results[0].id?.videoId;
-      if (videoId) {
-        Linking.openURL(`https://www.youtube.com/watch?v=${videoId}`);
-        return;
-      }
+    if (results && results.length > 0 && results[0].id?.videoId) {
+      Linking.openURL(`https://www.youtube.com/watch?v=${results[0].id.videoId}`);
+    } else {
+      Linking.openURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
     }
-    Linking.openURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
   };
 
   const handleDiscogsSearch = async () => {
     if (!album) return;
     const query = `${album.ARTIST} ${album.TITLE}`;
     const results = await searchDiscogs(query);
-    if (results && results.length > 0) {
-      const uri = results[0].uri;
-      if (uri) {
-        Linking.openURL(`https://www.discogs.com${uri}`);
-        return;
-      }
+    if (results && results.length > 0 && results[0].uri) {
+      Linking.openURL(`https://www.discogs.com${results[0].uri}`);
+    } else {
+      Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
     }
-    Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
   };
 
-  // user is already declared above via useAuthStore
+  const handleEditPrice = () => {
+    Alert.prompt(
+      '구입가 입력',
+      '이 LP를 얼마에 구매하셨나요? (숫자만 입력)',
+      [
+        { text: '취소', style: 'cancel' },
+        { 
+          text: '저장', 
+          onPress: async (val) => {
+            const price = Number(val?.replace(/[^0-9]/g, '')) || 0;
+            if (album && user?.id) {
+              try {
+                await upsertUserVinyl({
+                  USER_ID: user.id,
+                  ALBUM_ID: album.ALBUM_ID,
+                  STATUS: 'OWNED',
+                  PURCHASE_PRICE: price
+                });
+                setPurchasePrice(price);
+                Alert.alert('저장 완료', '구입가가 성공적으로 저장되었습니다.');
+              } catch (e) {
+                Alert.alert('오류', '구입가 저장에 실패했습니다.');
+              }
+            }
+          } 
+        }
+      ],
+      'plain-text',
+      purchasePrice ? String(purchasePrice) : '',
+      'numeric'
+    );
+  };
 
   const handleSave = async (status: 'OWNED' | 'WISH') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!album) return;
 
     try {
-      // 1. Ensure Album exists in ALBUM_MASTER, or update it if the new one has a better image
+      const finalGenres = (album.GENRES || []).filter(g => {
+        const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
+        return !COUNTRY_TAGS.includes(g);
+      });
+
       let master = await getAlbumMaster(album.ALBUM_ID);
-      
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
       if (!master || isNewImageBetter) {
@@ -205,22 +229,26 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
-          TRACKS: album.TRACKS && album.TRACKS.length > 0 ? album.TRACKS : (master?.TRACKS || [])
+          TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
+          GENRES: finalGenres,
+          MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
         });
       }
 
-      // 2. Insert into USER_VINYL
       await upsertUserVinyl({
         USER_ID: user?.id || 1,
         ALBUM_ID: album.ALBUM_ID,
         STATUS: status,
         PURCHASE_DATE: new Date().toISOString(),
-        PURCHASE_PRICE: 0
+        PURCHASE_PRICE: purchasePrice || 0
       });
 
       Alert.alert('성공', `앨범이 저장되었습니다!`);
-      setRealStatus(status); // 버튼 상태 즉시 갱신
-      handleClose();
+      setRealStatus(status);
+      if (status === 'OWNED' && !purchasePrice) {
+        // Optionally prompt for price after saving
+        handleEditPrice();
+      }
     } catch (error) {
       console.error('Failed to save album:', error);
       Alert.alert('오류', '앨범 저장에 실패했습니다. 다시 시도해 주세요.');
@@ -244,7 +272,6 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only intercept swipe down if started from the top area (header/cover)
         return gestureState.dy > 10 && gestureState.y0 < height * 0.4;
       },
       onPanResponderMove: Animated.event([null, { dy: panY }], { useNativeDriver: false }),
@@ -252,10 +279,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         if (gestureState.dy > 100) {
           handleClose();
         } else {
-          Animated.spring(panY, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
+          Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
         }
       },
     })
@@ -263,30 +287,16 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
   if (!album) return null;
 
-  const coverTranslateX = vinylAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -35]
-  });
+  const coverTranslateX = vinylAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -35] });
+  const vinylTranslateX = vinylAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 95] });
+  const vinylRotate = vinylAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
+  const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const modalScale = modalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] });
 
-  const vinylTranslateX = vinylAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 95]
-  });
-
-  const vinylRotate = vinylAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '90deg']
-  });
-
-  const spinRotate = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg']
-  });
-
-  const modalScale = modalAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.95, 1]
-  });
+  const KNOWN_COUNTRIES = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
+  const genres = album.GENRES || [];
+  const countryTags = genres.filter(tag => KNOWN_COUNTRIES.includes(tag));
+  const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag));
 
   return (
     <Modal visible={visible} animationType="none" transparent statusBarTranslucent>
@@ -339,18 +349,61 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               <Text style={styles.title}>{album.TITLE}</Text>
               <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
 
+              {/* Price Section */}
+              <View style={styles.priceContainer}>
+                <View style={styles.priceRow}>
+                  <FontAwesome5 name="coins" size={14} color="#e9c349" />
+                  <Text style={styles.marketPriceText}>시장 추정가: {marketPrice === -1 ? '정보 없음' : marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}</Text>
+                </View>
+                {realStatus === 'OWNED' && (
+                  <TouchableOpacity onPress={handleEditPrice} style={[styles.priceRow, { marginTop: 6 }]}>
+                    <FontAwesome5 name="receipt" size={14} color="#aaa" />
+                    <Text style={styles.actualPriceText}>
+                      실제 구입가: {purchasePrice ? `₩${purchasePrice.toLocaleString()}` : '미입력'}
+                    </Text>
+                    <FontAwesome5 name="edit" size={12} color="#888" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Tags Section */}
+              {(countryTags.length > 0 || genreTags.length > 0) && (
+                <View style={styles.tagsContainer}>
+                  {countryTags.map((tag, i) => (
+                    <View key={`c-${i}`} style={[styles.tagBadge, { borderColor: 'rgba(233, 195, 73, 0.4)' }]}>
+                      <Text style={[styles.tagText, { color: '#e9c349' }]}>🌐 {tag}</Text>
+                    </View>
+                  ))}
+                  {genreTags.slice(0, 4).map((tag, i) => (
+                    <View key={`g-${i}`} style={styles.tagBadge}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <View style={styles.tracklist}>
+                <Text style={styles.tracklistHeader}>Tracklist</Text>
                 {isTracksLoading ? (
                   <View style={{ paddingVertical: 20, alignItems: 'center' }}>
                     <ActivityIndicator size="small" color="#e9c349" />
                     <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0, marginTop: 10, color: '#888' }]}>트랙리스트를 불러오는 중입니다...</Text>
                   </View>
                 ) : tracks.length > 0 ? tracks.map((track, i) => (
-                  <Text key={i} style={styles.track}>{i + 1}. {track}</Text>
+                  <Text key={i} style={styles.track}>{String(i + 1).padStart(2, '0')}. {track}</Text>
                 )) : (
                   <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>트랙리스트 정보가 없습니다</Text>
                 )}
               </View>
+
+              {/* Extra Details */}
+              {(releaseDate || copyright || notes) && (
+                <View style={styles.extraDetailsContainer}>
+                  {releaseDate && <Text style={styles.extraDetailText}><Text style={styles.extraDetailLabel}>발매일:</Text> {releaseDate}</Text>}
+                  {copyright && <Text style={styles.extraDetailText}><Text style={styles.extraDetailLabel}>소속사:</Text> {copyright}</Text>}
+                  {notes && <Text style={styles.extraNotes}>{notes}</Text>}
+                </View>
+              )}
             </View>
 
             {realStatus !== 'OWNED' && (
@@ -599,5 +652,75 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
     letterSpacing: 1,
+  },
+  priceContainer: {
+    marginTop: 20,
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  marketPriceText: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  actualPriceText: {
+    color: '#ccc',
+    fontSize: 14,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 16,
+    width: '100%',
+    gap: 8,
+  },
+  tagBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  tagText: {
+    color: '#ddd',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tracklistHeader: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  extraDetailsContainer: {
+    marginTop: 20,
+    width: '100%',
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: 12,
+  },
+  extraDetailText: {
+    color: '#bbb',
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  extraDetailLabel: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  extraNotes: {
+    color: '#999',
+    fontSize: 12,
+    marginTop: 10,
+    fontStyle: 'italic',
+    lineHeight: 18,
   }
 });
