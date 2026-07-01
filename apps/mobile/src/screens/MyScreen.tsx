@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   featuredFrame: {
-    width: 200,
+    width: 155, // Reduced width
     height: 120,
     backgroundColor: 'rgba(20,20,20,0.85)',
     borderWidth: 1,
@@ -620,22 +620,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.2)', // More translucent
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
     zIndex: 10,
   },
   wishIconText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#000',
+    color: 'rgba(255,255,255,0.8)', // Muted text
     letterSpacing: 1,
   },
   featuredEmpty: {
