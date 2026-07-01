@@ -273,16 +273,14 @@ export const MyScreen = () => {
           <TouchableOpacity 
             style={[styles.featuredFrame, { borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.02)' }]}
             onPress={() => setFeaturedModalVisible(true)}
+            activeOpacity={0.8}
           >
             {featuredAlbum ? (
-              <View style={styles.exhibitContainer}>
-                {/* Museum style soft light pool on the wall */}
-                <LinearGradient 
-                  colors={['rgba(255, 230, 190, 0.25)', 'rgba(255, 230, 190, 0.05)', 'rgba(255, 230, 190, 0)']}
-                  style={styles.wallLightPool}
-                />
+              <View style={styles.cubbyContainer}>
+                {/* The LED light strip at the top inner edge */}
+                <View style={styles.cubbyLedStrip} />
 
-                {/* The LP itself floating with a shadow */}
+                {/* The LP itself sitting inside the cubby */}
                 <View style={styles.albumShadowBox}>
                   <View style={styles.albumInner}>
                     <Image 
@@ -290,15 +288,15 @@ export const MyScreen = () => {
                       style={styles.featuredCover} 
                       resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
                     />
-                    {/* Glare on the LP cover */}
-                    <LinearGradient 
-                      colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']}
-                      style={styles.albumReflection}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    />
                   </View>
                 </View>
+
+                {/* The light wash from the LED down the wall and LP */}
+                <LinearGradient 
+                  colors={['rgba(255, 250, 230, 0.4)', 'rgba(255, 250, 230, 0.05)', 'transparent']}
+                  style={styles.cubbyLightWash}
+                  pointerEvents="none"
+                />
                 
                 {/* Wish badge */}
                 {featuredAlbum.STATUS === 'WISH' && (
@@ -476,50 +474,61 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   featuredFrame: {
-    width: 120,
-    height: 120,
+    width: 140,
+    height: 140,
+    borderRadius: 8,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'visible', // allow spotlight to shine out
-  },
-  exhibitContainer: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'visible',
   },
-  wallLightPool: {
+  cubbyContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#151515', // Dark shelf interior
+    alignItems: 'center',
+    justifyContent: 'flex-end', // Rest the LP at the bottom
+    paddingBottom: 10,
+    borderRadius: 8,
+    overflow: 'hidden', // Keep light strictly inside the shelf
+  },
+  cubbyLedStrip: {
     position: 'absolute',
-    top: -60,
-    width: 240,
-    height: 320,
-    borderRadius: 120, // Elliptical soft glow
+    top: 0, left: 0, right: 0,
+    height: 3,
+    backgroundColor: '#fff',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 3,
+  },
+  cubbyLightWash: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, height: '100%',
+    zIndex: 2, // Overlays the LP and wall
   },
   albumShadowBox: {
-    width: 120,
-    height: 120,
-    borderRadius: 4,
+    width: 105,
+    height: 105,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.9,
+    shadowRadius: 15,
+    elevation: 15,
+    zIndex: 1,
   },
   albumInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 2,
     overflow: 'hidden',
-    backgroundColor: '#111',
+    backgroundColor: '#000',
   },
   featuredCover: {
     width: '100%',
     height: '100%',
-  },
-  albumReflection: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
   },
   wishIconBadge: {
     position: 'absolute',
