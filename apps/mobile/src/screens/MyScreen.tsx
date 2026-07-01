@@ -542,7 +542,7 @@ export const MyScreen = () => {
         currentFeaturedId={featuredAlbumId ? Number(featuredAlbumId) : null}
         onSelect={handleFeaturedSelect}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
