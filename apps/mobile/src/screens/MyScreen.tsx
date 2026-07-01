@@ -201,46 +201,57 @@ export const MyScreen = () => {
       {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
-          <TouchableOpacity style={[styles.avatarFrame, { borderColor: themeColors.accent }]} onPress={async () => {
-            try {
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.5,
-              });
+          <TouchableOpacity 
+            style={[styles.avatarFrame, { backgroundColor: 'rgba(255,255,255,0.05)' }]} 
+            onPress={async () => {
+              try {
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.5,
+                });
 
-              if (!result.canceled && result.assets && result.assets.length > 0) {
-                setToastMessage('프로필 이미지를 업로드하는 중입니다...');
-                setIsToastVisible(true);
-                
-                const uri = result.assets[0].uri;
-                const fileExt = uri.split('.').pop() || 'jpeg';
-                const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
-                
-                const response = await fetch(uri);
-                const blob = await response.blob();
-                
-                const { error } = await supabase.storage
-                  .from('avatars')
-                  .upload(filePath, blob, { contentType: `image/${fileExt}` });
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  setToastMessage('프로필 이미지를 업로드하는 중입니다...');
+                  setIsToastVisible(true);
                   
-                if (error) throw error;
-                
-                const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-                
-                const { updateProfile } = useAuthStore.getState();
-                await updateProfile(user?.user_metadata?.displayName || '컬렉터', user?.user_metadata?.interests || [], publicUrl);
-                
-                setToastMessage('프로필 사진이 변경되었습니다.');
+                  const uri = result.assets[0].uri;
+                  const fileExt = uri.split('.').pop() || 'jpeg';
+                  const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
+                  
+                  const formData = new FormData();
+                  formData.append('file', {
+                    uri: uri,
+                    name: filePath,
+                    type: `image/${fileExt}`
+                  } as any);
+                  
+                  const { error } = await supabase.storage
+                    .from('avatars')
+                    .upload(filePath, formData);
+                    
+                  if (error) throw error;
+                  
+                  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                  
+                  const { updateProfile } = useAuthStore.getState();
+                  await updateProfile(
+                    user?.user_metadata?.displayName || '컬렉터', 
+                    user?.user_metadata?.interests || [], 
+                    data.publicUrl
+                  );
+                  
+                  setToastMessage('프로필 사진이 변경되었습니다.');
+                  setIsToastVisible(true);
+                }
+              } catch (error) {
+                console.error(error);
+                setToastMessage('업로드에 실패했습니다.');
                 setIsToastVisible(true);
               }
-            } catch (error) {
-              console.error(error);
-              setToastMessage('업로드에 실패했습니다.');
-              setIsToastVisible(true);
-            }
-          }}>
+            }}
+          >
             <Image 
               source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
               style={styles.avatar} 
@@ -272,7 +283,7 @@ export const MyScreen = () => {
                     resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
                   />
                   <LinearGradient 
-                    colors={['rgba(255,255,255,0.8)', 'transparent']}
+                    colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
                     style={styles.spotlight}
                   />
                 </View>
