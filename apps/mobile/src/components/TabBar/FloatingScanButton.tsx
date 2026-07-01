@@ -10,8 +10,9 @@ export const FloatingScanButton = (props: any) => {
       <View style={styles.container}>
         <TouchableOpacity style={styles.button} onPress={props.onPress} activeOpacity={0.9}>
           <Image 
-            source={require('../../../assets/3d_logo.jpg')}
+            source={require('../../../assets/3d_logo_transparent.png')}
             style={styles.logoImage}
+            resizeMode="contain"
           />
         </TouchableOpacity>
       </View>
@@ -28,8 +29,6 @@ const getStyles = (themeColors: any, shadows: any) => StyleSheet.create({
     alignSelf: 'center',
     width: 70,
     height: 70,
-    borderRadius: 35,
-    backgroundColor: themeColors.background,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.8,
@@ -38,18 +37,14 @@ const getStyles = (themeColors: any, shadows: any) => StyleSheet.create({
     zIndex: 999,
   },
   button: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#000',
+    width: 70,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.5)', // Gold border
   },
   logoImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    // No border radius so we don't clip the transparent leaves!
   }
 });
