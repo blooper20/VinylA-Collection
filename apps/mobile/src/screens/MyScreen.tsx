@@ -52,6 +52,7 @@ export const MyScreen = () => {
   const featuredAlbum = allAlbums.find(a => Number(a.ALBUM_ID) === Number(featuredAlbumId));
 
   const spinAnim = React.useRef(new Animated.Value(0)).current;
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     if (featuredAlbum) {
@@ -63,10 +64,20 @@ export const MyScreen = () => {
           easing: Easing.linear
         })
       ).start();
+      
+      Animated.loop(
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 4000,
+          useNativeDriver: true,
+          easing: Easing.linear
+        })
+      ).start();
     }
-  }, [featuredAlbum, spinAnim]);
+  }, [featuredAlbum, spinAnim, shimmerAnim]);
 
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const shimmerTranslate = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-200, 200] });
 
   React.useEffect(() => {
     async function loadStats() {
@@ -294,18 +305,15 @@ export const MyScreen = () => {
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
-                {/* The Wooden Frame */}
+                {/* The Modern Acrylic Frame */}
                 <View style={styles.albumShadowBox}>
-                  <View style={styles.albumInner}>
-                    <Image 
-                      source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                      style={styles.featuredCover} 
-                      resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
-                    />
-                  </View>
-                  
-                  {/* The Spinning Vinyl */}
+                  {/* The Spinning Vinyl (rendered first so it's behind the sleeve) */}
                   <Animated.View style={[styles.vinylDisc, { transform: [{ rotate: spinRotate }] }]}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.0)', 'rgba(255,255,255,0.08)']}
+                      style={StyleSheet.absoluteFill}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    />
                     <View style={styles.vinylGrooves} />
                     <View style={styles.vinylGrooves2} />
                     <View style={[styles.vinylLabel, { backgroundColor: featuredAlbum.CUSTOM_COLOR_HEX || '#222' }]}>
@@ -317,7 +325,25 @@ export const MyScreen = () => {
                       <View style={styles.vinylHole} />
                     </View>
                   </Animated.View>
+
+                  <View style={styles.albumInner}>
+                    <Image 
+                      source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
+                      style={styles.featuredCover} 
+                      resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
+                    />
+                  </View>
                 </View>
+                
+                {/* Shimmer Effect */}
+                <Animated.View style={[styles.shimmerEffect, { transform: [{ translateX: shimmerTranslate }] }]}>
+                  <LinearGradient
+                    colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
+                    start={{x: 0, y: 0}}
+                    end={{x: 1, y: 0}}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
 
                 {/* Wish badge */}
                 {featuredAlbum.STATUS === 'WISH' && (
@@ -497,17 +523,28 @@ const styles = StyleSheet.create({
   featuredFrame: {
     width: 200,
     height: 120,
-    backgroundColor: '#fffcf5',
-    borderWidth: 6,
-    borderColor: '#e2caac',
+    backgroundColor: 'rgba(20,20,20,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 8,
     justifyContent: 'center',
-    paddingLeft: 10,
+    paddingLeft: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowRadius: 15,
     elevation: 10,
+  },
+  shimmerEffect: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 100,
+    height: '100%',
+    transform: [{ skewX: '-20deg' }],
+    zIndex: 10,
+    pointerEvents: 'none',
   },
   cubbyContainer: {
     width: '100%',
@@ -522,40 +559,43 @@ const styles = StyleSheet.create({
     height: 88,
     zIndex: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
     elevation: 5,
     backgroundColor: '#000',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   vinylDisc: {
     width: 86,
     height: 86,
     borderRadius: 43,
-    backgroundColor: '#111',
+    backgroundColor: '#0a0a0a',
     position: 'absolute',
-    left: 75,
+    left: 45, // Tucked further in
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
-    borderWidth: 1,
-    borderColor: '#222',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
   },
   vinylGrooves: {
     position: 'absolute',
     width: 74,
     height: 74,
     borderRadius: 37,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   vinylGrooves2: {
     position: 'absolute',
     width: 60,
     height: 60,
     borderRadius: 30,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   vinylLabel: {
     width: 30,
