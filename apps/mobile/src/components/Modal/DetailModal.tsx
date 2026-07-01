@@ -244,8 +244,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album || !user) return;
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
-        const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
-        return !COUNTRY_TAGS.includes(g);
+        const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
+        return !EXCLUDED_TAGS.includes(g);
       });
 
       const numericAlbumId = Number(album.ALBUM_ID);
@@ -314,8 +314,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       try {
         const numericAlbumId = Number(album.ALBUM_ID);
         const finalGenres = (album.GENRES || []).filter(g => {
-          const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
-          return !COUNTRY_TAGS.includes(g);
+          const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
+          return !EXCLUDED_TAGS.includes(g);
         });
         
         await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
@@ -375,9 +375,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const modalScale = modalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] });
 
-  const KNOWN_COUNTRIES = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
+  const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
   const genres = album.GENRES || [];
-  const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
+  const genreTags = genres.filter(tag => !EXCLUDED_TAGS.includes(tag)).slice(0, 4); // Only display top 4 genres
 
   return (
     <Modal visible={visible} animationType="none" transparent statusBarTranslucent>

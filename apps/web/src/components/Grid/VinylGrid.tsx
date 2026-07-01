@@ -89,11 +89,11 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   // Auto-heal: strip country tags from existing records
   useEffect(() => {
     if (dbData.length === 0) return;
-    const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
+    const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
     const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v8') === 'true';
     if (migrationDone) return;
 
-    const albumsWithCountry = dbData.filter(a => a.GENRES && a.GENRES.some((g: string) => COUNTRY_TAGS.includes(g)));
+    const albumsWithCountry = dbData.filter(a => a.GENRES && a.GENRES.some((g: string) => EXCLUDED_TAGS.includes(g)));
     const albumsWithNoGenres = dbData.filter(a => !a.GENRES || a.GENRES.length === 0 || (a.GENRES.length === 1 && a.GENRES[0] === 'Vinyl'));
     const allTargets = Array.from(new Set([...albumsWithCountry, ...albumsWithNoGenres]));
 
@@ -107,7 +107,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
       for (const album of allTargets) {
         try {
-          const existingGenres = (album.GENRES || []).filter((g: string) => !COUNTRY_TAGS.includes(g));
+          const existingGenres = (album.GENRES || []).filter((g: string) => !EXCLUDED_TAGS.includes(g));
           if (existingGenres.length > 0) {
             await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: album.TRACKS || [], GENRES: existingGenres });
             continue;

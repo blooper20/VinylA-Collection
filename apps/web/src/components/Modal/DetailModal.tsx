@@ -136,12 +136,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
         // Strip any leftover country tags from old saves
-        const COUNTRY_TAGS = [
+        const EXCLUDED_TAGS = [
           'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany',
           'France', 'Netherlands', 'Canada', 'Australia', 'Italy',
-          'Sweden', 'Taiwan', 'Brazil', 'Russia'
+          'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'
         ];
-        return !COUNTRY_TAGS.includes(g);
+        return !EXCLUDED_TAGS.includes(g);
       });
 
       if (!user?.id) {
@@ -283,13 +283,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             ) : null}
 
             {(() => {
-              const KNOWN_COUNTRIES = [
+              const EXCLUDED_TAGS = [
                 'South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 
                 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 
-                'Sweden', 'Taiwan', 'Brazil', 'Russia'
+                'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'
               ];
               const genres = album.GENRES || [];
-              const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
+              const genreTags = genres.filter(tag => !EXCLUDED_TAGS.includes(tag)).slice(0, 4); // Only display top 4 genres
 
               return (
                 <>

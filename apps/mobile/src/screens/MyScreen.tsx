@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
@@ -18,38 +18,45 @@ import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
 
 const { width } = Dimensions.get('window');
 
-const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent, glassIntensity }: any) => (
-  <BlurView intensity={glassIntensity || 30} tint="dark" style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(20,20,20,0.4)', overflow: 'hidden' }]}>
-    <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
-    <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
-      {unit ? <Text style={styles.cardUnit}>{unit}</Text> : null}
-      {value}
-    </Text>
-    {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
-    {isSpent && (
-      <TouchableOpacity 
-        onPress={onToggleSpent}
-        style={{
-          marginTop: 8,
-          borderWidth: 1,
-          borderColor: isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)',
-          borderRadius: 12,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-          alignSelf: 'flex-start'
-        }}
-      >
-        <Text style={{
-          color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)',
-          fontSize: 10,
-          fontWeight: 'bold'
-        }}>
-          {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
-        </Text>
-      </TouchableOpacity>
-    )}
-  </BlurView>
-);
+const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent, glassIntensity, onPress }: any) => {
+  const content = (
+    <BlurView intensity={glassIntensity || 30} tint="dark" style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(20,20,20,0.4)', overflow: 'hidden' }]}>
+      <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
+      <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
+        {unit ? <Text style={styles.cardUnit}>{unit}</Text> : null}
+        {value}
+      </Text>
+      {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
+      {isSpent && (
+        <TouchableOpacity 
+          onPress={onToggleSpent}
+          style={{
+            marginTop: 8,
+            borderWidth: 1,
+            borderColor: isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)',
+            borderRadius: 12,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            alignSelf: 'flex-start'
+          }}
+        >
+          <Text style={{
+            color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)',
+            fontSize: 10,
+            fontWeight: 'bold'
+          }}>
+            {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </BlurView>
+  );
+
+  if (onPress) {
+    return <TouchableOpacity onPress={onPress} activeOpacity={0.8}>{content}</TouchableOpacity>;
+  }
+  return content;
+};
 
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
@@ -63,6 +70,7 @@ export const MyScreen = () => {
   const [toastMessage, setToastMessage] = React.useState('');
   const [isToastVisible, setIsToastVisible] = React.useState(false);
   const [isSpentPublic, setIsSpentPublic] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
   const viewRef = React.useRef(null);
 
@@ -227,8 +235,25 @@ export const MyScreen = () => {
   const selectedBadgeObj = availableBadges.find(b => b.id === selectedBadgeId) || availableBadges[0];
 
   const handleShare = async () => {
-    setFlashVisible(true);
-    await shareToInstagramStory(viewRef);
+    if (user?.id) {
+      const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+      const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+      const badge = encodeURIComponent(user.user_metadata?.selected_badge || '');
+      const genre = encodeURIComponent(topGenre || '');
+      const featured = encodeURIComponent(user.user_metadata?.featured_album_id || '');
+      const sp = isSpentPublic ? '1' : '0';
+      
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
+      const link = `${baseUrl}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
+      
+      try {
+        await Share.share({
+          message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 레코드 컬렉션을 확인해보세요!\n\n${link}`,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }
   };
 
   const handleBadgeSelect = async (badge: any) => {
@@ -284,37 +309,39 @@ export const MyScreen = () => {
                 });
 
                 if (!result.canceled && result.assets && result.assets.length > 0) {
-                  setToastMessage('프로필 이미지를 업로드하는 중입니다...');
-                  setIsToastVisible(true);
-                  
-                  const uri = result.assets[0].uri;
-                  const fileExt = uri.split('.').pop() || 'jpeg';
-                  const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
-                  
-                  const formData = new FormData();
-                  formData.append('file', {
-                    uri: uri,
-                    name: filePath,
-                    type: `image/${fileExt}`
-                  } as any);
-                  
-                  const { error } = await supabase.storage
-                    .from('avatars')
-                    .upload(filePath, formData);
+                  setIsUploading(true);
+                  try {
+                    const uri = result.assets[0].uri;
+                    const fileExt = uri.split('.').pop() || 'jpeg';
+                    const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
                     
-                  if (error) throw error;
-                  
-                  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-                  
-                  const { updateProfile } = useAuthStore.getState();
-                  await updateProfile(
-                    user?.user_metadata?.displayName || '컬렉터', 
-                    user?.user_metadata?.interests || [], 
-                    data.publicUrl
-                  );
-                  
-                  setToastMessage('프로필 사진이 변경되었습니다.');
-                  setIsToastVisible(true);
+                    const formData = new FormData();
+                    formData.append('file', {
+                      uri: uri,
+                      name: filePath,
+                      type: `image/${fileExt}`
+                    } as any);
+                    
+                    const { error } = await supabase.storage
+                      .from('avatars')
+                      .upload(filePath, formData);
+                      
+                    if (error) throw error;
+                    
+                    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                    
+                    const { updateProfile } = useAuthStore.getState();
+                    await updateProfile(
+                      user?.user_metadata?.displayName || '컬렉터', 
+                      user?.user_metadata?.interests || [], 
+                      data.publicUrl
+                    );
+                    
+                    setToastMessage('프로필 사진이 변경되었습니다.');
+                    setIsToastVisible(true);
+                  } finally {
+                    setIsUploading(false);
+                  }
                 }
               } catch (error) {
                 console.error(error);
@@ -327,6 +354,11 @@ export const MyScreen = () => {
               source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
               style={styles.avatar} 
             />
+            {isUploading && (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={themeColors.accent} />
+              </View>
+            )}
           </TouchableOpacity>
           <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
             {user?.user_metadata?.displayName || '컬렉터'}
@@ -453,21 +485,13 @@ export const MyScreen = () => {
         </View>
       </View>
 
-      {/* Logout Button */}
+      {/* Share Button (moved up) */}
       <View style={styles.section}>
         <TouchableOpacity 
-          style={[styles.logoutBtn, { borderColor: themeColors.border }]}
-          onPress={async () => {
-            try {
-              const { signOut } = await import('@vinyla/core-api');
-              await signOut();
-              navigation.replace('Onboarding');
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          }}
+          style={[styles.themeBtn, { borderColor: themeColors.border, backgroundColor: 'transparent', marginTop: 10, marginHorizontal: 20 }]}
+          onPress={handleShare}
         >
-          <Text style={[styles.logoutBtnText, { color: themeColors.textPrimary }]}>로그아웃</Text>
+          <Text style={[styles.themeBtnText, { color: themeColors.textPrimary, paddingVertical: 10 }]}>컬렉션 링크 공유하기</Text>
         </TouchableOpacity>
       </View>
 
@@ -488,7 +512,7 @@ export const MyScreen = () => {
             glassIntensity={glassIntensity}
           />
           <AnalyticsCard title="보유 LP" value={ownedCount.toLocaleString()} sub="등록된 전체 LP 수" themeColors={themeColors} glassIntensity={glassIntensity} />
-          <AnalyticsCard title="관심 장르" value={topGenre} sub="프로필 설정 기준" themeColors={themeColors} glassIntensity={glassIntensity} />
+          <AnalyticsCard title="관심 장르" value={topGenre} sub="프로필 설정 기준" themeColors={themeColors} glassIntensity={glassIntensity} onPress={() => navigation.navigate('ProfileSetup')} />
           <AnalyticsCard title="실제 관심 장르" value={actualTopGenre} sub="내 콜렉션 데이터 기준" themeColors={themeColors} glassIntensity={glassIntensity} />
         </ScrollView>
       </View>
@@ -517,13 +541,21 @@ export const MyScreen = () => {
         </View>
       </View>
 
+      {/* Logout Button (moved down) */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>공유하기</Text>
         <TouchableOpacity 
-          style={[styles.themeBtn, { borderColor: themeColors.border, backgroundColor: themeColors.accent, marginTop: 10, marginHorizontal: 20 }]}
-          onPress={handleShare}
+          style={[styles.logoutBtn, { borderColor: themeColors.border }]}
+          onPress={async () => {
+            try {
+              const { signOut } = await import('@vinyla/core-api');
+              await signOut();
+              navigation.replace('Onboarding');
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          }}
         >
-          <Text style={[styles.themeBtnText, { color: '#000', paddingVertical: 10 }]}>인스타그램 스토리에 공유하기</Text>
+          <Text style={[styles.logoutBtnText, { color: themeColors.textPrimary }]}>로그아웃</Text>
         </TouchableOpacity>
       </View>
       </ScrollView>

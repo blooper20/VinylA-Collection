@@ -61,6 +61,12 @@ CREATE TABLE ALBUM_MASTER (
     IMAGE_URL VARCHAR(1000)
     -- 실제 데이터 기반으로 확장을 고려한 기본 골격
 );
+
+CREATE TABLE VINYL_TAG (
+    TAG_ID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ALBUM_ID BIGINT REFERENCES ALBUM_MASTER(ALBUM_ID),
+    TAG_NAME VARCHAR(255) NOT NULL
+);
 ```
 
 ---
@@ -69,16 +75,17 @@ CREATE TABLE ALBUM_MASTER (
 ```text
 vinyla-monorepo/
 ├── apps/
-│   ├── web/                     # 🖥️ Next.js 웹 앱 (Vercel 배포)
+│   ├── web/                     # 🖥️ Next.js 웹 앱 (Vercel 배포, Port 3000)
 │   │   ├── src/app/             # Home, Wishlist, Search, My 라우팅
 │   │   ├── src/components/      # Grid, Modal, Navigation (사이드바)
 │   │   └── package.json
-│   └── mobile/                  # 📱 Expo / React Native 앱
+│   ├── mobile/                  # 📱 Expo / React Native 앱 (Port 8081)
+│   └── api/                     # ⚙️ Express 백엔드 서버 (VLM 중계, Port 3001)
 ├── packages/
 │   ├── core-api/                # 🔗 외부 연동 (Discogs, YouTube, Supabase) 및 Fallback 처리
 │   ├── shared-types/            # 📦 공통 타입 (MockVinylData 등)
 │   ├── ui/                      # 디자인 시스템 (차후 분리용)
 ├── DAILY_LOG.md                 # 📝 데일리 작업 및 변경 사항 아카이브
-├── turbo.json
+├── turbo.json                   # 🚀 3개 앱(web, mobile, api) 동시 로컬 개발 서버 구동 (npm run dev)
 └── package.json
 ```
