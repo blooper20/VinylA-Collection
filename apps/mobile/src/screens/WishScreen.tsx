@@ -18,41 +18,43 @@ export const WishScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
+  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    
+    try {
+      const cached = await AsyncStorage.getItem('@vinyls_wish');
+      if (cached) setWishes(JSON.parse(cached));
+    } catch (e) {
+      console.error('Failed to load from cache', e);
+    }
+
+    if (!user) {
+      setWishes([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const userId = user.id;
+    const userVinyls = await getUserVinyls(userId);
+    if (userVinyls && userVinyls.length > 0) {
+      const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
+      const wishesData = mapped.filter(a => a.STATUS === 'WISH');
+      setWishes(wishesData);
       
       try {
-        const cached = await AsyncStorage.getItem('@vinyls_wish');
-        if (cached) setWishes(JSON.parse(cached));
+        await AsyncStorage.setItem('@vinyls_wish', JSON.stringify(wishesData));
       } catch (e) {
-        console.error('Failed to load from cache', e);
+        console.error('Failed to save cache', e);
       }
-
-      if (!user) {
-        setWishes([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const userId = user.id;
-      const userVinyls = await getUserVinyls(userId);
-      if (userVinyls && userVinyls.length > 0) {
-        const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
-        const wishesData = mapped.filter(a => a.STATUS === 'WISH');
-        setWishes(wishesData);
-        
-        try {
-          await AsyncStorage.setItem('@vinyls_wish', JSON.stringify(wishesData));
-        } catch (e) {
-          console.error('Failed to save cache', e);
-        }
-      } else {
-        setWishes([]);
-      }
-      setIsLoading(false);
+    } else {
+      setWishes([]);
     }
-    
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
     if (user !== undefined) loadData();
 
     const subscription = supabase
@@ -66,8 +68,6 @@ export const WishScreen = () => {
       supabase.removeChannel(subscription);
     };
   }, [user]);
-
-  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
@@ -105,7 +105,10 @@ export const WishScreen = () => {
       <DetailModal 
         album={selectedAlbum} 
         visible={!!selectedAlbum} 
-        onClose={() => setSelectedAlbum(null)} 
+        onClose={() => {
+          setSelectedAlbum(null);
+          loadData();
+        }} 
       />
     </View>
   );

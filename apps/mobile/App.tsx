@@ -17,10 +17,17 @@ const AppContent = () => {
   );
 };
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AlertProvider } from './src/providers/AlertProvider';
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AlertProvider>
+          <AppContent />
+        </AlertProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

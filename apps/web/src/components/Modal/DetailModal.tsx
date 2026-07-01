@@ -144,13 +144,21 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         return !COUNTRY_TAGS.includes(g);
       });
 
-      let master = await getAlbumMaster(album.ALBUM_ID);
+      if (!user?.id) {
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
+          detail: { message: '로그인이 필요합니다.' }
+        }));
+        return;
+      }
+
+      const numericAlbumId = Number(album.ALBUM_ID);
+      let master = await getAlbumMaster(numericAlbumId);
       
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
       if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
         await createAlbumMaster({
-          ALBUM_ID: album.ALBUM_ID,
+          ALBUM_ID: numericAlbumId,
           TITLE: album.TITLE,
           ARTIST: album.ARTIST,
           RELEASE_YEAR: album.RELEASE_YEAR,
@@ -158,15 +166,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
-          TRACKS: tracks || master?.TRACKS || [],
+          TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
           GENRES: finalGenres,
           MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
         });
       }
 
       const payloadData: any = {
-        USER_ID: user?.id || 1,
-        ALBUM_ID: album.ALBUM_ID,
+        USER_ID: user.id,
+        ALBUM_ID: numericAlbumId,
         STATUS: status,
         PURCHASE_PRICE: price
       };
@@ -205,7 +213,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
     try {
       setIsDeleting(true);
-      await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
+      if (!user?.id) return;
+      await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
       onClose();
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
         detail: { message: `성공적으로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제되었습니다.` }
@@ -280,23 +289,17 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 'Sweden', 'Taiwan', 'Brazil', 'Russia'
               ];
               const genres = album.GENRES || [];
-              const countryTags = genres.filter(tag => KNOWN_COUNTRIES.includes(tag));
-              const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag));
+              const genreTags = genres.filter(tag => !KNOWN_COUNTRIES.includes(tag)).slice(0, 4); // Only display top 4 genres
 
               return (
                 <>
-                  {countryTags.length > 0 && (
-                    <div className={styles.tagsContainer} style={{ marginBottom: '-8px' }}>
-                      {countryTags.map((tag, i) => (
-                        <span key={i} className={styles.tagLabel} style={{ borderColor: 'rgba(233, 195, 73, 0.4)', color: 'var(--accent)' }}>🌐 {tag}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  {genreTags.length > 0 && (
+                  {/* Tags Section */}
+                  {(genreTags.length > 0) && (
                     <div className={styles.tagsContainer}>
-                      {genreTags.slice(0, 4).map((tag, i) => (
-                        <span key={i} className={styles.tagLabel}>{tag}</span>
+                      {genreTags.map((tag, i) => (
+                        <div key={`g-${i}`} className={styles.tagBadge}>
+                          {tag}
+                        </div>
                       ))}
                     </div>
                   )}

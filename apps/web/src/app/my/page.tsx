@@ -2,12 +2,11 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { ImageCropModal } from '../../components/Modal/ImageCropModal';
-import { UserStats, BADGES, evaluateBadges } from '../../lib/badges';
 import { copyToClipboard } from '../../utils/shareUtils';
 
 const PRESET_AVATARS = [
@@ -374,6 +373,9 @@ export default function MyProfilePage() {
                     <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
                     {featuredAlbum.STATUS === 'WISH' && (
                       <div className={styles.featuredWishBadge}>WISH</div>
+                    )}
+                    {featuredAlbum.STATUS === 'OWNED' && (
+                      <div className={styles.featuredOwnedBadge}>COLLECTED</div>
                     )}
                   </>
                 ) : (

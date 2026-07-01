@@ -1,22 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Badge } from '@vinyla/core-api';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useTheme } from '@vinyla/ui';
 
-interface Badge {
-  id: string;
-  name: string;
+interface ExtendedBadge extends Badge {
   isEarned: boolean;
-  imageUrl?: string;
 }
 
 interface BadgeSelectModalProps {
   visible: boolean;
   onClose: () => void;
-  badges: Badge[];
-  onSelect: (badge: Badge) => void;
+  badges: ExtendedBadge[];
+  onSelect: (badge: ExtendedBadge) => void;
 }
 
 export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onClose, badges, onSelect }) => {
+  const { glassIntensity } = useTheme();
   return (
     <Modal
       visible={visible}
@@ -26,11 +27,11 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
     >
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backgroundTouch} onPress={onClose} activeOpacity={1} />
-        <BlurView intensity={80} tint="dark" style={styles.bottomSheet}>
+        <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.bottomSheet}>
           <View style={styles.handle} />
-          <Text style={styles.title}>뱃지 선택</Text>
+          <Text style={styles.title}>칭호 선택</Text>
           <ScrollView contentContainerStyle={styles.badgeContainer}>
-            {badges.map((badge) => (
+            {badges.filter(b => b.isEarned || !b.isHidden).map((badge) => (
               <TouchableOpacity
                 key={badge.id}
                 style={[styles.badgeItem, !badge.isEarned && styles.unearnedBadge]}
@@ -38,10 +39,17 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
                 disabled={!badge.isEarned}
               >
                 <View style={styles.badgeIconPlaceholder}>
-                  {!badge.isEarned && <Text style={styles.unearnedText}>???</Text>}
+                  {badge.isEarned ? (
+                    <FontAwesome5 name="gem" size={24} color="#d4af37" />
+                  ) : (
+                    <Text style={styles.unearnedText}>?</Text>
+                  )}
                 </View>
                 <Text style={styles.badgeName}>
-                  {badge.isEarned ? badge.name : '???'}
+                  {badge.isEarned ? badge.name : '미획득'}
+                </Text>
+                <Text style={styles.badgeDesc} numberOfLines={2}>
+                  {badge.isEarned ? badge.description : badge.description}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -115,5 +123,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
     textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  badgeDesc: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });

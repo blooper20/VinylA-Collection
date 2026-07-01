@@ -16,27 +16,48 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
     console.warn('getAlbumMaster error or DB not connected:', error);
     return null;
   }
-  return data as ALBUM_MASTER;
+  const master = data as ALBUM_MASTER;
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
+    if (local) {
+      try {
+        const masters = JSON.parse(local);
+        if (masters[albumId]) {
+          if (masters[albumId].GENRES) master.GENRES = masters[albumId].GENRES;
+          if (masters[albumId].MARKET_PRICE) master.MARKET_PRICE = masters[albumId].MARKET_PRICE;
+        }
+      } catch(e) {}
+    }
+  }
+  return master;
 };
 
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
+  const payload = { ...album };
+  delete (payload as any).GENRES;
+  delete (payload as any).MARKET_PRICE;
+  delete (payload as any).TRACKS;
+  delete (payload as any).PURCHASE_PRICE;
+  
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
-    .upsert([album])
+    .upsert([payload])
     .select()
     .single();
 
   if (error) {
     console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
-    if (typeof window !== 'undefined') {
-      const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
-      const masters = JSON.parse(local);
-      masters[album.ALBUM_ID as number] = album;
-      localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
-    }
-    return album as ALBUM_MASTER;
   }
-  return data as ALBUM_MASTER;
+  
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
+    const masters = JSON.parse(local);
+    // Always preserve the full album containing MARKET_PRICE, GENRES, TRACKS
+    masters[album.ALBUM_ID as number] = { ...(masters[album.ALBUM_ID as number] || {}), ...album };
+    localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
+  }
+
+  return error ? (album as ALBUM_MASTER) : (data as ALBUM_MASTER);
 };
 
 // =======================
@@ -50,7 +71,7 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
     .eq('USER_ID', userId);
 
   if (error || !data || data.length === 0) {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const localV = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
       if (localV) {
@@ -63,6 +84,29 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
       }
     }
     return [];
+  }
+
+  if (data && data.length > 0) {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
+      if (localM) {
+        try {
+          const masters = JSON.parse(localM);
+          data.forEach(d => {
+            if (d.ALBUM_MASTER && masters[d.ALBUM_ID]) {
+              if (masters[d.ALBUM_ID].MARKET_PRICE) {
+                d.ALBUM_MASTER.MARKET_PRICE = d.ALBUM_MASTER.MARKET_PRICE || masters[d.ALBUM_ID].MARKET_PRICE;
+              }
+              if (masters[d.ALBUM_ID].GENRES) {
+                d.ALBUM_MASTER.GENRES = masters[d.ALBUM_ID].GENRES;
+              }
+            }
+          });
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+    }
   }
 
   return data;
@@ -81,7 +125,7 @@ export const wipeUserData = async (userId: string): Promise<void> => {
     console.warn('wipeUserData error:', error);
   }
   
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     localStorage.removeItem('VINYL_A_LOCAL_COLLECTION');
     localStorage.removeItem('vinyls_dbData');
   }
@@ -110,7 +154,7 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
 
   if (error) {
     console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       let arr = local ? JSON.parse(local) : [];
       const existingIdx = arr.findIndex((v: any) => v.ALBUM_ID === userVinyl.ALBUM_ID);
@@ -148,7 +192,7 @@ export const deleteUserVinylByAlbum = async (userId: string | number, albumId: n
 
   if (error) {
     // Also remove from localStorage if DB fails
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       if (local) {
         const arr = JSON.parse(local).filter((v: any) => v.ALBUM_ID !== albumId);
@@ -207,8 +251,9 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     STATUS: userVinyl?.STATUS || 'WISH',
-    PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE,
+    PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE || 0,
     PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
-    CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c'
+    CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c',
+    MARKET_PRICE: master?.MARKET_PRICE || 0
   };
 };

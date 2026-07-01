@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Text, StyleSheet } from 'react-native';
+import { useTheme } from '@vinyla/ui';
 import * as Haptics from 'expo-haptics';
 
 interface NativeToastProps {
@@ -9,6 +10,8 @@ interface NativeToastProps {
 }
 
 export const NativeToast: React.FC<NativeToastProps> = ({ message, visible, onHide }) => {
+  const { themeColors } = useTheme();
+  const styles = getStyles(themeColors);
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -41,19 +44,20 @@ export const NativeToast: React.FC<NativeToastProps> = ({ message, visible, onHi
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 50,
     alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: themeColors.accent,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
     zIndex: 999,
   },
   text: {
-    color: 'white',
+    color: '#000000',
     fontSize: 16,
+    fontWeight: 'bold',
   },
 });

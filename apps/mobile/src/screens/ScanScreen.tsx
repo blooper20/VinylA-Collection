@@ -9,9 +9,13 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useNavigation } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
+import { useTheme, shadows, shape } from '@vinyla/ui';
+import { useAlert } from '../providers/AlertProvider';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const ScanScreen = () => {
+  const { themeColors } = useTheme();
+  const { showAlert } = useAlert();
   const navigation = useNavigation<any>();
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
@@ -19,6 +23,7 @@ export const ScanScreen = () => {
   const [imageSearchResults, setImageSearchResults] = useState<MockVinylData[] | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const [flash, setFlash] = useState<'on' | 'off'>('off');
+  const styles = getStyles(themeColors, shadows, shape);
 
   if (!permission) return <View style={styles.container} />;
 
@@ -102,14 +107,14 @@ export const ScanScreen = () => {
         // 사용자가 직접 리스트에서 클릭하여 상세 페이지로 진입하도록 유도합니다.
         setImageSearchResults(data.candidates);
       } else {
-        Alert.alert('검색 결과 없음', '해당 앨범과 일치하는 후보를 찾지 못했습니다.');
+        showAlert('검색 결과 없음', '해당 앨범과 일치하는 후보를 찾지 못했습니다.');
         setImageSearchResults(null);
         cameraRef.current?.resumePreview();
       }
 
     } catch (error) {
       console.error('Failed to process image:', error);
-      Alert.alert('인식 실패', '앨범 커버를 인식하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.');
+      showAlert('인식 실패', '앨범 커버를 인식하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.');
       cameraRef.current?.resumePreview();
     } finally {
       setIsScanning(false);
@@ -154,7 +159,7 @@ export const ScanScreen = () => {
       }
     } catch (error) {
       console.error('Failed to take picture:', error);
-      Alert.alert('촬영 실패', '사진 촬영에 실패했습니다.');
+      showAlert('촬영 실패', '사진 촬영에 실패했습니다.');
       cameraRef.current?.resumePreview();
       setIsScanning(false);
     }
@@ -174,7 +179,7 @@ export const ScanScreen = () => {
       }
     } catch (error) {
       console.error('Failed to pick image:', error);
-      Alert.alert('오류', '이미지를 불러오는데 실패했습니다.');
+      showAlert('오류', '이미지를 불러오는데 실패했습니다.');
     }
   };
 
@@ -194,7 +199,7 @@ export const ScanScreen = () => {
             <View style={styles.middleRow}>
               <View style={styles.sideDim} />
               <View style={styles.frame}>
-                {isScanning && <ActivityIndicator size="large" color="#e9c349" style={styles.spinner} />}
+                {isScanning && <ActivityIndicator size="large" color={themeColors.accent} style={styles.spinner} />}
               </View>
               <View style={styles.sideDim} />
             </View>
@@ -204,7 +209,7 @@ export const ScanScreen = () => {
                   <Feather name={flash === 'on' ? 'zap' : 'zap-off'} size={24} color={flash === 'on' ? '#000' : '#fff'} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.shutterBtn} onPress={handleScan} disabled={isScanning}>
-                  <View style={[styles.shutterInner, isScanning && { backgroundColor: '#ccc' }]} />
+                  <View style={[styles.shutterInner, isScanning && { backgroundColor: themeColors.accent }]} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.controlBtn} onPress={handlePickImage}>
                   <Feather name="image" size={24} color="#fff" />
@@ -223,7 +228,7 @@ export const ScanScreen = () => {
                setImageSearchResults(null);
                cameraRef.current?.resumePreview();
              }}>
-               <Feather name="x" size={28} color="#fff" />
+               <Feather name="x" size={28} color={themeColors.textPrimary} />
              </TouchableOpacity>
           </View>
           <FlatList 
@@ -253,28 +258,28 @@ export const ScanScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: themeColors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   permissionContainer: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: themeColors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
   },
   permissionTitle: {
-    color: '#e9c349',
+    color: themeColors.accent,
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 16,
   },
   permissionDesc: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 32,
@@ -285,7 +290,7 @@ const styles = StyleSheet.create({
   },
   topDim: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
   middleRow: {
     flexDirection: 'row',
@@ -293,19 +298,19 @@ const styles = StyleSheet.create({
   },
   sideDim: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
   frame: {
     width: 300,
     height: 300,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197, 160, 89, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   guideText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -318,7 +323,7 @@ const styles = StyleSheet.create({
   },
   bottomDim: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
     paddingBottom: 120,
   },
@@ -331,37 +336,40 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(197, 160, 89, 0.15)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.soft,
   },
   controlBtnActive: {
-    backgroundColor: '#e9c349',
-    borderColor: '#e9c349',
+    backgroundColor: themeColors.accent,
+    borderColor: themeColors.accent,
   },
   shutterBtn: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: 'transparent',
-    borderWidth: 4,
-    borderColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#C5A059',
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.glow,
   },
   shutterInner: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff',
+    backgroundColor: '#C5A059',
   },
   btnPrimary: {
-    backgroundColor: '#e9c349',
+    backgroundColor: themeColors.accent,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 8,
+    borderRadius: shape.md,
+    ...shadows.soft,
   },
   btnPrimaryText: {
     color: '#000',
@@ -370,7 +378,7 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: themeColors.background,
     paddingTop: 60,
   },
   resultsHeader: {
@@ -381,7 +389,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   resultsTitle: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 22,
     fontWeight: 'bold',
   },
@@ -392,11 +400,12 @@ const styles = StyleSheet.create({
   resultCard: {
     flex: 1,
     margin: 10,
-    backgroundColor: '#161616',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: shape.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: themeColors.border,
+    ...shadows.soft,
   },
   resultImage: {
     width: '100%',
@@ -406,13 +415,13 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   resultTitle: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   resultArtist: {
-    color: '#8e9192',
+    color: themeColors.textSecondary,
     fontSize: 12,
   },
 });

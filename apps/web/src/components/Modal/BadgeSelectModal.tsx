@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './BadgeSelectModal.module.css';
-import { Badge, BADGES } from '../../lib/badges';
+import { BADGES, Badge } from '@vinyla/core-api';
 
 interface BadgeSelectModalProps {
   isOpen: boolean;
