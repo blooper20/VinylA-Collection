@@ -211,17 +211,23 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
 
     try {
+      if (!user?.id) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
       const finalGenres = (album.GENRES || []).filter(g => {
         const COUNTRY_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia'];
         return !COUNTRY_TAGS.includes(g);
       });
 
-      let master = await getAlbumMaster(album.ALBUM_ID);
+      const numericAlbumId = Number(album.ALBUM_ID);
+      let master = await getAlbumMaster(numericAlbumId);
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
       if (!master || isNewImageBetter) {
         await createAlbumMaster({
-          ALBUM_ID: album.ALBUM_ID,
+          ALBUM_ID: numericAlbumId,
           TITLE: album.TITLE,
           ARTIST: album.ARTIST,
           RELEASE_YEAR: album.RELEASE_YEAR,
@@ -236,8 +242,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       }
 
       await upsertUserVinyl({
-        USER_ID: user?.id || 1,
-        ALBUM_ID: album.ALBUM_ID,
+        USER_ID: user.id,
+        ALBUM_ID: numericAlbumId,
         STATUS: status,
         PURCHASE_DATE: new Date().toISOString(),
         PURCHASE_PRICE: purchasePrice || 0
