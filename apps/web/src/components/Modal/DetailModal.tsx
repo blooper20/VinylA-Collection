@@ -156,7 +156,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
-      if (!master || !master.GENRES || master.GENRES.length === 0 || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
+      if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
         await createAlbumMaster({
           ALBUM_ID: numericAlbumId,
           TITLE: album.TITLE,
