@@ -320,15 +320,37 @@ export const MyScreen = () => {
         </View>
 
         {/* Featured LP */}
-        <View style={[styles.profileRight, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <View style={[styles.profileRight, { backgroundColor: '#0f172a', borderColor: '#1e293b', overflow: 'hidden' }]}>
+          {/* Top spotlight effect */}
+          <LinearGradient
+            colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 60 }}
+          />
           <TouchableOpacity 
-            style={[styles.featuredFrame, { backgroundColor: 'transparent' }]}
+            style={styles.featuredFrame}
             onPress={() => setFeaturedModalVisible(true)}
             activeOpacity={0.8}
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
-                {/* The Modern Acrylic Frame */}
+                {/* Intense Warm Backlight */}
+                <View style={{
+                  position: 'absolute',
+                  top: '10%',
+                  left: '10%',
+                  right: '10%',
+                  bottom: '10%',
+                  backgroundColor: '#ff8c00', // Amber glow
+                  borderRadius: 60,
+                  shadowColor: '#ffaa00',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 1,
+                  shadowRadius: 25,
+                  elevation: 20,
+                  zIndex: 0
+                }} />
+
+                {/* The Modern Acrylic Frame / Shadow Box */}
                 <View style={styles.albumShadowBox}>
                   {/* The Spinning Vinyl (rendered first so it's behind the sleeve) */}
                   <Animated.View style={[styles.vinylDisc, { transform: [{ rotate: spinRotate }] }]}>
@@ -349,24 +371,24 @@ export const MyScreen = () => {
                     </View>
                   </Animated.View>
 
-                  <View style={styles.albumInner}>
+                  <View style={[styles.albumInner, { overflow: 'hidden' }]}>
                     <Image 
                       source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
                       style={styles.featuredCover} 
                       resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
                     />
+                    {/* Shimmer Effect inside cover */}
+                    <Animated.View style={[styles.shimmerEffect, { transform: [{ translateX: shimmerTranslate }] }]}>
+                      <LinearGradient
+                        colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
+                        start={{x: 0, y: 0}}
+                        end={{x: 1, y: 0}}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    </Animated.View>
                   </View>
                 </View>
                 
-                {/* Shimmer Effect */}
-                <Animated.View style={[styles.shimmerEffect, { transform: [{ translateX: shimmerTranslate }] }]}>
-                  <LinearGradient
-                    colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
-                    start={{x: 0, y: 0}}
-                    end={{x: 1, y: 0}}
-                    style={StyleSheet.absoluteFill}
-                  />
-                </Animated.View>
 
                 {/* Wish badge */}
                 {featuredAlbum.STATUS === 'WISH' && (
@@ -563,18 +585,9 @@ const styles = StyleSheet.create({
   featuredFrame: {
     width: 155, // Reduced width
     height: 120,
-    backgroundColor: 'rgba(20,20,20,0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 8,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     paddingLeft: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-    elevation: 10,
   },
   shimmerEffect: {
     position: 'absolute',
