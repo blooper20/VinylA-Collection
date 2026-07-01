@@ -275,24 +275,41 @@ export const MyScreen = () => {
             onPress={() => setFeaturedModalVisible(true)}
           >
             {featuredAlbum ? (
-              <>
-                <View style={styles.featuredCoverWrapper}>
-                  <Image 
-                    source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                    style={styles.featuredCover} 
-                    resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
-                  />
-                  <LinearGradient 
-                    colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
-                    style={styles.spotlight}
-                  />
+              <View style={styles.exhibitContainer}>
+                {/* Spotlight beam coming from the ceiling */}
+                <LinearGradient 
+                  colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
+                  style={styles.spotlightBeam}
+                />
+                
+                {/* Light pool hitting the wall behind the LP */}
+                <View style={styles.wallLightPool} />
+
+                {/* The LP itself floating with a shadow */}
+                <View style={styles.albumShadowBox}>
+                  <View style={styles.albumInner}>
+                    <Image 
+                      source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
+                      style={styles.featuredCover} 
+                      resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
+                    />
+                    {/* Glare on the LP cover */}
+                    <LinearGradient 
+                      colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']}
+                      style={styles.albumReflection}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    />
+                  </View>
                 </View>
+                
+                {/* Wish badge */}
                 {featuredAlbum.STATUS === 'WISH' && (
                   <View style={styles.wishIconBadge}>
                     <Text style={styles.wishIconText}>☁️</Text>
                   </View>
                 )}
-              </>
+              </View>
             ) : (
               <View style={styles.featuredEmpty}>
                 <Text style={{ color: themeColors.textSecondary, fontSize: 32, marginBottom: 8 }}>+</Text>
@@ -465,40 +482,65 @@ const styles = StyleSheet.create({
   featuredFrame: {
     width: 120,
     height: 120,
-    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible', // allow spotlight to shine out
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
-    elevation: 15,
   },
-  featuredCoverWrapper: {
+  exhibitContainer: {
     width: '100%',
     height: '100%',
-    position: 'relative',
-    borderRadius: 8,
-    overflow: 'visible', // allow spotlight to shine outside
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  spotlightBeam: {
+    position: 'absolute',
+    top: -150, // Way above the LP
+    width: 160,
+    height: 300,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
+    transform: [
+      { perspective: 400 },
+      { rotateX: '60deg' },
+    ],
+  },
+  wallLightPool: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 30,
+    elevation: 0,
+  },
+  albumShadowBox: {
+    width: 120,
+    height: 120,
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  albumInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#111',
   },
   featuredCover: {
     width: '100%',
     height: '100%',
-    borderRadius: 8,
   },
-  spotlight: {
+  albumReflection: {
     position: 'absolute',
-    top: -100, // Start higher up above the LP
-    left: '50%',
-    marginLeft: -60, // Half width
-    width: 120,
-    height: 300, // Shine all the way down
-    opacity: 0.5,
-    transform: [
-      { perspective: 200 },
-      { rotateX: '45deg' }, // Flare out at bottom
-    ],
+    top: 0, left: 0, right: 0, bottom: 0,
   },
   wishIconBadge: {
     position: 'absolute',
