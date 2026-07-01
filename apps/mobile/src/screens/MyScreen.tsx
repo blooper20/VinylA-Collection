@@ -320,12 +320,22 @@ export const MyScreen = () => {
         </View>
 
         {/* Featured LP */}
-        <View style={[styles.profileRight, { backgroundColor: '#0f172a', borderColor: '#1e293b', overflow: 'hidden' }]}>
-          {/* Top spotlight effect */}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 60 }}
-          />
+        <View style={styles.profileRight}>
+          {/* Physical Track Light (Pin light) Fixture */}
+          <View style={{ position: 'absolute', top: -20, right: 155/2 - 12, alignItems: 'center', zIndex: 10 }}>
+            <View style={{ width: 24, height: 4, backgroundColor: '#555', borderRadius: 2 }} />
+            <View style={{ width: 4, height: 6, backgroundColor: '#777' }} />
+            <View style={{
+              width: 16, height: 12, backgroundColor: '#222', 
+              borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
+              borderTopLeftRadius: 2, borderTopRightRadius: 2,
+              borderWidth: 1, borderColor: '#555'
+            }}>
+               {/* Bulb Glow */}
+               <View style={{ position: 'absolute', bottom: -2, left: 3, right: 3, height: 4, backgroundColor: '#fff5cc', borderRadius: 4, shadowColor: '#fff5cc', shadowOpacity: 1, shadowRadius: 5 }} />
+            </View>
+          </View>
+
           <TouchableOpacity 
             style={styles.featuredFrame}
             onPress={() => setFeaturedModalVisible(true)}
@@ -333,6 +343,23 @@ export const MyScreen = () => {
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
+                {/* Spotlight Beam */}
+                <View style={{
+                  position: 'absolute',
+                  top: -40,
+                  left: '50%',
+                  marginLeft: -40,
+                  width: 80,
+                  height: 180,
+                  zIndex: 5,
+                  pointerEvents: 'none',
+                }}>
+                  <LinearGradient
+                    colors={['rgba(255, 240, 200, 0.4)', 'rgba(255, 240, 200, 0.0)']}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+
                 {/* Intense Warm Backlight */}
                 <View style={{
                   position: 'absolute',
@@ -541,16 +568,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   profileRight: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-end',
     marginLeft: 16,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
   },
   avatarFrame: {
     width: 120,
