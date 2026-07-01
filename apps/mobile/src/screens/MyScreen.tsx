@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
@@ -255,7 +255,7 @@ export const MyScreen = () => {
   ];
 
   return (
-    <View style={{ flex: 1 }} ref={viewRef} collapsable={false}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }} ref={viewRef as any} collapsable={false}>
       <ScrollView 
         style={[styles.container, { backgroundColor: themeColors.background }]}
         bounces={true}
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 80,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   profileLeft: {
