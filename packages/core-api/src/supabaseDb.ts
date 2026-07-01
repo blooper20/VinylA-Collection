@@ -28,7 +28,7 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 
   if (error) {
     console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const local = localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}';
       const masters = JSON.parse(local);
       masters[album.ALBUM_ID as number] = album;
@@ -50,7 +50,7 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
     .eq('USER_ID', userId);
 
   if (error || !data || data.length === 0) {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const localV = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
       if (localV) {
@@ -81,7 +81,7 @@ export const wipeUserData = async (userId: string): Promise<void> => {
     console.warn('wipeUserData error:', error);
   }
   
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     localStorage.removeItem('VINYL_A_LOCAL_COLLECTION');
     localStorage.removeItem('vinyls_dbData');
   }
@@ -110,7 +110,7 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
 
   if (error) {
     console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       let arr = local ? JSON.parse(local) : [];
       const existingIdx = arr.findIndex((v: any) => v.ALBUM_ID === userVinyl.ALBUM_ID);
@@ -148,7 +148,7 @@ export const deleteUserVinylByAlbum = async (userId: string | number, albumId: n
 
   if (error) {
     // Also remove from localStorage if DB fails
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       if (local) {
         const arr = JSON.parse(local).filter((v: any) => v.ALBUM_ID !== albumId);

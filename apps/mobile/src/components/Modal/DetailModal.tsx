@@ -259,7 +259,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!album) return;
     try {
-      await deleteUserVinylByAlbum(user?.id || 1, album.ALBUM_ID);
+      await deleteUserVinylByAlbum(user?.id || 1, Number(album.ALBUM_ID));
       Alert.alert('성공', '보관함에서 삭제되었습니다.');
       handleClose();
     } catch (e) {

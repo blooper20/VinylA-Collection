@@ -195,36 +195,48 @@ export const MyScreen = () => {
   return (
     <View style={{ flex: 1 }} ref={viewRef} collapsable={false}>
       <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
-        {/* Identity Section */}
+      {/* Identity Section */}
       <View style={styles.heroSection}>
-        <View style={[styles.avatarFrame, { borderColor: themeColors.accent }]}>
-          <Image 
-            source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
-            style={styles.avatar} 
-          />
+        <View style={styles.profileLeft}>
+          <View style={[styles.avatarFrame, { borderColor: themeColors.accent }]}>
+            <Image 
+              source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
+              style={styles.avatar} 
+            />
+          </View>
+          <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
+            {user?.user_metadata?.displayName || '컬렉터'}
+          </Text>
+          <TouchableOpacity 
+            style={[styles.badge, { backgroundColor: themeColors.accent }]}
+            onPress={() => setBadgeModalVisible(true)}
+          >
+            <Text style={styles.badgeText}>{selectedBadgeObj.name}</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
-          {user?.user_metadata?.displayName || '컬렉터'}
-        </Text>
-        <TouchableOpacity 
-          style={[styles.badge, { backgroundColor: themeColors.accent }]}
-          onPress={() => setBadgeModalVisible(true)}
-        >
-          <Text style={styles.badgeText}>{selectedBadgeObj.name}</Text>
-        </TouchableOpacity>
 
         {/* Featured LP */}
-        <View style={styles.featuredContainer}>
+        <View style={styles.profileRight}>
           <TouchableOpacity 
             style={[styles.featuredFrame, { borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.02)' }]}
             onPress={() => setFeaturedModalVisible(true)}
           >
             {featuredAlbum ? (
-              <Image 
-                source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                style={styles.featuredCover} 
-                resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
-              />
+              <>
+                <View style={styles.featuredCoverWrapper}>
+                  <Image 
+                    source={featuredAlbum.IMAGE_URL ? { uri: featuredAlbum.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
+                    style={styles.featuredCover} 
+                    resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
+                  />
+                  <View style={styles.spotlight} />
+                </View>
+                {featuredAlbum.STATUS === 'WISH' && (
+                  <View style={styles.wishIconBadge}>
+                    <Text style={styles.wishIconText}>☁️</Text>
+                  </View>
+                )}
+              </>
             ) : (
               <View style={styles.featuredEmpty}>
                 <Text style={{ color: themeColors.textSecondary, fontSize: 32, marginBottom: 8 }}>+</Text>
@@ -348,14 +360,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroSection: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     paddingTop: 80,
     paddingBottom: 40,
   },
+  profileLeft: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  profileRight: {
+    alignItems: 'flex-end',
+    marginLeft: 16,
+  },
   avatarFrame: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 3,
     borderStyle: 'dashed',
     justifyContent: 'center',
@@ -363,12 +386,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   avatar: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
   },
   userName: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
   },
@@ -376,31 +399,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    marginBottom: 24,
+    marginBottom: 0,
   },
   badgeText: {
     color: '#000',
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 11,
     textTransform: 'uppercase',
   },
-  featuredContainer: {
-    alignItems: 'center',
-    width: '100%',
-  },
   featuredFrame: {
-    width: 140,
-    height: 140,
+    width: 120,
+    height: 120,
     borderRadius: 8,
     borderWidth: 1,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'visible', // allow spotlight to shine out
+  },
+  featuredCoverWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+    borderRadius: 8,
     overflow: 'hidden',
   },
   featuredCover: {
     width: '100%',
     height: '100%',
+    borderRadius: 8,
+  },
+  spotlight: {
+    position: 'absolute',
+    top: -20,
+    left: -50,
+    width: 200,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    transform: [{ rotate: '45deg' }],
+  },
+  wishIconBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  wishIconText: {
+    fontSize: 12,
   },
   featuredEmpty: {
     alignItems: 'center',
