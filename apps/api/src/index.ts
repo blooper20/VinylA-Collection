@@ -43,7 +43,12 @@ app.post('/api/scan', async (req, res) => {
       let foundMain = false;
       await searchDiscogsLazy(q, (album: AlbumItem) => {
           if (results.some((a) => a.ALBUM_ID === Number(album.id))) return;
-          
+          const combinedGenres = Array.from(new Set([
+            ...(album.country ? [album.country] : []),
+            ...(album.genre || []),
+            ...(album.style || [])
+          ]));
+
           results.push({
             ALBUM_ID: Number(album.id) || Date.now() + Math.random(),
             TITLE: album.title || 'Unknown Title',
@@ -53,7 +58,7 @@ app.post('/api/scan', async (req, res) => {
             VINYL_IMAGE_URL: '',
             CUSTOM_COLOR_HEX: '#111',
             CUSTOM_STYLE_TYPE: 'SOLID',
-            GENRES: album.genre || ['Vinyl']
+            GENRES: combinedGenres
           });
           foundMain = true;
       });

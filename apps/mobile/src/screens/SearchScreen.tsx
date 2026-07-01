@@ -62,7 +62,7 @@ export const SearchScreen = ({ route }: any) => {
             VINYL_IMAGE_URL: '',
             CUSTOM_COLOR_HEX: '#111',
             CUSTOM_STYLE_TYPE: 'SOLID',
-            GENRES: album.genre || ['Vinyl']
+            GENRES: album.genre || []
           };
           
           return [...prev, mapped];

@@ -151,3 +151,10 @@ apps/api/
   src/index.ts                 ← VibeProxy 제거, Gemini 직접 연동, Thinking 예산 차단
   .env                         ← API Key 교체
 ```
+
+### 2026-07-01 (Part 2)
+- **Tag Filtering in Mobile DetailModal**: Implemented the same tag separation logic as Web DetailModal, visually grouping 'Country' tags from general genre tags.
+- **MyScreen Feature Parity**: Replicated the Web MyPage functionalities in the Mobile App:
+  - Added Market Value and Actual Spent Value calculations.
+  - Ported dynamic Badge unlocking logic (`evaluateBadges`) by migrating `badges.ts` to `core-api`.
+  - Added Featured LP Modal configuration for the mobile app profile.

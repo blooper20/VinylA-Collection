@@ -237,8 +237,9 @@ export const searchDiscogsLazy = async (
       thumb = r.cover_image || r.thumb || '';
     }
 
-    // Discogs gives `genre` and `style` as arrays — no country tag.
+    // Discogs gives `genre` and `style` as arrays. We also add `country`.
     const combinedGenres = Array.from(new Set([
+      ...(r.country ? [r.country] : []),
       ...(r.genre || []),
       ...(r.style || [])
     ]));
