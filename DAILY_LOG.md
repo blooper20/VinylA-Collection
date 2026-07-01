@@ -165,3 +165,13 @@ apps/api/
   - Reverted `HomeScreen.tsx` AlbumCards to display pure LP covers without the overlay text/info for a cleaner gallery look.
   - Fixed `MyScreen.tsx` layout issue where the Glass Intensity setting was cut off by extending the `ScrollView` padding.
   - Updated `RootNavigator.tsx` & `FloatingScanButton.tsx` to use a newly generated premium 3D gold vinyl logo for the central scan tab, replacing the standard icon.
+
+### 2026-07-01 (Part 4)
+- **Data Model & Sync fixes**:
+  - Prevented `GENRES` and `MARKET_PRICE` from being deleted from the payload in `createAlbumMaster` (`core-api/src/supabaseDb.ts`), resolving an issue where Market Price metrics and Genre Tags ("Vinyl" fallback) were missing for newly scanned records in the database.
+- **MyScreen Refinements**:
+  - Removed unwanted emojis from the Actual Spent Value `AnalyticsCard` component to enforce the premium aesthetic.
+- **DetailModal Enhancements**:
+  - Redesigned the `pricePromptVisible` overlay (Purchase Price entry UI) to perfectly match the `CustomAlert`'s visual language and structure.
+  - Implemented real-time comma-separated formatting (e.g. `1,000,000`) for the price input `TextInput`.
+  - Added a dedicated 'Skip' (생략) button alongside the 'Save' button, preserving the UI uniformity of the app's prompt layers.
