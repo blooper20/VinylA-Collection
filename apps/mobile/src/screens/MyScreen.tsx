@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeType } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
