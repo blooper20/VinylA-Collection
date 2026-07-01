@@ -47,7 +47,7 @@ export const MyScreen = () => {
   const [allAlbums, setAllAlbums] = React.useState<any[]>([]);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
-  const featuredAlbum = allAlbums.find(a => a.ALBUM_ID === featuredAlbumId);
+  const featuredAlbum = allAlbums.find(a => Number(a.ALBUM_ID) === Number(featuredAlbumId));
 
   React.useEffect(() => {
     async function loadStats() {
@@ -180,9 +180,10 @@ export const MyScreen = () => {
     setTheme(newTheme);
   };
 
-  const handleFeaturedSelect = async (albumId: number | null) => {
-    await updateFeaturedAlbum(albumId);
-    setToastMessage(albumId ? '대표 LP가 설정되었습니다.' : '대표 LP 설정이 해제되었습니다.');
+  const handleFeaturedSelect = async (albumId: string | number | null) => {
+    const numericId = albumId ? Number(albumId) : null;
+    await updateFeaturedAlbum(numericId);
+    setToastMessage(numericId ? '대표 LP가 설정되었습니다.' : '대표 LP 설정이 해제되었습니다.');
     setIsToastVisible(true);
   };
 
@@ -348,7 +349,7 @@ export const MyScreen = () => {
         visible={isFeaturedModalVisible}
         onClose={() => setFeaturedModalVisible(false)}
         albums={allAlbums}
-        currentFeaturedId={featuredAlbumId}
+        currentFeaturedId={featuredAlbumId ? Number(featuredAlbumId) : null}
         onSelect={handleFeaturedSelect}
       />
     </View>
