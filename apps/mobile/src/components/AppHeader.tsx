@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@vinyla/ui';
 import { Feather } from '@expo/vector-icons';
 
 interface AppHeaderProps {
   mode?: 'collection' | 'wishlist';
+  onSharePress?: () => void;
 }
 
-export const AppHeader = ({ mode }: AppHeaderProps) => {
+export const AppHeader = ({ mode, onSharePress }: AppHeaderProps) => {
   const insets = useSafeAreaInsets();
   const { themeColors } = useTheme();
   const isWishlist = mode === 'wishlist';
@@ -25,11 +26,22 @@ export const AppHeader = ({ mode }: AppHeaderProps) => {
       </View>
 
       {mode && (
-        <View style={[styles.modeBadge, { borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.06)' }]}>
-          <Feather name={isWishlist ? 'heart' : 'disc'} size={11} color={themeColors.accent} />
-          <Text style={[styles.modeText, { color: themeColors.accent }]}>
-            {isWishlist ? 'WISHLIST' : 'MY COLLECTION'}
-          </Text>
+        <View style={styles.bottomRow}>
+          <View style={[styles.modeBadge, { borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.06)' }]}>
+            <Feather name={isWishlist ? 'heart' : 'disc'} size={11} color={themeColors.accent} />
+            <Text style={[styles.modeText, { color: themeColors.accent }]}>
+              {isWishlist ? 'WISHLIST' : 'MY COLLECTION'}
+            </Text>
+          </View>
+
+          {onSharePress && (
+            <TouchableOpacity
+              style={[styles.shareIconBtn, { borderColor: themeColors.border }]}
+              onPress={onSharePress}
+            >
+              <Feather name="share-2" size={13} color={themeColors.textPrimary} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -55,12 +67,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.3,
   },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    marginLeft: 58,
+    gap: 10,
+  },
   modeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 10,
-    marginLeft: 58,
     gap: 6,
     borderWidth: 1,
     borderRadius: 20,
@@ -71,5 +87,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  shareIconBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

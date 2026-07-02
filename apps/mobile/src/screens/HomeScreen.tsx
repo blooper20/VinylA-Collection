@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text, Share } from 'react-native';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { EmptyState } from '../components/EmptyState';
@@ -8,7 +8,13 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { BlurView } from 'expo-blur';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
+import * as Clipboard from 'expo-clipboard';
 import { AppHeader } from '../components/AppHeader';
+import { ShareableGridView } from '../components/Share/ShareableGridView';
+import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
+import { NativeToast } from '../components/Toast/NativeToast';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
@@ -19,6 +25,11 @@ export const HomeScreen = () => {
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [ownedAlbums, setOwnedAlbums] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isShareSheetVisible, setShareSheetVisible] = useState(false);
+  const [isSharingProcessing, setIsSharingProcessing] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user, initializeAuth } = useAuthStore();
 
@@ -79,9 +90,65 @@ export const HomeScreen = () => {
     };
   }, [user]);
 
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setIsToastVisible(true);
+  };
+
+  const handleSaveImage = async () => {
+    try {
+      setIsSharingProcessing(true);
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      if (status !== 'granted') {
+        showToast('사진 라이브러리 접근 권한이 필요합니다.');
+        return;
+      }
+      const uri = await captureRef(shareViewRef, { format: 'png', quality: 1 });
+      await MediaLibrary.saveToLibraryAsync(uri);
+      showToast('이미지가 저장되었습니다.');
+    } catch (e) {
+      console.error('Failed to save share image', e);
+      showToast('이미지 저장에 실패했습니다.');
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
+    }
+  };
+
+  const handleCopyImage = async () => {
+    try {
+      setIsSharingProcessing(true);
+      const base64 = await captureRef(shareViewRef, { format: 'png', quality: 1, result: 'base64' });
+      await Clipboard.setImageAsync(base64);
+      showToast('이미지가 클립보드에 복사되었습니다.');
+    } catch (e) {
+      console.error('Failed to copy share image', e);
+      showToast('이미지 복사에 실패했습니다.');
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    setShareSheetVisible(false);
+    if (!user?.id) return;
+    const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+    const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+    const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'http://192.168.0.20:3000';
+    const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}`;
+    try {
+      await Share.share({
+        message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 레코드 컬렉션을 확인해보세요!\n\n${link}`,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <AppHeader mode="collection" />
+      <AppHeader mode="collection" onSharePress={() => setShareSheetVisible(true)} />
       {!isLoading && ownedAlbums.length === 0 ? (
         <EmptyState 
           onPressAction={() => navigation.navigate('Scan')} 
@@ -104,11 +171,32 @@ export const HomeScreen = () => {
           )}
         />
       )}
-      <DetailModal 
-        album={selectedAlbum} 
-        visible={!!selectedAlbum} 
-        onClose={() => setSelectedAlbum(null)} 
+      <DetailModal
+        album={selectedAlbum}
+        visible={!!selectedAlbum}
+        onClose={() => setSelectedAlbum(null)}
       />
+
+      <View style={styles.offscreen} pointerEvents="none">
+        <ShareableGridView
+          ref={shareViewRef}
+          albums={ownedAlbums}
+          mode="collection"
+          username={user?.user_metadata?.displayName || '컬렉터'}
+        />
+      </View>
+
+      <ShareOptionsSheet
+        visible={isShareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        title="보관함 공유하기"
+        isProcessing={isSharingProcessing}
+        onSaveImage={handleSaveImage}
+        onCopyImage={handleCopyImage}
+        onShareLink={handleShareLink}
+      />
+
+      <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
     </View>
   );
 };
@@ -116,6 +204,11 @@ export const HomeScreen = () => {
 const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.create({
   container: {
     flex: 1,
+  },
+  offscreen: {
+    position: 'absolute',
+    top: -9999,
+    left: 0,
   },
   list: {
     padding: 16,
