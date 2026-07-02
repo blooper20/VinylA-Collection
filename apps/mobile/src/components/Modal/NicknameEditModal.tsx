@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
@@ -67,17 +68,22 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
               <Text style={styles.alertText}>⚠️ 닉네임은 다른 사용자와 중복될 수 없으며, 한 번 변경하면 30일 동안 다시 변경할 수 없습니다.</Text>
             </View>
 
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>새 닉네임</Text>
+            <View style={styles.labelRow}>
+              <Text style={[styles.label, { color: themeColors.textSecondary }]}>새 닉네임</Text>
+              <Text style={[styles.counter, { color: themeColors.textSecondary }]}>
+                {nickname.length}/{NICKNAME_MAX_LENGTH}자
+              </Text>
+            </View>
             <TextInput
               style={[styles.input, { color: themeColors.textPrimary, borderColor: errorMsg ? '#f44336' : themeColors.border }]}
               value={nickname}
               onChangeText={(text) => {
-                setNickname(text);
+                setNickname(text.slice(0, NICKNAME_MAX_LENGTH));
                 setErrorMsg('');
               }}
               placeholder="닉네임을 입력하세요"
               placeholderTextColor={themeColors.textSecondary}
-              maxLength={20}
+              maxLength={NICKNAME_MAX_LENGTH}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!loading}
@@ -145,10 +151,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   label: {
     fontSize: 14,
-    marginBottom: 8,
     fontWeight: '500',
+  },
+  counter: {
+    fontSize: 12,
   },
   input: {
     height: 50,
