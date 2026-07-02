@@ -15,6 +15,7 @@ export const SortChipRow = ({ value, onChange }: SortChipRowProps) => {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.scroll}
       contentContainerStyle={styles.container}
     >
       {SORT_OPTIONS.map((opt) => {
@@ -42,16 +43,21 @@ export const SortChipRow = ({ value, onChange }: SortChipRowProps) => {
 };
 
 const styles = StyleSheet.create({
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   container: {
     paddingHorizontal: 20,
+    alignItems: 'center',
     gap: 8,
-    paddingBottom: 12,
+    paddingBottom: 14,
   },
   chip: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   chipText: {
     fontSize: 12,

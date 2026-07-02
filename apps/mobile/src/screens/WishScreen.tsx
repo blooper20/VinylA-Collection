@@ -165,6 +165,7 @@ export const WishScreen = () => {
           <SortChipRow value={sortMode} onChange={setSortMode} />
           {viewMode === 'grid' ? (
             <FlatList
+              key="grid"
               style={{ flex: 1 }}
               data={sortedWishes}
               numColumns={2}
@@ -186,6 +187,7 @@ export const WishScreen = () => {
             />
           ) : (
             <FlatList
+              key="table"
               style={{ flex: 1 }}
               data={sortedWishes}
               keyExtractor={item => item.ALBUM_ID.toString()}

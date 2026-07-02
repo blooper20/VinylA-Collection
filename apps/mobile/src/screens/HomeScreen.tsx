@@ -170,6 +170,7 @@ export const HomeScreen = () => {
           <SortChipRow value={sortMode} onChange={setSortMode} />
           {viewMode === 'grid' ? (
             <FlatList
+              key="grid"
               style={{ flex: 1 }}
               data={sortedAlbums}
               numColumns={2}
@@ -187,6 +188,7 @@ export const HomeScreen = () => {
             />
           ) : (
             <FlatList
+              key="table"
               style={{ flex: 1 }}
               data={sortedAlbums}
               keyExtractor={item => item.ALBUM_ID.toString()}
