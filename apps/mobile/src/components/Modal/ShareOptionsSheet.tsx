@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useTheme } from '@vinyla/ui';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
@@ -13,6 +13,9 @@ interface ShareOptionsSheetProps {
   onImageShare: () => void;
 }
 
+// Deliberately not wrapped in RN's <Modal> — this can be nested inside other
+// full-screen <Modal> screens (e.g. DetailModal), and stacking native Modals
+// on iOS has previously caused freezes in this app.
 export const ShareOptionsSheet = ({
   visible,
   onClose,
@@ -22,6 +25,26 @@ export const ShareOptionsSheet = ({
   onImageShare,
 }: ShareOptionsSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
+  const translateY = useRef(new Animated.Value(300)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const [rendered, setRendered] = React.useState(visible);
+
+  useEffect(() => {
+    if (visible) {
+      setRendered(true);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 300, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      ]).start(() => setRendered(false));
+    }
+  }, [visible]);
+
+  if (!rendered) return null;
 
   const options: { id: string; label: string; icon: 'share-2' | 'image'; onPress: () => void }[] = [
     { id: 'image', label: '이미지 공유', icon: 'image', onPress: onImageShare },
@@ -29,9 +52,11 @@ export const ShareOptionsSheet = ({
   ];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.container}>
+    <View style={[StyleSheet.absoluteFill, styles.container]} pointerEvents="box-none">
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: backdropOpacity }]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} disabled={isProcessing} />
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateY }] }}>
         <BlurView
           intensity={glassIntensity || 30}
           tint="dark"
@@ -60,15 +85,15 @@ export const ShareOptionsSheet = ({
             </TouchableOpacity>
           ))}
         </BlurView>
-      </View>
-    </Modal>
+      </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     justifyContent: 'flex-end',
+    zIndex: 9999,
   },
   content: {
     borderTopLeftRadius: 24,

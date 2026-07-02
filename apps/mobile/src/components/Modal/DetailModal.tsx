@@ -1,13 +1,16 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { CustomAlert } from '../../providers/AlertProvider';
+import { ShareableStoryView } from '../Share/ShareableStoryView';
+import { ShareOptionsSheet } from './ShareOptionsSheet';
+import { shareToInstagramStory } from '../../utils/nativeShare';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -98,6 +101,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [notes, setNotes] = React.useState<string>('');
 
   const { user } = useAuthStore();
+
+  const [isShareSheetVisible, setShareSheetVisible] = React.useState(false);
+  const [isSharingProcessing, setIsSharingProcessing] = React.useState(false);
+  const shareViewRef = useRef<View>(null);
 
   useEffect(() => {
     if (visible && album) {
@@ -204,6 +211,38 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       Linking.openURL(`https://www.discogs.com${results[0].uri}`);
     } else {
       Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!album) {
+      setShareSheetVisible(false);
+      return;
+    }
+    try {
+      setIsSharingProcessing(true);
+      const link = `https://vinyla.vercel.app/collection?album=${album.ALBUM_ID}`;
+      await Share.share({
+        message: `🎧 ${album.ARTIST} - ${album.TITLE}\n\n${link}`,
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
+    }
+  };
+
+  const handleImageShare = async () => {
+    try {
+      setIsSharingProcessing(true);
+      await shareToInstagramStory(shareViewRef);
+    } catch (e) {
+      console.error('Failed to share image', e);
+      showAlert('오류', '이미지 공유에 실패했습니다.');
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
     }
   };
 
@@ -390,6 +429,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
             {...panResponder.panHandlers}
           >
             <View style={styles.header}>
+              <TouchableOpacity onPress={() => setShareSheetVisible(true)} style={styles.shareBtn}>
+                <Feather name="share-2" size={16} color="#fff" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
                 <Text style={styles.closeText}>✕</Text>
               </TouchableOpacity>
@@ -551,6 +593,24 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           </ScrollView>
             </Animated.View>
           </View>
+
+        <View style={styles.offscreenShare} pointerEvents="none">
+          <ShareableStoryView
+            ref={shareViewRef}
+            album={album}
+            username={user?.user_metadata?.displayName || '컬렉터'}
+          />
+        </View>
+
+        <ShareOptionsSheet
+          visible={isShareSheetVisible}
+          onClose={() => setShareSheetVisible(false)}
+          title="앨범 공유하기"
+          isProcessing={isSharingProcessing}
+          onShareLink={handleShareLink}
+          onImageShare={handleImageShare}
+        />
+
         <CustomAlert
           visible={alertVisible}
           title={alertTitle}
@@ -605,16 +665,28 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     flex: 1,
     backgroundColor: 'transparent',
   },
+  offscreenShare: {
+    position: 'absolute',
+    top: -9999,
+    left: 0,
+  },
   scroll: {
     padding: 24,
     paddingBottom: 40,
   },
   header: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     marginTop: 10,
     marginBottom: 10,
     width: '100%',
+  },
+  shareBtn: {
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 30,
   },
   closeBtn: {
     padding: 12,
