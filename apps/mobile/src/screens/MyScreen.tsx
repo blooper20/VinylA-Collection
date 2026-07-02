@@ -379,11 +379,11 @@ export const MyScreen = () => {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setNicknameModalVisible(true)}>
-            <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
+          <TouchableOpacity onPress={() => setNicknameModalVisible(true)} style={styles.nicknameRow}>
+            <Text style={[styles.userName, { color: themeColors.textPrimary }]} numberOfLines={1}>
               {user?.user_metadata?.displayName || '컬렉터'}
-              <Text style={{ fontSize: 16, color: themeColors.textSecondary }}> ✏️</Text>
             </Text>
+            <Feather name="edit-2" size={13} color={themeColors.textSecondary} style={styles.nicknameEditIcon} />
           </TouchableOpacity>
           <View style={styles.badgeRow}>
             <TouchableOpacity
@@ -672,10 +672,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  nicknameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    maxWidth: '100%',
+  },
   userName: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    flexShrink: 1,
+  },
+  nicknameEditIcon: {
+    marginLeft: 6,
   },
   badgeRow: {
     flexDirection: 'row',
