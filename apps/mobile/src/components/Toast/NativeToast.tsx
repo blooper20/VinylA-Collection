@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@vinyla/ui';
 import * as Haptics from 'expo-haptics';
+
+const TAB_BAR_HEIGHT = 80;
 
 interface NativeToastProps {
   message: string;
@@ -11,7 +14,8 @@ interface NativeToastProps {
 
 export const NativeToast: React.FC<NativeToastProps> = ({ message, visible, onHide }) => {
   const { themeColors } = useTheme();
-  const styles = getStyles(themeColors);
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(themeColors, TAB_BAR_HEIGHT + insets.bottom + 20);
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -44,10 +48,10 @@ export const NativeToast: React.FC<NativeToastProps> = ({ message, visible, onHi
   );
 };
 
-const getStyles = (themeColors: any) => StyleSheet.create({
+const getStyles = (themeColors: any, bottomOffset: number) => StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 50,
+    bottom: bottomOffset,
     alignSelf: 'center',
     backgroundColor: themeColors.accent,
     paddingHorizontal: 16,

@@ -24,43 +24,53 @@ export const ShareableGridView = forwardRef<View, ShareableGridViewProps>(
 
     return (
       <View ref={ref} collapsable={false} style={styles.canvas}>
-        <View style={styles.brandRow}>
+        <View style={styles.content}>
+          <View style={styles.brandRow}>
+            <Image
+              source={require('../../../assets/3d_logo_transparent.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandText}>VinylA Collection</Text>
+          </View>
+
+          <Text style={styles.title}>{isWishlist ? 'WISHLIST' : 'MY COLLECTION'}</Text>
+          <Text style={styles.subtitle}>@{username} · {albums.length}장</Text>
+
+          <View style={styles.grid}>
+            {items.map((item, index) => {
+              const showMoreOverlay = remaining > 0 && index === items.length - 1;
+              return (
+                <View key={String(item.ALBUM_ID ?? index)} style={styles.cell}>
+                  <Image
+                    source={
+                      item.IMAGE_URL
+                        ? { uri: item.IMAGE_URL }
+                        : require('../../../assets/logo_real_transparent.png')
+                    }
+                    style={styles.cover}
+                    resizeMode={item.IMAGE_URL ? 'cover' : 'contain'}
+                  />
+                  {showMoreOverlay && (
+                    <View style={styles.moreOverlay}>
+                      <Text style={styles.moreText}>+{remaining}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Watermark — matches web's ShareableGridTemplate footer */}
+        <View style={styles.footer}>
           <Image
-            source={require('../../../assets/3d_logo_transparent.png')}
-            style={styles.brandLogo}
+            source={require('../../../assets/logo_real_transparent.png')}
+            style={styles.footerLogo}
             resizeMode="contain"
           />
-          <Text style={styles.brandText}>VinylA Collection</Text>
+          <Text style={styles.footerText}>Curated by VinylA</Text>
         </View>
-
-        <Text style={styles.title}>{isWishlist ? 'WISHLIST' : 'MY COLLECTION'}</Text>
-        <Text style={styles.subtitle}>@{username} · {albums.length}장</Text>
-
-        <View style={styles.grid}>
-          {items.map((item, index) => {
-            const showMoreOverlay = remaining > 0 && index === items.length - 1;
-            return (
-              <View key={String(item.ALBUM_ID ?? index)} style={styles.cell}>
-                <Image
-                  source={
-                    item.IMAGE_URL
-                      ? { uri: item.IMAGE_URL }
-                      : require('../../../assets/logo_real_transparent.png')
-                  }
-                  style={styles.cover}
-                  resizeMode={item.IMAGE_URL ? 'cover' : 'contain'}
-                />
-                {showMoreOverlay && (
-                  <View style={styles.moreOverlay}>
-                    <Text style={styles.moreText}>+{remaining}</Text>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        <Text style={styles.footer}>VINYLA.APP</Text>
       </View>
     );
   }
@@ -73,6 +83,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0c0a',
     alignItems: 'center',
     paddingTop: 120,
+    paddingBottom: 40,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    width: '100%',
   },
   brandRow: {
     flexDirection: 'row',
@@ -130,11 +146,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   footer: {
-    position: 'absolute',
-    bottom: 64,
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 18,
-    letterSpacing: 4,
-    fontWeight: '700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    width: CANVAS_WIDTH - GRID_PADDING * 2,
+    paddingTop: 34,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  footerLogo: {
+    width: 30,
+    height: 30,
+  },
+  footerText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 22,
+    fontStyle: 'italic',
+    letterSpacing: 1,
   },
 });
