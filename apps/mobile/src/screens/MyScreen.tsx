@@ -537,13 +537,14 @@ export const MyScreen = () => {
 
       <View style={styles.section}>
         <TouchableOpacity
-          style={[styles.settingsToggleBtn, { borderColor: themeColors.border }]}
+          style={styles.settingsToggleBtn}
           onPress={() => setIsSettingsExpanded(v => !v)}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
         >
-          <Text style={[styles.themeBtnText, { color: themeColors.textPrimary }]}>설정 {isSettingsExpanded ? '닫기' : '열기'}</Text>
-          <Feather name={isSettingsExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={themeColors.textSecondary} />
+          <Text style={[styles.settingsToggleText, { color: themeColors.textPrimary }]}>설정 {isSettingsExpanded ? '닫기' : '열기'}</Text>
+          <Feather name={isSettingsExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={themeColors.textPrimary} />
         </TouchableOpacity>
+        <View style={[styles.settingsDivider, { backgroundColor: themeColors.border }]} />
 
         {isSettingsExpanded && (
           <View style={{ marginTop: 20 }}>
@@ -963,14 +964,18 @@ const styles = StyleSheet.create({
   },
   settingsToggleBtn: {
     marginHorizontal: 20,
-    borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: shape.md,
-    backgroundColor: 'rgba(255,255,255,0.02)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  settingsToggleText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  settingsDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 20,
   },
   logoutBtn: {
     marginTop: 24,
