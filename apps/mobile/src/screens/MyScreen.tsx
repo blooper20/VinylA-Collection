@@ -299,9 +299,10 @@ export const MyScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background, paddingTop: insets.top }} ref={viewRef as any} collapsable={false}>
-      <ScrollView 
+      <ScrollView
         style={[styles.container, { backgroundColor: 'transparent' }]}
         contentContainerStyle={{ paddingBottom: 160 }}
+        showsVerticalScrollIndicator={false}
         bounces={true}
         alwaysBounceVertical={true}
         refreshControl={
@@ -579,7 +580,7 @@ export const MyScreen = () => {
 
       <View style={styles.section}>
         <TouchableOpacity
-          style={[styles.logoutBtn, { borderColor: themeColors.border }]}
+          style={styles.logoutBtn}
           onPress={async () => {
             try {
               const { signOut } = await import('@vinyla/core-api');
@@ -590,7 +591,7 @@ export const MyScreen = () => {
             }
           }}
         >
-          <Text style={[styles.logoutBtnText, { color: themeColors.textPrimary }]}>로그아웃</Text>
+          <Text style={styles.logoutBtnText}>로그아웃</Text>
         </TouchableOpacity>
       </View>
       </ScrollView>
@@ -981,14 +982,15 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginHorizontal: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 100, 100, 0.3)',
+    borderColor: 'rgba(255, 82, 82, 0.5)',
     paddingVertical: 14,
     alignItems: 'center',
     borderRadius: shape.md,
-    backgroundColor: 'rgba(255, 0, 0, 0.03)',
+    backgroundColor: 'rgba(255, 82, 82, 0.08)',
   },
   logoutBtnText: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#ff5252',
   }
 });
