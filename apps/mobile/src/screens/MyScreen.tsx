@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   spentToggleBtn: {
     position: 'absolute',
     left: 16,
-    bottom: 14,
+    bottom: 6,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 8,
