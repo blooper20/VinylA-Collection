@@ -12,9 +12,16 @@ const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1920;
 const COVER_SIZE = 720;
 
+const STATUS_NEON: Record<string, { label: string; color: string }> = {
+  OWNED: { label: 'IN ROTATION', color: '#ffd76a' },
+  WISH: { label: 'ON DECK', color: '#7fe8ff' },
+  NONE: { label: 'JUST DROPPED', color: '#ff8bdc' },
+};
+
 export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
   ({ album, username }, ref) => {
     const bgColor = album.CUSTOM_COLOR_HEX || '#2a2a2a';
+    const neon = STATUS_NEON[album.STATUS as string] || STATUS_NEON.NONE;
 
     return (
       <View ref={ref} collapsable={false} style={styles.canvas}>
@@ -24,6 +31,23 @@ export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
+
+        <View
+          style={[
+            styles.statusBadge,
+            { borderColor: neon.color, backgroundColor: 'rgba(10,8,8,0.35)' },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              { color: neon.color, textShadowColor: neon.color },
+            ]}
+            numberOfLines={1}
+          >
+            {neon.label}
+          </Text>
+        </View>
 
         <View style={styles.content}>
           <View style={styles.coverShadowWrap}>
@@ -64,6 +88,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 130,
+    alignSelf: 'center',
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+  },
+  statusText: {
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: 5,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
   },
   content: {
     alignItems: 'center',

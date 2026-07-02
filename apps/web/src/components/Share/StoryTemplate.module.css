@@ -134,31 +134,27 @@
   width: 100%;
   padding: 0 60px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  text-align: center;
   z-index: 2;
 }
 
 .brandWrapper {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .user {
+  display: block;
   font-family: var(--font-body);
   font-size: 32px;
   color: #fff;
   font-weight: 600;
   letter-spacing: 1px;
-  max-width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin: 0 0 16px;
 }
 
 .brand {
@@ -168,4 +164,43 @@
   font-style: italic;
   letter-spacing: 2px;
   white-space: nowrap;
+}
+
+.statusNeon {
+  position: absolute;
+  top: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  padding: 16px 40px;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  white-space: nowrap;
+  background: rgba(10, 8, 8, 0.35);
+}
+
+.statusNeon[data-status="owned"] {
+  color: #ffd76a;
+  border-color: #ffd76a;
+  text-shadow: 0 0 6px #ffd76a, 0 0 18px #ffd76a, 0 0 36px #e9c349, 0 0 70px #e9c349;
+  box-shadow: 0 0 14px rgba(255, 215, 106, 0.55), inset 0 0 16px rgba(255, 215, 106, 0.25);
+}
+
+.statusNeon[data-status="wish"] {
+  color: #7fe8ff;
+  border-color: #7fe8ff;
+  text-shadow: 0 0 6px #7fe8ff, 0 0 18px #7fe8ff, 0 0 36px #00c8ff, 0 0 70px #00c8ff;
+  box-shadow: 0 0 14px rgba(127, 232, 255, 0.55), inset 0 0 16px rgba(127, 232, 255, 0.25);
+}
+
+.statusNeon[data-status="none"] {
+  color: #ff8bdc;
+  border-color: #ff8bdc;
+  text-shadow: 0 0 6px #ff8bdc, 0 0 18px #ff8bdc, 0 0 36px #ff2fd0, 0 0 70px #ff2fd0;
+  box-shadow: 0 0 14px rgba(255, 139, 220, 0.55), inset 0 0 16px rgba(255, 139, 220, 0.25);
 }
