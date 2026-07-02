@@ -94,6 +94,7 @@ export const MyScreen = () => {
   const [isFeaturedModalVisible, setFeaturedModalVisible] = React.useState(false);
   const [isGenreModalVisible, setGenreModalVisible] = React.useState(false);
   const [isNicknameModalVisible, setNicknameModalVisible] = React.useState(false);
+  const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
   const [flashVisible, setFlashVisible] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
   const [isToastVisible, setIsToastVisible] = React.useState(false);
@@ -485,43 +486,6 @@ export const MyScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>글래스 효과 강도</Text>
-        <View style={{ flexDirection: 'row', paddingHorizontal: 20, justifyContent: 'space-between', gap: 8 }}>
-          {[10, 30, 50, 70, 90].map((val) => (
-            <TouchableOpacity 
-              key={val}
-              style={[
-                styles.themeBtn, 
-                { 
-                  borderColor: glassIntensity === val ? themeColors.accent : themeColors.border,
-                  backgroundColor: glassIntensity === val ? 'rgba(197, 160, 89, 0.15)' : 'rgba(255,255,255,0.02)'
-                }
-              ]}
-              onPress={async () => {
-                setGlassIntensity(val);
-                try {
-                  await AsyncStorage.setItem('glassIntensity', val.toString());
-                } catch (e) {}
-              }}
-            >
-              <Text style={[styles.themeBtnText, { color: glassIntensity === val ? themeColors.accent : themeColors.textSecondary }]}>
-                {val === 10 ? '약함' : val === 90 ? '강함' : val}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <TouchableOpacity 
-          style={[styles.themeBtn, { borderColor: themeColors.border, backgroundColor: 'transparent', marginTop: 10, marginHorizontal: 20 }]}
-          onPress={handleShare}
-        >
-          <Text style={[styles.themeBtnText, { color: themeColors.textPrimary, paddingVertical: 10 }]}>컬렉션 링크 공유하기</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
           <AnalyticsCard title="시장 추정가" value={collectionValue.toLocaleString()} unit="₩" sub="Discogs 기준 최저가 합산" themeColors={themeColors} glassIntensity={glassIntensity} />
@@ -577,7 +541,48 @@ export const MyScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <TouchableOpacity 
+        <TouchableOpacity
+          style={[styles.settingsToggleBtn, { borderColor: themeColors.border }]}
+          onPress={() => setIsSettingsExpanded(v => !v)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.themeBtnText, { color: themeColors.textPrimary }]}>설정 {isSettingsExpanded ? '닫기' : '열기'}</Text>
+          <Feather name={isSettingsExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={themeColors.textSecondary} />
+        </TouchableOpacity>
+
+        {isSettingsExpanded && (
+          <View style={{ marginTop: 20 }}>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>글래스 효과 강도</Text>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 20, justifyContent: 'space-between', gap: 8 }}>
+              {[10, 30, 50, 70, 90].map((val) => (
+                <TouchableOpacity
+                  key={val}
+                  style={[
+                    styles.themeBtn,
+                    {
+                      borderColor: glassIntensity === val ? themeColors.accent : themeColors.border,
+                      backgroundColor: glassIntensity === val ? 'rgba(197, 160, 89, 0.15)' : 'rgba(255,255,255,0.02)'
+                    }
+                  ]}
+                  onPress={async () => {
+                    setGlassIntensity(val);
+                    try {
+                      await AsyncStorage.setItem('glassIntensity', val.toString());
+                    } catch (e) {}
+                  }}
+                >
+                  <Text style={[styles.themeBtnText, { color: glassIntensity === val ? themeColors.accent : themeColors.textSecondary }]}>
+                    {val === 10 ? '약함' : val === 90 ? '강함' : val}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <TouchableOpacity
           style={[styles.logoutBtn, { borderColor: themeColors.border }]}
           onPress={async () => {
             try {
@@ -947,6 +952,17 @@ const styles = StyleSheet.create({
   themeBtnText: {
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  settingsToggleBtn: {
+    marginHorizontal: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: shape.md,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   logoutBtn: {
     marginTop: 24,
