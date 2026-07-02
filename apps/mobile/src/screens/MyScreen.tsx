@@ -37,7 +37,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
         },
       ]}
     >
-      <View style={{ flex: 1 }}>
+      <View>
         <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]} numberOfLines={1}>{title}</Text>
         <Text
           style={[styles.cardValue, { color: themeColors.textPrimary }]}
@@ -54,24 +54,19 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
         <Feather name="edit-2" size={11} color="rgba(212,175,55,0.55)" style={styles.cardEditIcon} />
       )}
       {isSpent && (
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={onToggleSpent}
-          style={{
-            marginTop: 8,
-            borderWidth: 1,
-            borderColor: isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)',
-            borderRadius: 12,
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            alignSelf: 'flex-start'
-          }}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={[
+            styles.spentToggleBtn,
+            { borderColor: isSpentPublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.15)' }
+          ]}
         >
-          <Text style={{
-            color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)',
-            fontSize: 10,
-            fontWeight: 'bold'
-          }}>
-            {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
+          <Text
+            style={[styles.spentToggleText, { color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)' }]}
+            numberOfLines={1}
+          >
+            {isSpentPublic ? '공개' : '비공개'}
           </Text>
         </TouchableOpacity>
       )}
@@ -891,6 +886,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 14,
     right: 14,
+  },
+  spentToggleBtn: {
+    position: 'absolute',
+    left: 16,
+    bottom: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  spentToggleText: {
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   timeline: {
     paddingHorizontal: 20,
