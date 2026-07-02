@@ -19,6 +19,7 @@ import { decode } from 'base64-arraybuffer';
 import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
 import { GenreSelectModal } from '../components/Modal/GenreSelectModal';
 import { NicknameEditModal } from '../components/Modal/NicknameEditModal';
+import { DeleteAccountModal } from '../components/Modal/DeleteAccountModal';
 
 const { width } = Dimensions.get('window');
 
@@ -81,7 +82,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
 
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
-  const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile } = useAuthStore();
+  const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, deleteAccount } = useAuthStore();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
@@ -90,6 +91,7 @@ export const MyScreen = () => {
   const [isGenreModalVisible, setGenreModalVisible] = React.useState(false);
   const [isNicknameModalVisible, setNicknameModalVisible] = React.useState(false);
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
+  const [isDeleteModalVisible, setDeleteModalVisible] = React.useState(false);
   const [flashVisible, setFlashVisible] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
   const [isToastVisible, setIsToastVisible] = React.useState(false);
@@ -593,6 +595,13 @@ export const MyScreen = () => {
         >
           <Text style={styles.logoutBtnText}>로그아웃</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.deleteAccountBtn}
+          onPress={() => setDeleteModalVisible(true)}
+        >
+          <Text style={styles.deleteAccountBtnText}>회원 탈퇴</Text>
+        </TouchableOpacity>
       </View>
       </ScrollView>
 
@@ -635,6 +644,15 @@ export const MyScreen = () => {
           setNicknameModalVisible(false);
           setToastMessage('닉네임이 업데이트되었습니다.');
           setIsToastVisible(true);
+        }}
+      />
+
+      <DeleteAccountModal
+        visible={isDeleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        onConfirm={async () => {
+          await deleteAccount();
+          navigation.replace('Onboarding');
         }}
       />
     </View>
@@ -992,5 +1010,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#ff5252',
+  },
+  deleteAccountBtn: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  deleteAccountBtnText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 82, 82, 0.5)',
+    textDecorationLine: 'underline',
   }
 });
