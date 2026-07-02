@@ -11,10 +11,13 @@ import { BlurView } from 'expo-blur';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
-import { AppHeader } from '../components/AppHeader';
+import { AppHeader, VinylViewMode } from '../components/AppHeader';
 import { ShareableGridView } from '../components/Share/ShareableGridView';
 import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
 import { NativeToast } from '../components/Toast/NativeToast';
+import { SortChipRow } from '../components/SortChipRow';
+import { VinylTableRow } from '../components/VinylTableRow';
+import { sortVinyls, SortMode } from '../utils/sortVinyls';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
@@ -29,6 +32,8 @@ export const HomeScreen = () => {
   const [isSharingProcessing, setIsSharingProcessing] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isToastVisible, setIsToastVisible] = useState(false);
+  const [viewMode, setViewMode] = useState<VinylViewMode>('grid');
+  const [sortMode, setSortMode] = useState<SortMode>('latest');
   const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user, initializeAuth } = useAuthStore();
@@ -90,6 +95,8 @@ export const HomeScreen = () => {
     };
   }, [user]);
 
+  const sortedAlbums = sortVinyls(ownedAlbums, sortMode);
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setIsToastVisible(true);
@@ -148,28 +155,48 @@ export const HomeScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <AppHeader mode="collection" onSharePress={() => setShareSheetVisible(true)} />
+      <AppHeader
+        mode="collection"
+        onSharePress={() => setShareSheetVisible(true)}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
       {!isLoading && ownedAlbums.length === 0 ? (
-        <EmptyState 
-          onPressAction={() => navigation.navigate('Scan')} 
+        <EmptyState
+          onPressAction={() => navigation.navigate('Scan')}
         />
       ) : (
-        <FlatList
-          style={{ flex: 1 }}
-          data={ownedAlbums}
-          numColumns={2}
-          keyExtractor={item => item.ALBUM_ID.toString()}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
-              <Image 
-                source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                style={[styles.cover, { backgroundColor: 'transparent' }]} 
-                resizeMode={item.IMAGE_URL ? "cover" : "contain"}
-              />
-            </TouchableOpacity>
+        <>
+          <SortChipRow value={sortMode} onChange={setSortMode} />
+          {viewMode === 'grid' ? (
+            <FlatList
+              style={{ flex: 1 }}
+              data={sortedAlbums}
+              numColumns={2}
+              keyExtractor={item => item.ALBUM_ID.toString()}
+              contentContainerStyle={styles.list}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
+                  <Image
+                    source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')}
+                    style={[styles.cover, { backgroundColor: 'transparent' }]}
+                    resizeMode={item.IMAGE_URL ? "cover" : "contain"}
+                  />
+                </TouchableOpacity>
+              )}
+            />
+          ) : (
+            <FlatList
+              style={{ flex: 1 }}
+              data={sortedAlbums}
+              keyExtractor={item => item.ALBUM_ID.toString()}
+              contentContainerStyle={styles.tableList}
+              renderItem={({ item }) => (
+                <VinylTableRow item={item} onPress={() => setSelectedAlbum(item)} />
+              )}
+            />
           )}
-        />
+        </>
       )}
       <DetailModal
         album={selectedAlbum}
@@ -180,7 +207,7 @@ export const HomeScreen = () => {
       <View style={styles.offscreen} pointerEvents="none">
         <ShareableGridView
           ref={shareViewRef}
-          albums={ownedAlbums}
+          albums={sortedAlbums}
           mode="collection"
           username={user?.user_metadata?.displayName || '컬렉터'}
         />
@@ -212,6 +239,9 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   list: {
     padding: 16,
+  },
+  tableList: {
+    paddingBottom: 16,
   },
   card: {
     width: itemSize,

@@ -4,12 +4,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@vinyla/ui';
 import { Feather } from '@expo/vector-icons';
 
+export type VinylViewMode = 'grid' | 'table';
+
 interface AppHeaderProps {
   mode?: 'collection' | 'wishlist';
   onSharePress?: () => void;
+  viewMode?: VinylViewMode;
+  onViewModeChange?: (mode: VinylViewMode) => void;
 }
 
-export const AppHeader = ({ mode, onSharePress }: AppHeaderProps) => {
+export const AppHeader = ({ mode, onSharePress, viewMode, onViewModeChange }: AppHeaderProps) => {
   const insets = useSafeAreaInsets();
   const { themeColors } = useTheme();
   const isWishlist = mode === 'wishlist';
@@ -36,11 +40,29 @@ export const AppHeader = ({ mode, onSharePress }: AppHeaderProps) => {
 
           {onSharePress && (
             <TouchableOpacity
-              style={[styles.shareIconBtn, { borderColor: themeColors.border }]}
+              style={[styles.iconBtn, { borderColor: themeColors.border }]}
               onPress={onSharePress}
             >
               <Feather name="share-2" size={13} color={themeColors.textPrimary} />
             </TouchableOpacity>
+          )}
+
+          {viewMode && onViewModeChange && (
+            <View style={[styles.viewToggle, { borderColor: themeColors.border }]}>
+              <TouchableOpacity
+                style={[styles.viewToggleBtn, viewMode === 'grid' && { backgroundColor: 'rgba(212,175,55,0.15)' }]}
+                onPress={() => onViewModeChange('grid')}
+              >
+                <Feather name="grid" size={13} color={viewMode === 'grid' ? themeColors.accent : themeColors.textSecondary} />
+              </TouchableOpacity>
+              <View style={[styles.viewToggleDivider, { backgroundColor: themeColors.border }]} />
+              <TouchableOpacity
+                style={[styles.viewToggleBtn, viewMode === 'table' && { backgroundColor: 'rgba(212,175,55,0.15)' }]}
+                onPress={() => onViewModeChange('table')}
+              >
+                <Feather name="list" size={13} color={viewMode === 'table' ? themeColors.accent : themeColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
@@ -88,12 +110,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
-  shareIconBtn: {
+  iconBtn: {
     width: 26,
     height: 26,
     borderRadius: 13,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 26,
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  viewToggleBtn: {
+    width: 28,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewToggleDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 14,
   },
 });
