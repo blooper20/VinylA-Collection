@@ -38,12 +38,17 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
       ]}
     >
       <View style={{ flex: 1 }}>
-        <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
-        <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
+        <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]} numberOfLines={1}>{title}</Text>
+        <Text
+          style={[styles.cardValue, { color: themeColors.textPrimary }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+        >
           {unit ? <Text style={styles.cardUnit}>{unit}</Text> : null}
           {value}
         </Text>
-        {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
+        {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]} numberOfLines={1}>{sub}</Text>}
       </View>
       {editable && (
         <Feather name="edit-2" size={11} color="rgba(212,175,55,0.55)" style={styles.cardEditIcon} />
