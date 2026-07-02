@@ -8,6 +8,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { BlurView } from 'expo-blur';
+import { AppHeader } from '../components/AppHeader';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
@@ -80,6 +81,7 @@ export const HomeScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <AppHeader />
       {!isLoading && ownedAlbums.length === 0 ? (
         <EmptyState 
           onPressAction={() => navigation.navigate('Scan')} 
@@ -116,7 +118,6 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   list: {
     padding: 16,
-    paddingTop: 60,
   },
   card: {
     width: itemSize,

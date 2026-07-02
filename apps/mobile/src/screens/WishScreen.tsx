@@ -5,6 +5,7 @@ import { MockVinylData } from '@vinyla/shared-types';
 import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
 import { EmptyState } from '../components/EmptyState';
 import { DetailModal } from '../components/Modal/DetailModal';
+import { AppHeader } from '../components/AppHeader';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -71,8 +72,9 @@ export const WishScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <AppHeader />
       <Text style={[styles.pageTitle, { color: themeColors.textPrimary }]}>위시리스트</Text>
-      
+
       {!isLoading && wishes.length === 0 ? (
         <EmptyState 
           title="위시리스트가 비어 있습니다"
@@ -117,13 +119,12 @@ export const WishScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
   },
   pageTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   list: {
     paddingHorizontal: 16,
