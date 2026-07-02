@@ -147,3 +147,63 @@ apps/mobile/
 - **해결**: Gemini에게 `artist`, `album`, `tracks`(수록곡), `keywords`를 명시적으로 분리해서 JSON으로 주도록 프롬프트를 고도화.
   - "한국 가수면 정확히 한글로 유추하라"는 규칙 추가 (이문세를 '김두수' 등으로 오인하는 증상 방어).
   - 추출된 데이터를 분해하여 `[아티스트 - 앨범, 앨범단독, 아티스트단독, 트랙1, 트랙2, 키워드]` 순으로 검색 쿼리 배열을 풍성하게 만들어 Discogs 탐색 그물망을 촘촘하게 짬.
+
+---
+
+## 2026-07-02: 마이페이지 UI 정비 및 홈/위시리스트 공유(Share) 시스템 구축
+
+### 🎯 오늘의 목표
+마이페이지 세부 UI 버그·통일성 정리, 홈/위시리스트 화면에 브랜드 헤더·뷰 전환·정렬·공유 기능 신규 구축, 앨범 상세(웹+앱) 공유 기능 신설.
+
+---
+
+### ✅ 완료된 작업
+
+#### 1. `fix(core-api)` — 시장 추정가(MARKET_PRICE) DB 미반영 근본 원인 수정
+- `ALBUM_MASTER` 테이블에 `MARKET_PRICE` 컬럼 자체가 없어(`42703`) `createAlbumMaster`가 저장 때마다 값을 조용히 삭제하고 있었음. 삭제 라인 제거 + `supabase_schema.sql`에 컬럼 추가 SQL 반영(수동 실행 필요).
+
+#### 2. `style/fix(mobile)` — 마이페이지 UI 정리
+- 컬렉션 분석 카드 중 편집 가능한 카드를 골드 톤 + Feather 아이콘으로 시각적으로 구분.
+- 금액이 커질 때 카드 밖으로 넘치던 문제(`adjustsFontSizeToFit`), 실제 지출액 카드의 공개/비공개 토글이 금액 텍스트와 겹치던 문제(칩을 `position: absolute`로 완전 분리) 수정.
+- 닉네임 최대 12자 제한 신설(`NICKNAME_MAX_LENGTH`) 및 웹·앱 전체 입력창에 글자수 카운터 적용, 긴 닉네임이 헤더 레이아웃을 깨던 문제 수정.
+- '글래스 효과 강도'를 로그아웃 버튼 위 "설정 열기/닫기" 토글로 재구성. 스크롤 인디케이터 숨김, 로그아웃 버튼 빨간색 강조, 회원 탈퇴 버튼 신설(웹 `DeleteAccountModal`과 동일 로직).
+
+#### 3. `feat(mobile)` — 홈 / 위시리스트 화면 전면 개편
+- 상단 공용 브랜드 헤더(`AppHeader`): 로고 + 타이틀 + 모드 배지, 우측에 그리드/테이블 뷰 전환 토글.
+- 테이블 뷰(`VinylTableRow`)와 최신순/오래된순/가나다순/출시연도순 정렬 칩(`sortVinyls`, 웹 `VinylGrid`와 동일 기준) 추가.
+- `FlatList`에 `style={{flex:1}}` 누락으로 스크롤이 아예 안 되던 버그, 그리드↔테이블 전환 시 `numColumns` 변경 크래시(각 리스트에 `key` 분리로 해결), 토스트가 하단 플로팅 탭바에 가려지던 문제 수정.
+
+#### 4. `feat` — 컬렉션 · 위시리스트 · 앨범 상세 공유 기능 신규 구축 (웹 + 앱)
+- 홈/위시리스트: "이미지 공유"(인스타그램 스토리)/"링크 공유" 바텀시트. 보유 앨범 4열 그리드 세로형(1080×1920) 공유 이미지 자동 생성.
+- 앨범 상세(`DetailModal`, 웹+앱): 공유 버튼 신설. 커버 중심 세로형 스토리 이미지 생성 후 인스타그램 스토리/링크 공유.
+- 앨범 상태별 상단 배지: 보유중 `COLLECTED`(골드 네온), 미보유 `JUST DROPPED`(마젠타 네온), 위시는 서부극 현상수배 포스터풍 `★ WANTED ★`(크림/황갈색, 세리프체, 회전). `letter-spacing` 트레일링 여백으로 텍스트가 쏠려 보이던 정렬 버그 수정.
+- 워터마크를 "Curated by VinylA Collection"으로 통일하고, 웹 워터마크의 닉네임 줄바꿈/생략 버그(html2canvas의 flex 퍼센트 폭 계산 불안정) 근본 수정.
+- 공유 링크가 존재하지 않는 사설 IP(`192.168.0.20:3000`)를 가리키고 있어 받는 사람이 열어볼 수 없던 버그 발견, 프로덕션 주소(`https://vinyla.vercel.app`)로 교체.
+- `DetailModal`(RN `<Modal>`) 안에 공유 시트를 또 다른 `<Modal>`로 중첩하면 iOS 프리징이 재발할 수 있어, 공유 시트를 `<Modal>` 없는 절대 위치 오버레이로 재구현.
+
+#### 5. `fix(mobile)` — 앨범 상세 하단 액션 버튼 크기 통일
+- `btnPrimary`/`btnOutline`/`btnYoutube`의 높이가 아이콘 유무·폰트 크기 차이로 미묘하게 달라 보이던 문제를 공통 `BUTTON_HEIGHT(52)`로 고정.
+
+---
+
+### 📦 오늘 변경된 주요 파일
+```
+apps/mobile/
+  src/screens/MyScreen.tsx, HomeScreen.tsx, WishScreen.tsx   ← MOD
+  src/components/AppHeader.tsx                               ← NEW
+  src/components/SortChipRow.tsx, VinylTableRow.tsx           ← NEW
+  src/components/Modal/ShareOptionsSheet.tsx                  ← NEW
+  src/components/Modal/DeleteAccountModal.tsx                 ← NEW
+  src/components/Modal/DetailModal.tsx                        ← MOD
+  src/components/Share/ShareableGridView.tsx                  ← NEW
+  src/components/Share/ShareableStoryView.tsx                 ← NEW
+  src/components/Toast/NativeToast.tsx                        ← MOD
+  src/utils/sortVinyls.ts                                     ← NEW
+apps/web/
+  src/components/Share/StoryTemplate.tsx(.module.css)         ← MOD
+  src/components/Share/ShareableGridTemplate.tsx               ← MOD
+packages/core-api/
+  src/constants.ts                                             ← NEW
+  src/supabaseDb.ts                                            ← MOD
+supabase_schema.sql                                            ← MOD (수동 실행 필요)
+```

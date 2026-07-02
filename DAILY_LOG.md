@@ -211,16 +211,56 @@ apps/api/
 
 #### 2. `feat(mobile)` — 컬렉션 분석 카드 편집 가능 표시(Affordance) 추가
 - **이슈**: 마이페이지 '컬렉션 분석' 섹션에서 탭 가능한 '관심 장르' 카드가 탭 불가능한 다른 카드들과 완전히 동일하게 생겨, 사용자가 수정 가능한 항목을 알아채기 어려웠음.
-- **해결**: `MyScreen.tsx`의 `AnalyticsCard` 컴포넌트에 `onPress` 존재 여부에 따라 골드 색상 테두리(`themeColors.accent`)와 은은한 골드 틴트 배경, 우측 상단 연필(✏️) 배지를 추가하여 편집 가능한 카드를 시각적으로 구분.
+- **해결**: `MyScreen.tsx`의 `AnalyticsCard` 컴포넌트에 `onPress` 존재 여부에 따라 골드 색상 테두리와 은은한 골드 틴트 배경, 우측 상단 아이콘 배지를 추가해 편집 가능한 카드를 시각적으로 구분. 이후 촌스럽다는 피드백을 받아 두꺼운 테두리·원형 이모지 배지를 헤어라인 테두리 + Feather `edit-2` 아이콘으로 톤 다운.
+
+#### 3. `style/fix(mobile)` — 마이페이지 UI 정리 및 버그 수정 모음
+- **AnalyticsCard 금액 오버플로우**: 시장 추정가·실제 지출액처럼 자릿수가 커지는 금액이 카드 폭을 넘어가며 줄바꿈되던 문제를, `numberOfLines={1}` + `adjustsFontSizeToFit`으로 카드 안에서 자동으로 폰트가 줄어들도록 수정.
+- **실제 지출액 카드 겹침**: 텍스트 블록에 걸려 있던 `flex:1`이 공개/비공개 토글 칩과 세로 공간을 다투면서, 칩 라벨이 길어지면 금액 텍스트와 겹치던 버그 수정. 라벨을 "공개"/"비공개"로 축약하고 칩을 `position: absolute`로 카드 좌하단에 완전히 분리.
+- **닉네임 관련**: 칭호 옆 공유 아이콘 버튼 추가(기존 `handleShare` 재사용), 닉네임 옆 연필 이모지를 Feather 아이콘으로 교체, 닉네임 최대 길이 12자 제한을 신설(`packages/core-api/src/constants.ts`의 `NICKNAME_MAX_LENGTH`)해 웹·앱의 닉네임 최초 설정/변경 입력창 전부에 실시간 글자수 카운터 적용. 긴 닉네임이 프로필 헤더 레이아웃을 깨던 문제도 함께 수정(모바일 `alignSelf: 'stretch'`, 웹 `overflow-wrap`).
+- **설정 UI 재구성**: '글래스 효과 강도'를 로그아웃 버튼 바로 위 "설정 열기/닫기" 토글(구분선 포함, 테두리 없는 굵은 헤더 스타일)로 접었다 폈다 할 수 있게 재구성. 중복되던 '컬렉션 링크 공유하기' 전체 폭 버튼은 제거(칭호 옆 아이콘 버튼으로 대체).
+- **기타**: 마이페이지 세로 스크롤 인디케이터 숨김, 로그아웃 버튼을 명확한 빨간색으로 강조, 로그아웃 버튼 바로 아래 '회원 탈퇴' 버튼 신설(웹 `DeleteAccountModal`과 동일한 경고 문구·`deleteAccount()` 로직 재사용).
+
+#### 4. `feat(mobile)` — 홈 / 위시리스트 화면 전면 개편
+- **브랜드 헤더 신설**: 배경 없는 업그레이드 3D 골드 로고 + "VinylA Collection" 타이틀 + `MY COLLECTION`/`WISHLIST` 모드 배지를 두 화면 상단에 공통 컴포넌트(`AppHeader`)로 추가.
+- **그리드/테이블 뷰 전환 + 정렬**: 헤더 가장 우측에 그리드·테이블 뷰 토글 추가. 테이블 뷰(`VinylTableRow`)는 커버·제목/아티스트·출시연도·태그를 한 행에 표시. 그 위에 최신순/오래된순/가나다순/출시연도순 정렬 칩(`SortChipRow`)을 추가하고, 정렬 로직(`sortVinyls`)은 웹 `VinylGrid.tsx`와 동일한 기준을 공유.
+- **버그 수정**: `FlatList`에 `style={{flex:1}}`이 빠져 있어 스크롤 자체가 안 되던 문제, 그리드↔테이블 전환 시 같은 `FlatList` 인스턴스가 재사용되며 `numColumns` 변경 크래시가 나던 문제(각 리스트에 고유 `key` 부여로 해결), 토스트 팝업이 하단 플로팅 탭바(80px)에 가려 안 보이던 문제 수정.
+
+#### 5. `feat` — 컬렉션 · 위시리스트 · 앨범 상세 공유 기능 신규 구축 (웹 + 앱)
+- **홈/위시리스트 공유**: 헤더 공유 아이콘 → "이미지 공유"(인스타그램 스토리로 바로 전달) / "링크 공유" 2가지 옵션 바텀시트. 보유 앨범을 4열 그리드로 정렬한 세로형(1080×1920) 공유 이미지를 오프스크린에서 캡처해 사용.
+- **앨범 상세 공유 신설**: 웹·앱 `DetailModal`에 공유 버튼을 새로 추가. 앨범 커버 중심의 세로형 스토리 이미지를 만들어 인스타그램 스토리 또는 링크로 공유할 수 있게 함(모바일은 `ShareableStoryView`, 웹은 기존 `StoryTemplate` 재활용).
+- **상태별 네온 배지**: 공유 이미지 상단 중앙에 앨범 상태(보유/위시/미보유)에 따라 다른 배지를 표시. 보유중 `COLLECTED`(골드 네온), 미보유 `JUST DROPPED`(마젠타 네온), 위시는 톤을 완전히 바꿔 서부극 현상수배 포스터풍 `★ WANTED ★`(크림/황갈색 그라데이션, 세리프 볼드체, 이중 테두리, 살짝 기운 회전)로 구현. `letter-spacing`이 마지막 글자 뒤에도 여백을 붙여 텍스트가 살짝 왼쪽으로 쏠려 보이던 정렬 버그도 함께 수정.
+- **워터마크 정비**: 문구를 "Curated by VinylA Collection"으로 풀네임 통일. 웹 워터마크에서 닉네임이 줄바꿈·생략되던 버그의 근본 원인(html2canvas가 flex 퍼센트 폭 계산을 불안정하게 캡처)을 찾아 `text-align: center` 블록 구조로 교체해 해결.
+- **링크 공유 버그**: 공유되는 링크가 실제로는 존재하지 않는 사설 IP(`192.168.0.20:3000`)를 가리키고 있어 공유는 되지만 받는 사람은 열어볼 수 없던 문제를 발견. 웹이 쓰는 프로덕션 주소(`https://vinyla.vercel.app`)로 홈/위시리스트/마이페이지 전체 fallback을 교체.
+- **iOS 프리징 방지**: `DetailModal`이 이미 RN `<Modal>`인 상태에서 공유 시트를 또 다른 `<Modal>`로 중첩하면 예전 `AlertProvider` 이슈와 동일한 프리징이 재발할 수 있어, 공유 시트를 `<Modal>` 없이 절대 위치 오버레이(페이드+슬라이드 애니메이션)로 재구현.
+
+#### 6. `fix(mobile)` — 앨범 상세 하단 액션 버튼 크기 불일치 수정
+- `btnPrimary`/`btnOutline`/`btnYoutube`가 모두 `padding`만으로 높이를 잡고 있어, 아이콘 유무와 폰트 크기(13 vs 15) 차이로 버튼마다 높이가 미묘하게 달라 보이던 문제. 공통 `BUTTON_HEIGHT(52)`로 고정하고 폰트 크기도 15로 통일.
 
 ---
 
 ### 📦 오늘 변경된 주요 파일
 ```
 apps/mobile/
-  src/screens/MyScreen.tsx     ← AnalyticsCard 편집 가능 시각 구분(테두리/배경/연필 배지) 추가
+  src/screens/MyScreen.tsx                        ← 카드 편집 표시/오버플로우/겹침 수정, 닉네임·설정·탈퇴 UI 정리
+  src/screens/HomeScreen.tsx                       ← 브랜드 헤더, 그리드/테이블 토글+정렬, 공유 시트, 스크롤 버그 수정
+  src/screens/WishScreen.tsx                       ← 위와 동일 (위시리스트)
+  src/components/AppHeader.tsx                     ← NEW: 홈/위시 공용 브랜드 헤더 + 뷰 토글 + 공유 버튼
+  src/components/SortChipRow.tsx                   ← NEW: 정렬 칩
+  src/components/VinylTableRow.tsx                 ← NEW: 테이블 뷰 행
+  src/components/Modal/ShareOptionsSheet.tsx       ← NEW: 이미지/링크 공유 바텀시트 (Modal 없는 오버레이)
+  src/components/Modal/DeleteAccountModal.tsx      ← NEW: 회원 탈퇴 확인 모달
+  src/components/Modal/DetailModal.tsx             ← 공유 버튼 추가, 하단 버튼 높이 통일
+  src/components/Share/ShareableGridView.tsx       ← NEW: 홈/위시 그리드 공유 이미지
+  src/components/Share/ShareableStoryView.tsx      ← NEW: 앨범 상세 스토리 공유 이미지 + 상태 배지
+  src/components/Toast/NativeToast.tsx             ← 하단 탭바에 가려지던 위치 수정
+  src/utils/sortVinyls.ts                          ← NEW: 정렬 유틸(웹과 동일 기준)
+apps/web/
+  src/components/Share/StoryTemplate.tsx           ← 상태 배지 추가, 워터마크 텍스트 수정
+  src/components/Share/StoryTemplate.module.css    ← 닉네임 줄바꿈 버그 수정, 네온/포스터 배지 스타일
+  src/components/Share/ShareableGridTemplate.tsx   ← 워터마크 풀네임 표기
 packages/core-api/
-  src/supabaseDb.ts            ← MARKET_PRICE payload 삭제 라인 제거
-supabase_schema.sql             ← ALBUM_MASTER.MARKET_PRICE 컬럼 추가 ALTER 구문 (Supabase에서 수동 실행 필요)
-DAILY_LOG.md                    ← 영문으로 남아있던 과거 기록 한글화
+  src/constants.ts                                 ← NEW: NICKNAME_MAX_LENGTH
+  src/supabaseDb.ts                                ← MARKET_PRICE payload 삭제 라인 제거
+supabase_schema.sql                                 ← ALBUM_MASTER.MARKET_PRICE 컬럼 추가 ALTER 구문 (수동 실행 필요)
+DAILY_LOG.md / VinylA_Blue_Print.md / docs/dev-log.md ← 오늘 작업 내용 정리
 ```
