@@ -139,28 +139,37 @@ export const HomeScreen = () => {
   };
 
   const handleShareLink = async () => {
-    setShareSheetVisible(false);
-    if (!user?.id) return;
-    const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
-    const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
-    const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'http://192.168.0.20:3000';
-    const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}`;
+    if (!user?.id) {
+      setShareSheetVisible(false);
+      return;
+    }
     try {
+      setIsSharingProcessing(true);
+      const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+      const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'http://192.168.0.20:3000';
+      const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}`;
       await Share.share({
         message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 레코드 컬렉션을 확인해보세요!\n\n${link}`,
       });
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
     }
   };
 
   const handleInstagramStory = async () => {
-    setShareSheetVisible(false);
     try {
+      setIsSharingProcessing(true);
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share to Instagram Story', e);
       showToast('인스타그램 스토리 공유에 실패했습니다.');
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
     }
   };
 
