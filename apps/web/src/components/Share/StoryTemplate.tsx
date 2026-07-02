@@ -9,7 +9,7 @@ interface StoryTemplateProps {
 const STATUS_NEON: Record<string, { label: string; kind: string }> = {
   OWNED: { label: 'COLLECTED', kind: 'owned' },
   WISH: { label: 'WISHLISTED', kind: 'wish' },
-  NONE: { label: 'DISCOVERED', kind: 'none' },
+  NONE: { label: 'JUST DROPPED', kind: 'none' },
 };
 
 export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ album, username }, ref) => {

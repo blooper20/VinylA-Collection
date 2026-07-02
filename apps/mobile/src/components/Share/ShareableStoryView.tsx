@@ -15,7 +15,7 @@ const COVER_SIZE = 720;
 const STATUS_NEON: Record<string, { label: string; color: string }> = {
   OWNED: { label: 'COLLECTED', color: '#ffd76a' },
   WISH: { label: 'WISHLISTED', color: '#7fe8ff' },
-  NONE: { label: 'DISCOVERED', color: '#ff8bdc' },
+  NONE: { label: 'JUST DROPPED', color: '#ff8bdc' },
 };
 
 export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
