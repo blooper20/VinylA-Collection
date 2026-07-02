@@ -385,12 +385,20 @@ export const MyScreen = () => {
               <Text style={{ fontSize: 16, color: themeColors.textSecondary }}> ✏️</Text>
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.badge, { backgroundColor: themeColors.accent }]}
-            onPress={() => setBadgeModalVisible(true)}
-          >
-            <Text style={styles.badgeText}>{selectedBadgeObj.name}</Text>
-          </TouchableOpacity>
+          <View style={styles.badgeRow}>
+            <TouchableOpacity
+              style={[styles.badge, { backgroundColor: themeColors.accent }]}
+              onPress={() => setBadgeModalVisible(true)}
+            >
+              <Text style={styles.badgeText}>{selectedBadgeObj.name}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.shareIconBtn, { borderColor: themeColors.border }]}
+              onPress={handleShare}
+            >
+              <Feather name="share-2" size={14} color={themeColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.profileRight}>
@@ -669,6 +677,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   badge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -680,6 +693,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 11,
     textTransform: 'uppercase',
+  },
+  shareIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   featuredFrame: {
     width: 155, // Reduced width
