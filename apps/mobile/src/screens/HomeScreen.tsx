@@ -16,7 +16,6 @@ import { SortChipRow } from '../components/SortChipRow';
 import { VinylTableRow } from '../components/VinylTableRow';
 import { sortVinyls, SortMode } from '../utils/sortVinyls';
 import { shareToInstagramStory } from '../utils/nativeShare';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_BAR_HEIGHT } from '../constants/layout';
 
 const { width } = Dimensions.get('window');
@@ -37,7 +36,6 @@ export const HomeScreen = () => {
   const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user, initializeAuth } = useAuthStore();
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     initializeAuth();
@@ -207,7 +205,7 @@ export const HomeScreen = () => {
         isProcessing={isSharingProcessing}
         onShareLink={handleShareLink}
         onImageShare={handleImageShare}
-        bottomInset={TAB_BAR_HEIGHT + insets.bottom}
+        bottomInset={TAB_BAR_HEIGHT}
       />
 
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />

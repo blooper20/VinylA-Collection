@@ -15,7 +15,6 @@ import { SortChipRow } from '../components/SortChipRow';
 import { VinylTableRow } from '../components/VinylTableRow';
 import { sortVinyls, SortMode } from '../utils/sortVinyls';
 import { shareToInstagramStory } from '../utils/nativeShare';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_BAR_HEIGHT } from '../constants/layout';
 
 const { width } = Dimensions.get('window');
@@ -34,7 +33,6 @@ export const WishScreen = () => {
   const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user } = useAuthStore();
-  const insets = useSafeAreaInsets();
 
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
 
@@ -210,7 +208,7 @@ export const WishScreen = () => {
         isProcessing={isSharingProcessing}
         onShareLink={handleShareLink}
         onImageShare={handleImageShare}
-        bottomInset={TAB_BAR_HEIGHT + insets.bottom}
+        bottomInset={TAB_BAR_HEIGHT}
       />
 
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
