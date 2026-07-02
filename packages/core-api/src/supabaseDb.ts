@@ -42,7 +42,6 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
   delete (payload as any).TRACKS;
   delete (payload as any).PURCHASE_PRICE;
   delete (payload as any).GENRES;
-  delete (payload as any).MARKET_PRICE;
   
   const { data, error } = await supabase
     .from('ALBUM_MASTER')

@@ -11,25 +11,45 @@ import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
 import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { shareToInstagramStory } from '../utils/nativeShare';
-import { ShareTemplate } from '../components/Share/ShareTemplate';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
 import { FeaturedLPModal } from '../components/Modal/FeaturedLPModal';
+import { GenreSelectModal } from '../components/Modal/GenreSelectModal';
+import { NicknameEditModal } from '../components/Modal/NicknameEditModal';
 
 const { width } = Dimensions.get('window');
 
 const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent, glassIntensity, onPress }: any) => {
+  const editable = !!onPress;
   const content = (
-    <BlurView intensity={glassIntensity || 30} tint="dark" style={[styles.card, { borderColor: themeColors.border, backgroundColor: 'rgba(20,20,20,0.4)', overflow: 'hidden' }]}>
-      <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
-      <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
-        {unit ? <Text style={styles.cardUnit}>{unit}</Text> : null}
-        {value}
-      </Text>
-      {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
+    <BlurView
+      intensity={glassIntensity || 30}
+      tint="dark"
+      style={[
+        styles.card,
+        {
+          borderColor: editable ? themeColors.accent : themeColors.border,
+          borderWidth: editable ? 1.5 : StyleSheet.hairlineWidth,
+          backgroundColor: editable ? 'rgba(212,175,55,0.08)' : 'rgba(20,20,20,0.4)',
+          overflow: 'hidden',
+        },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.cardTitle, { color: themeColors.textSecondary }]}>{title}</Text>
+        <Text style={[styles.cardValue, { color: themeColors.textPrimary }]}>
+          {unit ? <Text style={styles.cardUnit}>{unit}</Text> : null}
+          {value}
+        </Text>
+        {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
+      </View>
+      {editable && (
+        <View style={styles.cardEditBadge}>
+          <Text style={{ fontSize: 11 }}>✏️</Text>
+        </View>
+      )}
       {isSpent && (
         <TouchableOpacity 
           onPress={onToggleSpent}
@@ -56,19 +76,21 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
   );
 
   if (onPress) {
-    return <TouchableOpacity onPress={onPress} activeOpacity={0.8}>{content}</TouchableOpacity>;
+    return <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ height: 140 }}>{content}</TouchableOpacity>;
   }
   return content;
 };
 
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
-  const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges } = useAuthStore();
+  const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile } = useAuthStore();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
   const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
   const [isFeaturedModalVisible, setFeaturedModalVisible] = React.useState(false);
+  const [isGenreModalVisible, setGenreModalVisible] = React.useState(false);
+  const [isNicknameModalVisible, setNicknameModalVisible] = React.useState(false);
   const [flashVisible, setFlashVisible] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState('');
   const [isToastVisible, setIsToastVisible] = React.useState(false);
@@ -142,7 +164,6 @@ export const MyScreen = () => {
         setRecentAdditions(mappedOwned.slice(0, 3));
         setAllAlbums(mapped.filter(v => v.STATUS !== 'NONE'));
 
-        // Calculate actual top genre from collection
         const genreCounts: Record<string, number> = {};
         mappedOwned.forEach(item => {
           if (item.GENRES && Array.isArray(item.GENRES)) {
@@ -159,7 +180,6 @@ export const MyScreen = () => {
         }
         setTopGenre(currentGenre);
 
-        // Evaluate Badges
         let highestMarketPrice = 0;
         let highestPurchasePrice = 0;
         mappedOwned.forEach(item => {
@@ -222,7 +242,7 @@ export const MyScreen = () => {
     setRefreshing(true);
     await Promise.all([
       loadStats(),
-      new Promise(resolve => setTimeout(resolve, 800)) // ensure spinner shows
+      new Promise(resolve => setTimeout(resolve, 800))
     ]);
     setRefreshing(false);
   }, [loadStats]);
@@ -297,7 +317,6 @@ export const MyScreen = () => {
           />
         }
       >
-      {/* Identity Section */}
       <View style={styles.heroSection}>
         <View style={styles.profileLeft}>
           <TouchableOpacity 
@@ -305,7 +324,7 @@ export const MyScreen = () => {
             onPress={async () => {
               try {
                 const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  mediaTypes: ['images'],
                   allowsEditing: true,
                   aspect: [1, 1],
                   quality: 0.5,
@@ -328,7 +347,6 @@ export const MyScreen = () => {
                     
                     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
                     
-                    const { updateProfile } = useAuthStore.getState();
                     await updateProfile(
                       user?.user_metadata?.displayName || '컬렉터', 
                       user?.user_metadata?.interests || [], 
@@ -358,9 +376,12 @@ export const MyScreen = () => {
               </View>
             )}
           </TouchableOpacity>
-          <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
-            {user?.user_metadata?.displayName || '컬렉터'}
-          </Text>
+          <TouchableOpacity onPress={() => setNicknameModalVisible(true)}>
+            <Text style={[styles.userName, { color: themeColors.textPrimary }]}>
+              {user?.user_metadata?.displayName || '컬렉터'}
+              <Text style={{ fontSize: 16, color: themeColors.textSecondary }}> ✏️</Text>
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.badge, { backgroundColor: themeColors.accent }]}
             onPress={() => setBadgeModalVisible(true)}
@@ -369,7 +390,6 @@ export const MyScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Featured LP */}
         <View style={styles.profileRight}>
           <TouchableOpacity 
             style={styles.featuredFrame}
@@ -378,7 +398,6 @@ export const MyScreen = () => {
           >
             {featuredAlbum ? (
               <View style={styles.cubbyContainer}>
-                {/* Elegant Warm Backlight */}
                 <View style={{
                   position: 'absolute',
                   top: '50%',
@@ -387,7 +406,7 @@ export const MyScreen = () => {
                   marginLeft: -40,
                   width: 80,
                   height: 80,
-                  backgroundColor: '#ff8c00', // Amber glow
+                  backgroundColor: '#ff8c00',
                   borderRadius: 40,
                   shadowColor: '#ffaa00',
                   shadowOffset: { width: 0, height: 0 },
@@ -397,9 +416,7 @@ export const MyScreen = () => {
                   zIndex: 0
                 }} />
 
-                {/* The Modern Acrylic Frame / Shadow Box */}
                 <View style={styles.albumShadowBox}>
-                  {/* The Spinning Vinyl (rendered first so it's behind the sleeve) */}
                   <Animated.View style={[styles.vinylDisc, { transform: [{ rotate: spinRotate }] }]}>
                     <LinearGradient
                       colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.0)', 'rgba(255,255,255,0.08)']}
@@ -424,7 +441,6 @@ export const MyScreen = () => {
                       style={styles.featuredCover} 
                       resizeMode={featuredAlbum.IMAGE_URL ? "cover" : "contain"}
                     />
-                    {/* Shimmer Effect inside cover */}
                     <Animated.View style={[styles.shimmerEffect, { transform: [{ translateX: shimmerTranslate }] }]}>
                       <LinearGradient
                         colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
@@ -435,9 +451,7 @@ export const MyScreen = () => {
                     </Animated.View>
                   </View>
                 </View>
-                
 
-                {/* Status badges */}
                 {featuredAlbum.STATUS === 'WISH' && (
                   <View style={styles.wishIconBadge}>
                     <Text style={styles.wishIconText}>WISH</Text>
@@ -459,7 +473,6 @@ export const MyScreen = () => {
         </View>
       </View>
 
-      {/* Glass Intensity Setting */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>글래스 효과 강도</Text>
         <View style={{ flexDirection: 'row', paddingHorizontal: 20, justifyContent: 'space-between', gap: 8 }}>
@@ -488,7 +501,6 @@ export const MyScreen = () => {
         </View>
       </View>
 
-      {/* Share Button (moved up) */}
       <View style={styles.section}>
         <TouchableOpacity 
           style={[styles.themeBtn, { borderColor: themeColors.border, backgroundColor: 'transparent', marginTop: 10, marginHorizontal: 20 }]}
@@ -498,7 +510,6 @@ export const MyScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Analytics */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
@@ -515,12 +526,22 @@ export const MyScreen = () => {
             glassIntensity={glassIntensity}
           />
           <AnalyticsCard title="보유 LP" value={ownedCount.toLocaleString()} sub="등록된 전체 LP 수" themeColors={themeColors} glassIntensity={glassIntensity} />
-          <AnalyticsCard title="관심 장르" value={topGenre} sub="프로필 설정 기준" themeColors={themeColors} glassIntensity={glassIntensity} onPress={() => navigation.navigate('ProfileSetup')} />
+          <AnalyticsCard 
+            title="관심 장르" 
+            value={(user?.user_metadata?.interests && user?.user_metadata?.interests.length > 0) 
+              ? user.user_metadata.interests[0] 
+              : "없음"} 
+            sub={(user?.user_metadata?.interests && user.user_metadata.interests.length > 1) 
+              ? `외 ${user.user_metadata.interests.length - 1}개` 
+              : ""}
+            themeColors={themeColors} 
+            glassIntensity={glassIntensity}
+            onPress={() => setGenreModalVisible(true)}
+          />
           <AnalyticsCard title="실제 관심 장르" value={actualTopGenre} sub="내 콜렉션 데이터 기준" themeColors={themeColors} glassIntensity={glassIntensity} />
         </ScrollView>
       </View>
 
-      {/* Musical Journey (Timeline) */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>나의 레코드 여정</Text>
         <View style={styles.timeline}>
@@ -544,7 +565,6 @@ export const MyScreen = () => {
         </View>
       </View>
 
-      {/* Logout Button (moved down) */}
       <View style={styles.section}>
         <TouchableOpacity 
           style={[styles.logoutBtn, { borderColor: themeColors.border }]}
@@ -563,7 +583,6 @@ export const MyScreen = () => {
       </View>
       </ScrollView>
 
-      {/* Absolute Overlays */}
       <FlashEffect visible={flashVisible} onComplete={() => setFlashVisible(false)} />
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
       
@@ -574,13 +593,37 @@ export const MyScreen = () => {
         onSelect={handleBadgeSelect}
       />
 
-        <FeaturedLPModal
-          visible={isFeaturedModalVisible}
-          onClose={() => setFeaturedModalVisible(false)}
-          albums={allAlbums}
-          currentFeaturedId={featuredAlbumId ? Number(featuredAlbumId) : null}
-          onSelect={handleFeaturedSelect}
-        />
+      <FeaturedLPModal
+        visible={isFeaturedModalVisible}
+        onClose={() => setFeaturedModalVisible(false)}
+        albums={allAlbums}
+        currentFeaturedId={featuredAlbumId ? Number(featuredAlbumId) : null}
+        onSelect={handleFeaturedSelect}
+      />
+
+      <GenreSelectModal
+        visible={isGenreModalVisible}
+        onClose={() => setGenreModalVisible(false)}
+        initialSelected={user?.user_metadata?.interests || []}
+        onSave={async (genres) => {
+          await updateProfile(user?.user_metadata?.displayName || '', genres, user?.user_metadata?.avatar_url);
+          setGenreModalVisible(false);
+          setToastMessage('관심 장르가 업데이트되었습니다.');
+          setIsToastVisible(true);
+        }}
+      />
+
+      <NicknameEditModal
+        visible={isNicknameModalVisible}
+        onClose={() => setNicknameModalVisible(false)}
+        initialNickname={user?.user_metadata?.displayName || ''}
+        onSave={async (nickname) => {
+          await updateProfile(nickname, user?.user_metadata?.interests || [], user?.user_metadata?.avatar_url);
+          setNicknameModalVisible(false);
+          setToastMessage('닉네임이 업데이트되었습니다.');
+          setIsToastVisible(true);
+        }}
+      />
     </View>
   );
 };
@@ -782,6 +825,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: width * 0.4,
+    height: 140,
     padding: 16,
     borderRadius: shape.md,
     borderWidth: StyleSheet.hairlineWidth,
@@ -804,6 +848,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
     opacity: 0.7,
+  },
+  cardEditBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(212,175,55,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timeline: {
     paddingHorizontal: 20,
