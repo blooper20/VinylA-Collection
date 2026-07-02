@@ -13,9 +13,9 @@ const CANVAS_HEIGHT = 1920;
 const COVER_SIZE = 720;
 
 const STATUS_NEON: Record<string, { label: string; color: string }> = {
-  OWNED: { label: 'IN ROTATION', color: '#ffd76a' },
-  WISH: { label: 'ON DECK', color: '#7fe8ff' },
-  NONE: { label: 'JUST DROPPED', color: '#ff8bdc' },
+  OWNED: { label: 'COLLECTED', color: '#ffd76a' },
+  WISH: { label: 'WISHLISTED', color: '#7fe8ff' },
+  NONE: { label: 'DISCOVERED', color: '#ff8bdc' },
 };
 
 export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
@@ -41,7 +41,7 @@ export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
           <Text
             style={[
               styles.statusText,
-              { color: neon.color, textShadowColor: neon.color },
+              { color: neon.color, textShadowColor: neon.color, marginRight: -5 },
             ]}
             numberOfLines={1}
           >
@@ -93,6 +93,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 130,
     alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderRadius: 999,
     paddingHorizontal: 40,
@@ -102,6 +105,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '800',
     letterSpacing: 5,
+    textAlign: 'center',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 16,
   },

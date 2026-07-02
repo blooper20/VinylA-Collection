@@ -7,9 +7,9 @@ interface StoryTemplateProps {
 }
 
 const STATUS_NEON: Record<string, { label: string; kind: string }> = {
-  OWNED: { label: 'IN ROTATION', kind: 'owned' },
-  WISH: { label: 'ON DECK', kind: 'wish' },
-  NONE: { label: 'JUST DROPPED', kind: 'none' },
+  OWNED: { label: 'COLLECTED', kind: 'owned' },
+  WISH: { label: 'WISHLISTED', kind: 'wish' },
+  NONE: { label: 'DISCOVERED', kind: 'none' },
 };
 
 export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ album, username }, ref) => {
@@ -28,7 +28,7 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
         <div className={styles.glassOverlay} />
 
         <div className={styles.statusNeon} data-status={neon.kind}>
-          {neon.label}
+          <span className={styles.statusNeonText}>{neon.label}</span>
         </div>
         
         <div className={styles.content}>
