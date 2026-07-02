@@ -153,42 +153,74 @@ apps/api/
 ```
 
 ### 2026-07-01 (Part 2)
-- **Tag Filtering in Mobile DetailModal**: Implemented the same tag separation logic as Web DetailModal, visually grouping 'Country' tags from general genre tags.
-- **MyScreen Feature Parity**: Replicated the Web MyPage functionalities in the Mobile App:
-  - Added Market Value and Actual Spent Value calculations.
-  - Ported dynamic Badge unlocking logic (`evaluateBadges`) by migrating `badges.ts` to `core-api`.
-  - Added Featured LP Modal configuration for the mobile app profile.
+- **모바일 DetailModal 태그 필터링**: 웹 DetailModal과 동일한 태그 분리 로직을 적용하여, 일반 장르 태그와 '국가(Country)' 태그를 시각적으로 구분해 그룹핑.
+- **MyScreen 기능 동등화(Feature Parity)**: 웹 마이페이지의 기능을 모바일 앱에 동일하게 이식:
+  - 시장 추정가 및 실제 지출액 계산 로직 추가.
+  - `badges.ts`를 `core-api`로 이전하여 동적 배지 해금 로직(`evaluateBadges`) 이식.
+  - 모바일 프로필용 대표 LP(Featured LP) 모달 설정 추가.
 
 ### 2026-07-01 (Part 3)
-- **UI/UX Polishing (Liquid Glass & Vinyl Noir Theme)**:
-  - Resolved iOS nested `<Modal>` freeze bug by refactoring `AlertProvider` to use an absolute inline `CustomAlert` component globally, with local integration in `DetailModal.tsx`.
-  - Reverted `HomeScreen.tsx` AlbumCards to display pure LP covers without the overlay text/info for a cleaner gallery look.
-  - Fixed `MyScreen.tsx` layout issue where the Glass Intensity setting was cut off by extending the `ScrollView` padding.
-  - Updated `RootNavigator.tsx` & `FloatingScanButton.tsx` to use a newly generated premium 3D gold vinyl logo for the central scan tab, replacing the standard icon.
+- **UI/UX 폴리싱 (Liquid Glass & Vinyl Noir 테마)**:
+  - `AlertProvider`를 전역 절대 위치 인라인 `CustomAlert` 컴포넌트로 리팩토링(`DetailModal.tsx`에 로컬 연동 포함)하여 iOS 중첩 `<Modal>` 프리징 버그 해결.
+  - `HomeScreen.tsx`의 AlbumCard를 오버레이 텍스트/정보 없이 순수 LP 커버만 보여주도록 되돌려 더 깔끔한 갤러리 룩 구현.
+  - `ScrollView` 패딩을 확장하여 `MyScreen.tsx`에서 글래스 강도 설정이 잘려 보이던 레이아웃 문제 수정.
+  - `RootNavigator.tsx` 및 `FloatingScanButton.tsx`를 업데이트하여 중앙 스캔 탭에 기본 아이콘 대신 새로 제작한 프리미엄 3D 골드 바이닐 로고 적용.
 
 ### 2026-07-01 (Part 4)
-- **Data Model & Sync fixes**:
-  - Prevented `GENRES` and `MARKET_PRICE` from being deleted from the payload in `createAlbumMaster` (`core-api/src/supabaseDb.ts`), resolving an issue where Market Price metrics and Genre Tags ("Vinyl" fallback) were missing for newly scanned records in the database.
-- **MyScreen Refinements**:
-  - Removed unwanted emojis from the Actual Spent Value `AnalyticsCard` component to enforce the premium aesthetic.
-- **DetailModal Enhancements**:
-  - Redesigned the `pricePromptVisible` overlay (Purchase Price entry UI) to perfectly match the `CustomAlert`'s visual language and structure.
-  - Implemented real-time comma-separated formatting (e.g. `1,000,000`) for the price input `TextInput`.
-  - Added a dedicated 'Skip' (생략) button alongside the 'Save' button, preserving the UI uniformity of the app's prompt layers.
-- **Original 3D Logo Integration**:
-  - Generated a new premium 3D gold and liquid glass variation based strictly on the project's original transparent logo (`logo_real_transparent.png`).
-  - Replaced the previously hallucinated logo with this authentic, upgraded 3D version in the central scan Tab Bar.
+- **데이터 모델 & 동기화 수정**:
+  - `createAlbumMaster`(`core-api/src/supabaseDb.ts`)에서 `GENRES`와 `MARKET_PRICE`가 payload에서 삭제되지 않도록 방지하여, 새로 스캔한 레코드에서 시장 추정가 지표와 장르 태그("Vinyl" 폴백)가 DB에서 누락되던 문제 해결.
+- **MyScreen 개선**:
+  - 프리미엄한 톤앤매너를 위해 실제 지출액 AnalyticsCard 컴포넌트에서 불필요한 이모지 제거.
+- **DetailModal 개선**:
+  - `pricePromptVisible` 오버레이(구매가 입력 UI)를 `CustomAlert`의 비주얼 언어와 구조에 완벽히 맞춰 재설계.
+  - 가격 입력 TextInput에 실시간 천단위 콤마 포맷팅(예: `1,000,000`) 구현.
+  - 앱 프롬프트 레이어의 UI 일관성을 유지하며 '저장' 버튼 옆에 전용 '생략' 버튼 추가.
+- **오리지널 3D 로고 통합**:
+  - 프로젝트 원본 투명 로고(`logo_real_transparent.png`)를 엄격히 기반으로 한 새로운 프리미엄 3D 골드 & 리퀴드 글래스 변형 로고 생성.
+  - 기존에 잘못 생성(hallucinated)됐던 로고를 중앙 스캔 탭 바에서 이 정식 업그레이드 3D 버전으로 교체.
 
 ### 2026-07-01 (Part 5)
-- **Supabase DB Schema Redesign**:
-  - Discovered that the `GENRES` array column was missing from the `ALBUM_MASTER` table, causing silent failures when saving tags.
-  - Completely re-architected the tag storage logic in `supabaseDb.ts` to use a separate relational `VINYL_TAG` table. Genre tags are now inserted into `VINYL_TAG` and fetched using a `VINYL_TAG(*)` join, perfectly persisting tags when saving to the library.
-- **MyScreen (Mobile) Refinements**:
-  - Relocated the 'Logout' button to the very bottom, below the Timeline section.
-  - Made the '관심 장르' (Favorite Genres) AnalyticsCard interactive, navigating to the `ProfileSetupScreen` upon press.
-  - Introduced an `ActivityIndicator` overlay during profile picture uploads to prevent the illusion of an unresponsive UI while the image processes.
-  - Replaced the original Logout button position with a 'Share' (공유하기) button. Transitioned the sharing mechanism from an Instagram Story image generation to a native system URL share (`https://vinyla.vercel.app/...`), perfectly mimicking the Web Dashboard sharing logic with full URL parameters.
-- **Monorepo & Infrastructure Enhancements**:
-  - Added the `"dev": "expo start"` script to `apps/mobile/package.json` to integrate with Turborepo.
-  - Resolved a severe port collision issue (both Next.js and Express defaulting to `3000`) by explicitly shifting the `api` server and its corresponding Mobile `ScanScreen` fetch endpoints to port `3001`.
-  - Established a seamless local development pipeline: running `npm run dev` at the monorepo root now flawlessly launches Web (3000), API (3001), and Mobile (Expo 8081) concurrently.
+- **Supabase DB 스키마 재설계**:
+  - `ALBUM_MASTER` 테이블에 `GENRES` 배열 컬럼이 애초에 존재하지 않아 태그 저장이 조용히 실패하고 있던 문제 발견.
+  - `supabaseDb.ts`의 태그 저장 로직을 별도의 관계형 `VINYL_TAG` 테이블을 사용하도록 전면 재설계. 이제 장르 태그는 `VINYL_TAG`에 삽입되고 `VINYL_TAG(*)` 조인으로 조회되어, 보관함 저장 시 태그가 완벽하게 유지됨.
+- **MyScreen (모바일) 개선**:
+  - '로그아웃' 버튼을 타임라인 섹션 아래 최하단으로 이동.
+  - '관심 장르' AnalyticsCard를 탭 가능하도록 만들어, 누르면 `ProfileSetupScreen`으로 이동하도록 구현.
+  - 프로필 사진 업로드 중 화면이 멈춘 것처럼 보이는 문제를 막기 위해 `ActivityIndicator` 오버레이 추가.
+  - 기존 로그아웃 버튼 위치를 '공유하기' 버튼으로 교체. 공유 방식을 인스타그램 스토리 이미지 생성에서 네이티브 시스템 URL 공유(`https://vinyla.vercel.app/...`)로 전환하여, 전체 URL 파라미터를 포함한 웹 대시보드 공유 로직을 완벽히 재현.
+- **모노레포 & 인프라 개선**:
+  - Turborepo 연동을 위해 `apps/mobile/package.json`에 `"dev": "expo start"` 스크립트 추가.
+  - Next.js와 Express가 동시에 기본 포트 3000을 사용하며 충돌하던 심각한 포트 충돌 문제를, `api` 서버와 이에 대응하는 모바일 `ScanScreen`의 fetch 엔드포인트를 3001 포트로 명시적으로 옮겨 해결.
+  - 모노레포 루트에서 `npm run dev` 실행 시 웹(3000), API(3001), 모바일(Expo 8081)이 매끄럽게 동시 구동되는 로컬 개발 파이프라인 완성.
+
+---
+
+## 2026-07-02 (Day 16)
+
+### 🎯 오늘의 목표
+컬렉션 분석 카드의 편집 가능 여부 시각적 구분 및 시장 추정가 미반영 버그 근본 원인 해결
+
+---
+
+### ✅ 완료된 작업
+
+#### 1. `fix(core-api)` — 시장 추정가(MARKET_PRICE)가 DB에 반영되지 않던 근본 원인 수정
+- **이슈**: Part 4에서 payload 삭제 로직을 걷어냈다고 기록했지만, 실제로는 `createAlbumMaster`(`packages/core-api/src/supabaseDb.ts`)에 `delete (payload as any).MARKET_PRICE;`가 여전히 남아있어 저장 시마다 시장 추정가가 조용히 삭제되고 있었음.
+- **근본 원인 재확인**: Supabase REST API로 직접 조회한 결과 `ALBUM_MASTER` 테이블에 `MARKET_PRICE` 컬럼 자체가 존재하지 않아(`42703` 에러), GENRES와 동일하게 PGRST204 방지용으로 무조건 삭제되고 있었음을 확인.
+- **해결**: `supabaseDb.ts`에서 해당 삭제 라인을 제거하고, `supabase_schema.sql`에 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS "MARKET_PRICE" integer;` 구문을 추가. **주의**: 이 SQL은 Supabase SQL Editor에서 직접 한 번 실행해야 실제 반영됨(수동 작업 필요).
+
+#### 2. `feat(mobile)` — 컬렉션 분석 카드 편집 가능 표시(Affordance) 추가
+- **이슈**: 마이페이지 '컬렉션 분석' 섹션에서 탭 가능한 '관심 장르' 카드가 탭 불가능한 다른 카드들과 완전히 동일하게 생겨, 사용자가 수정 가능한 항목을 알아채기 어려웠음.
+- **해결**: `MyScreen.tsx`의 `AnalyticsCard` 컴포넌트에 `onPress` 존재 여부에 따라 골드 색상 테두리(`themeColors.accent`)와 은은한 골드 틴트 배경, 우측 상단 연필(✏️) 배지를 추가하여 편집 가능한 카드를 시각적으로 구분.
+
+---
+
+### 📦 오늘 변경된 주요 파일
+```
+apps/mobile/
+  src/screens/MyScreen.tsx     ← AnalyticsCard 편집 가능 시각 구분(테두리/배경/연필 배지) 추가
+packages/core-api/
+  src/supabaseDb.ts            ← MARKET_PRICE payload 삭제 라인 제거
+supabase_schema.sql             ← ALBUM_MASTER.MARKET_PRICE 컬럼 추가 ALTER 구문 (Supabase에서 수동 실행 필요)
+DAILY_LOG.md                    ← 영문으로 남아있던 과거 기록 한글화
+```
