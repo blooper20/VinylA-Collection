@@ -14,13 +14,13 @@ const COVER_SIZE = 720;
 
 const STATUS_NEON: Record<string, { label: string; color: string }> = {
   OWNED: { label: 'COLLECTED', color: '#ffd76a' },
-  WISH: { label: 'WISHLISTED', color: '#7fe8ff' },
   NONE: { label: 'JUST DROPPED', color: '#ff8bdc' },
 };
 
 export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
   ({ album, username }, ref) => {
     const bgColor = album.CUSTOM_COLOR_HEX || '#2a2a2a';
+    const isWanted = album.STATUS === 'WISH';
     const neon = STATUS_NEON[album.STATUS as string] || STATUS_NEON.NONE;
 
     return (
@@ -32,22 +32,36 @@ export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
           style={StyleSheet.absoluteFill}
         />
 
-        <View
-          style={[
-            styles.statusBadge,
-            { borderColor: neon.color, backgroundColor: 'rgba(10,8,8,0.35)' },
-          ]}
-        >
-          <Text
+        {isWanted ? (
+          <View style={styles.posterBadge}>
+            <LinearGradient
+              colors={['#f3e3bd', '#e6cf9b', '#dcc088']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={[styles.posterText, { marginRight: -6 }]} numberOfLines={1}>
+              ★ WANTED ★
+            </Text>
+          </View>
+        ) : (
+          <View
             style={[
-              styles.statusText,
-              { color: neon.color, textShadowColor: neon.color, marginRight: -5 },
+              styles.statusBadge,
+              { borderColor: neon.color, backgroundColor: 'rgba(10,8,8,0.35)' },
             ]}
-            numberOfLines={1}
           >
-            {neon.label}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.statusText,
+                { color: neon.color, textShadowColor: neon.color, marginRight: -5 },
+              ]}
+              numberOfLines={1}
+            >
+              {neon.label}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.content}>
           <View style={styles.coverShadowWrap}>
@@ -108,6 +122,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 16,
+  },
+  // WISH: styled like an Old-West bounty poster instead of a neon sign
+  posterBadge: {
+    position: 'absolute',
+    top: 130,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#3a2410',
+    borderRadius: 6,
+    paddingHorizontal: 36,
+    paddingVertical: 14,
+    overflow: 'hidden',
+    transform: [{ rotate: '-2.5deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  posterText: {
+    color: '#241505',
+    fontFamily: 'Georgia',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 6,
+    textAlign: 'center',
   },
   content: {
     alignItems: 'center',

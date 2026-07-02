@@ -8,7 +8,7 @@ interface StoryTemplateProps {
 
 const STATUS_NEON: Record<string, { label: string; kind: string }> = {
   OWNED: { label: 'COLLECTED', kind: 'owned' },
-  WISH: { label: 'WISHLISTED', kind: 'wish' },
+  WISH: { label: '★ WANTED ★', kind: 'wish' },
   NONE: { label: 'JUST DROPPED', kind: 'none' },
 };
 
