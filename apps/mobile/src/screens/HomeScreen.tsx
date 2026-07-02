@@ -81,7 +81,7 @@ export const HomeScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <AppHeader />
+      <AppHeader mode="collection" />
       {!isLoading && ownedAlbums.length === 0 ? (
         <EmptyState 
           onPressAction={() => navigation.navigate('Scan')} 
