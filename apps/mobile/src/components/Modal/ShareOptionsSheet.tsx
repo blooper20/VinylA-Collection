@@ -11,6 +11,10 @@ interface ShareOptionsSheetProps {
   isProcessing?: boolean;
   onShareLink: () => void;
   onImageShare: () => void;
+  // Extra space to leave below the sheet — e.g. the floating tab bar's
+  // height on screens where it overlays the content (Home/Wishlist).
+  // DetailModal is a full-screen <Modal> with no tab bar, so it doesn't need this.
+  bottomInset?: number;
 }
 
 // Deliberately not wrapped in RN's <Modal> — this can be nested inside other
@@ -23,6 +27,7 @@ export const ShareOptionsSheet = ({
   isProcessing,
   onShareLink,
   onImageShare,
+  bottomInset = 0,
 }: ShareOptionsSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
   const translateY = useRef(new Animated.Value(300)).current;
@@ -56,7 +61,7 @@ export const ShareOptionsSheet = ({
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: backdropOpacity }]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} disabled={isProcessing} />
       </Animated.View>
-      <Animated.View style={{ transform: [{ translateY }] }}>
+      <Animated.View style={{ transform: [{ translateY }], marginBottom: bottomInset }}>
         <BlurView
           intensity={glassIntensity || 30}
           tint="dark"

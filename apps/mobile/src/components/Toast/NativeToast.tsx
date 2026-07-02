@@ -3,8 +3,7 @@ import { Animated, Easing, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@vinyla/ui';
 import * as Haptics from 'expo-haptics';
-
-const TAB_BAR_HEIGHT = 80;
+import { TAB_BAR_HEIGHT } from '../../constants/layout';
 
 interface NativeToastProps {
   message: string;
