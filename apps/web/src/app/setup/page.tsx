@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@vinyla/core-api';
+import { useAuthStore, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
 import styles from './setup.module.css';
 
 const INTERESTS = ['Jazz', 'Rock', 'Classical', 'Hip-Hop', 'Pop', 'Electronic', 'R&B', 'Folk'];
@@ -78,13 +78,17 @@ export default function SetupPage() {
         <p className={styles.subtitle}>당신만의 컬렉션을 시작하기 위해 프로필을 완성해주세요.</p>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>닉네임</label>
-          <input 
-            type="text" 
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className={styles.label}>닉네임</label>
+            <span style={{ fontSize: '12px', opacity: 0.6 }}>{name.length}/{NICKNAME_MAX_LENGTH}자</span>
+          </div>
+          <input
+            type="text"
             className={styles.input}
             placeholder="닉네임을 입력하세요"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            maxLength={NICKNAME_MAX_LENGTH}
+            onChange={(e) => setName(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
           />
         </div>
 

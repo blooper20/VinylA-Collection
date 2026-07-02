@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
@@ -289,12 +289,16 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.editField}>
-                <label>닉네임</label>
-                <input 
-                  type="text" 
-                  value={editName} 
-                  onChange={e => setEditName(e.target.value)} 
-                  className={styles.editInput} 
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label>닉네임</label>
+                  <span style={{ fontSize: '12px', opacity: 0.6 }}>{editName.length}/{NICKNAME_MAX_LENGTH}자</span>
+                </div>
+                <input
+                  type="text"
+                  value={editName}
+                  maxLength={NICKNAME_MAX_LENGTH}
+                  onChange={e => setEditName(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
+                  className={styles.editInput}
                 />
               </div>
 

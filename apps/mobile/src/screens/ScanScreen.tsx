@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useAlert } from '../providers/AlertProvider';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const ScanScreen = () => {
@@ -88,13 +89,14 @@ export const ScanScreen = () => {
       }
 
       // 3. 백엔드(Node.js) 서버로 이미지와 검색어 전달하여 VLM 매칭
-      console.log('Sending request to Middle Server (http://192.168.0.20:3001/api/scan)...');
-      const response = await fetch('http://192.168.0.20:3001/api/scan', {
+      const apiBaseUrl = getApiBaseUrl();
+      console.log(`Sending request to Middle Server (${apiBaseUrl}/api/scan)...`);
+      const response = await fetch(`${apiBaseUrl}/api/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base64Image: base64Str, queries })
       });
-      
+
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }

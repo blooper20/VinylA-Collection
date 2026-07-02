@@ -6,18 +6,30 @@ interface StoryTemplateProps {
   username: string;
 }
 
+const STATUS_NEON: Record<string, { label: string; kind: string }> = {
+  OWNED: { label: 'COLLECTED', kind: 'owned' },
+  WISH: { label: '★ WANTED ★', kind: 'wish' },
+  NONE: { label: 'JUST DROPPED', kind: 'none' },
+};
+
 export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ album, username }, ref) => {
   if (!album) return null;
 
-  const bgStyle = album.CUSTOM_COLOR_HEX 
-    ? { background: `linear-gradient(135deg, ${album.CUSTOM_COLOR_HEX}40, #111)` } 
+  const bgStyle = album.CUSTOM_COLOR_HEX
+    ? { background: `linear-gradient(135deg, ${album.CUSTOM_COLOR_HEX}40, #111)` }
     : { background: 'linear-gradient(135deg, #2a2a2a, #0a0a0a)' };
+
+  const neon = STATUS_NEON[album.STATUS as string] || STATUS_NEON.NONE;
 
   return (
     <div className={styles.offscreenContainer}>
       <div ref={ref} className={styles.storyFrame} style={bgStyle}>
         {/* Background Blur Overlay */}
         <div className={styles.glassOverlay} />
+
+        <div className={styles.statusNeon} data-status={neon.kind}>
+          <span className={styles.statusNeonText}>{neon.label}</span>
+        </div>
         
         <div className={styles.content}>
           <div className={styles.recordWrapper}>
@@ -51,7 +63,7 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
           <span className={styles.user}>@{username}</span>
           <div className={styles.brandWrapper}>
             <img src="/logo_transparent.png" alt="VinylA Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => { e.currentTarget.src = '/logo.png'; e.currentTarget.style.mixBlendMode = 'screen'; }} crossOrigin="anonymous" />
-            <span className={styles.brand}>Curated by VinylA</span>
+            <span className={styles.brand}>Curated by VinylA Collection</span>
           </div>
         </div>
       </div>

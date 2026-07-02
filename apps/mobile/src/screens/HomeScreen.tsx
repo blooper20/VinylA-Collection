@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text, Share } from 'react-native';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { EmptyState } from '../components/EmptyState';
@@ -8,6 +8,15 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { BlurView } from 'expo-blur';
+import { AppHeader, VinylViewMode } from '../components/AppHeader';
+import { ShareableGridView } from '../components/Share/ShareableGridView';
+import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
+import { NativeToast } from '../components/Toast/NativeToast';
+import { SortChipRow } from '../components/SortChipRow';
+import { VinylTableRow } from '../components/VinylTableRow';
+import { sortVinyls, SortMode } from '../utils/sortVinyls';
+import { shareToInstagramStory } from '../utils/nativeShare';
+import { TAB_BAR_HEIGHT } from '../constants/layout';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
@@ -18,6 +27,13 @@ export const HomeScreen = () => {
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [ownedAlbums, setOwnedAlbums] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isShareSheetVisible, setShareSheetVisible] = useState(false);
+  const [isSharingProcessing, setIsSharingProcessing] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [viewMode, setViewMode] = useState<VinylViewMode>('grid');
+  const [sortMode, setSortMode] = useState<SortMode>('latest');
+  const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user, initializeAuth } = useAuthStore();
 
@@ -78,34 +94,121 @@ export const HomeScreen = () => {
     };
   }, [user]);
 
+  const sortedAlbums = sortVinyls(ownedAlbums, sortMode);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setIsToastVisible(true);
+  };
+
+  const handleShareLink = async () => {
+    if (!user?.id) {
+      setShareSheetVisible(false);
+      return;
+    }
+    try {
+      setIsSharingProcessing(true);
+      const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
+      const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
+      const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}`;
+      await Share.share({
+        message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 레코드 컬렉션을 확인해보세요!\n\n${link}`,
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
+    }
+  };
+
+  const handleImageShare = async () => {
+    try {
+      setIsSharingProcessing(true);
+      await shareToInstagramStory(shareViewRef);
+    } catch (e) {
+      console.error('Failed to share image', e);
+      showToast('이미지 공유에 실패했습니다.');
+    } finally {
+      setIsSharingProcessing(false);
+      setShareSheetVisible(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <AppHeader
+        mode="collection"
+        onSharePress={() => setShareSheetVisible(true)}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
       {!isLoading && ownedAlbums.length === 0 ? (
-        <EmptyState 
-          onPressAction={() => navigation.navigate('Scan')} 
+        <EmptyState
+          onPressAction={() => navigation.navigate('Scan')}
         />
       ) : (
-        <FlatList
-          data={ownedAlbums}
-          numColumns={2}
-          keyExtractor={item => item.ALBUM_ID.toString()}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
-              <Image 
-                source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                style={[styles.cover, { backgroundColor: 'transparent' }]} 
-                resizeMode={item.IMAGE_URL ? "cover" : "contain"}
-              />
-            </TouchableOpacity>
+        <>
+          <SortChipRow value={sortMode} onChange={setSortMode} />
+          {viewMode === 'grid' ? (
+            <FlatList
+              key="grid"
+              style={{ flex: 1 }}
+              data={sortedAlbums}
+              numColumns={2}
+              keyExtractor={item => item.ALBUM_ID.toString()}
+              contentContainerStyle={styles.list}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
+                  <Image
+                    source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')}
+                    style={[styles.cover, { backgroundColor: 'transparent' }]}
+                    resizeMode={item.IMAGE_URL ? "cover" : "contain"}
+                  />
+                </TouchableOpacity>
+              )}
+            />
+          ) : (
+            <FlatList
+              key="table"
+              style={{ flex: 1 }}
+              data={sortedAlbums}
+              keyExtractor={item => item.ALBUM_ID.toString()}
+              contentContainerStyle={styles.tableList}
+              renderItem={({ item }) => (
+                <VinylTableRow item={item} onPress={() => setSelectedAlbum(item)} />
+              )}
+            />
           )}
-        />
+        </>
       )}
-      <DetailModal 
-        album={selectedAlbum} 
-        visible={!!selectedAlbum} 
-        onClose={() => setSelectedAlbum(null)} 
+      <DetailModal
+        album={selectedAlbum}
+        visible={!!selectedAlbum}
+        onClose={() => setSelectedAlbum(null)}
       />
+
+      <View style={styles.offscreen} pointerEvents="none">
+        <ShareableGridView
+          ref={shareViewRef}
+          albums={sortedAlbums}
+          mode="collection"
+          username={user?.user_metadata?.displayName || '컬렉터'}
+        />
+      </View>
+
+      <ShareOptionsSheet
+        visible={isShareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        title="보관함 공유하기"
+        isProcessing={isSharingProcessing}
+        onShareLink={handleShareLink}
+        onImageShare={handleImageShare}
+        bottomInset={TAB_BAR_HEIGHT}
+      />
+
+      <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
     </View>
   );
 };
@@ -114,9 +217,16 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   container: {
     flex: 1,
   },
+  offscreen: {
+    position: 'absolute',
+    top: -9999,
+    left: 0,
+  },
   list: {
     padding: 16,
-    paddingTop: 60,
+  },
+  tableList: {
+    paddingBottom: 16,
   },
   card: {
     width: itemSize,

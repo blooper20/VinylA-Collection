@@ -75,6 +75,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   updateProfile: async (displayName: string, interests: string[], avatarUrl?: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("User not authenticated");
+      const user = session.user;
+
+      if (displayName !== user.user_metadata?.displayName) {
+        const { data: profile } = await supabase
+          .from('PROFILES')
+          .select('*')
+          .eq('USER_ID', user.id)
+          .single();
+
+        if (profile && profile.LAST_NAME_CHANGED_AT) {
+          const lastChanged = new Date(profile.LAST_NAME_CHANGED_AT);
+          const now = new Date();
+          const diffTime = Math.abs(now.getTime() - lastChanged.getTime());
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays < 30) {
+            throw new Error(`닉네임은 30일에 한 번만 변경 가능합니다. (남은 기간: ${30 - diffDays}일)`);
+          }
+        }
+
+        const { error: profileError } = await supabase
+          .from('PROFILES')
+          .upsert({
+            USER_ID: user.id,
+            DISPLAY_NAME: displayName,
+            LAST_NAME_CHANGED_AT: new Date().toISOString()
+          });
+
+        if (profileError) {
+          if (profileError.code === '23505') {
+            throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
+          }
+          throw profileError;
+        }
+      }
+
       const updateData: any = { displayName, interests };
       if (avatarUrl !== undefined) {
         updateData.avatar_url = avatarUrl;
@@ -93,16 +131,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   updateProfileWithAvatarFile: async (displayName: string, interests: string[], file?: File | null, removeAvatar?: boolean) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("User not authenticated");
+      const user = session.user;
+
+      if (displayName !== user.user_metadata?.displayName) {
+        const { data: profile } = await supabase
+          .from('PROFILES')
+          .select('*')
+          .eq('USER_ID', user.id)
+          .single();
+
+        if (profile && profile.LAST_NAME_CHANGED_AT) {
+          const lastChanged = new Date(profile.LAST_NAME_CHANGED_AT);
+          const now = new Date();
+          const diffTime = Math.abs(now.getTime() - lastChanged.getTime());
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays < 30) {
+            throw new Error(`닉네임은 30일에 한 번만 변경 가능합니다. (남은 기간: ${30 - diffDays}일)`);
+          }
+        }
+
+        const { error: profileError } = await supabase
+          .from('PROFILES')
+          .upsert({
+            USER_ID: user.id,
+            DISPLAY_NAME: displayName,
+            LAST_NAME_CHANGED_AT: new Date().toISOString()
+          });
+
+        if (profileError) {
+          if (profileError.code === '23505') {
+            throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
+          }
+          throw profileError;
+        }
+      }
+
       let avatarUrl = undefined;
       
       if (removeAvatar) {
         avatarUrl = '/logo.png';
       } else if (file) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) throw new Error("User not authenticated");
-        
         const fileExt = file.name.split('.').pop();
-        const filePath = `${session.user.id}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${user.id}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('avatars')

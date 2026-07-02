@@ -132,26 +132,29 @@
   bottom: 80px;
   left: 0;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  padding: 0 60px;
+  box-sizing: border-box;
+  text-align: center;
   z-index: 2;
 }
 
 .brandWrapper {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
+  white-space: nowrap;
 }
 
 .user {
+  display: block;
   font-family: var(--font-body);
   font-size: 32px;
   color: #fff;
   font-weight: 600;
   letter-spacing: 1px;
+  white-space: nowrap;
+  margin: 0 0 16px;
 }
 
 .brand {
@@ -160,4 +163,66 @@
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
   letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.statusNeon {
+  position: absolute;
+  top: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 40px;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  white-space: nowrap;
+  background: rgba(10, 8, 8, 0.35);
+  line-height: 1;
+}
+
+.statusNeonText {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  /* letter-spacing adds a trailing gap after the last character, which
+     otherwise reads as off-center inside the symmetric pill padding */
+  margin-right: -6px;
+}
+
+.statusNeon[data-status="owned"] {
+  color: #ffd76a;
+  border-color: #ffd76a;
+  text-shadow: 0 0 6px #ffd76a, 0 0 18px #ffd76a, 0 0 36px #e9c349, 0 0 70px #e9c349;
+  box-shadow: 0 0 14px rgba(255, 215, 106, 0.55), inset 0 0 16px rgba(255, 215, 106, 0.25);
+}
+
+/* WISH: styled like an Old-West bounty poster instead of a neon sign */
+.statusNeon[data-status="wish"] {
+  transform: translateX(-50%) rotate(-2.5deg);
+  color: #241505;
+  background: linear-gradient(155deg, #f3e3bd 0%, #e6cf9b 55%, #dcc088 100%);
+  border: 3px double #3a2410;
+  border-radius: 6px;
+  padding: 14px 36px;
+  text-shadow: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), inset 0 0 0 5px rgba(36, 21, 5, 0.06);
+}
+
+.statusNeon[data-status="wish"] .statusNeonText {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 900;
+  letter-spacing: 8px;
+  margin-right: -8px;
+}
+
+.statusNeon[data-status="none"] {
+  color: #ff8bdc;
+  border-color: #ff8bdc;
+  text-shadow: 0 0 6px #ff8bdc, 0 0 18px #ff8bdc, 0 0 36px #ff2fd0, 0 0 70px #ff2fd0;
+  box-shadow: 0 0 14px rgba(255, 139, 220, 0.55), inset 0 0 16px rgba(255, 139, 220, 0.25);
 }

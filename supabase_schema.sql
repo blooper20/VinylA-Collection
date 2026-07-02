@@ -33,3 +33,8 @@ CREATE TABLE public."VINYL_TAG" (
 -- Enable Supabase Realtime for the USER_VINYL table
 -- This allows our apps to receive instant updates when a vinyl is added or modified
 ALTER PUBLICATION supabase_realtime ADD TABLE public."USER_VINYL";
+
+-- Add MARKET_PRICE column to ALBUM_MASTER Table
+-- Run this manually in the Supabase SQL Editor: the column was missing, which
+-- caused createAlbumMaster() to strip MARKET_PRICE from every save (PGRST204).
+ALTER TABLE public."ALBUM_MASTER" ADD COLUMN IF NOT EXISTS "MARKET_PRICE" integer;
