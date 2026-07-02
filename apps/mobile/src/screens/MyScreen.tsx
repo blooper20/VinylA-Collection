@@ -12,6 +12,7 @@ import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { shareToInstagramStory } from '../utils/nativeShare';
 import { BlurView } from 'expo-blur';
+import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { decode } from 'base64-arraybuffer';
 
@@ -30,9 +31,8 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
       style={[
         styles.card,
         {
-          borderColor: editable ? themeColors.accent : themeColors.border,
-          borderWidth: editable ? 1.5 : StyleSheet.hairlineWidth,
-          backgroundColor: editable ? 'rgba(212,175,55,0.08)' : 'rgba(20,20,20,0.4)',
+          borderColor: editable ? 'rgba(212,175,55,0.3)' : themeColors.border,
+          backgroundColor: editable ? 'rgba(212,175,55,0.04)' : 'rgba(20,20,20,0.4)',
           overflow: 'hidden',
         },
       ]}
@@ -46,9 +46,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
         {sub && <Text style={[styles.cardSub, { color: themeColors.textSecondary }]}>{sub}</Text>}
       </View>
       {editable && (
-        <View style={styles.cardEditBadge}>
-          <Text style={{ fontSize: 11 }}>✏️</Text>
-        </View>
+        <Feather name="edit-2" size={11} color="rgba(212,175,55,0.55)" style={styles.cardEditIcon} />
       )}
       {isSpent && (
         <TouchableOpacity 
@@ -849,16 +847,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     opacity: 0.7,
   },
-  cardEditBadge: {
+  cardEditIcon: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(212,175,55,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 14,
+    right: 14,
   },
   timeline: {
     paddingHorizontal: 20,
