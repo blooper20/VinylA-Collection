@@ -8,9 +8,6 @@ import { DetailModal } from '../components/Modal/DetailModal';
 import { AppHeader, VinylViewMode } from '../components/AppHeader';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { captureRef } from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
-import * as Clipboard from 'expo-clipboard';
 import { ShareableGridView } from '../components/Share/ShareableGridView';
 import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
 import { NativeToast } from '../components/Toast/NativeToast';
@@ -94,41 +91,6 @@ export const WishScreen = () => {
     setIsToastVisible(true);
   };
 
-  const handleSaveImage = async () => {
-    try {
-      setIsSharingProcessing(true);
-      const { status } = await MediaLibrary.requestPermissionsAsync(true);
-      if (status !== 'granted') {
-        showToast('사진 라이브러리 접근 권한이 필요합니다.');
-        return;
-      }
-      const uri = await captureRef(shareViewRef, { format: 'png', quality: 1 });
-      await MediaLibrary.saveToLibraryAsync(uri);
-      showToast('이미지가 저장되었습니다.');
-    } catch (e) {
-      console.error('Failed to save share image', e);
-      showToast('이미지 저장에 실패했습니다.');
-    } finally {
-      setIsSharingProcessing(false);
-      setShareSheetVisible(false);
-    }
-  };
-
-  const handleCopyImage = async () => {
-    try {
-      setIsSharingProcessing(true);
-      const base64 = await captureRef(shareViewRef, { format: 'png', quality: 1, result: 'base64' });
-      await Clipboard.setImageAsync(base64);
-      showToast('이미지가 클립보드에 복사되었습니다.');
-    } catch (e) {
-      console.error('Failed to copy share image', e);
-      showToast('이미지 복사에 실패했습니다.');
-    } finally {
-      setIsSharingProcessing(false);
-      setShareSheetVisible(false);
-    }
-  };
-
   const handleShareLink = async () => {
     if (!user?.id) {
       setShareSheetVisible(false);
@@ -138,7 +100,7 @@ export const WishScreen = () => {
       setIsSharingProcessing(true);
       const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
       const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
-      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'http://192.168.0.20:3000';
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
       const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}&type=wishlist`;
       await Share.share({
         message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 위시리스트를 확인해보세요!\n\n${link}`,
@@ -151,13 +113,13 @@ export const WishScreen = () => {
     }
   };
 
-  const handleInstagramStory = async () => {
+  const handleImageShare = async () => {
     try {
       setIsSharingProcessing(true);
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
-      console.error('Failed to share to Instagram Story', e);
-      showToast('인스타그램 스토리 공유에 실패했습니다.');
+      console.error('Failed to share image', e);
+      showToast('이미지 공유에 실패했습니다.');
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -243,10 +205,8 @@ export const WishScreen = () => {
         onClose={() => setShareSheetVisible(false)}
         title="위시리스트 공유하기"
         isProcessing={isSharingProcessing}
-        onSaveImage={handleSaveImage}
-        onCopyImage={handleCopyImage}
         onShareLink={handleShareLink}
-        onInstagramStory={handleInstagramStory}
+        onImageShare={handleImageShare}
       />
 
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />

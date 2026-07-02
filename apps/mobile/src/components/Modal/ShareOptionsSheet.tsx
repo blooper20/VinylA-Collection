@@ -9,10 +9,8 @@ interface ShareOptionsSheetProps {
   onClose: () => void;
   title: string;
   isProcessing?: boolean;
-  onSaveImage: () => void;
-  onCopyImage: () => void;
   onShareLink: () => void;
-  onInstagramStory: () => void;
+  onImageShare: () => void;
 }
 
 export const ShareOptionsSheet = ({
@@ -20,17 +18,13 @@ export const ShareOptionsSheet = ({
   onClose,
   title,
   isProcessing,
-  onSaveImage,
-  onCopyImage,
   onShareLink,
-  onInstagramStory,
+  onImageShare,
 }: ShareOptionsSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
 
-  const options: { id: string; label: string; icon: 'download' | 'copy' | 'share-2' | 'instagram'; onPress: () => void }[] = [
-    { id: 'instagram', label: '인스타그램 스토리로 공유', icon: 'instagram', onPress: onInstagramStory },
-    { id: 'save', label: '이미지 저장', icon: 'download', onPress: onSaveImage },
-    { id: 'copy', label: '이미지 복사', icon: 'copy', onPress: onCopyImage },
+  const options: { id: string; label: string; icon: 'share-2' | 'image'; onPress: () => void }[] = [
+    { id: 'image', label: '이미지 공유', icon: 'image', onPress: onImageShare },
     { id: 'link', label: '링크 공유', icon: 'share-2', onPress: onShareLink },
   ];
 

@@ -267,7 +267,7 @@ export const MyScreen = () => {
       const featured = encodeURIComponent(user.user_metadata?.featured_album_id || '');
       const sp = isSpentPublic ? '1' : '0';
       
-      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'http://192.168.0.20:3000';
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
       const link = `${baseUrl}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
       
       try {

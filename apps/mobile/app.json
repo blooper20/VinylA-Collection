@@ -36,13 +36,6 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan vinyl records."
         }
       ],
-      [
-        "expo-media-library",
-        {
-          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save your shared collection images to your photos.",
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos."
-        }
-      ],
       "expo-web-browser"
     ]
   }
