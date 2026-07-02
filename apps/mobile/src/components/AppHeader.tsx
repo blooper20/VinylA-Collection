@@ -31,21 +31,23 @@ export const AppHeader = ({ mode, onSharePress, viewMode, onViewModeChange }: Ap
 
       {mode && (
         <View style={styles.bottomRow}>
-          <View style={[styles.modeBadge, { borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.06)' }]}>
-            <Feather name={isWishlist ? 'heart' : 'disc'} size={11} color={themeColors.accent} />
-            <Text style={[styles.modeText, { color: themeColors.accent }]}>
-              {isWishlist ? 'WISHLIST' : 'MY COLLECTION'}
-            </Text>
-          </View>
+          <View style={styles.leftGroup}>
+            <View style={[styles.modeBadge, { borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.06)' }]}>
+              <Feather name={isWishlist ? 'heart' : 'disc'} size={11} color={themeColors.accent} />
+              <Text style={[styles.modeText, { color: themeColors.accent }]}>
+                {isWishlist ? 'WISHLIST' : 'MY COLLECTION'}
+              </Text>
+            </View>
 
-          {onSharePress && (
-            <TouchableOpacity
-              style={[styles.iconBtn, { borderColor: themeColors.border }]}
-              onPress={onSharePress}
-            >
-              <Feather name="share-2" size={13} color={themeColors.textPrimary} />
-            </TouchableOpacity>
-          )}
+            {onSharePress && (
+              <TouchableOpacity
+                style={[styles.iconBtn, { borderColor: themeColors.border }]}
+                onPress={onSharePress}
+              >
+                <Feather name="share-2" size={13} color={themeColors.textPrimary} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           {viewMode && onViewModeChange && (
             <View style={[styles.viewToggle, { borderColor: themeColors.border }]}>
@@ -92,8 +94,13 @@ const styles = StyleSheet.create({
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 10,
     marginLeft: 58,
+  },
+  leftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   modeBadge: {
