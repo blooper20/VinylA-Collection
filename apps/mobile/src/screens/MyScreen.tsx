@@ -675,8 +675,8 @@ const styles = StyleSheet.create({
   nicknameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'stretch',
     marginBottom: 8,
-    maxWidth: '100%',
   },
   userName: {
     fontSize: 24,
