@@ -88,6 +88,7 @@ export const HomeScreen = () => {
         />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={ownedAlbums}
           numColumns={2}
           keyExtractor={item => item.ALBUM_ID.toString()}

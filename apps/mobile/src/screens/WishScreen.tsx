@@ -83,6 +83,7 @@ export const WishScreen = () => {
         />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={wishes}
           numColumns={2}
           keyExtractor={item => item.ALBUM_ID.toString()}
