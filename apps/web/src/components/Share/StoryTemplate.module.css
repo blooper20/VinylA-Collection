@@ -144,6 +144,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .user {
@@ -160,4 +161,5 @@
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
   letter-spacing: 2px;
+  white-space: nowrap;
 }

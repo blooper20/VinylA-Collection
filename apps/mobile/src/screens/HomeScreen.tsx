@@ -18,6 +18,7 @@ import { NativeToast } from '../components/Toast/NativeToast';
 import { SortChipRow } from '../components/SortChipRow';
 import { VinylTableRow } from '../components/VinylTableRow';
 import { sortVinyls, SortMode } from '../utils/sortVinyls';
+import { shareToInstagramStory } from '../utils/nativeShare';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
@@ -153,6 +154,16 @@ export const HomeScreen = () => {
     }
   };
 
+  const handleInstagramStory = async () => {
+    setShareSheetVisible(false);
+    try {
+      await shareToInstagramStory(shareViewRef);
+    } catch (e) {
+      console.error('Failed to share to Instagram Story', e);
+      showToast('인스타그램 스토리 공유에 실패했습니다.');
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <AppHeader
@@ -223,6 +234,7 @@ export const HomeScreen = () => {
         onSaveImage={handleSaveImage}
         onCopyImage={handleCopyImage}
         onShareLink={handleShareLink}
+        onInstagramStory={handleInstagramStory}
       />
 
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />

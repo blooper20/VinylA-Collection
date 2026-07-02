@@ -51,7 +51,7 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
           <span className={styles.user}>@{username}</span>
           <div className={styles.brandWrapper}>
             <img src="/logo_transparent.png" alt="VinylA Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => { e.currentTarget.src = '/logo.png'; e.currentTarget.style.mixBlendMode = 'screen'; }} crossOrigin="anonymous" />
-            <span className={styles.brand}>Curated by VinylA</span>
+            <span className={styles.brand}>Curated by VinylA Collection</span>
           </div>
         </div>
       </div>

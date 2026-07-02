@@ -12,6 +12,7 @@ interface ShareOptionsSheetProps {
   onSaveImage: () => void;
   onCopyImage: () => void;
   onShareLink: () => void;
+  onInstagramStory: () => void;
 }
 
 export const ShareOptionsSheet = ({
@@ -22,10 +23,12 @@ export const ShareOptionsSheet = ({
   onSaveImage,
   onCopyImage,
   onShareLink,
+  onInstagramStory,
 }: ShareOptionsSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
 
-  const options: { id: string; label: string; icon: 'download' | 'copy' | 'share-2'; onPress: () => void }[] = [
+  const options: { id: string; label: string; icon: 'download' | 'copy' | 'share-2' | 'instagram'; onPress: () => void }[] = [
+    { id: 'instagram', label: '인스타그램 스토리로 공유', icon: 'instagram', onPress: onInstagramStory },
     { id: 'save', label: '이미지 저장', icon: 'download', onPress: onSaveImage },
     { id: 'copy', label: '이미지 복사', icon: 'copy', onPress: onCopyImage },
     { id: 'link', label: '링크 공유', icon: 'share-2', onPress: onShareLink },

@@ -35,7 +35,7 @@ export const ShareableGridView = forwardRef<View, ShareableGridViewProps>(
           </View>
 
           <Text style={styles.title}>{isWishlist ? 'WISHLIST' : 'MY COLLECTION'}</Text>
-          <Text style={styles.subtitle}>@{username} · {albums.length}장</Text>
+          <Text style={styles.subtitle}>@{username}{isWishlist ? "'s WishList" : "'s Collection"}</Text>
 
           <View style={styles.grid}>
             {items.map((item, index) => {
@@ -69,7 +69,7 @@ export const ShareableGridView = forwardRef<View, ShareableGridViewProps>(
             style={styles.footerLogo}
             resizeMode="contain"
           />
-          <Text style={styles.footerText}>Curated by VinylA</Text>
+          <Text style={styles.footerText} numberOfLines={1}>Curated by VinylA Collection</Text>
         </View>
       </View>
     );
