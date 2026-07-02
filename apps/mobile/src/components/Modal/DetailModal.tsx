@@ -17,6 +17,7 @@ interface DetailModalProps {
 
 const { width, height } = Dimensions.get('window');
 const cinematicEasing = Easing.bezier(0.45, 0, 0.55, 1);
+const BUTTON_HEIGHT = 52;
 
 const AnimatedButton = ({ onPress, style, children, isHeavy = false }: any) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -729,10 +730,12 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   btnPrimary: {
     flex: 1,
+    height: BUTTON_HEIGHT,
     backgroundColor: '#F0E6D2',
-    padding: 16,
+    paddingHorizontal: 16,
     borderRadius: shape.md,
     alignItems: 'center',
+    justifyContent: 'center',
     ...shadows.soft,
   },
   btnPrimaryText: {
@@ -742,10 +745,12 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   btnOutline: {
     flex: 1,
+    height: BUTTON_HEIGHT,
     backgroundColor: 'rgba(197, 160, 89, 0.05)', // Softer inner glow
-    padding: 16,
+    paddingHorizontal: 16,
     borderRadius: shape.md,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(197, 160, 89, 0.15)',
   },
@@ -755,17 +760,19 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     fontSize: 15,
   },
   btnYoutube: {
+    height: BUTTON_HEIGHT,
     backgroundColor: 'rgba(180, 50, 50, 0.85)',
-    padding: 16,
+    paddingHorizontal: 16,
     borderRadius: shape.md,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 12,
     ...shadows.soft,
   },
   btnYoutubeText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 15,
     letterSpacing: 1,
   },
   priceContainer: {
