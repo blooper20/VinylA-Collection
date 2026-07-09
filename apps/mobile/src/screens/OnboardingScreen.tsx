@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeRedirectUri } from 'expo-auth-session';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signInWithGoogle, useAuthStore, supabase } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useAlert } from '../providers/AlertProvider';
@@ -54,6 +55,7 @@ const TouchableScale = ({ onPress, children, style }: any) => {
 export const OnboardingScreen = ({ navigation }: any) => {
   const { themeColors, glassIntensity } = useTheme();
   const { showAlert } = useAlert();
+  const insets = useSafeAreaInsets();
   const styles = getStyles(themeColors, shadows, shape);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -161,7 +163,17 @@ export const OnboardingScreen = ({ navigation }: any) => {
         colors={['rgba(212, 175, 55, 0.15)', 'transparent']}
         style={[StyleSheet.absoluteFillObject, { height: '60%' }]}
       />
-      
+
+      {/* Persistent brand mark — visible across every step, not just the login page */}
+      <View style={[styles.brandBar, { top: insets.top + 14 }]} pointerEvents="none">
+        <Image
+          source={require('../../assets/3d_logo_transparent.png')}
+          style={styles.brandBarLogo}
+          resizeMode="contain"
+        />
+        <Text style={styles.brandBarText}>VINYLA</Text>
+      </View>
+
       <Animated.ScrollView
         horizontal
         pagingEnabled
@@ -185,11 +197,15 @@ export const OnboardingScreen = ({ navigation }: any) => {
               </Animated.View>
               
               <View style={styles.albumCover}>
-                <LinearGradient 
-                  colors={['rgba(255,255,255,0.2)', 'transparent', 'rgba(255,255,255,0.05)']} 
-                  style={StyleSheet.absoluteFillObject} 
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.2)', 'transparent', 'rgba(255,255,255,0.05)']}
+                  style={StyleSheet.absoluteFillObject}
                 />
-                <Text style={styles.coverText}>VINYLA</Text>
+                <Image
+                  source={require('../../assets/3d_logo_transparent.png')}
+                  style={styles.coverLogo}
+                  resizeMode="contain"
+                />
               </View>
             </View>
           </Animated.View>
@@ -232,9 +248,16 @@ export const OnboardingScreen = ({ navigation }: any) => {
           
           <Animated.View style={[styles.visualAreaBottom, { transform: [{ translateX: getTranslateX(2, 0.6) }] }]}>
             <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.loginPanel}>
+              <View style={styles.panelLogoWrapper}>
+                <Image
+                  source={require('../../assets/3d_logo_transparent.png')}
+                  style={styles.panelLogo}
+                  resizeMode="contain"
+                />
+              </View>
               <Text style={styles.panelTitle}>VinylA</Text>
               <Text style={styles.panelSubtitle}>프리미엄 컬렉터의 세계로</Text>
-              
+
               <TouchableScale style={styles.loginBtn} onPress={handleGoogleLogin}>
                 <View style={styles.loginBtnInnerGoogle}>
                   <Text style={styles.loginBtnTextGoogle}>Continue with Google</Text>
@@ -285,6 +308,27 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   page: {
     width,
     height,
+  },
+  brandBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  brandBarLogo: {
+    width: 22,
+    height: 22,
+  },
+  brandBarText: {
+    fontFamily: 'Bodoni',
+    fontSize: 14,
+    color: themeColors.textSecondary,
+    letterSpacing: 4,
+    opacity: 0.8,
   },
   visualArea: {
     flex: 1.1,
@@ -378,11 +422,9 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     alignItems: 'center',
     zIndex: 2,
   },
-  coverText: {
-    fontFamily: 'Bodoni',
-    fontSize: 24,
-    color: themeColors.accent,
-    letterSpacing: 8,
+  coverLogo: {
+    width: '62%',
+    height: '62%',
   },
   vinylRecord: {
     position: 'absolute',
@@ -473,6 +515,22 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     alignItems: 'center',
     overflow: 'hidden',
     ...shadows.glow,
+  },
+  panelLogoWrapper: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(212, 175, 55, 0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: themeColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
+    ...shadows.glow,
+  },
+  panelLogo: {
+    width: '68%',
+    height: '68%',
   },
   panelTitle: {
     fontFamily: 'Bodoni',
