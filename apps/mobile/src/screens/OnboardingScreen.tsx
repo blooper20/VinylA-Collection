@@ -62,6 +62,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const scanAnim = useRef(new Animated.Value(0)).current;
+  const armAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<any>(null);
 
   // Continuous Rotation for Step 1
@@ -86,6 +87,19 @@ export const OnboardingScreen = ({ navigation }: any) => {
     ).start();
   }, []);
 
+  // Tonearm dropping onto the record in Step 1
+  useEffect(() => {
+    Animated.sequence([
+      Animated.delay(700),
+      Animated.timing(armAnim, {
+        toValue: 1,
+        duration: 1400,
+        easing: Easing.out(Easing.back(1.2)),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg']
@@ -94,6 +108,12 @@ export const OnboardingScreen = ({ navigation }: any) => {
   const scanTranslate = scanAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [-96, 96],
+  });
+
+  // Swings clockwise from resting off the record's edge down onto the grooves.
+  const armRotate = armAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-24deg', '6deg'],
   });
 
   const handleScroll = Animated.event(
@@ -235,15 +255,28 @@ export const OnboardingScreen = ({ navigation }: any) => {
                   style={StyleSheet.absoluteFillObject}
                 />
               </View>
+
+              {/* Tonearm dropping onto the record */}
+              <Animated.View
+                style={[styles.tonearm, { transform: [{ rotate: armRotate }] }]}
+                pointerEvents="none"
+              >
+                <View style={styles.tonearmWeight} />
+                <View style={styles.tonearmPivot}>
+                  <View style={styles.tonearmPivotDot} />
+                </View>
+                <View style={styles.tonearmShaft} />
+                <View style={styles.tonearmHead} />
+              </Animated.View>
             </View>
           </Animated.View>
 
           <Animated.View style={[styles.textArea, { transform: [{ translateX: getTranslateX(0, 0.6) }] }]}>
-            <Text style={styles.overline}>01 · THE ARCHIVE</Text>
+            <Text style={styles.overline}>01 · PURE ARCHIVE</Text>
             <Text style={styles.headline}>
-              오직 레코드만을 위한{'\n'}프라이빗 <Text style={styles.headlineAccent}>뮤지엄</Text>
+              노이즈 없이 채워가는{'\n'}당신의 <Text style={styles.headlineAccent}>비밀 박물관</Text>
             </Text>
-            <Text style={styles.subCopy}>노이즈 없이, 순정 아이템으로만{'\n'}채워가는 나만의 아카이브</Text>
+            <Text style={styles.subCopy}>아티스트의 순정 데이터만으로{'\n'}실물 LP의 가치를 온전히 보관하세요</Text>
           </Animated.View>
         </View>
 
@@ -278,11 +311,11 @@ export const OnboardingScreen = ({ navigation }: any) => {
           </Animated.View>
 
           <Animated.View style={[styles.textArea, { transform: [{ translateX: getTranslateX(1, 0.6) }] }]}>
-            <Text style={styles.overline}>02 · ONE SCAN</Text>
+            <Text style={styles.overline}>02 · SCAN & ARCHIVE</Text>
             <Text style={styles.headline}>
-              스캔 한 번으로{'\n'}시작되는 <Text style={styles.headlineAccent}>컬렉션</Text>
+              커버를 비추는 순간,{'\n'}LP는 <Text style={styles.headlineAccent}>자산</Text>이 됩니다
             </Text>
-            <Text style={styles.subCopy}>실물 LP를 가장 우아하게{'\n'}디지털 자산으로 옮기는 방법</Text>
+            <Text style={styles.subCopy}>카메라 스캔 한 번으로 재킷부터{'\n'}수록곡, 시장 가치까지 자동 등록</Text>
           </Animated.View>
         </View>
 
@@ -291,9 +324,9 @@ export const OnboardingScreen = ({ navigation }: any) => {
           <Text style={styles.ghostNumber}>03</Text>
 
           <Animated.View style={[styles.textAreaTop, { transform: [{ translateX: getTranslateX(2, 0.4) }] }]}>
-            <Text style={styles.overline}>03 · YOUR VAULT</Text>
+            <Text style={styles.overline}>03 · UNLOCK YOUR VAULT</Text>
             <Text style={styles.headline}>
-              이제, 당신의{'\n'}<Text style={styles.headlineAccent}>볼트</Text>를 열 차례
+              이제, 당신만의{'\n'}<Text style={styles.headlineAccent}>청음실</Text>을 열 차례
             </Text>
           </Animated.View>
 
@@ -305,7 +338,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
                 resizeMode="contain"
               />
               <Text style={styles.panelTitle}>VinylA</Text>
-              <Text style={styles.panelSubtitle}>프리미엄 컬렉터의 세계로</Text>
+              <Text style={styles.panelSubtitle}>Vanilla + Vinyl, 순정 그대로의 컬렉션</Text>
 
               <TouchableScale style={styles.loginBtn} onPress={handleGoogleLogin}>
                 <View style={styles.loginBtnInnerGoogle}>
@@ -545,6 +578,60 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     ...StyleSheet.absoluteFillObject,
     borderRadius: width,
     overflow: 'hidden',
+  },
+  tonearm: {
+    position: 'absolute',
+    top: -width * 0.03,
+    right: width * 0.015,
+    alignItems: 'center',
+    zIndex: 5,
+    // Rotate around the pivot bearing, not the arm's center:
+    // pivot circle center sits 30px from the top (weight 14 + gap 2 + radius 14).
+    transformOrigin: ['50%', 30, 0],
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  tonearmWeight: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#2c2c2c',
+    borderWidth: 1,
+    borderColor: '#454545',
+    marginBottom: 2,
+  },
+  tonearmPivot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#181818',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tonearmPivotDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(212, 175, 55, 0.8)',
+  },
+  tonearmShaft: {
+    width: 3,
+    height: width * 0.34,
+    backgroundColor: '#a8a8a8',
+    marginTop: -2,
+  },
+  tonearmHead: {
+    width: 11,
+    height: 26,
+    borderRadius: 3,
+    backgroundColor: '#C5A059',
+    marginTop: -1,
+    transform: [{ rotate: '10deg' }],
   },
   // --- Step 2 ---
   scanViewfinder: {
