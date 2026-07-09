@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
 import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
@@ -35,15 +35,22 @@ export const SearchScreen = ({ route, navigation }: any) => {
   const searchIdRef = useRef(0);
   const sessionRef = useRef<DiscogsSearchSession | null>(null);
 
-  // Edge-swipe back: a rightward pan starting at the screen's left edge
-  // returns to the previously visited tab (backBehavior="history").
+  // Edge-swipe back: a rightward pan starting at the screen's left edge.
+  // With results showing it clears the search back to the genre-explore
+  // view; on the genre view it falls through to the previous tab.
   // Capture-phase check so taps and vertical scrolls are untouched.
+  const queryRef = useRef(query);
+  queryRef.current = query;
   const backGesture = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_evt, g) =>
         g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
       onPanResponderRelease: (_evt, g) => {
-        if (g.dx > 60 && navigation?.canGoBack()) {
+        if (g.dx <= 60) return;
+        if (queryRef.current) {
+          Keyboard.dismiss();
+          setQuery('');
+        } else if (navigation?.canGoBack()) {
           navigation.goBack();
         }
       },
