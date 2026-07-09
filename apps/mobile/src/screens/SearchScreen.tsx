@@ -155,7 +155,9 @@ export const SearchScreen = ({ route }: any) => {
   const isEnriching = status === 'enriching';
 
   return (
-    <View style={styles.container} {...backGesture.panHandlers}>
+    // Gesture handlers are only attached while a search is active — the
+    // genre-explore landing view must not react to edge swipes at all.
+    <View style={styles.container} {...(query ? backGesture.panHandlers : {})}>
       <View style={styles.searchHero}>
         <View style={styles.searchInputContainer}>
           <TextInput 
