@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { signInWithGoogle, useAuthStore, supabase } from '@vinyla/core-api';
+import { signInWithGoogle, signInWithApple, useAuthStore, supabase } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useAlert } from '../providers/AlertProvider';
 
@@ -199,7 +199,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
     scrollRef.current?.scrollTo({ x: Math.min(currentIndex + 1, 2) * width, animated: true });
   };
 
-  const handleGoogleLogin = async () => {
+  const handleOAuthLogin = async (provider: 'google' | 'apple') => {
     try {
       const redirectUri = makeRedirectUri({
         scheme: 'vinyla',
@@ -207,7 +207,9 @@ export const OnboardingScreen = ({ navigation }: any) => {
       });
       console.log('Redirect URI:', redirectUri);
 
-      const data = await signInWithGoogle(redirectUri);
+      const data = provider === 'apple'
+        ? await signInWithApple(redirectUri)
+        : await signInWithGoogle(redirectUri);
 
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri, { showInRecents: true });
@@ -248,7 +250,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
         }
       }
     } catch (error) {
-      console.error('Google login failed:', error);
+      console.error(`${provider} login failed:`, error);
       showAlert('Login Error', 'An unexpected error occurred during login.');
     }
   };
@@ -427,13 +429,13 @@ export const OnboardingScreen = ({ navigation }: any) => {
               <Text style={styles.panelCollection}>Collection</Text>
               <Text style={styles.panelSubtitle}>순정 그대로의 컬렉션</Text>
 
-              <TouchableScale style={styles.loginBtn} onPress={handleGoogleLogin}>
+              <TouchableScale style={styles.loginBtn} onPress={() => handleOAuthLogin('google')}>
                 <View style={styles.loginBtnInnerGoogle}>
                   <Text style={styles.loginBtnTextGoogle}>Continue with Google</Text>
                 </View>
               </TouchableScale>
 
-              <TouchableScale style={[styles.loginBtn, { marginTop: 12 }]} onPress={() => {}}>
+              <TouchableScale style={[styles.loginBtn, { marginTop: 12 }]} onPress={() => handleOAuthLogin('apple')}>
                 <View style={styles.loginBtnInnerApple}>
                   <Text style={styles.loginBtnTextApple}>Continue with Apple</Text>
                 </View>
