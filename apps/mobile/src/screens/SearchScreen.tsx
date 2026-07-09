@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder } from 'react-native';
 import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
@@ -24,7 +24,7 @@ const genres = [
   { title: '월드',          sub: 'World',       height: 130, img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop' },
 ];
 
-export const SearchScreen = ({ route }: any) => {
+export const SearchScreen = ({ route, navigation }: any) => {
   const initialQuery = route?.params?.initialQuery || '';
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<MockVinylData[]>([]);
@@ -34,6 +34,21 @@ export const SearchScreen = ({ route }: any) => {
   
   const searchIdRef = useRef(0);
   const sessionRef = useRef<DiscogsSearchSession | null>(null);
+
+  // Edge-swipe back: a rightward pan starting at the screen's left edge
+  // returns to the previously visited tab (backBehavior="history").
+  // Capture-phase check so taps and vertical scrolls are untouched.
+  const backGesture = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_evt, g) =>
+        g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
+      onPanResponderRelease: (_evt, g) => {
+        if (g.dx > 60 && navigation?.canGoBack()) {
+          navigation.goBack();
+        }
+      },
+    })
+  ).current;
   const loadingMoreRef = useRef(false);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -136,7 +151,7 @@ export const SearchScreen = ({ route }: any) => {
   const isEnriching = status === 'enriching';
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...backGesture.panHandlers}>
       <View style={styles.searchHero}>
         <View style={styles.searchInputContainer}>
           <TextInput 
