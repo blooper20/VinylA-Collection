@@ -326,7 +326,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           <Animated.View style={[styles.textAreaTop, { transform: [{ translateX: getTranslateX(2, 0.4) }] }]}>
             <Text style={styles.overline}>03 · UNLOCK YOUR VAULT</Text>
             <Text style={styles.headline}>
-              이제, 당신만의{'\n'}<Text style={styles.headlineAccent}>청음실</Text>을 열 차례
+              이제, 당신만의{'\n'}<Text style={styles.headlineAccent}>LP 전시실</Text>로 들어갈 차례
             </Text>
           </Animated.View>
 
@@ -337,8 +337,12 @@ export const OnboardingScreen = ({ navigation }: any) => {
                 style={styles.panelLogo}
                 resizeMode="contain"
               />
+              <View style={styles.panelTag}>
+                <Text style={styles.panelTagText}>VINYL + VANILLA</Text>
+              </View>
               <Text style={styles.panelTitle}>VinylA</Text>
-              <Text style={styles.panelSubtitle}>Vanilla + Vinyl, 순정 그대로의 컬렉션</Text>
+              <Text style={styles.panelCollection}>COLLECTION</Text>
+              <Text style={styles.panelSubtitle}>순정 그대로의 컬렉션</Text>
 
               <TouchableScale style={styles.loginBtn} onPress={handleGoogleLogin}>
                 <View style={styles.loginBtnInnerGoogle}>
@@ -679,18 +683,44 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     height: 92,
     marginBottom: 12,
   },
+  panelTag: {
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+    backgroundColor: 'rgba(212, 175, 55, 0.07)',
+    borderRadius: shape.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  panelTagText: {
+    fontFamily: 'Bodoni',
+    fontSize: 10,
+    color: themeColors.accent,
+    letterSpacing: 2.5,
+    // cancel letter-spacing's trailing gap so the text sits centered in the pill
+    marginRight: -2.5,
+  },
   panelTitle: {
     fontFamily: 'Bodoni',
     fontSize: 30,
     color: themeColors.textPrimary,
-    marginBottom: 6,
+    marginBottom: 2,
     letterSpacing: 2,
+  },
+  panelCollection: {
+    fontFamily: 'Bodoni',
+    fontSize: 12,
+    color: themeColors.accent,
+    letterSpacing: 6,
+    marginRight: -6,
+    marginBottom: 10,
+    opacity: 0.9,
   },
   panelSubtitle: {
     fontFamily: 'Pretendard',
-    fontSize: 14,
+    fontSize: 13,
     color: themeColors.textSecondary,
-    marginBottom: 32,
+    marginBottom: 30,
     letterSpacing: 0.5,
   },
   loginBtn: {
