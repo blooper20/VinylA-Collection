@@ -24,7 +24,7 @@ const genres = [
   { title: '월드',          sub: 'World',       height: 130, img: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop' },
 ];
 
-export const SearchScreen = ({ route, navigation }: any) => {
+export const SearchScreen = ({ route }: any) => {
   const initialQuery = route?.params?.initialQuery || '';
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<MockVinylData[]>([]);
@@ -35,23 +35,20 @@ export const SearchScreen = ({ route, navigation }: any) => {
   const searchIdRef = useRef(0);
   const sessionRef = useRef<DiscogsSearchSession | null>(null);
 
-  // Edge-swipe back: a rightward pan starting at the screen's left edge.
-  // With results showing it clears the search back to the genre-explore
-  // view; on the genre view it falls through to the previous tab.
+  // Edge-swipe back, active only while search results are showing:
+  // a rightward pan from the left edge clears the query, returning to
+  // the genre-explore view. On the genre view the gesture is inert.
   // Capture-phase check so taps and vertical scrolls are untouched.
   const queryRef = useRef(query);
   queryRef.current = query;
   const backGesture = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_evt, g) =>
-        g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
+        !!queryRef.current && g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
       onPanResponderRelease: (_evt, g) => {
-        if (g.dx <= 60) return;
-        if (queryRef.current) {
+        if (g.dx > 60 && queryRef.current) {
           Keyboard.dismiss();
           setQuery('');
-        } else if (navigation?.canGoBack()) {
-          navigation.goBack();
         }
       },
     })
