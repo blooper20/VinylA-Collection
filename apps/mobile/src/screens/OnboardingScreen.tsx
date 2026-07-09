@@ -53,6 +53,46 @@ const TouchableScale = ({ onPress, children, style }: any) => {
   );
 };
 
+// Five-petal vanilla blossom drawn with plain Views, echoing the flowers on the logo.
+const VanillaBlossom = ({ size, style }: { size: number; style?: any }) => (
+  <View style={[{ width: size, height: size }, style]} pointerEvents="none">
+    {[0, 1, 2, 3, 4].map((i) => (
+      <View
+        key={i}
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: size * 0.3,
+          height: size * 0.48,
+          marginLeft: -size * 0.15,
+          marginTop: -size * 0.48,
+          borderRadius: size * 0.15,
+          backgroundColor: '#EFE3C8',
+          borderWidth: 1,
+          borderColor: 'rgba(197, 160, 89, 0.9)',
+          transform: [{ rotate: `${i * 72}deg` }],
+          // pivot each petal around the flower's center (the petal's bottom tip)
+          transformOrigin: ['50%', size * 0.48, 0],
+        }}
+      />
+    ))}
+    <View
+      style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: size * 0.2,
+        height: size * 0.2,
+        marginLeft: -size * 0.1,
+        marginTop: -size * 0.1,
+        borderRadius: size * 0.1,
+        backgroundColor: '#C5A059',
+      }}
+    />
+  </View>
+);
+
 export const OnboardingScreen = ({ navigation }: any) => {
   const { themeColors, glassIntensity } = useTheme();
   const { showAlert } = useAlert();
@@ -235,12 +275,31 @@ export const OnboardingScreen = ({ navigation }: any) => {
 
           <Animated.View style={[styles.visualArea, { transform: [{ translateX: getTranslateX(0, 0.4) }] }]}>
             <View style={styles.vinylWrapper}>
-              {/* The 3D logo is itself a vinyl record — spin it as the hero visual */}
-              <Animated.Image
-                source={require('../../assets/3d_logo_transparent.png')}
-                style={[styles.vinylLogo, { transform: [{ rotate: spin }] }]}
-                resizeMode="contain"
-              />
+              <Animated.View style={[styles.vinylRecord, { transform: [{ rotate: spin }] }]}>
+                <View style={styles.vinylGroove1}>
+                  <View style={styles.vinylGroove2}>
+                    <View style={styles.vinylGroove3}>
+                      <LinearGradient colors={['#e6c96a', '#b8912e']} style={styles.vinylLabel}>
+                        <View style={styles.vinylHole} />
+                      </LinearGradient>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Vanilla blossoms resting on the disc, spinning with it */}
+                <VanillaBlossom size={52} style={styles.blossomLarge} />
+                <VanillaBlossom size={34} style={styles.blossomSmall} />
+              </Animated.View>
+
+              {/* Static light sheen — stays put while the record spins under it */}
+              <View style={styles.vinylSheenClip} pointerEvents="none">
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.12)', 'transparent']}
+                  start={{ x: 0.1, y: 0 }}
+                  end={{ x: 0.7, y: 0.8 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              </View>
 
               {/* Tonearm dropping onto the record */}
               <Animated.View
@@ -515,9 +574,71 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     shadowRadius: 56,
     elevation: 12,
   },
-  vinylLogo: {
+  vinylRecord: {
     width: '100%',
     height: '100%',
+    borderRadius: width,
+    backgroundColor: '#0d0d0d',
+    borderWidth: 2,
+    borderColor: 'rgba(197, 160, 89, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  vinylGroove1: {
+    width: '90%',
+    height: '90%',
+    borderRadius: width,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 160, 89, 0.14)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vinylGroove2: {
+    width: '84%',
+    height: '84%',
+    borderRadius: width,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 160, 89, 0.10)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vinylGroove3: {
+    width: '82%',
+    height: '82%',
+    borderRadius: width,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 160, 89, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vinylLabel: {
+    width: '46%',
+    height: '46%',
+    borderRadius: width,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vinylHole: {
+    width: '10%',
+    height: '10%',
+    borderRadius: width,
+    backgroundColor: '#000',
+  },
+  blossomLarge: {
+    position: 'absolute',
+    top: '13%',
+    left: '15%',
+  },
+  blossomSmall: {
+    position: 'absolute',
+    bottom: '17%',
+    left: '11%',
+  },
+  vinylSheenClip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: width,
+    overflow: 'hidden',
   },
   tonearm: {
     position: 'absolute',
