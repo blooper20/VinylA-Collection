@@ -14,6 +14,22 @@ import { useAlert } from '../providers/AlertProvider';
 WebBrowser.maybeCompleteAuthSession();
 
 const { width, height } = Dimensions.get('window');
+const RECORD_SIZE = width * 0.76;
+
+// Ring of engraved blossoms scattered between the label and the rim.
+// Alternating radius/size/tilt breaks the symmetry so the spin is visible.
+const BLOSSOM_PATTERN = Array.from({ length: 8 }).map((_, i) => {
+  const angleDeg = i * 45 + (i % 2 === 0 ? 0 : 14);
+  const angle = (angleDeg * Math.PI) / 180;
+  const radius = RECORD_SIZE * (i % 2 === 0 ? 0.4 : 0.31);
+  const size = i % 3 === 0 ? 26 : 19;
+  return {
+    size,
+    tilt: (i * 53) % 360,
+    left: RECORD_SIZE / 2 + Math.cos(angle) * radius - size / 2,
+    top: RECORD_SIZE / 2 + Math.sin(angle) * radius - size / 2,
+  };
+});
 
 // --- Custom TouchableScale Component ---
 const TouchableScale = ({ onPress, children, style }: any) => {
@@ -76,9 +92,9 @@ const VanillaBlossom = ({ size, style, opacity = 0.5 }: { size: number; style?: 
               marginTop: size * 0.03,
               borderRadius: p * 0.5,
               borderBottomRightRadius: 0,
-              backgroundColor: 'rgba(239, 227, 200, 0.07)',
+              backgroundColor: 'rgba(239, 227, 200, 0.05)',
               borderWidth: 1,
-              borderColor: 'rgba(197, 160, 89, 0.55)',
+              borderColor: 'rgba(197, 160, 89, 0.5)',
               transform: [{ rotate: '-135deg' }],
             }}
           />
@@ -121,7 +137,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
-        duration: 25000,
+        duration: 9000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
@@ -297,10 +313,20 @@ export const OnboardingScreen = ({ navigation }: any) => {
                   </View>
                 </View>
 
-                {/* Vanilla blossoms engraved on the disc, spinning with it */}
-                <VanillaBlossom size={56} style={styles.blossomLarge} opacity={0.55} />
-                <VanillaBlossom size={36} style={styles.blossomSmall} opacity={0.45} />
-                <VanillaBlossom size={26} style={styles.blossomTiny} opacity={0.35} />
+                {/* Faint blossom pattern engraved across the disc, spinning with it */}
+                {BLOSSOM_PATTERN.map((b, i) => (
+                  <VanillaBlossom
+                    key={i}
+                    size={b.size}
+                    opacity={0.3}
+                    style={{
+                      position: 'absolute',
+                      left: b.left,
+                      top: b.top,
+                      transform: [{ rotate: `${b.tilt}deg` }],
+                    }}
+                  />
+                ))}
               </Animated.View>
 
               {/* Static light sheen — stays put while the record spins under it */}
@@ -576,8 +602,8 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   // --- Step 1 ---
   vinylWrapper: {
-    width: width * 0.76,
-    height: width * 0.76,
+    width: RECORD_SIZE,
+    height: RECORD_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#d4af37',
@@ -589,13 +615,12 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   vinylRecord: {
     width: '100%',
     height: '100%',
-    borderRadius: width,
+    borderRadius: RECORD_SIZE / 2,
     backgroundColor: '#0d0d0d',
     borderWidth: 2,
     borderColor: 'rgba(197, 160, 89, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
   },
   vinylGroove1: {
     width: '90%',
@@ -636,21 +661,6 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     height: '10%',
     borderRadius: width,
     backgroundColor: '#000',
-  },
-  blossomLarge: {
-    position: 'absolute',
-    top: '13%',
-    left: '15%',
-  },
-  blossomSmall: {
-    position: 'absolute',
-    bottom: '17%',
-    left: '11%',
-  },
-  blossomTiny: {
-    position: 'absolute',
-    bottom: '22%',
-    right: '18%',
   },
   vinylSheenClip: {
     ...StyleSheet.absoluteFillObject,
