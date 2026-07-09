@@ -235,26 +235,12 @@ export const OnboardingScreen = ({ navigation }: any) => {
 
           <Animated.View style={[styles.visualArea, { transform: [{ translateX: getTranslateX(0, 0.4) }] }]}>
             <View style={styles.vinylWrapper}>
-              <Animated.View style={[styles.vinylRecord, { transform: [{ rotate: spin }] }]}>
-                <View style={styles.vinylGroove1}>
-                  <View style={styles.vinylGroove2}>
-                    <View style={styles.vinylGroove3}>
-                      <LinearGradient colors={['#e6c96a', '#b8912e']} style={styles.vinylLabel}>
-                        <View style={styles.vinylHole} />
-                      </LinearGradient>
-                    </View>
-                  </View>
-                </View>
-              </Animated.View>
-              {/* Static light sheen — stays put while the record spins under it */}
-              <View style={styles.vinylSheenClip} pointerEvents="none">
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.12)', 'transparent']}
-                  start={{ x: 0.1, y: 0 }}
-                  end={{ x: 0.7, y: 0.8 }}
-                  style={StyleSheet.absoluteFillObject}
-                />
-              </View>
+              {/* The 3D logo is itself a vinyl record — spin it as the hero visual */}
+              <Animated.Image
+                source={require('../../assets/3d_logo_transparent.png')}
+                style={[styles.vinylLogo, { transform: [{ rotate: spin }] }]}
+                resizeMode="contain"
+              />
 
               {/* Tonearm dropping onto the record */}
               <Animated.View
@@ -519,8 +505,8 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   // --- Step 1 ---
   vinylWrapper: {
-    width: width * 0.72,
-    height: width * 0.72,
+    width: width * 0.76,
+    height: width * 0.76,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#d4af37',
@@ -529,60 +515,9 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     shadowRadius: 56,
     elevation: 12,
   },
-  vinylRecord: {
+  vinylLogo: {
     width: '100%',
     height: '100%',
-    borderRadius: width,
-    backgroundColor: '#0d0d0d',
-    borderWidth: 1,
-    borderColor: '#232323',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vinylGroove1: {
-    width: '88%',
-    height: '88%',
-    borderRadius: width,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vinylGroove2: {
-    width: '84%',
-    height: '84%',
-    borderRadius: width,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.04)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vinylGroove3: {
-    width: '80%',
-    height: '80%',
-    borderRadius: width,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.04)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vinylLabel: {
-    width: '56%',
-    height: '56%',
-    borderRadius: width,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vinylHole: {
-    width: '10%',
-    height: '10%',
-    borderRadius: width,
-    backgroundColor: '#000',
-  },
-  vinylSheenClip: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: width,
-    overflow: 'hidden',
   },
   tonearm: {
     position: 'absolute',
