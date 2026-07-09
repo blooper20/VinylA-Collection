@@ -38,3 +38,63 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public."USER_VINYL";
 -- Run this manually in the Supabase SQL Editor: the column was missing, which
 -- caused createAlbumMaster() to strip MARKET_PRICE from every save (PGRST204).
 ALTER TABLE public."ALBUM_MASTER" ADD COLUMN IF NOT EXISTS "MARKET_PRICE" integer;
+
+-- ============================================================
+-- Row Level Security (RLS)
+-- Run this manually in the Supabase SQL Editor.
+--
+-- Access model:
+--   * Anyone (including logged-out visitors) can READ everything —
+--     public dashboards (/user/[id]) must render collections for
+--     non-members.
+--   * Only authenticated users can WRITE, and USER_VINYL/PROFILES
+--     rows can only be written by their owner (auth.uid()).
+--   * ALBUM_MASTER/VINYL_TAG are shared master data: any signed-in
+--     user may insert/update (scan & search flows create these),
+--     but anonymous clients may not.
+-- ============================================================
+
+-- ALBUM_MASTER: public read / authenticated write / no delete
+ALTER TABLE public."ALBUM_MASTER" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "album_master_read_all"    ON public."ALBUM_MASTER";
+DROP POLICY IF EXISTS "album_master_insert_auth" ON public."ALBUM_MASTER";
+DROP POLICY IF EXISTS "album_master_update_auth" ON public."ALBUM_MASTER";
+CREATE POLICY "album_master_read_all"    ON public."ALBUM_MASTER" FOR SELECT USING (true);
+CREATE POLICY "album_master_insert_auth" ON public."ALBUM_MASTER" FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "album_master_update_auth" ON public."ALBUM_MASTER" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+-- VINYL_TAG: public read / authenticated write (rewritten alongside ALBUM_MASTER)
+ALTER TABLE public."VINYL_TAG" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "vinyl_tag_read_all"    ON public."VINYL_TAG";
+DROP POLICY IF EXISTS "vinyl_tag_insert_auth" ON public."VINYL_TAG";
+DROP POLICY IF EXISTS "vinyl_tag_delete_auth" ON public."VINYL_TAG";
+CREATE POLICY "vinyl_tag_read_all"    ON public."VINYL_TAG" FOR SELECT USING (true);
+CREATE POLICY "vinyl_tag_insert_auth" ON public."VINYL_TAG" FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "vinyl_tag_delete_auth" ON public."VINYL_TAG" FOR DELETE TO authenticated USING (true);
+
+-- USER_VINYL: public read / owner-only write
+ALTER TABLE public."USER_VINYL" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "user_vinyl_read_all"     ON public."USER_VINYL";
+DROP POLICY IF EXISTS "user_vinyl_insert_own"   ON public."USER_VINYL";
+DROP POLICY IF EXISTS "user_vinyl_update_own"   ON public."USER_VINYL";
+DROP POLICY IF EXISTS "user_vinyl_delete_own"   ON public."USER_VINYL";
+CREATE POLICY "user_vinyl_read_all"   ON public."USER_VINYL" FOR SELECT USING (true);
+CREATE POLICY "user_vinyl_insert_own" ON public."USER_VINYL" FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid())::text = "USER_ID"::text);
+CREATE POLICY "user_vinyl_update_own" ON public."USER_VINYL" FOR UPDATE TO authenticated
+  USING ((select auth.uid())::text = "USER_ID"::text)
+  WITH CHECK ((select auth.uid())::text = "USER_ID"::text);
+CREATE POLICY "user_vinyl_delete_own" ON public."USER_VINYL" FOR DELETE TO authenticated
+  USING ((select auth.uid())::text = "USER_ID"::text);
+
+-- PROFILES: public read (nickname display) / owner-only write
+ALTER TABLE public."PROFILES" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "profiles_read_all"   ON public."PROFILES";
+DROP POLICY IF EXISTS "profiles_insert_own" ON public."PROFILES";
+DROP POLICY IF EXISTS "profiles_update_own" ON public."PROFILES";
+CREATE POLICY "profiles_read_all"   ON public."PROFILES" FOR SELECT USING (true);
+CREATE POLICY "profiles_insert_own" ON public."PROFILES" FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid())::text = "USER_ID"::text);
+CREATE POLICY "profiles_update_own" ON public."PROFILES" FOR UPDATE TO authenticated
+  USING ((select auth.uid())::text = "USER_ID"::text)
+  WITH CHECK ((select auth.uid())::text = "USER_ID"::text);
