@@ -6,6 +6,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { signInWithGoogle, useAuthStore, supabase } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useAlert } from '../providers/AlertProvider';
@@ -60,7 +61,9 @@ export const OnboardingScreen = ({ navigation }: any) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
-  
+  const scanAnim = useRef(new Animated.Value(0)).current;
+  const scrollRef = useRef<any>(null);
+
   // Continuous Rotation for Step 1
   useEffect(() => {
     Animated.loop(
@@ -73,9 +76,24 @@ export const OnboardingScreen = ({ navigation }: any) => {
     ).start();
   }, []);
 
+  // Scan line sweep for Step 2
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(scanAnim, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg']
+  });
+
+  const scanTranslate = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-96, 96],
   });
 
   const handleScroll = Animated.event(
@@ -90,6 +108,10 @@ export const OnboardingScreen = ({ navigation }: any) => {
     }}
   );
 
+  const goNext = () => {
+    scrollRef.current?.scrollTo({ x: Math.min(currentIndex + 1, 2) * width, animated: true });
+  };
+
   const handleGoogleLogin = async () => {
     try {
       const redirectUri = makeRedirectUri({
@@ -97,30 +119,30 @@ export const OnboardingScreen = ({ navigation }: any) => {
         // removed path to keep the URI as simple as possible (e.g. exp://192.168.1.3:8081)
       });
       console.log('Redirect URI:', redirectUri);
-      
+
       const data = await signInWithGoogle(redirectUri);
-      
+
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri, { showInRecents: true });
-        
+
         if (result.type === 'success' && result.url) {
           if (result.url.includes('error=')) {
             showAlert('OAuth Error', decodeURIComponent(result.url));
             return;
           }
-          
+
           const extractParam = (url: string, param: string) => {
             const regex = new RegExp(`[?&#]${param}=([^&#]*)`);
             const match = regex.exec(url);
             return match ? decodeURIComponent(match[1]) : null;
           };
-          
+
           const access_token = extractParam(result.url, 'access_token');
           const refresh_token = extractParam(result.url, 'refresh_token');
           const code = extractParam(result.url, 'code');
-          
+
           let sessionError = null;
-          
+
           if (access_token && refresh_token) {
             const { error } = await supabase.auth.setSession({ access_token, refresh_token });
             sessionError = error;
@@ -130,7 +152,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           } else {
             sessionError = new Error('No valid authentication tokens found in the redirect URL.');
           }
-          
+
           if (sessionError) {
             showAlert('Session Error', sessionError.message);
           } else {
@@ -153,18 +175,22 @@ export const OnboardingScreen = ({ navigation }: any) => {
     });
   };
 
+  // The gold "next" button fades away as the last page (login) approaches.
+  const nextBtnOpacity = scrollX.interpolate({
+    inputRange: [width, width * 2],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   return (
     <View style={styles.container}>
-      {/* Absolute Dark Background */}
-      <View style={StyleSheet.absoluteFillObject} backgroundColor={themeColors.background} />
-      
-      {/* Subtle Background Gradient */}
+      {/* Ambient gold wash */}
       <LinearGradient
-        colors={['rgba(212, 175, 55, 0.15)', 'transparent']}
-        style={[StyleSheet.absoluteFillObject, { height: '60%' }]}
+        colors={['rgba(212, 175, 55, 0.10)', 'transparent']}
+        style={[StyleSheet.absoluteFillObject, { height: '55%' }]}
       />
 
-      {/* Persistent brand mark — visible across every step, not just the login page */}
+      {/* Persistent brand mark */}
       <View style={[styles.brandBar, { top: insets.top + 14 }]} pointerEvents="none">
         <Image
           source={require('../../assets/3d_logo_transparent.png')}
@@ -175,6 +201,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
       </View>
 
       <Animated.ScrollView
+        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -182,79 +209,101 @@ export const OnboardingScreen = ({ navigation }: any) => {
         scrollEventThrottle={16}
         bounces={false}
       >
-        {/* Step 1: The Pure Archive */}
+        {/* Step 1: The Archive */}
         <View style={styles.page}>
+          <Text style={styles.ghostNumber}>01</Text>
+
           <Animated.View style={[styles.visualArea, { transform: [{ translateX: getTranslateX(0, 0.4) }] }]}>
             <View style={styles.vinylWrapper}>
               <Animated.View style={[styles.vinylRecord, { transform: [{ rotate: spin }] }]}>
                 <View style={styles.vinylGroove1}>
                   <View style={styles.vinylGroove2}>
-                    <View style={styles.vinylLabel}>
-                      <View style={styles.vinylHole} />
+                    <View style={styles.vinylGroove3}>
+                      <LinearGradient colors={['#e6c96a', '#b8912e']} style={styles.vinylLabel}>
+                        <View style={styles.vinylHole} />
+                      </LinearGradient>
                     </View>
                   </View>
                 </View>
               </Animated.View>
-              
-              <View style={styles.albumCover}>
+              {/* Static light sheen — stays put while the record spins under it */}
+              <View style={styles.vinylSheenClip} pointerEvents="none">
                 <LinearGradient
-                  colors={['rgba(255,255,255,0.2)', 'transparent', 'rgba(255,255,255,0.05)']}
+                  colors={['rgba(255,255,255,0.12)', 'transparent']}
+                  start={{ x: 0.1, y: 0 }}
+                  end={{ x: 0.7, y: 0.8 }}
                   style={StyleSheet.absoluteFillObject}
-                />
-                <Image
-                  source={require('../../assets/3d_logo_transparent.png')}
-                  style={styles.coverLogo}
-                  resizeMode="contain"
                 />
               </View>
             </View>
           </Animated.View>
+
           <Animated.View style={[styles.textArea, { transform: [{ translateX: getTranslateX(0, 0.6) }] }]}>
-            <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>THE PURE</Text>
-            <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>ARCHIVE</Text>
-            <Text style={styles.description}>노이즈 없는 당신만의 프라이빗 박물관</Text>
-            <Text style={styles.subDescription}>오직 순정 아이템으로 채워가는 아카이빙</Text>
+            <Text style={styles.overline}>01 · THE ARCHIVE</Text>
+            <Text style={styles.headline}>
+              오직 레코드만을 위한{'\n'}프라이빗 <Text style={styles.headlineAccent}>뮤지엄</Text>
+            </Text>
+            <Text style={styles.subCopy}>노이즈 없이, 순정 아이템으로만{'\n'}채워가는 나만의 아카이브</Text>
           </Animated.View>
         </View>
 
-        {/* Step 2: Instant Assetization */}
+        {/* Step 2: One Scan */}
         <View style={styles.page}>
+          <Text style={styles.ghostNumber}>02</Text>
+
           <Animated.View style={[styles.visualArea, { transform: [{ translateX: getTranslateX(1, 0.4) }] }]}>
             <View style={styles.scanViewfinder}>
               <View style={[styles.corner, styles.topLeft]} />
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
-              
-              <View style={styles.floatingScanBtn}>
-                <Text style={styles.scanBtnIcon}>📷</Text>
-              </View>
+
+              {/* The "subject" being scanned */}
+              <Image
+                source={require('../../assets/3d_logo_transparent.png')}
+                style={styles.scanSubject}
+                resizeMode="contain"
+              />
+
+              {/* Sweeping scan line */}
+              <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanTranslate }] }]}>
+                <LinearGradient
+                  colors={['transparent', 'rgba(233,195,73,0.9)', 'transparent']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ flex: 1 }}
+                />
+              </Animated.View>
             </View>
           </Animated.View>
+
           <Animated.View style={[styles.textArea, { transform: [{ translateX: getTranslateX(1, 0.6) }] }]}>
-            <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>INSTANT</Text>
-            <Text style={styles.title} adjustsFontSizeToFit numberOfLines={1}>ASSETIZATION</Text>
-            <Text style={styles.description}>스캔 한 번으로 시작되는 컬렉션</Text>
-            <Text style={styles.subDescription}>실물 LP를 가장 완벽하게 디지털 자산화하세요</Text>
+            <Text style={styles.overline}>02 · ONE SCAN</Text>
+            <Text style={styles.headline}>
+              스캔 한 번으로{'\n'}시작되는 <Text style={styles.headlineAccent}>컬렉션</Text>
+            </Text>
+            <Text style={styles.subCopy}>실물 LP를 가장 우아하게{'\n'}디지털 자산으로 옮기는 방법</Text>
           </Animated.View>
         </View>
 
-        {/* Step 3: Unlock Your Vault */}
+        {/* Step 3: Your Vault */}
         <View style={styles.page}>
+          <Text style={styles.ghostNumber}>03</Text>
+
           <Animated.View style={[styles.textAreaTop, { transform: [{ translateX: getTranslateX(2, 0.4) }] }]}>
-            <Text style={styles.title3}>UNLOCK</Text>
-            <Text style={styles.title3}>YOUR VAULT</Text>
+            <Text style={styles.overline}>03 · YOUR VAULT</Text>
+            <Text style={styles.headline}>
+              이제, 당신의{'\n'}<Text style={styles.headlineAccent}>볼트</Text>를 열 차례
+            </Text>
           </Animated.View>
-          
+
           <Animated.View style={[styles.visualAreaBottom, { transform: [{ translateX: getTranslateX(2, 0.6) }] }]}>
             <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.loginPanel}>
-              <View style={styles.panelLogoWrapper}>
-                <Image
-                  source={require('../../assets/3d_logo_transparent.png')}
-                  style={styles.panelLogo}
-                  resizeMode="contain"
-                />
-              </View>
+              <Image
+                source={require('../../assets/3d_logo_transparent.png')}
+                style={styles.panelLogo}
+                resizeMode="contain"
+              />
               <Text style={styles.panelTitle}>VinylA</Text>
               <Text style={styles.panelSubtitle}>프리미엄 컬렉터의 세계로</Text>
 
@@ -263,7 +312,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
                   <Text style={styles.loginBtnTextGoogle}>Continue with Google</Text>
                 </View>
               </TouchableScale>
-              
+
               <TouchableScale style={[styles.loginBtn, { marginTop: 12 }]} onPress={() => {}}>
                 <View style={styles.loginBtnInnerApple}>
                   <Text style={styles.loginBtnTextApple}>Continue with Apple</Text>
@@ -275,26 +324,37 @@ export const OnboardingScreen = ({ navigation }: any) => {
 
       </Animated.ScrollView>
 
-      {/* Pagination */}
-      <View style={styles.pagination}>
-        {[0, 1, 2].map((i) => {
-          const opacity = scrollX.interpolate({
-            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp',
-          });
-          const dotWidth = scrollX.interpolate({
-            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-            outputRange: [6, 20, 6],
-            extrapolate: 'clamp',
-          });
-          return (
-            <Animated.View 
-              key={i} 
-              style={[styles.dot, { opacity, width: dotWidth }]} 
-            />
-          );
-        })}
+      {/* Pinned bottom bar: pagination left, next button right */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={styles.pagination}>
+          {[0, 1, 2].map((i) => {
+            const opacity = scrollX.interpolate({
+              inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+              outputRange: [0.25, 1, 0.25],
+              extrapolate: 'clamp',
+            });
+            const dotWidth = scrollX.interpolate({
+              inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+              outputRange: [6, 22, 6],
+              extrapolate: 'clamp',
+            });
+            return (
+              <Animated.View
+                key={i}
+                style={[styles.dot, { opacity, width: dotWidth }]}
+              />
+            );
+          })}
+        </View>
+
+        <Animated.View
+          style={{ opacity: nextBtnOpacity }}
+          pointerEvents={currentIndex === 2 ? 'none' : 'auto'}
+        >
+          <TouchableOpacity style={styles.nextBtn} onPress={goNext} activeOpacity={0.85}>
+            <Feather name="arrow-right" size={20} color="#0a0a0a" />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </View>
   );
@@ -330,147 +390,161 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     letterSpacing: 4,
     opacity: 0.8,
   },
+  ghostNumber: {
+    position: 'absolute',
+    top: height * 0.09,
+    right: 16,
+    fontFamily: 'Bodoni',
+    fontSize: 150,
+    lineHeight: 150,
+    color: 'rgba(212, 175, 55, 0.07)',
+  },
   visualArea: {
     flex: 1.1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: height * 0.05,
+    paddingTop: height * 0.06,
   },
   textArea: {
     flex: 0.9,
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 20,
+    alignItems: 'flex-start',
+    paddingHorizontal: 32,
+    paddingTop: 24,
   },
   textAreaTop: {
-    flex: 0.9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingTop: height * 0.05,
+    flex: 0.8,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    paddingHorizontal: 32,
+    paddingBottom: 12,
   },
   visualAreaBottom: {
-    flex: 1.1,
+    flex: 1.2,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 20,
+    justifyContent: 'center',
+    paddingBottom: height * 0.06,
   },
-  title: {
+  overline: {
     fontFamily: 'Bodoni',
-    fontSize: 36,
+    fontSize: 12,
     color: themeColors.accent,
-    textAlign: 'center',
-    letterSpacing: 2,
-    lineHeight: 44,
+    letterSpacing: 3.5,
+    marginBottom: 14,
   },
-  title3: {
-    fontFamily: 'Bodoni',
-    fontSize: 42,
-    color: themeColors.accent,
-    textAlign: 'center',
-    letterSpacing: 2,
-    lineHeight: 50,
-  },
-  description: {
+  headline: {
     fontFamily: 'Pretendard',
-    fontSize: 15,
+    fontSize: 27,
+    fontWeight: '800',
     color: themeColors.textPrimary,
-    textAlign: 'center',
-    marginTop: 24,
-    marginBottom: 8,
-    fontWeight: '400',
-    letterSpacing: 0.5,
+    lineHeight: 38,
+    letterSpacing: -0.5,
   },
-  subDescription: {
+  headlineAccent: {
+    color: themeColors.accent,
+  },
+  subCopy: {
     fontFamily: 'Pretendard',
-    fontSize: 13,
+    fontSize: 14,
     color: themeColors.textSecondary,
-    textAlign: 'center',
-    letterSpacing: 0.3,
+    lineHeight: 22,
+    marginTop: 14,
+    letterSpacing: 0.2,
+  },
+  // --- Pinned bottom bar ---
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 32,
+    right: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   pagination: {
-    position: 'absolute',
-    bottom: height * 0.06,
     flexDirection: 'row',
-    alignSelf: 'center',
     alignItems: 'center',
   },
   dot: {
     height: 4,
     borderRadius: 2,
     backgroundColor: themeColors.accent,
-    marginHorizontal: 4,
+    marginRight: 8,
+  },
+  nextBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: themeColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.glow,
   },
   // --- Step 1 ---
   vinylWrapper: {
-    width: width * 0.75,
-    height: width * 0.75,
+    width: width * 0.72,
+    height: width * 0.72,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  albumCover: {
-    position: 'absolute',
-    left: 0,
-    width: '75%',
-    height: '100%',
-    backgroundColor: '#111',
-    borderRadius: shape.sm,
-    ...shadows.strong,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: themeColors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  coverLogo: {
-    width: '62%',
-    height: '62%',
+    shadowColor: '#d4af37',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 56,
+    elevation: 12,
   },
   vinylRecord: {
-    position: 'absolute',
-    right: 0,
-    width: '85%',
-    height: '85%',
+    width: '100%',
+    height: '100%',
     borderRadius: width,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 2,
-    borderColor: '#1a1a1a',
-    ...shadows.medium,
+    backgroundColor: '#0d0d0d',
+    borderWidth: 1,
+    borderColor: '#232323',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
   },
   vinylGroove1: {
-    width: '85%',
-    height: '85%',
+    width: '88%',
+    height: '88%',
     borderRadius: width,
     borderWidth: 1,
-    borderColor: '#111',
+    borderColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   vinylGroove2: {
-    width: '70%',
-    height: '70%',
+    width: '84%',
+    height: '84%',
     borderRadius: width,
     borderWidth: 1,
-    borderColor: '#151515',
+    borderColor: 'rgba(255,255,255,0.04)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vinylGroove3: {
+    width: '80%',
+    height: '80%',
+    borderRadius: width,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   vinylLabel: {
-    width: '35%',
-    height: '35%',
+    width: '56%',
+    height: '56%',
     borderRadius: width,
-    backgroundColor: themeColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   vinylHole: {
-    width: '15%',
-    height: '15%',
+    width: '10%',
+    height: '10%',
     borderRadius: width,
     backgroundColor: '#000',
+  },
+  vinylSheenClip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: width,
+    overflow: 'hidden',
   },
   // --- Step 2 ---
   scanViewfinder: {
@@ -481,34 +555,31 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   corner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
+    width: 34,
+    height: 34,
     borderColor: themeColors.accent,
   },
-  topLeft: { top: 0, left: 0, borderTopWidth: 1, borderLeftWidth: 1 },
-  topRight: { top: 0, right: 0, borderTopWidth: 1, borderRightWidth: 1 },
-  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 1, borderLeftWidth: 1 },
-  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 1, borderRightWidth: 1 },
-  floatingScanBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(197, 160, 89, 0.05)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: themeColors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.glow,
+  topLeft: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 10 },
+  topRight: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 10 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 10 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 10 },
+  scanSubject: {
+    width: 130,
+    height: 130,
+    opacity: 0.85,
   },
-  scanBtnIcon: {
-    fontSize: 24,
+  scanLine: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    height: 2,
   },
   // --- Step 3 ---
   loginPanel: {
-    width: width * 0.85,
-    paddingVertical: 40,
+    width: width * 0.86,
+    paddingVertical: 36,
     paddingHorizontal: 24,
-    borderRadius: shape.lg,
+    borderRadius: 28,
     backgroundColor: 'rgba(20, 20, 20, 0.4)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: themeColors.border,
@@ -516,25 +587,14 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     overflow: 'hidden',
     ...shadows.glow,
   },
-  panelLogoWrapper: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: 'rgba(212, 175, 55, 0.08)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: themeColors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 18,
-    ...shadows.glow,
-  },
   panelLogo: {
-    width: '68%',
-    height: '68%',
+    width: 92,
+    height: 92,
+    marginBottom: 12,
   },
   panelTitle: {
     fontFamily: 'Bodoni',
-    fontSize: 32,
+    fontSize: 30,
     color: themeColors.textPrimary,
     marginBottom: 6,
     letterSpacing: 2,
@@ -543,7 +603,7 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     fontFamily: 'Pretendard',
     fontSize: 14,
     color: themeColors.textSecondary,
-    marginBottom: 40,
+    marginBottom: 32,
     letterSpacing: 0.5,
   },
   loginBtn: {
