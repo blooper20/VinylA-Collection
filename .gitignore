@@ -428,3 +428,5 @@ FodyWeavers.xsd
 *.msm
 *.msp
 .env.local
+.vercel
+.env*
