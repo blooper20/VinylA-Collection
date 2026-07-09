@@ -217,7 +217,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           style={styles.brandBarLogo}
           resizeMode="contain"
         />
-        <Text style={styles.brandBarText}>VINYLA</Text>
+        <Text style={styles.brandBarText}>VinylA Collection</Text>
       </View>
 
       <Animated.ScrollView
@@ -341,7 +341,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
                 <Text style={styles.panelTagText}>VINYL + VANILLA</Text>
               </View>
               <Text style={styles.panelTitle}>VinylA</Text>
-              <Text style={styles.panelCollection}>COLLECTION</Text>
+              <Text style={styles.panelCollection}>Collection</Text>
               <Text style={styles.panelSubtitle}>순정 그대로의 컬렉션</Text>
 
               <TouchableScale style={styles.loginBtn} onPress={handleGoogleLogin}>
@@ -424,7 +424,8 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     fontFamily: 'Bodoni',
     fontSize: 14,
     color: themeColors.textSecondary,
-    letterSpacing: 4,
+    letterSpacing: 2,
+    marginRight: -2,
     opacity: 0.8,
   },
   ghostNumber: {
