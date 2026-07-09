@@ -7,7 +7,7 @@ interface AuthState {
   setUser: (user: any | null) => void;
   initializeAuth: () => Promise<void>;
   updateProfile: (displayName: string, interests: string[], avatarUrl?: string) => Promise<void>;
-  updateProfileWithAvatarFile: (displayName: string, interests: string[], file?: File) => Promise<void>;
+  updateProfileWithAvatarFile: (displayName: string, interests: string[], file?: File | null, removeAvatar?: boolean) => Promise<void>;
   updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
   updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
   updateSelectedBadge: (badgeId: string | null) => Promise<void>;

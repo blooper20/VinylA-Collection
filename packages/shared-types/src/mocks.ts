@@ -1,6 +1,8 @@
 import { ALBUM_MASTER, USER_VINYL } from './db';
 
-export type MockVinylData = ALBUM_MASTER & USER_VINYL;
+// USER_VINYL side is partial: search results and scan candidates are albums
+// the user doesn't own yet, so ownership fields may be absent.
+export type MockVinylData = ALBUM_MASTER & Partial<USER_VINYL>;
 
 export const mockVinyls: MockVinylData[] = [
   {
