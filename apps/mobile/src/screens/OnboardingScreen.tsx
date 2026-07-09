@@ -53,45 +53,56 @@ const TouchableScale = ({ onPress, children, style }: any) => {
   );
 };
 
-// Five-petal vanilla blossom drawn with plain Views, echoing the flowers on the logo.
-const VanillaBlossom = ({ size, style }: { size: number; style?: any }) => (
-  <View style={[{ width: size, height: size }, style]} pointerEvents="none">
-    {[0, 1, 2, 3, 4].map((i) => (
+// Vanilla-orchid blossom drawn with plain Views: five pointed teardrop
+// petals around a hollow gold cup, rendered as faint gold linework so it
+// reads like an engraving on the vinyl surface rather than a sticker.
+const VanillaBlossom = ({ size, style, opacity = 0.5 }: { size: number; style?: any; opacity?: number }) => {
+  const p = size * 0.4; // petal bounding square
+  return (
+    <View style={[{ width: size, height: size, opacity }, style]} pointerEvents="none">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <View
+          key={i}
+          style={[
+            StyleSheet.absoluteFillObject,
+            { alignItems: 'center', transform: [{ rotate: `${i * 72}deg` }] },
+          ]}
+        >
+          {/* teardrop: fully rounded except one corner → pointed tip, aimed outward */}
+          <View
+            style={{
+              width: p,
+              height: p,
+              marginTop: size * 0.03,
+              borderRadius: p * 0.5,
+              borderBottomRightRadius: 0,
+              backgroundColor: 'rgba(239, 227, 200, 0.07)',
+              borderWidth: 1,
+              borderColor: 'rgba(197, 160, 89, 0.55)',
+              transform: [{ rotate: '-135deg' }],
+            }}
+          />
+        </View>
+      ))}
+      {/* hollow trumpet cup at the center */}
       <View
-        key={i}
         style={{
           position: 'absolute',
           left: '50%',
           top: '50%',
-          width: size * 0.3,
-          height: size * 0.48,
-          marginLeft: -size * 0.15,
-          marginTop: -size * 0.48,
-          borderRadius: size * 0.15,
-          backgroundColor: '#EFE3C8',
+          width: size * 0.22,
+          height: size * 0.22,
+          marginLeft: -size * 0.11,
+          marginTop: -size * 0.11,
+          borderRadius: size * 0.11,
           borderWidth: 1,
-          borderColor: 'rgba(197, 160, 89, 0.9)',
-          transform: [{ rotate: `${i * 72}deg` }],
-          // pivot each petal around the flower's center (the petal's bottom tip)
-          transformOrigin: ['50%', size * 0.48, 0],
+          borderColor: 'rgba(197, 160, 89, 0.65)',
+          backgroundColor: 'rgba(197, 160, 89, 0.12)',
         }}
       />
-    ))}
-    <View
-      style={{
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        width: size * 0.2,
-        height: size * 0.2,
-        marginLeft: -size * 0.1,
-        marginTop: -size * 0.1,
-        borderRadius: size * 0.1,
-        backgroundColor: '#C5A059',
-      }}
-    />
-  </View>
-);
+    </View>
+  );
+};
 
 export const OnboardingScreen = ({ navigation }: any) => {
   const { themeColors, glassIntensity } = useTheme();
@@ -286,9 +297,10 @@ export const OnboardingScreen = ({ navigation }: any) => {
                   </View>
                 </View>
 
-                {/* Vanilla blossoms resting on the disc, spinning with it */}
-                <VanillaBlossom size={52} style={styles.blossomLarge} />
-                <VanillaBlossom size={34} style={styles.blossomSmall} />
+                {/* Vanilla blossoms engraved on the disc, spinning with it */}
+                <VanillaBlossom size={56} style={styles.blossomLarge} opacity={0.55} />
+                <VanillaBlossom size={36} style={styles.blossomSmall} opacity={0.45} />
+                <VanillaBlossom size={26} style={styles.blossomTiny} opacity={0.35} />
               </Animated.View>
 
               {/* Static light sheen — stays put while the record spins under it */}
@@ -634,6 +646,11 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     position: 'absolute',
     bottom: '17%',
     left: '11%',
+  },
+  blossomTiny: {
+    position: 'absolute',
+    bottom: '22%',
+    right: '18%',
   },
   vinylSheenClip: {
     ...StyleSheet.absoluteFillObject,
