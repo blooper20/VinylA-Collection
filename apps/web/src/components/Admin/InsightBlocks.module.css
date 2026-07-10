@@ -135,6 +135,46 @@
   color: var(--text-faint);
 }
 
+/* ── 최근 스캔 실패 로그 ───────────────── */
+.failList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.failRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.failRow:last-child {
+  border-bottom: none;
+}
+
+.failLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e66767;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.failTime {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── 인기 앨범 TOP ────────────────────── */
 .topAlbums {
   list-style: none;

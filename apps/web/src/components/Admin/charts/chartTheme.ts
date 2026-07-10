@@ -2,32 +2,8 @@
 // Validated with the dataviz palette validator: lightness band, chroma
 // floor, adjacent-pair CVD separation, contrast — all PASS.
 //
-// Rules:
-//  * Categorical hues are assigned in FIXED order per entity (event type),
-//    never cycled or re-assigned when a filter changes the series count.
-//  * The brand gold (#e9c349) fails the multi-series lightness band —
-//    it is reserved for single-series emphasis (signup area chart) only.
-
-export const CATEGORICAL = ['#3987e5', '#199e70', '#c98500', '#9085e9', '#e66767', '#d55181'];
-
-// Fixed entity→color mapping for event types (stable across filters)
-export const EVENT_COLOR: Record<string, string> = {
-  LOGIN: '#3987e5',
-  SEARCH: '#199e70',
-  SCAN: '#c98500',
-  ALBUM_ADD: '#9085e9',
-  WISH_ADD: '#e66767',
-  SHARE: '#d55181',
-};
-
-export const EVENT_LABEL: Record<string, string> = {
-  LOGIN: '로그인',
-  SEARCH: '검색',
-  SCAN: '스캔',
-  ALBUM_ADD: '앨범 등록',
-  WISH_ADD: '위시 추가',
-  SHARE: '공유',
-};
+// The brand gold (#e9c349) fails the multi-series lightness band —
+// it is reserved for single-series emphasis (signup area chart) only.
 
 // Single-series emphasis (brand gold) — signup trend only
 export const ACCENT_LINE = '#e9c349';

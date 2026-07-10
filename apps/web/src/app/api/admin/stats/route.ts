@@ -76,13 +76,6 @@ type EventRow = {
   META: Record<string, any> | null;
 };
 type VinylRow = { USER_ID: string; ALBUM_ID: number; STATUS: string; PURCHASE_PRICE: number | null };
-type InquiryRow = {
-  INQUIRY_ID: number;
-  CATEGORY: string;
-  STATUS: string;
-  CREATED_AT: string;
-  INQUIRY_REPLY: { IS_ADMIN: boolean; CREATED_AT: string }[];
-};
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
@@ -101,7 +94,7 @@ export async function GET(request: NextRequest) {
   ).toISOString();
 
   try {
-    const [users, openInquiriesRes, events, vinylRows, inquiries, wishConvertRes] =
+    const [users, openInquiriesRes, events, vinylRows, wishConvertRes] =
       await Promise.all([
         listAllUsers(admin),
         admin.from('INQUIRY').select('*', { count: 'exact', head: true }).eq('STATUS', 'OPEN'),
@@ -114,12 +107,6 @@ export async function GET(request: NextRequest) {
         ),
         fetchAll<VinylRow>((from, to) =>
           admin.from('USER_VINYL').select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE').range(from, to)
-        ),
-        fetchAll<InquiryRow>((from, to) =>
-          admin
-            .from('INQUIRY')
-            .select('INQUIRY_ID, CATEGORY, STATUS, CREATED_AT, INQUIRY_REPLY(IS_ADMIN, CREATED_AT)')
-            .range(from, to)
         ),
         admin
           .from('EVENT_LOG')
@@ -145,7 +132,11 @@ export async function GET(request: NextRequest) {
       const iso = new Date(ms).toISOString();
       return new Set(events.filter((e) => e.USER_ID && e.CREATED_AT >= iso).map((e) => e.USER_ID)).size;
     };
-    const dau = activeSince(now - DAY_MS);
+    // DAU는 dauTrend 차트와 같은 기준(KST 달력일)으로 — 롤링 24h와 섞이지 않게
+    const todayKst = toKstDate(new Date(now).toISOString());
+    const dau = new Set(
+      events.filter((e) => e.USER_ID && toKstDate(e.CREATED_AT) === todayKst).map((e) => e.USER_ID)
+    ).size;
     const wau = activeSince(now - 7 * DAY_MS);
     const mau = activeSince(now - 30 * DAY_MS);
     const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
@@ -176,25 +167,6 @@ export async function GET(request: NextRequest) {
       dauByDay.get(d)!.add(e.USER_ID);
     }
     const dauTrend = dayKeys.map((date) => ({ date, count: dauByDay.get(date)?.size || 0 }));
-
-    // ── 이벤트 시리즈 (일 × 타입) — 유입 이벤트(VISIT/SIGNUP)는
-    //    "API 사용량"이 아니라 유입 섹션에서 다루므로 제외 ─────────
-    const USAGE_TYPES_EXCLUDED = new Set(['VISIT', 'SIGNUP']);
-    const eventTypes = Array.from(
-      new Set(periodEvents.filter((e) => !USAGE_TYPES_EXCLUDED.has(e.EVENT_TYPE)).map((e) => e.EVENT_TYPE))
-    ).sort();
-    const eventByDay = new Map<string, Record<string, number>>();
-    for (const e of periodEvents) {
-      const d = toKstDate(e.CREATED_AT);
-      const row = eventByDay.get(d) || {};
-      row[e.EVENT_TYPE] = (row[e.EVENT_TYPE] || 0) + 1;
-      eventByDay.set(d, row);
-    }
-    const eventSeries = dayKeys.map((date) => {
-      const row: Record<string, number | string> = { date };
-      for (const t of eventTypes) row[t] = eventByDay.get(date)?.[t] || 0;
-      return row;
-    });
 
     // ── B5. 요일 × 시간 활동 히트맵 ──────────────────────────
     const heatCells = new Map<string, number>();
@@ -285,15 +257,16 @@ export async function GET(request: NextRequest) {
     });
     const scanTotal = scanEvents.length;
     const scanSuccess = scanEvents.filter((e) => e.META?.result === 'success').length;
+    const failureLabel = (e: EventRow) =>
+      e.META?.result === 'no_match'
+        ? '후보 없음'
+        : e.META?.status
+          ? `HTTP ${e.META.status}`
+          : '기타 오류';
+    const scanFailures = scanEvents.filter((e) => e.META?.result !== 'success');
     const scanErrorTypes = new Map<string, number>();
-    for (const e of scanEvents) {
-      if (e.META?.result === 'success') continue;
-      const label =
-        e.META?.result === 'no_match'
-          ? '후보 없음'
-          : e.META?.status
-            ? `HTTP ${e.META.status}`
-            : '기타 오류';
+    for (const e of scanFailures) {
+      const label = failureLabel(e);
       scanErrorTypes.set(label, (scanErrorTypes.get(label) || 0) + 1);
     }
     const scanStats = {
@@ -303,6 +276,10 @@ export async function GET(request: NextRequest) {
       errorTypes: Array.from(scanErrorTypes.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([label, count]) => ({ label, count })),
+      recentFailures: scanFailures
+        .sort((a, b) => b.CREATED_AT.localeCompare(a.CREATED_AT))
+        .slice(0, 20)
+        .map((e) => ({ at: e.CREATED_AT, label: failureLabel(e) })),
     };
 
     // ── 유입(Acquisition): 방문 → 가입 전환, 유입 소스, 가입 provider ──
@@ -414,34 +391,6 @@ export async function GET(request: NextRequest) {
     }
     const collectionHistogram = buckets.map((b, i) => ({ bucket: b.bucket, users: bucketCounts[i] }));
 
-    // ── A6. 문의 운영 지표 ───────────────────────────────────
-    let replyHoursSum = 0;
-    let replyCount = 0;
-    let oldestOpenDays = 0;
-    const categoryCount = new Map<string, number>();
-    for (const inq of inquiries) {
-      categoryCount.set(inq.CATEGORY, (categoryCount.get(inq.CATEGORY) || 0) + 1);
-      const firstAdmin = (inq.INQUIRY_REPLY || [])
-        .filter((r) => r.IS_ADMIN)
-        .sort((a, b) => a.CREATED_AT.localeCompare(b.CREATED_AT))[0];
-      if (firstAdmin) {
-        replyHoursSum +=
-          (new Date(firstAdmin.CREATED_AT).getTime() - new Date(inq.CREATED_AT).getTime()) / 3600000;
-        replyCount += 1;
-      } else if (inq.STATUS === 'OPEN') {
-        oldestOpenDays = Math.max(
-          oldestOpenDays,
-          Math.floor((now - new Date(inq.CREATED_AT).getTime()) / DAY_MS)
-        );
-      }
-    }
-    const inquiryOps = {
-      total: inquiries.length,
-      avgFirstReplyHours: replyCount > 0 ? Math.round((replyHoursSum / replyCount) * 10) / 10 : null,
-      oldestOpenDays,
-      categories: Array.from(categoryCount.entries()).map(([category, count]) => ({ category, count })),
-    };
-
     return NextResponse.json({
       days,
       kpis: {
@@ -466,15 +415,12 @@ export async function GET(request: NextRequest) {
       scanStats,
       signupTrend,
       dauTrend,
-      eventTypes,
-      eventSeries,
       heatmap,
       retentionCohorts,
       genreDist,
       collectionHistogram,
       topAlbums,
       topArtists,
-      inquiryOps,
     });
   } catch (e: any) {
     console.error('admin stats failed:', e?.message || e);

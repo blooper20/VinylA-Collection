@@ -8,7 +8,7 @@ import {
   ScanStackedBars,
   ScanSuccessRateLine,
 } from '../../../components/Admin/charts/AdminCharts';
-import { ActivityHeatmap } from '../../../components/Admin/InsightBlocks';
+import { ActivityHeatmap, ScanFailureList } from '../../../components/Admin/InsightBlocks';
 import { useAdminStats } from '../../../components/Admin/AdminStatsContext';
 import { StatsErrorBox } from '../../../components/Admin/StatsErrorBox';
 import styles from '../dashboard.module.css';
@@ -75,6 +75,15 @@ export default function AdminEngagementPage() {
           emptyText="오류가 없습니다 🎉"
         >
           {stats && <HorizontalBarChart data={stats.scanStats.errorTypes} color="#e66767" unit="회" />}
+        </ChartCard>
+        <ChartCard
+          title="최근 스캔 실패 내역"
+          sub="최신 20건"
+          isLoading={isLoading}
+          isEmpty={!!stats && stats.scanStats.recentFailures.length === 0}
+          emptyText="실패한 스캔이 없습니다 🎉"
+        >
+          {stats && <ScanFailureList failures={stats.scanStats.recentFailures} />}
         </ChartCard>
       </div>
     </div>

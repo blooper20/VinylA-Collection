@@ -18,8 +18,6 @@ import {
   Cell,
 } from 'recharts';
 import {
-  EVENT_COLOR,
-  EVENT_LABEL,
   ACCENT_LINE,
   ACCENT_FILL,
   BAR_GOLD,
@@ -27,7 +25,6 @@ import {
   GRID_COLOR,
   AXIS_COLOR,
   TOOLTIP_STYLE,
-  CATEGORICAL,
 } from './chartTheme';
 
 const axisProps = {
@@ -62,46 +59,6 @@ export const SignupAreaChart = ({ data }: { data: { date: string; count: number 
         activeDot={{ r: 4 }}
       />
     </AreaChart>
-  </ResponsiveContainer>
-);
-
-// ── 2. API 사용량 (이벤트 타입별 multi-line, 고정 색 매핑 + 범례) ──
-export const EventMultiLineChart = ({
-  data,
-  eventTypes,
-}: {
-  data: Record<string, number | string>[];
-  eventTypes: string[];
-}) => (
-  <ResponsiveContainer width="100%" height="100%">
-    <LineChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
-      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-      <XAxis dataKey="date" {...axisProps} tickFormatter={shortDate} minTickGap={28} />
-      <YAxis {...axisProps} allowDecimals={false} width={46} />
-      <Tooltip
-        contentStyle={TOOLTIP_STYLE}
-        labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any, name: any) => [v, EVENT_LABEL[name] || name]}
-        cursor={{ stroke: GRID_COLOR }}
-      />
-      <Legend
-        formatter={(name: string) => (
-          <span style={{ color: '#c4c7c8', fontSize: 12 }}>{EVENT_LABEL[name] || name}</span>
-        )}
-        iconType="plainline"
-      />
-      {eventTypes.map((t, i) => (
-        <Line
-          key={t}
-          type="monotone"
-          dataKey={t}
-          stroke={EVENT_COLOR[t] || CATEGORICAL[i % CATEGORICAL.length]}
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 4 }}
-        />
-      ))}
-    </LineChart>
   </ResponsiveContainer>
 );
 

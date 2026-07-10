@@ -126,6 +126,29 @@ export const RetentionTable = ({
   </div>
 );
 
+// ── 최근 AI 스캔 실패 로그 ───────────────────────────────────────
+export const ScanFailureList = ({
+  failures,
+}: {
+  failures: { at: string; label: string }[];
+}) => (
+  <ul className={styles.failList}>
+    {failures.map((f, i) => (
+      <li key={`${f.at}-${i}`} className={styles.failRow}>
+        <span className={styles.failLabel}>{f.label}</span>
+        <span className={styles.failTime}>
+          {new Date(f.at).toLocaleString('ko-KR', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </span>
+      </li>
+    ))}
+  </ul>
+);
+
 // ── 인기 앨범 TOP 10 리스트 ──────────────────────────────────────
 export const TopAlbumsList = ({
   albums,
