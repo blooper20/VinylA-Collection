@@ -12,6 +12,7 @@ const STATUS_NEON: Record<string, { label: string; kind: string }> = {
   OWNED: { label: 'COLLECTED', kind: 'owned' },
   WISH: { label: '★ WANTED ★', kind: 'wish' },
   NONE: { label: 'JUST DROPPED', kind: 'none' },
+  NEW: { label: 'NEW', kind: 'new' },
 };
 
 export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ album, username, overrideStatus }, ref) => {
