@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase';
+import { logEvent } from '../events';
+
+// SIGNED_IN fires again on tab focus / token refresh, so dedupe LOGIN
+// metrics to once per user per app load.
+let loginLoggedForUserId: string | null = null;
 
 interface AuthState {
   user: any | null;
@@ -49,6 +54,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
         let newUser = session?.user ?? null;
+        if (_event === 'SIGNED_IN' && newUser && loginLoggedForUserId !== newUser.id) {
+          loginLoggedForUserId = newUser.id;
+          logEvent('LOGIN');
+        }
         if (newUser?.user_metadata?.del_yn === 'N') {
           // On-the-fly login with deleted account
           const { wipeUserData } = await import('../supabaseDb');

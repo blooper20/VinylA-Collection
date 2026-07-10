@@ -11,7 +11,10 @@ const navItems = [
   { name: '탐색',   path: '/search',     icon: 'travel_explore' },
   { name: '위시리스트', path: '/wishlist',   icon: 'bookmark' },
   { name: '마이페이지', path: '/my',         icon: 'person' },
+  { name: '문의하기', path: '/support',    icon: 'support_agent' },
 ];
+
+const adminNavItem = { name: '관리자', path: '/admin', icon: 'admin_panel_settings' };
 
 export const SideNav: React.FC = () => {
   const pathname = usePathname();
@@ -41,10 +44,10 @@ export const SideNav: React.FC = () => {
 
         <div className={styles.divider} />
 
-        {/* Main Nav */}
+        {/* Main Nav — admin item only for accounts with app_metadata.role === 'admin' */}
         <div className={styles.nav}>
-          {navItems.map((item) => {
-            const isActive = pathname === item.path;
+          {[...navItems, ...(user?.app_metadata?.role === 'admin' ? [adminNavItem] : [])].map((item) => {
+            const isActive = item.path === '/admin' ? pathname.startsWith('/admin') : pathname === item.path;
             return (
               <Link
                 key={item.name}

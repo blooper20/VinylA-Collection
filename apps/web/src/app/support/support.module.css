@@ -1,0 +1,305 @@
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 24px 120px;
+}
+
+.header {
+  margin-bottom: 40px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── 작성 폼 ─────────────────────────── */
+.formCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 56px;
+}
+
+.formGroup {
+  margin-bottom: 24px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.categoryRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.categoryBtn {
+  padding: 10px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.categoryBtn:hover {
+  border-color: var(--accent-dim);
+}
+
+.categorySelected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-mid);
+  color: var(--text-primary);
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--accent-dim);
+}
+
+.textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.submitBtn {
+  width: 100%;
+  background: var(--text-primary);
+  color: #111;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  border: none;
+  border-radius: 30px;
+  padding: 16px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.submitBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── 내 문의 내역 ────────────────────── */
+.historyTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+}
+
+.emptyText {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 32px 0;
+  text-align: center;
+}
+
+.inquiryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inquiryItem {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.inquiryHead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.categoryBadge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 3px 10px;
+}
+
+.inquiryTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inquiryDate {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.statusBadge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 4px 12px;
+}
+
+.statusOPEN {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.statusANSWERED {
+  color: #000;
+  background: var(--accent);
+}
+
+.statusCLOSED {
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+/* ── 스레드 ─────────────────────────── */
+.thread {
+  border-top: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.messageUser,
+.messageAdmin {
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.messageUser {
+  background: var(--bg-surface-low);
+}
+
+.messageAdmin {
+  background: var(--accent-glow);
+  border-left: 3px solid var(--accent);
+}
+
+.adminBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #000;
+  background: var(--accent);
+  border-radius: 10px;
+  padding: 2px 10px;
+  margin-bottom: 8px;
+}
+
+.messageContent {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.messageTime {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.replyRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.replyInput {
+  flex: 1;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-mid);
+  color: var(--text-primary);
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.replyInput:focus {
+  border-color: var(--accent-dim);
+}
+
+.replyBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 0 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.replyBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

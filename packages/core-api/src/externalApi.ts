@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logEvent } from './events';
 
 export type AlbumItem = {
   id: number | string;
@@ -159,6 +160,11 @@ export const createDiscogsSearchSession = (
       console.error('Discogs search failed:', e?.message || 'Unknown error');
       onStatusChange?.('error', cumulativeTotal);
       return false;
+    }
+
+    // Usage metric: one SEARCH event per session, on the first batch only
+    if (batch === 0) {
+      logEvent('SEARCH', { query: query.slice(0, 100), isGenre: isGenreQuery });
     }
 
     if (raw.length === 0) {

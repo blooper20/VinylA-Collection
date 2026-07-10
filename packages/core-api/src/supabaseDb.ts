@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { ALBUM_MASTER, USER_VINYL, VINYL_TAG } from '@vinyla/shared-types';
+import { logEvent } from './events';
 
 // =======================
 // ALBUM_MASTER CRUD
@@ -172,6 +173,10 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
     .upsert([payload])
     .select()
     .single();
+
+  if (!error && !existing) {
+    logEvent(userVinyl.STATUS === 'WISH' ? 'WISH_ADD' : 'ALBUM_ADD', { albumId: userVinyl.ALBUM_ID });
+  }
 
   if (error) {
     console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
