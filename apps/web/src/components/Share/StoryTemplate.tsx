@@ -5,22 +5,24 @@ import { MockVinylData } from '@vinyla/shared-types';
 interface StoryTemplateProps {
   album: MockVinylData & { COVER_URL?: string };
   username: string;
+  overrideStatus?: 'OWNED' | 'WISH' | 'NONE' | 'NEW';
 }
 
 const STATUS_NEON: Record<string, { label: string; kind: string }> = {
   OWNED: { label: 'COLLECTED', kind: 'owned' },
   WISH: { label: '★ WANTED ★', kind: 'wish' },
   NONE: { label: 'JUST DROPPED', kind: 'none' },
+  NEW: { label: 'NEW', kind: 'new' },
 };
 
-export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ album, username }, ref) => {
+export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ album, username, overrideStatus }, ref) => {
   if (!album) return null;
 
   const bgStyle = album.CUSTOM_COLOR_HEX
     ? { background: `linear-gradient(135deg, ${album.CUSTOM_COLOR_HEX}40, #111)` }
     : { background: 'linear-gradient(135deg, #2a2a2a, #0a0a0a)' };
 
-  const neon = STATUS_NEON[album.STATUS as string] || STATUS_NEON.NONE;
+  const neon = STATUS_NEON[overrideStatus || album.STATUS as string] || STATUS_NEON.NONE;
 
   return (
     <div className={styles.offscreenContainer}>
@@ -55,8 +57,18 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
           </div>
 
           <div className={styles.infoBox}>
-            <h2 className={styles.title}>{album.TITLE}</h2>
-            <p className={styles.artist}>{album.ARTIST}</p>
+            <h2 
+              className={styles.title} 
+              style={{ fontSize: album.TITLE.length > 20 ? '42px' : album.TITLE.length > 11 ? '52px' : '64px' }}
+            >
+              {album.TITLE}
+            </h2>
+            <p 
+              className={styles.artist}
+              style={{ fontSize: album.ARTIST.length > 20 ? '28px' : '36px' }}
+            >
+              {album.ARTIST}
+            </p>
           </div>
         </div>
 

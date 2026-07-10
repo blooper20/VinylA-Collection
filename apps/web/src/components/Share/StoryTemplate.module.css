@@ -106,25 +106,35 @@
 }
 
 .infoBox {
+  display: block;
   text-align: center;
-  padding: 0 80px;
+  padding: 0 40px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .title {
-  font-family: var(--font-heading);
+  display: block;
+  font-family: var(--font-headline);
   font-size: 64px;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 24px;
+  margin: 0 0 24px 0;
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  line-height: 1.2;
+  line-height: 1.3em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .artist {
+  display: block;
   font-size: 36px;
   color: rgba(255, 255, 255, 0.7);
   font-weight: 500;
   margin: 0;
+  line-height: 1.3em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .watermark {
@@ -158,7 +168,7 @@
 }
 
 .brand {
-  font-family: var(--font-heading);
+  font-family: var(--font-headline);
   font-size: 24px;
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
@@ -184,7 +194,7 @@
 }
 
 .statusNeonText {
-  font-family: var(--font-heading);
+  font-family: var(--font-headline);
   font-size: 32px;
   font-weight: 800;
   letter-spacing: 6px;
@@ -225,4 +235,11 @@
   border-color: #ff8bdc;
   text-shadow: 0 0 6px #ff8bdc, 0 0 18px #ff8bdc, 0 0 36px #ff2fd0, 0 0 70px #ff2fd0;
   box-shadow: 0 0 14px rgba(255, 139, 220, 0.55), inset 0 0 16px rgba(255, 139, 220, 0.25);
+}
+
+.statusNeon[data-status="new"] {
+  color: #5ce1e6;
+  border-color: #5ce1e6;
+  text-shadow: 0 0 6px #5ce1e6, 0 0 18px #5ce1e6, 0 0 36px #29b8be, 0 0 70px #29b8be;
+  box-shadow: 0 0 14px rgba(92, 225, 230, 0.55), inset 0 0 16px rgba(92, 225, 230, 0.25);
 }
