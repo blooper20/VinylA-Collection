@@ -7,8 +7,30 @@ import { AttributionTracker } from "../components/Analytics/AttributionTracker";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://vinyla.vercel.app'),
   title: "VinylA Collection — 나의 바이닐 컬렉션",
   description: "LP 수집가를 위한 프리미엄 바이닐 컬렉션 대시보드",
+  openGraph: {
+    title: "VinylA Collection",
+    description: "LP 수집가를 위한 프리미엄 바이닐 컬렉션 대시보드",
+    url: "https://vinyla.vercel.app",
+    siteName: "VinylA Collection",
+    images: [
+      {
+        url: "/logo.png",
+        width: 800,
+        height: 600,
+      },
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VinylA Collection",
+    description: "LP 수집가를 위한 프리미엄 바이닐 컬렉션 대시보드",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({

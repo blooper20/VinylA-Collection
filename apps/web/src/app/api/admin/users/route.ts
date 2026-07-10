@@ -19,23 +19,32 @@ export async function GET(request: NextRequest) {
       page += 1;
     }
 
-    // 사용자별 보유/위시 장수
+    // 사용자별 보유/위시 장수 (RPC 최적화 및 폴백)
     const vinylCounts = new Map<string, { owned: number; wish: number }>();
-    let from = 0;
-    for (;;) {
-      const { data, error } = await admin
-        .from('USER_VINYL')
-        .select('USER_ID, STATUS')
-        .range(from, from + PAGE - 1);
-      if (error) throw error;
-      for (const r of data || []) {
-        const c = vinylCounts.get(r.USER_ID) || { owned: 0, wish: 0 };
-        if (r.STATUS === 'OWNED') c.owned += 1;
-        else if (r.STATUS === 'WISH') c.wish += 1;
-        vinylCounts.set(r.USER_ID, c);
+    const { data: countsData, error: countsError } = await admin.rpc('get_user_vinyl_counts');
+    
+    if (!countsError && countsData) {
+      for (const row of countsData) {
+        vinylCounts.set(row.user_id, { owned: Number(row.owned), wish: Number(row.wish) });
       }
-      if (!data || data.length < PAGE) break;
-      from += PAGE;
+    } else {
+      // Fallback: RPC가 아직 생성되지 않은 경우 전체 데이터를 가져와 JS 메모리에서 집계 (비효율적)
+      let from = 0;
+      for (;;) {
+        const { data, error } = await admin
+          .from('USER_VINYL')
+          .select('USER_ID, STATUS')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        for (const r of data || []) {
+          const c = vinylCounts.get(r.USER_ID) || { owned: 0, wish: 0 };
+          if (r.STATUS === 'OWNED') c.owned += 1;
+          else if (r.STATUS === 'WISH') c.wish += 1;
+          vinylCounts.set(r.USER_ID, c);
+        }
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+      }
     }
 
     const users = rawUsers

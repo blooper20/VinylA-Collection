@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '*.discogs.com',
       },
+      {
+        protocol: 'https',
+        hostname: '*.mzstatic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.apple.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+      },
     ],
   },
   env: {

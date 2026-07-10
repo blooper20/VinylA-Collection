@@ -1,5 +1,5 @@
 export * from './constants';
-export * from './hooks/useAlbumSearch';
+export * from './errors';
 export * from './externalApi';
 export * from './supabase';
 export * from './supabaseDb';

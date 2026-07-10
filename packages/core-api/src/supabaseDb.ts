@@ -1,12 +1,21 @@
 import { supabase } from './supabase';
 import { ALBUM_MASTER, USER_VINYL, VINYL_TAG } from '@vinyla/shared-types';
 import { logEvent } from './events';
+import { AppError } from './errors';
+
+const isNetworkError = (error: any) => {
+  return error?.message === 'Failed to fetch' || error?.message?.includes('NetworkError') || !navigator.onLine;
+};
 
 // =======================
 // ALBUM_MASTER CRUD
 // =======================
 
 export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | null> => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
+  }
+
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
     .select('*, VINYL_TAG(*)')
@@ -15,7 +24,10 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
 
   if (error) {
     console.warn('getAlbumMaster error or DB not connected:', error);
-    return null;
+    if (isNetworkError(error)) {
+      throw new AppError('NET-001', '네트워크 연결이 불안정합니다.', error);
+    }
+    throw new AppError('DB-002', '앨범 마스터 정보를 불러오는 데 실패했습니다.', error);
   }
   const master = data as any; // Cast to any to access VINYL_TAG easily
   if (master.VINYL_TAG && master.VINYL_TAG.length > 0) {
@@ -46,22 +58,23 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
   
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
-    .upsert([payload])
+    .upsert([payload], { onConflict: 'ALBUM_ID', ignoreDuplicates: true })
     .select()
     .single();
 
   if (error) {
     console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
   } else if (genresToSave !== undefined) {
-    // Delete existing tags before inserting new ones
-    await supabase.from('VINYL_TAG').delete().eq('ALBUM_ID', album.ALBUM_ID);
+    // Insert new tags without deleting existing ones
     if (genresToSave.length > 0) {
       const tagsToInsert = genresToSave.map(g => ({
         ALBUM_ID: album.ALBUM_ID,
         TAG_TYPE: 'GENRE',
         TAG_NAME: g
       }));
-      await supabase.from('VINYL_TAG').insert(tagsToInsert);
+      await supabase
+        .from('VINYL_TAG')
+        .upsert(tagsToInsert, { onConflict: 'ALBUM_ID,TAG_NAME', ignoreDuplicates: true });
     }
   }
   
@@ -81,12 +94,7 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 // =======================
 
 export const getUserVinyls = async (userId: string | number): Promise<any[]> => {
-  const { data, error } = await supabase
-    .from('USER_VINYL')
-    .select('*, ALBUM_MASTER(*, VINYL_TAG(*))')
-    .eq('USER_ID', userId);
-
-  if (error || !data || data.length === 0) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const localV = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
@@ -95,10 +103,26 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
         const masters = localM ? JSON.parse(localM) : {};
         return vinyls.map((v: any) => ({
           ...v,
-          ALBUM_MASTER: masters[v.ALBUM_ID] || null
+          ALBUM_MASTER: masters[v.ALBUM_ID] || null,
         }));
       }
     }
+    throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
+  }
+
+  const { data, error } = await supabase
+    .from('USER_VINYL')
+    .select('*, ALBUM_MASTER(*, VINYL_TAG(*))')
+    .eq('USER_ID', userId);
+
+  if (error) {
+    if (isNetworkError(error)) {
+      throw new AppError('NET-001', '네트워크 연결이 불안정하여 컬렉션을 불러올 수 없습니다.', error);
+    }
+    throw new AppError('DB-002', '사용자 컬렉션을 불러오는 데 실패했습니다.', error);
+  }
+  
+  if (!data || data.length === 0) {
     return [];
   }
 
@@ -135,9 +159,9 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
 };
 
 export const wipeUserData = async (userId: string): Promise<void> => {
-  // Tags should cascade if DB is set up that way, but let's delete explicitly just in case
-  // Wait, VINYL_TAG references USER_VINYL. We can just delete USER_VINYL and it should cascade,
-  // or we just delete USER_VINYL by USER_ID.
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
+  }
   const { error } = await supabase
     .from('USER_VINYL')
     .delete()
@@ -145,6 +169,10 @@ export const wipeUserData = async (userId: string): Promise<void> => {
     
   if (error) {
     console.warn('wipeUserData error:', error);
+    if (isNetworkError(error)) {
+      throw new AppError('NET-001', '네트워크 연결이 불안정하여 데이터를 초기화할 수 없습니다.', error);
+    }
+    throw new AppError('DB-003', '사용자 데이터 초기화 중 오류가 발생했습니다.', error);
   }
   
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -182,19 +210,22 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
   }
 
   if (error) {
-    console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
-      let arr = local ? JSON.parse(local) : [];
-      const existingIdx = arr.findIndex((v: any) => v.ALBUM_ID === userVinyl.ALBUM_ID);
-      if (existingIdx > -1) {
-        arr[existingIdx] = { ...arr[existingIdx], ...userVinyl };
-      } else {
-        arr.push(userVinyl);
+    if (isNetworkError(error)) {
+      // Offline fallback: save to localStorage
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
+        let arr = local ? JSON.parse(local) : [];
+        const existingIdx = arr.findIndex((v: any) => v.ALBUM_ID === userVinyl.ALBUM_ID);
+        if (existingIdx > -1) {
+          arr[existingIdx] = { ...arr[existingIdx], ...userVinyl };
+        } else {
+          arr.push(userVinyl);
+        }
+        localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
       }
-      localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
+      throw new AppError('NET-001', '네트워크 오류로 오프라인 보관함에 임시 저장되었습니다.', error);
     }
-    return userVinyl as USER_VINYL;
+    throw new AppError('DB-001', '앨범 저장 중 오류가 발생했습니다.', error);
   }
   return data as USER_VINYL;
 };
@@ -207,12 +238,16 @@ export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => 
 
   if (error) {
     console.error('deleteUserVinyl error:', error);
-    return false;
+    throw new AppError('DB-003', '앨범 삭제 중 오류가 발생했습니다.', error);
   }
   return true;
 };
 
 export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
+  }
+
   const { error } = await supabase
     .from('USER_VINYL')
     .delete()
@@ -220,16 +255,11 @@ export const deleteUserVinylByAlbum = async (userId: string | number, albumId: n
     .eq('ALBUM_ID', albumId);
 
   if (error) {
-    // Also remove from localStorage if DB fails
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      const local = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
-      if (local) {
-        const arr = JSON.parse(local).filter((v: any) => v.ALBUM_ID !== albumId);
-        localStorage.setItem('VINYL_A_LOCAL_COLLECTION', JSON.stringify(arr));
-        return true; // Consider it a success locally
-      }
+    console.error('deleteUserVinylByAlbum error:', error);
+    if (isNetworkError(error)) {
+      throw new AppError('NET-001', '네트워크 연결이 불안정하여 삭제할 수 없습니다.', error);
     }
-    return false;
+    throw new AppError('DB-003', '앨범 삭제 중 오류가 발생했습니다.', error);
   }
   return true;
 };

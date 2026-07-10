@@ -89,50 +89,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  // Auto-heal: strip country tags from existing records
-  useEffect(() => {
-    if (dbData.length === 0) return;
-    const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
-    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v8') === 'true';
-    if (migrationDone) return;
 
-    const albumsWithCountry = dbData.filter(a => a.GENRES && a.GENRES.some((g: string) => EXCLUDED_TAGS.includes(g)));
-    const albumsWithNoGenres = dbData.filter(a => !a.GENRES || a.GENRES.length === 0 || (a.GENRES.length === 1 && a.GENRES[0] === 'Vinyl'));
-    const allTargets = Array.from(new Set([...albumsWithCountry, ...albumsWithNoGenres]));
-
-    if (allTargets.length === 0) { localStorage.setItem('vinyls_migration_v8', 'true'); return; }
-
-    async function healData() {
-      const token = process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-      const key = process.env.NEXT_PUBLIC_DISCOGS_KEY;
-      const secret = process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-      const authString = token ? `token=${token}` : `key=${key}&secret=${secret}`;
-
-      for (const album of allTargets) {
-        try {
-          const existingGenres = (album.GENRES || []).filter((g: string) => !EXCLUDED_TAGS.includes(g));
-          if (existingGenres.length > 0) {
-            await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: album.TRACKS || [], GENRES: existingGenres });
-            continue;
-          }
-          const query = encodeURIComponent(`${album.ARTIST} ${album.TITLE}`);
-          const res = await fetch(`https://api.discogs.com/database/search?q=${query}&type=release&format=vinyl&per_page=1&${authString}`, { headers: { 'User-Agent': 'VinylA/1.0.0' } });
-          const json = await res.json();
-          const result = json.results?.[0];
-          if (result) {
-            let tracks: string[] = [];
-            try { const rr = await fetch(`https://api.discogs.com/releases/${result.id}?${authString}`, { headers: { 'User-Agent': 'VinylA/1.0.0' } }); const rj = await rr.json(); tracks = rj.tracklist?.map((t: { title: string }) => t.title) || []; } catch {}
-            const finalGenres = Array.from(new Set([...(result?.genre || []), ...(result?.style || [])]));
-            if (finalGenres.length > 0) await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: tracks.length > 0 ? tracks : (album.TRACKS || []), GENRES: finalGenres });
-          }
-        } catch (err) { console.warn(`Auto-heal failed for ${album.TITLE}:`, err); }
-      }
-      if (typeof window !== 'undefined') localStorage.setItem('vinyls_migration_v8', 'true');
-      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
-    }
-    const timer = setTimeout(healData, 1000);
-    return () => clearTimeout(timer);
-  }, [dbData]);
 
   const dataToUse = dbData.filter(album => statusFilter === 'ALL' || album.STATUS === statusFilter);
   const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRES || []))).sort();
@@ -220,7 +177,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
       </header>
 
-      {viewMode !== 'table' ? (
+      {displayedAlbums.length === 0 ? (
+        <div className={styles.emptyState}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'rgba(255,255,255,0.2)', marginBottom: '16px' }}>album</span>
+          <p className={styles.emptyStateText}>컬렉션이 비어 있습니다.</p>
+          <button className={styles.emptyStateBtn} onClick={() => router.push('/search')}>새 앨범 찾기</button>
+        </div>
+      ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {displayedAlbums.map(album => (
             <AlbumCard key={album.ALBUM_ID} album={album} onClick={setSelectedAlbum} />

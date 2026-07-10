@@ -94,9 +94,17 @@ export const SearchScreen = ({ route }: any) => {
           return [...prev, mapped];
         });
       },
-      (newStatus, total) => {
+      (newStatus, total, error) => {
         if (searchIdRef.current !== currentSearchId) return;
         setStatus(newStatus);
+        if (newStatus === 'error' && error) {
+          import('@vinyla/core-api').then(({ getErrorMessage }) => {
+            // Need to import Alert from react-native or use custom Alert
+            import('react-native').then(({ Alert }) => {
+              Alert.alert('오류', getErrorMessage(error));
+            });
+          });
+        }
         if (total !== undefined) {
           setTotalToCheck(total);
         }

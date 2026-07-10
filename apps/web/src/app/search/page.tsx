@@ -146,9 +146,18 @@ export default function SearchPage() {
           return [...prev, album];
         });
       },
-      (newStatus, total) => {
+      (newStatus, total, error) => {
         if (searchIdRef.current !== currentSearchId) return;
         setStatus(newStatus);
+        
+        if (newStatus === 'error' && error) {
+          import('@vinyla/core-api').then(({ getErrorMessage }) => {
+            window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
+              detail: { message: getErrorMessage(error) }
+            }));
+          });
+        }
+
         if (total !== undefined) {
           setTotalToCheck(prev => append ? prev + total : total);
           if ((newStatus === 'done' || newStatus === 'error') && total === 0) {
@@ -160,20 +169,27 @@ export default function SearchPage() {
   }, []);
 
   React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && query.startsWith('#') && status === 'done' && hasMore) {
-          executeSearch(query, true);
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            executeSearch(query, true);
+          }, 300);
         }
       },
-      { threshold: 1.0 }
+      { threshold: 0.1 }
     );
 
     if (observerTarget.current) {
       observer.observe(observerTarget.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeoutId);
+    };
     // hasMore를 deps에 넣으면 무한 스크롤 fetch가 재트리거되므로 제외 (동작 유지)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, status, executeSearch]);
@@ -191,7 +207,9 @@ export default function SearchPage() {
   const isLoading = status === 'fetching_discogs' || status === 'enriching';
   const isEnriching = status === 'enriching';
 
-  const skeletonCount = isEnriching ? Math.max(0, totalToCheck - results.length) : 0;
+  const skeletonCount = status === 'fetching_discogs' && results.length === 0 
+    ? 12 
+    : isEnriching ? Math.max(0, totalToCheck - results.length) : 0;
 
   const mainResults = results.filter(r => !r.isFeature);
   const featuredResults = results.filter(r => r.isFeature);
@@ -294,12 +312,9 @@ export default function SearchPage() {
               </div>
             ))}
 
-            {/* Full-screen spinner only during initial iTunes fetch (before any results) */}
+            {/* Full-screen spinner removed in favor of Skeletons */}
             {status === 'fetching_discogs' && results.length === 0 && (
-              <div className={styles.loadingState}>
-                <div className={styles.spinner} />
-                <p>Discogs에서 LP를 검색하는 중...</p>
-              </div>
+              <div style={{ width: '100%', height: '20vh' }}></div>
             )}
           </div>
         </section>

@@ -10,10 +10,14 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "test": "turbo run test"
   },
   "devDependencies": {
+    "@vitest/ui": "^4.1.10",
+    "axios-retry": "^4.5.0",
     "prettier": "^3.2.5",
-    "turbo": "latest"
+    "turbo": "latest",
+    "vitest": "^4.1.10"
   }
 }
