@@ -55,8 +55,18 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
           </div>
 
           <div className={styles.infoBox}>
-            <h2 className={styles.title}>{album.TITLE}</h2>
-            <p className={styles.artist}>{album.ARTIST}</p>
+            <h2 
+              className={styles.title} 
+              style={{ fontSize: album.TITLE.length > 20 ? '42px' : album.TITLE.length > 11 ? '52px' : '64px' }}
+            >
+              {album.TITLE}
+            </h2>
+            <p 
+              className={styles.artist}
+              style={{ fontSize: album.ARTIST.length > 20 ? '28px' : '36px' }}
+            >
+              {album.ARTIST}
+            </p>
           </div>
         </div>
 
