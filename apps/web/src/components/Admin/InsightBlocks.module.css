@@ -1,0 +1,211 @@
+/* ── 활성화 퍼널 ─────────────────────── */
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.funnelStep {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.funnelLabelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.funnelLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.funnelValue {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.funnelRate {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.funnelTrack {
+  height: 22px;
+  background: var(--bg-surface-low);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.funnelBar {
+  height: 100%;
+  background: #3987e5;
+  border-radius: 6px 4px 4px 6px;
+  min-width: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── 활동 히트맵 ─────────────────────── */
+.heatmapWrap {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: 20px repeat(24, minmax(10px, 1fr));
+  gap: 3px;
+  width: 100%;
+  align-items: center;
+}
+
+.heatmapDow {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.heatmapCell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  min-width: 10px;
+}
+
+.heatmapHour {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* ── 리텐션 코호트 표 ─────────────────── */
+.retentionWrap {
+  height: 100%;
+  overflow: auto;
+}
+
+.retention {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.retention th {
+  color: var(--text-faint);
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 4px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+}
+
+.retention td {
+  text-align: center;
+  padding: 3px;
+}
+
+.retentionCohort {
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.retentionSize {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.retentionCell {
+  display: block;
+  padding: 5px 2px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.retentionFuture {
+  color: var(--text-faint);
+}
+
+/* ── 인기 앨범 TOP ────────────────────── */
+.topAlbums {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topAlbumRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px;
+  border-radius: 8px;
+}
+
+.topAlbumRow:hover {
+  background: var(--bg-surface-low);
+}
+
+.topAlbumRank {
+  flex-shrink: 0;
+  width: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.topAlbumCover,
+.topAlbumCoverEmpty {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--bg-surface-low);
+}
+
+.topAlbumInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topAlbumTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topAlbumArtist {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topAlbumUsers {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

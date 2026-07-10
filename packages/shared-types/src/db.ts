@@ -46,7 +46,15 @@ export interface USER_VINYL {
 
 export type InquiryCategory = 'COMPLAINT' | 'SUGGESTION' | 'BUG' | 'GENERAL';
 export type InquiryStatus = 'OPEN' | 'ANSWERED' | 'CLOSED';
-export type EventType = 'LOGIN' | 'SEARCH' | 'SCAN' | 'ALBUM_ADD' | 'WISH_ADD' | 'SHARE';
+export type EventType =
+  | 'VISIT'      // 비로그인 포함 방문 (유입 추적: referrer/UTM/공유 링크)
+  | 'SIGNUP'     // 신규 가입 완료 (first-touch 유입 정보 META 포함)
+  | 'LOGIN'
+  | 'SEARCH'
+  | 'SCAN'
+  | 'ALBUM_ADD'
+  | 'WISH_ADD'
+  | 'SHARE';
 export type ClientPlatform = 'WEB' | 'MOBILE';
 
 /**

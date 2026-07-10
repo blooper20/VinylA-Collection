@@ -176,6 +176,9 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
 
   if (!error && !existing) {
     logEvent(userVinyl.STATUS === 'WISH' ? 'WISH_ADD' : 'ALBUM_ADD', { albumId: userVinyl.ALBUM_ID });
+  } else if (!error && existing?.STATUS === 'WISH' && userVinyl.STATUS === 'OWNED') {
+    // 위시 → 보유 전환 (admin 대시보드의 전환율 지표)
+    logEvent('ALBUM_ADD', { albumId: userVinyl.ALBUM_ID, fromWish: true });
   }
 
   if (error) {

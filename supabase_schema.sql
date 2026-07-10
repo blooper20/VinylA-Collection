@@ -183,3 +183,11 @@ CREATE POLICY "event_log_insert_own" ON public."EVENT_LOG" FOR INSERT TO authent
 -- UPDATE auth.users
 --   SET raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'
 --   WHERE email = 'yjw127588@gmail.com';
+
+-- ── Acquisition tracking: allow anonymous VISIT events ─────────
+-- Landing/public-dashboard visits happen before login, so the anon role
+-- may insert EVENT_LOG rows — but ONLY type VISIT with a null USER_ID
+-- (prevents forging other users' activity). Run in the SQL Editor.
+DROP POLICY IF EXISTS "event_log_insert_visit_anon" ON public."EVENT_LOG";
+CREATE POLICY "event_log_insert_visit_anon" ON public."EVENT_LOG" FOR INSERT TO anon
+  WITH CHECK ("EVENT_TYPE" = 'VISIT' AND "USER_ID" IS NULL);

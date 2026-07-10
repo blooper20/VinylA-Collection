@@ -30,7 +30,16 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 40px 0 16px;
+  padding-left: 12px;
+  border-left: 3px solid var(--accent);
 }
 
 .chartGrid {

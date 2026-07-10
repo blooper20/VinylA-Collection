@@ -105,25 +105,59 @@ export const EventMultiLineChart = ({
   </ResponsiveContainer>
 );
 
-// ── 3. 장르 분포 Top 10 (horizontal bar, 단일 골드, 직접 값 라벨) ──
-export const GenreBarChart = ({ data }: { data: { genre: string; count: number }[] }) => (
+// ── 3. DAU 추이 (단일 시리즈 area, 블루) ──
+export const DauTrendChart = ({ data }: { data: { date: string; count: number }[] }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <AreaChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <XAxis dataKey="date" {...axisProps} tickFormatter={shortDate} minTickGap={28} />
+      <YAxis {...axisProps} allowDecimals={false} width={46} />
+      <Tooltip
+        contentStyle={TOOLTIP_STYLE}
+        labelStyle={{ color: '#8e9192' }}
+        formatter={(v: any) => [`${v}명`, '활성 사용자']}
+        cursor={{ stroke: GRID_COLOR }}
+      />
+      <Area
+        type="monotone"
+        dataKey="count"
+        stroke={BAR_BLUE}
+        strokeWidth={2}
+        fill="rgba(57, 135, 229, 0.15)"
+        dot={false}
+        activeDot={{ r: 4 }}
+      />
+    </AreaChart>
+  </ResponsiveContainer>
+);
+
+// ── 4. 범용 가로 바 (장르/아티스트/문의 카테고리 — 단일색 + 직접 값 라벨) ──
+export const HorizontalBarChart = ({
+  data,
+  color = BAR_GOLD,
+  unit = '',
+}: {
+  data: { label: string; count: number }[];
+  color?: string;
+  unit?: string;
+}) => (
   <ResponsiveContainer width="100%" height="100%">
     <BarChart data={data} layout="vertical" margin={{ top: 4, right: 40, left: 8, bottom: 0 }}>
       <XAxis type="number" hide />
       <YAxis
         type="category"
-        dataKey="genre"
+        dataKey="label"
         {...axisProps}
-        width={96}
+        width={110}
         tick={{ fill: '#c4c7c8', fontSize: 12 }}
       />
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any) => [`${v}장`, '보유']}
+        formatter={(v: any) => [`${v}${unit}`, '']}
         cursor={{ fill: 'rgba(255,255,255,0.04)' }}
       />
-      <Bar dataKey="count" fill={BAR_GOLD} radius={[0, 4, 4, 0]} barSize={16}>
+      <Bar dataKey="count" fill={color} radius={[0, 4, 4, 0]} barSize={16}>
         <LabelList dataKey="count" position="right" style={{ fill: '#c4c7c8', fontSize: 11 }} />
       </Bar>
     </BarChart>
