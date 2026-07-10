@@ -5,7 +5,7 @@ import { MockVinylData } from '@vinyla/shared-types';
 interface StoryTemplateProps {
   album: MockVinylData & { COVER_URL?: string };
   username: string;
-  overrideStatus?: 'OWNED' | 'WISH' | 'NONE';
+  overrideStatus?: 'OWNED' | 'WISH' | 'NONE' | 'NEW';
 }
 
 const STATUS_NEON: Record<string, { label: string; kind: string }> = {

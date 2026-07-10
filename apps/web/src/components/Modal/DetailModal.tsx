@@ -475,7 +475,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             {[
               { value: 'OWNED', label: 'COLLECTED' },
               { value: 'WISH', label: 'WANTED' },
-              { value: 'NONE', label: 'JUST DROPPED' }
+              { value: 'NONE', label: 'JUST DROPPED' },
+              { value: 'NEW', label: 'NEW' }
             ].map(tag => (
               <button
                 key={tag.value}
