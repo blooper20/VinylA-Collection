@@ -312,3 +312,35 @@ packages/core-api/
 packages/shared-types/src/mocks.ts     ← MockVinylData Partial화
 supabase_schema.sql                    ← RLS 정책 (적용 완료)
 ```
+
+## 2026-07-10 (Day 18)
+### 🎯 핵심 목표: 전역 에러 코드 체계 도입 및 엣지 케이스 완벽 대응 (Graceful Degradation)
+
+#### 1. 🛡️ 중앙 집중형 에러 핸들링 시스템 (`AppError`) 구축
+- **이슈**: 예기치 않은 오류 발생 시 "알 수 없는 에러가 발생했습니다" 등 모호한 메시지만 노출되어, 유저 문의 시 원인 파악과 디버깅이 매우 어려웠음.
+- **해결**: `@vinyla/core-api/src/errors.ts`를 신설하여, 앱 전역에서 발생하는 모든 에러를 도메인별(AUTH, DB, EXT, NET, SYS) 고유 에러 코드로 매핑하는 `AppError` 클래스와 `getErrorMessage` 헬퍼 함수 구현.
+
+#### 2. 📶 오프라인 및 네트워크 불안정 엣지 케이스 (`NET-001`) 대응
+- **이슈**: 모바일 환경 특성상 지하철 등에서 일시적으로 네트워크가 끊기면 저장(보관함 추가 등)이 조용히 실패하거나 앱이 멈추는 현상 발생.
+- **해결**: `supabaseDb.ts`의 주요 데이터 쓰기 로직에 `isNetworkError` 검증 로직 추가. 네트워크 단절 시 `NET-001` 코드를 발생시키고, 로컬 `localStorage`/`AsyncStorage` 임시 보관함으로 자동 Fallback하여 데이터 유실을 완벽히 방어.
+
+#### 3. 🌐 외부 API Rate Limit 및 장애 엣지 케이스 (`EXT-XXX`) 대응
+- **이슈**: Discogs나 YouTube API가 일일 허용량(Rate Limit)을 초과하거나 서버 장애 시 500 에러를 반환하며 앱이 터지는 문제.
+- **해결**: 외부 API 통신부(`externalApi.ts`)를 전면 리팩토링. Discogs 지연 시 `EXT-001`, YouTube 한도 초과 시 `EXT-003` 등 명확한 에러 코드를 Throw하도록 수정. `SearchScreen` 및 `DetailModal`에서 이를 잡아 사용자에게 친화적인 에러 코드 포함 토스트/알럿 표출.
+
+#### 4. 🗄️ 백엔드(Supabase) 에러 엣지 케이스 (`DB-XXX`)
+- 데이터베이스 저장/불러오기/삭제 실패 상황을 세분화하여, RLS 권한 부족인지 혹은 무결성 제약 조건 위반인지 식별 가능하도록 에러 분기.
+
+### 📦 오늘 변경된 주요 파일
+```
+packages/core-api/
+  src/errors.ts                   ← NEW: AppError 클래스 및 에러 코드 매핑 정의
+  src/supabaseDb.ts               ← DB 에러 및 오프라인(NET-001) 예외 처리
+  src/externalApi.ts              ← 외부 API 장애(EXT-001 등) 예외 처리
+apps/mobile/
+  src/components/Modal/DetailModal.tsx
+  src/screens/SearchScreen.tsx    ← getErrorMessage 연동 및 UI 에러 표출 추가
+apps/web/
+  src/components/Modal/DetailModal.tsx
+  src/app/search/page.tsx         ← getErrorMessage 연동 및 UI Toast 연동
+```
