@@ -29,6 +29,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const storyTemplateRef = React.useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
   const [isShareOpen, setIsShareOpen] = React.useState(false);
+  const [shareTag, setShareTag] = React.useState<string>(album.STATUS || 'NONE');
 
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [previewBlob, setPreviewBlob] = React.useState<Blob | null>(null);
@@ -454,7 +455,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         </div>
       )}
 
-      <StoryTemplate ref={storyTemplateRef} album={album} username={user?.user_metadata?.displayName || 'Collector'} />
+      <StoryTemplate ref={storyTemplateRef} album={album} username={user?.user_metadata?.displayName || 'Collector'} overrideStatus={shareTag as any} />
       <ShareBottomSheet 
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
@@ -465,7 +466,39 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: handleShareOptions.copyImage },
           { id: 'ig', label: '인스타그램', icon: 'camera_alt', action: handleShareOptions.shareNative },
         ]}
-      />
+      >
+        <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginBottom: '4px' }}>
+            이미지 상단 태그 선택
+          </div>
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '4px' }}>
+            {[
+              { value: 'OWNED', label: 'COLLECTED' },
+              { value: 'WISH', label: 'WANTED' },
+              { value: 'NONE', label: 'JUST DROPPED' }
+            ].map(tag => (
+              <button
+                key={tag.value}
+                onClick={() => setShareTag(tag.value as any)}
+                style={{
+                  flex: 1,
+                  padding: '10px 4px',
+                  background: shareTag === tag.value ? 'rgba(255,255,255,0.15)' : 'transparent',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: shareTag === tag.value ? '#fff' : 'rgba(255,255,255,0.5)',
+                  fontSize: '12px',
+                  fontWeight: shareTag === tag.value ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {tag.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </ShareBottomSheet>
 
       <SharePreviewModal 
         isOpen={isPreviewOpen}

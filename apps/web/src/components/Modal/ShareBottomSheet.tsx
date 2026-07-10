@@ -13,9 +13,10 @@ interface ShareBottomSheetProps {
   onClose: () => void;
   options: ShareOption[];
   title?: string;
+  children?: React.ReactNode;
 }
 
-export const ShareBottomSheet: React.FC<ShareBottomSheetProps> = ({ isOpen, onClose, options, title = '공유하기' }) => {
+export const ShareBottomSheet: React.FC<ShareBottomSheetProps> = ({ isOpen, onClose, options, title = '공유하기', children }) => {
   const [render, setRender] = useState(false);
   const [show, setShow] = useState(false);
 
@@ -50,6 +51,8 @@ export const ShareBottomSheet: React.FC<ShareBottomSheetProps> = ({ isOpen, onCl
       >
         <div className={styles.handleBar} />
         <h3 className={styles.title}>{title}</h3>
+        
+        {children}
         
         <div className={styles.optionsList}>
           {options.map((option) => (
