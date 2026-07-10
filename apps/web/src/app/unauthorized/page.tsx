@@ -10,7 +10,7 @@ export default function UnauthorizedPage() {
       <div className={styles.noiseOverlay} />
       
       <div className={styles.content}>
-        <img src="/logo.png" alt="VinylA" className={styles.logo} />
+        <img src="/logo.png" alt="VinylA Collection" className={styles.logo} />
         <div className={styles.iconWrapper}>
           <span className="material-symbols-outlined">gpp_bad</span>
         </div>

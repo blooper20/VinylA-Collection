@@ -6,6 +6,8 @@ import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
 import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase } from '@vinyla/core-api';
 import * as ImagePicker from 'expo-image-picker';
+// v19 (SDK 54) moved readAsStringAsync to the legacy entry point
+import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
 import { FlashEffect } from '../components/Share/FlashEffect';

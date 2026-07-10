@@ -60,7 +60,7 @@ export default function SetupPage() {
         <div className={styles.vinylReflection} />
         <div className={styles.spinningVinyl}>
           <div className={styles.vinylLabel}>
-            <img src="/logo.png" alt="VinylA Logo" className={styles.labelLogo} />
+            <img src="/logo.png" alt="VinylA Collection Logo" className={styles.labelLogo} />
             <div className={styles.vinylLabelInner} />
           </div>
         </div>

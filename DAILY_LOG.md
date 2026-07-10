@@ -264,3 +264,51 @@ packages/core-api/
 supabase_schema.sql                                 ← ALBUM_MASTER.MARKET_PRICE 컬럼 추가 ALTER 구문 (수동 실행 필요)
 DAILY_LOG.md / VinylA_Blue_Print.md / docs/dev-log.md ← 오늘 작업 내용 정리
 ```
+
+---
+
+## 2026-07-09 (Day 17)
+### 🎯 핵심 목표: 온보딩 리디자인 · 검색 무한 스크롤 · 로그인/보안(RLS) 인프라 정비
+
+#### 1. 🎬 모바일 온보딩 화면 전면 리디자인
+- **에디토리얼 스타일 재구성**: 가운데 정렬 영문 대문자 타이틀을 버리고, 골드 오버라인(`01 · PURE ARCHIVE`) → 한글 헤드라인(핵심 단어만 골드 강조) → 서브카피의 좌측 정렬 구성으로 전환. 각 스텝 우상단에 반투명 대형 고스트 넘버(01/02/03) 배치.
+- **바닐라꽃 각인 레코드**: 스텝 1의 레코드를 골드 림 + 골드 톤 그루브 + 골드 그라데이션 레이블로 다시 그리고, 로고의 바닐라 오키드 모티프를 View로 직접 그린 5잎 꽃(뾰족한 물방울 꽃잎 + 속 빈 트럼펫 컵) 8개를 링 형태의 은은한 각인 패턴(불투명도 0.3)으로 배치. 회전 속도를 9초/바퀴로 조정해 회전이 실제로 보이게 함.
+- **톤암 드롭 애니메이션**: 카운터웨이트·골드 링 피벗·샤프트·헤드셸로 구성된 톤암이 진입 후 레코드 위로 내려앉는 애니메이션(`transformOrigin` 피벗 회전 + back easing 반동).
+- **스캔라인 스윕**: 스텝 2의 📷 이모지를 제거하고, 뷰파인더 안에서 골드 스캔라인이 위아래로 쓸고 지나가는 루프 애니메이션으로 교체.
+- **하단 인터랙션**: 페이지네이션(좌) + 골드 원형 '다음' 버튼(우)을 하단에 고정, 마지막 페이지 접근 시 버튼 자동 페이드아웃.
+- **카피 정비**: 블루프린트의 프로젝트 언어를 그대로 반영 — "노이즈 없이 채워가는 당신의 비밀 박물관" / "커버를 비추는 순간, LP는 자산이 됩니다" / "이제, 당신만의 LP 전시실로 들어갈 차례". 로그인 패널에 `VINYL + VANILLA` 태그 칩과 `Collection` 레터스페이싱 라인 추가.
+- **브랜드 표기 통일**: 웹·앱 전체에서 대소문자를 지킨 "VinylA Collection"으로 통일 (웹 탭 타이틀, 프로필 아이브로우, alt 텍스트 등 11개 파일).
+
+#### 2. 🔍 검색 무한 스크롤 + 뒤로가기 제스처 (모바일)
+- **`createDiscogsSearchSession`(core-api)**: 중복 제거 기록(마스터 ID/제목)·한→영 아티스트 별칭·페이지 커서를 배치 간 유지하는 세션 기반 페이지네이션으로 리팩토링. 스크롤 바닥 근처에서 다음 ~20장을 자동 로드하며 같은 앨범이 재등장하지 않음. 장르 검색은 세션마다 랜덤 시작 페이지(클릭마다 신선한 결과 유지) + 세션 내 순차 페이징. 기존 `searchDiscogsLazy`는 웹/로컬 api용 1배치 래퍼로 유지.
+- **결과 화면 edge-swipe back**: 검색 결과 화면에서 왼쪽 가장자리→오른쪽 스와이프 시 검색어를 초기화하고 장르 탐색 화면으로 복귀. 장르 탐색 화면에서는 제스처 핸들러 자체를 장착하지 않아 완전 비활성.
+
+#### 3. 🔐 로그인 인프라 수리
+- **웹 로그인 게이트 404**: 퍼블릭 대시보드 로그인 유도 팝업이 존재하지 않는 `/login` 라우트로 연결되던 버그를 랜딩(`/`)으로 수정 (dashboard + PublicGrid 2곳).
+- **웹 로그인이 `exp://`로 튕기던 문제 진단**: Google 인증 완료 후 Supabase가 허용 목록에 없는 `redirectTo`를 무시하고 기본 Site URL(`exp://192.168.1.3:8081`)로 폴백 → 데스크톱 브라우저가 열 수 없어 "버튼이 안 되는" 것처럼 보임. 대시보드에서 Site URL=`http://localhost:3000`, Redirect URLs에 `localhost/**`·`vinyla.vercel.app/**`·`exp://**` 등록으로 해결, 웹 로그인 정상 확인.
+- **Apple 로그인 연결**: 빈 함수였던 "Continue with Apple"을 Google과 공용 OAuth 핸들러(`handleOAuthLogin`)로 구현. Supabase Apple provider(Apple Developer 계정) 연동 시 즉시 활성화.
+
+#### 4. 🗄️ DB 정비: MARKET_PRICE + RLS
+- **MARKET_PRICE 마이그레이션 실행·검증**: 컬럼 생성 확인 후 쓰기→재조회→원복 사이클로 저장 경로 검증 완료. 시장 추정가 저장이 실제로 동작.
+- **RLS 정책 적용**: 검증 중 `ALBUM_MASTER`가 anon key만으로 수정 가능한 것을 발견, 4개 테이블(ALBUM_MASTER/VINYL_TAG/USER_VINYL/PROFILES) 전체에 RLS 적용 — 공개 읽기(퍼블릭 대시보드·실시간 구독 유지) / 로그인 쓰기 / USER_VINYL·PROFILES는 소유자(`auth.uid()`)만 쓰기. 정책 SQL은 `supabase_schema.sql`에 재실행 안전(idempotent)하게 관리. 익명 쓰기 차단·익명 읽기 유지·로그인 쓰기 정상까지 3단 검증 완료.
+
+#### 5. 🧹 품질 게이트: 타입 에러 0 + 프로덕션 빌드 통과
+- `MockVinylData`를 `ALBUM_MASTER & Partial<USER_VINYL>`로 완화(검색/스캔 결과는 미보유 앨범), `mapToFrontendModel`에 누락 필드(VINYL_IMAGE_URL/CUSTOM_STYLE_TYPE) 보강, `useAuthStore` 인터페이스 시그니처 정합, `useAlbumSearch` 리터럴 내로잉.
+- **실버그 발견**: MyScreen 아바타 업로드에 `FileSystem` import가 아예 누락되어 런타임 크래시 상태였음 — SDK 54 기준 `expo-file-system/legacy` 경로로 수정.
+- 결과: 모바일 tsc 에러 0개, 웹 `next build` 타입체크 통과 → Vercel 배포 가능 상태.
+
+### 📦 오늘 변경된 주요 파일
+```
+apps/mobile/
+  src/screens/OnboardingScreen.tsx     ← 전면 리디자인
+  src/screens/SearchScreen.tsx         ← 무한 스크롤 + 제스처
+  src/screens/MyScreen.tsx             ← FileSystem import 버그 수정
+apps/web/
+  src/app/user/[id]/dashboard/page.tsx, components/Grid/PublicGrid.tsx  ← /login → /
+  (브랜드 표기 통일: layout, my, SideNav, Share 템플릿 등)
+packages/core-api/
+  src/externalApi.ts                   ← createDiscogsSearchSession
+  src/store/useAuthStore.ts, supabaseDb.ts, hooks/useAlbumSearch.ts
+packages/shared-types/src/mocks.ts     ← MockVinylData Partial화
+supabase_schema.sql                    ← RLS 정책 (적용 완료)
+```

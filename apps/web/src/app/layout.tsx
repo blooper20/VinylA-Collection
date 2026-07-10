@@ -3,10 +3,11 @@ import { ThemeProvider } from "@vinyla/ui";
 import { ThemeSync } from "../components/Theme/ThemeSync";
 import { SideNav } from "../components/Navigation/SideNav";
 import { AuthGuard } from "../components/Auth/AuthGuard";
+import { AttributionTracker } from "../components/Analytics/AttributionTracker";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VinylA — 나의 바이닐 컬렉션",
+  title: "VinylA Collection — 나의 바이닐 컬렉션",
   description: "LP 수집가를 위한 프리미엄 바이닐 컬렉션 대시보드",
 };
 
@@ -26,6 +27,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <AttributionTracker />
         <ThemeProvider>
           <ThemeSync>
             {/* Atmospheric background */}

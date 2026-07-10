@@ -1,5 +1,31 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase';
+import { logEvent, getFirstTouch } from '../events';
+
+// SIGNED_IN fires again on tab focus / token refresh, so dedupe LOGIN
+// metrics to once per user per app load.
+let loginLoggedForUserId: string | null = null;
+
+// 신규 가입(created_at이 방금)이면 first-touch 유입 정보를 붙여 SIGNUP 기록.
+// localStorage 플래그로 평생 1회만.
+const logSignupIfNew = (user: any) => {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const flagKey = `vinyla_signup_logged_${user.id}`;
+    if (localStorage.getItem(flagKey)) return;
+    const ageMs = Date.now() - new Date(user.created_at).getTime();
+    if (ageMs > 10 * 60 * 1000) return; // 10분 이상 지난 계정은 기존 유저
+    localStorage.setItem(flagKey, '1');
+    const touch = getFirstTouch();
+    logEvent('SIGNUP', {
+      source: touch?.source || 'unknown',
+      referrer: touch?.referrer?.slice(0, 200),
+      path: touch?.path,
+      sharedFrom: touch?.sharedFrom,
+      provider: user.app_metadata?.provider,
+    });
+  } catch { /* ignore */ }
+};
 
 interface AuthState {
   user: any | null;
@@ -7,7 +33,7 @@ interface AuthState {
   setUser: (user: any | null) => void;
   initializeAuth: () => Promise<void>;
   updateProfile: (displayName: string, interests: string[], avatarUrl?: string) => Promise<void>;
-  updateProfileWithAvatarFile: (displayName: string, interests: string[], file?: File) => Promise<void>;
+  updateProfileWithAvatarFile: (displayName: string, interests: string[], file?: File | null, removeAvatar?: boolean) => Promise<void>;
   updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
   updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
   updateSelectedBadge: (badgeId: string | null) => Promise<void>;
@@ -49,6 +75,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
         let newUser = session?.user ?? null;
+        if (_event === 'SIGNED_IN' && newUser && loginLoggedForUserId !== newUser.id) {
+          loginLoggedForUserId = newUser.id;
+          logEvent('LOGIN');
+          logSignupIfNew(newUser);
+        }
         if (newUser?.user_metadata?.del_yn === 'N') {
           // On-the-fly login with deleted account
           const { wipeUserData } = await import('../supabaseDb');

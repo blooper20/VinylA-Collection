@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@vinyla/core-api';
 import styles from './AuthGuard.module.css';
 
-const PROTECTED_ROUTES = ['/collection', '/my', '/search', '/wishlist', '/setup'];
+const PROTECTED_ROUTES = ['/collection', '/my', '/search', '/wishlist', '/setup', '/support', '/admin'];
 
 export const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading, initializeAuth } = useAuthStore();

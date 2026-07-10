@@ -1,4 +1,5 @@
 import domToImage from 'dom-to-image-more';
+import { logEvent } from '@vinyla/core-api';
 
 /**
  * Capture a DOM element as an image (Blob)
@@ -71,6 +72,7 @@ export async function downloadImageBlob(blob: Blob, fileName: string) {
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+  logEvent('SHARE', { method: 'download' });
   return true;
 }
 
@@ -103,6 +105,7 @@ export async function shareImageNative(blob: Blob, fileName: string = 'vinyla-sh
         text: 'Check out my vinyl collection!',
         files: [file],
       });
+      logEvent('SHARE', { method: 'native' });
       return true;
     } catch (error) {
       console.log('Share canceled or failed', error);

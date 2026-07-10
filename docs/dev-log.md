@@ -207,3 +207,43 @@ packages/core-api/
   src/supabaseDb.ts                                            ← MOD
 supabase_schema.sql                                            ← MOD (수동 실행 필요)
 ```
+
+---
+
+## 2026-07-09: 온보딩 리디자인, 검색 무한 스크롤, 로그인 복구 및 RLS 도입
+
+### 🎯 목표
+온보딩 첫인상을 브랜드 수준으로 끌어올리고, 검색을 "20장 한계"에서 해방시키고, 웹 로그인 불능 원인을 뿌리까지 추적한 뒤 DB를 실제 서비스 가능한 보안 상태로 만든다.
+
+### ✅ 작업 내역
+
+#### 1. `feat(mobile)` — 온보딩 에디토리얼 리디자인
+- 좌측 정렬 타이포 체계(골드 오버라인 → 한글 헤드라인+골드 강조 단어 → 서브카피)와 고스트 스텝 넘버로 매거진 무드 구축.
+- 스텝 1: 골드 림/그루브 레코드에 로고의 바닐라 오키드를 View로 그린 8개 각인 패턴(불투명도 0.3)을 얹고, 톤암이 레코드에 내려앉는 드롭 애니메이션 추가. 회전은 9초/바퀴로 체감 가능하게.
+- 스텝 2: 📷 이모지 → 뷰파인더 + 골드 스캔라인 스윕 애니메이션.
+- 하단 고정 페이지네이션 + 골드 원형 next 버튼(마지막 페이지에서 페이드아웃).
+- 카피를 블루프린트 언어(비밀 박물관/자산화/LP 전시실)로 통일, 로그인 패널에 `VINYL + VANILLA` 태그 칩 + `Collection` 라인. 전 화면 "VinylA Collection" 대소문자 표기 통일.
+
+#### 2. `feat(mobile)` — Discogs 검색 무한 스크롤
+- `createDiscogsSearchSession`: dedupe 세트·iTunes 별칭·페이지 커서를 세션에 보존하는 `loadMore()` 패턴으로 리팩토링. 배치당 ~20장, 바닥 600px 전 자동 로드, 중복 재등장 없음.
+- 장르 검색은 "클릭마다 다른 결과" 느낌(랜덤 시작 페이지)과 "세션 내 일관 페이징"을 양립.
+- 검색 결과에서 왼쪽 가장자리 스와이프 → 장르 탐색 화면 복귀 제스처 (탐색 화면에서는 핸들러 미장착으로 완전 비활성).
+
+#### 3. `fix(web)` + 인프라 — 로그인 완전 복구
+- 로그인 유도 팝업의 `/login`(존재하지 않는 라우트) 링크 → `/` 수정.
+- "버튼이 안 눌린다"는 증상을 헤드리스 Chrome으로 재현 시도 → 코드는 정상, 실제 원인은 **Supabase Site URL이 `exp://`(모바일 Expo URL)로 설정**되어 있어 인증 완료 후 브라우저가 열 수 없는 스킴으로 리다이렉트되던 것. URL Configuration 정리(localhost/**, vinyla.vercel.app/**, exp://**)로 해결.
+- Apple 로그인을 Google과 공용 OAuth 핸들러로 구현(Supabase Apple provider 연동 시 활성화).
+
+#### 4. `feat(db)` — MARKET_PRICE 검증 + RLS 정책
+- MARKET_PRICE 컬럼 마이그레이션 실행 확인 후 쓰기→재조회→원복으로 검증. 시장 추정가 저장 정상화.
+- 검증 중 anon key만으로 `ALBUM_MASTER`가 수정되는 것을 발견 → 4개 테이블 전체 RLS 적용: 공개 읽기(퍼블릭 대시보드/실시간 구독 보존), 로그인 쓰기, USER_VINYL·PROFILES는 `auth.uid()` 소유자만 쓰기. 익명 쓰기 차단 + 로그인 쓰기 정상 3단 검증 완료. 정책 SQL은 `supabase_schema.sql`에서 idempotent하게 관리.
+
+#### 5. `fix` — 타입 에러 전량 해소, 프로덕션 빌드 그린
+- `MockVinylData = ALBUM_MASTER & Partial<USER_VINYL>`(미보유 앨범엔 소유 필드가 없는 현실 반영), `mapToFrontendModel` 누락 필드 보강, `useAuthStore` 시그니처 정합.
+- MyScreen 아바타 업로드의 `FileSystem` import 누락(런타임 크래시 상태) 발견·수정 — SDK 54는 `expo-file-system/legacy` 경로 필요.
+- 모바일 tsc 0 에러, 웹 `next build` 통과. Vercel 배포 준비 완료.
+
+### 📦 남은 것
+- 웹 Vercel 프로덕션 배포 (`npx vercel` 연결 + 환경변수 등록)
+- Apple Developer 계정 → Supabase Apple provider 연동 (스토어 제출 요건)
+- EAS 빌드로 실기기 테스트 (`eas.json` 프로필 준비됨)

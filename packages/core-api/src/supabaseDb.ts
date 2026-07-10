@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { ALBUM_MASTER, USER_VINYL, VINYL_TAG } from '@vinyla/shared-types';
+import { logEvent } from './events';
 
 // =======================
 // ALBUM_MASTER CRUD
@@ -173,6 +174,13 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
     .select()
     .single();
 
+  if (!error && !existing) {
+    logEvent(userVinyl.STATUS === 'WISH' ? 'WISH_ADD' : 'ALBUM_ADD', { albumId: userVinyl.ALBUM_ID });
+  } else if (!error && existing?.STATUS === 'WISH' && userVinyl.STATUS === 'OWNED') {
+    // 위시 → 보유 전환 (admin 대시보드의 전환율 지표)
+    logEvent('ALBUM_ADD', { albumId: userVinyl.ALBUM_ID, fromWish: true });
+  }
+
   if (error) {
     console.warn('upsertUserVinyl error or DB not connected, saving to localStorage:', error);
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -271,6 +279,8 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     IMAGE_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
+    VINYL_IMAGE_URL: master?.VINYL_IMAGE_URL || '',
+    CUSTOM_STYLE_TYPE: (master?.CUSTOM_STYLE_TYPE || 'SOLID') as 'SOLID' | 'TRANSLUCENT' | 'SPLATTER',
     STATUS: userVinyl?.STATUS || 'WISH',
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE || 0,
     PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',

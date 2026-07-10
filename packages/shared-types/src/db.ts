@@ -44,6 +44,58 @@ export interface USER_VINYL {
   PURCHASE_PRICE: number;
 }
 
+export type InquiryCategory = 'COMPLAINT' | 'SUGGESTION' | 'BUG' | 'GENERAL';
+export type InquiryStatus = 'OPEN' | 'ANSWERED' | 'CLOSED';
+export type EventType =
+  | 'VISIT'      // 비로그인 포함 방문 (유입 추적: referrer/UTM/공유 링크)
+  | 'SIGNUP'     // 신규 가입 완료 (first-touch 유입 정보 META 포함)
+  | 'LOGIN'
+  | 'SEARCH'
+  | 'SCAN'
+  | 'ALBUM_ADD'
+  | 'WISH_ADD'
+  | 'SHARE';
+export type ClientPlatform = 'WEB' | 'MOBILE';
+
+/**
+ * 사용자 문의 (불만/건의/버그)
+ */
+export interface INQUIRY {
+  INQUIRY_ID: number;
+  USER_ID: string;
+  CATEGORY: InquiryCategory;
+  TITLE: string;
+  CONTENT: string;
+  STATUS: InquiryStatus;
+  PLATFORM: ClientPlatform;
+  CREATED_AT: string;
+  UPDATED_AT: string;
+}
+
+/**
+ * 문의 답변 스레드 (IS_ADMIN=true는 운영자 답변)
+ */
+export interface INQUIRY_REPLY {
+  REPLY_ID: number;
+  INQUIRY_ID: number;
+  USER_ID: string | null;
+  IS_ADMIN: boolean;
+  CONTENT: string;
+  CREATED_AT: string;
+}
+
+/**
+ * 사용 지표 이벤트 로그 (admin 대시보드 집계용)
+ */
+export interface EVENT_LOG {
+  EVENT_ID: number;
+  EVENT_TYPE: EventType;
+  USER_ID: string | null;
+  PLATFORM: ClientPlatform;
+  META: Record<string, unknown> | null;
+  CREATED_AT: string;
+}
+
 /**
  * 태그 정보
  */

@@ -1,0 +1,66 @@
+.tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.clickable:hover {
+  border-color: var(--accent-dim);
+}
+
+.highlight {
+  border-color: var(--accent-dim);
+  background: linear-gradient(135deg, var(--accent-glow), var(--bg-surface) 55%);
+}
+
+.label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.value {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 16px;
+}
+
+.delta {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.deltaUp {
+  color: #199e70;
+}
+
+.deltaDown {
+  color: #e66767;
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}

@@ -126,7 +126,7 @@ function PublicDashboardContent() {
           </div>
 
           <div className={styles.profileInfo}>
-            <p className={styles.profileEyebrow}>VinylA Member</p>
+            <p className={styles.profileEyebrow}>VinylA Collection Member</p>
             <div className={styles.nameRow}>
               <h1 className={styles.profileName}>{displayName}</h1>
             </div>
@@ -292,7 +292,7 @@ function PublicDashboardContent() {
                 background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.6)', fontSize: '15px', cursor: 'pointer'
               }}>취소</button>
-              <a href="/login" style={{
+              <a href="/" style={{
                 flex: 1, padding: '14px', borderRadius: '12px',
                 background: 'linear-gradient(135deg, #d4af37, #f3e5ab)',
                 color: '#111', fontSize: '15px', fontWeight: 700,

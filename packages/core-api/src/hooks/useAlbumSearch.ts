@@ -35,7 +35,7 @@ export const useAlbumSearch = (query: string) => {
             IMAGE_URL: item.thumb || 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=400&q=80',
             VINYL_IMAGE_URL: '',
             CUSTOM_COLOR_HEX: '#111',
-            CUSTOM_STYLE_TYPE: 'SOLID',
+            CUSTOM_STYLE_TYPE: 'SOLID' as const,
             GENRES: item.genre || ['Vinyl']
           }));
           

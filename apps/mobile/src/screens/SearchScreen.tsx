@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground } from 'react-native';
-import { searchDiscogsLazy, SearchStatus, AlbumItem } from '@vinyla/core-api';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
+import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -33,26 +33,52 @@ export const SearchScreen = ({ route }: any) => {
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   
   const searchIdRef = useRef(0);
+  const sessionRef = useRef<DiscogsSearchSession | null>(null);
+
+  // Edge-swipe back, active only while search results are showing:
+  // a rightward pan from the left edge clears the query, returning to
+  // the genre-explore view. On the genre view the gesture is inert.
+  // Capture-phase check so taps and vertical scrolls are untouched.
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const backGesture = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_evt, g) =>
+        !!queryRef.current && g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
+      onPanResponderRelease: (_evt, g) => {
+        if (g.dx > 60 && queryRef.current) {
+          Keyboard.dismiss();
+          setQuery('');
+        }
+      },
+    })
+  ).current;
+  const loadingMoreRef = useRef(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const executeSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
       setResults([]);
       setStatus('idle');
+      setHasMore(false);
+      sessionRef.current = null;
       return;
     }
 
     const currentSearchId = ++searchIdRef.current;
     setResults([]);
     setTotalToCheck(0);
+    setHasMore(false);
     setStatus('fetching_discogs');
 
-    await searchDiscogsLazy(
+    const session = createDiscogsSearchSession(
       q,
       (album: AlbumItem) => {
         if (searchIdRef.current !== currentSearchId) return;
         setResults((prev) => {
           if (prev.some((a) => a.ALBUM_ID === Number(album.id))) return prev;
-          
+
           const mapped: MockVinylData = {
             ALBUM_ID: Number(album.id) || Date.now(),
             TITLE: album.title || 'Unknown',
@@ -64,7 +90,7 @@ export const SearchScreen = ({ route }: any) => {
             CUSTOM_STYLE_TYPE: 'SOLID',
             GENRES: album.genre || []
           };
-          
+
           return [...prev, mapped];
         });
       },
@@ -76,7 +102,33 @@ export const SearchScreen = ({ route }: any) => {
         }
       }
     );
+    sessionRef.current = session;
+
+    const more = await session.loadMore();
+    if (searchIdRef.current === currentSearchId) {
+      setHasMore(more);
+    }
   }, []);
+
+  // Fetch the next batch when the user nears the bottom of the results list.
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMore || !sessionRef.current) return;
+
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    const currentSearchId = searchIdRef.current;
+    try {
+      const more = await sessionRef.current.loadMore();
+      if (searchIdRef.current === currentSearchId) {
+        setHasMore(more);
+      }
+    } finally {
+      loadingMoreRef.current = false;
+      if (searchIdRef.current === currentSearchId) {
+        setIsLoadingMore(false);
+      }
+    }
+  }, [hasMore]);
 
   useEffect(() => {
     if (route?.params?.initialQuery) {
@@ -103,7 +155,9 @@ export const SearchScreen = ({ route }: any) => {
   const isEnriching = status === 'enriching';
 
   return (
-    <View style={styles.container}>
+    // Gesture handlers are only attached while a search is active — the
+    // genre-explore landing view must not react to edge swipes at all.
+    <View style={styles.container} {...(query ? backGesture.panHandlers : {})}>
       <View style={styles.searchHero}>
         <View style={styles.searchInputContainer}>
           <TextInput 
@@ -124,7 +178,15 @@ export const SearchScreen = ({ route }: any) => {
       {status === 'error' ? (
         <ErrorState onRetry={retrySearch} />
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          scrollEventThrottle={250}
+          onScroll={({ nativeEvent }) => {
+            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+            const nearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 600;
+            if (nearBottom && !!query) handleLoadMore();
+          }}
+        >
           {!query && (
             <View>
               <Text style={styles.sectionTitle}>장르 탐색</Text>
@@ -156,14 +218,16 @@ export const SearchScreen = ({ route }: any) => {
             <View>
               <View style={styles.titleRow}>
                 <Text style={styles.sectionTitle}>
-                  {isEnriching 
-                    ? `고화질 커버 불러오는 중... (${results.length} / ${totalToCheck})` 
-                    : isLoading 
-                      ? 'Discogs 검색 중...' 
-                      : `검색 결과 (${results.length})`
+                  {isLoadingMore
+                    ? `검색 결과 (${results.length})`
+                    : isEnriching
+                      ? `고화질 커버 불러오는 중... (${results.length} / ${totalToCheck})`
+                      : isLoading
+                        ? 'Discogs 검색 중...'
+                        : `검색 결과 (${results.length})`
                   }
                 </Text>
-                {isLoading && <ActivityIndicator size="small" color="#e9c349" />}
+                {isLoading && !isLoadingMore && <ActivityIndicator size="small" color="#e9c349" />}
               </View>
               
               <View style={styles.resultsGrid}>
@@ -181,6 +245,13 @@ export const SearchScreen = ({ route }: any) => {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {isLoadingMore && (
+                <View style={styles.loadMoreRow}>
+                  <ActivityIndicator size="small" color="#e9c349" />
+                  <Text style={styles.loadMoreText}>더 불러오는 중...</Text>
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
@@ -309,5 +380,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 20,
+  },
+  loadMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+  },
+  loadMoreText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
   },
 });

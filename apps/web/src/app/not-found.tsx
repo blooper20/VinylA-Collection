@@ -10,7 +10,7 @@ export default function NotFound() {
       <div className={styles.noiseOverlay} />
       
       <div className={styles.content}>
-        <img src="/logo.png" alt="VinylA" className={styles.logo} />
+        <img src="/logo.png" alt="VinylA Collection" className={styles.logo} />
         <div className={styles.errorCode}>404</div>
         <h1 className={styles.title}>Track Not Found</h1>
         <p className={styles.subtitle}>

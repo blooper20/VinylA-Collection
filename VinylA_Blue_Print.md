@@ -37,6 +37,8 @@
 
 ### 📱 모바일 화면 (Mobile 전용)
 *   모바일 환경에 맞춰 미니멀하게 압축된 풀스크린 고해상도 구동.
+*   **온보딩(Onboarding)**: 에디토리얼 스타일 3스텝 — `01 · PURE ARCHIVE`(바닐라꽃 각인 패턴이 새겨진 레코드가 회전하고 톤암이 내려앉는 애니메이션) / `02 · SCAN & ARCHIVE`(뷰파인더 + 골드 스캔라인 스윕) / `03 · UNLOCK YOUR VAULT`(글래스 로그인 패널, `VINYL + VANILLA` 태그 칩). 좌측 정렬 타이포(골드 오버라인 → 한글 헤드라인의 핵심 단어 골드 강조), 반투명 고스트 스텝 넘버, 하단 고정 페이지네이션 + 골드 원형 '다음' 버튼(마지막 스텝에서 페이드아웃). 로그인은 Google/Apple 공용 OAuth 핸들러(Apple은 Supabase provider 연동 시 활성화).
+*   **검색(Search)**: 장르 탐색 그리드 + Discogs 무한 스크롤. `createDiscogsSearchSession`(core-api)이 중복 제거·별칭·페이지 커서를 세션 단위로 유지하며 스크롤 바닥 근처에서 ~20장씩 추가 로드. 검색 결과 화면에서 왼쪽 가장자리 스와이프 시 장르 탐색 화면으로 복귀(탐색 화면에서는 제스처 비활성).
 *   **하단 플로팅 탭 바(Floating Tab Bar)**: 중앙의 '스캔' 버튼 영역이 위로 볼록하게 돌출된 원형 UI(FAB) 구조.
 *   **홈 / 위시리스트 공용 헤더(`AppHeader`)**: 배경 없는 3D 골드 로고 + 타이틀 + `MY COLLECTION`/`WISHLIST` 모드 배지. 가장 우측에 그리드/테이블 뷰 전환 토글을 배치.
 *   **뷰 전환 & 정렬**: 그리드(커버 중심) ↔ 테이블(커버·제목/아티스트·출시연도·태그 한 행 표시) 전환 가능. 최신순/오래된순/가나다순/출시연도순 정렬 칩을 웹 `VinylGrid`와 동일한 기준으로 제공.
@@ -60,6 +62,13 @@
 *   **Discogs API**: 전 세계 LP 데이터베이스 검색 및 마스터 데이터 획득 (`searchDiscogs`)
 *   **YouTube Data API**: 앨범 트랙리스트나 Full Album 자동 매핑 청음 (`searchYouTube`)
 *   **Supabase (PostgreSQL)**: 유저의 컬렉션 및 위시리스트 데이터를 영구 보관 (`getUserVinyls`, `upsertUserVinyl`)
+
+### 🔒 보안 (RLS · 2026-07-09 적용 완료)
+*   전 테이블(ALBUM_MASTER / VINYL_TAG / USER_VINYL / PROFILES)에 Row Level Security 적용.
+*   **공개 읽기**: 비로그인 방문자용 퍼블릭 대시보드(`/user/[id]`)와 실시간 구독이 익명 SELECT에 의존하므로 읽기는 전면 허용.
+*   **쓰기 규칙**: 로그인 사용자만 쓰기 가능. `USER_VINYL`·`PROFILES`는 소유자(`auth.uid()`) 본인 행만 삽입/수정/삭제 가능. 공용 마스터(`ALBUM_MASTER`/`VINYL_TAG`)는 스캔·검색 플로우가 생성해야 하므로 로그인 사용자 전체에 쓰기 허용(마스터 삭제는 불가).
+*   정책 SQL은 루트 `supabase_schema.sql`의 RLS 섹션에서 관리하며 재실행 안전(idempotent). 스키마 참고: `USER_VINYL.USER_ID`는 실제로 UUID 문자열.
+*   **Auth URL 구성**: Site URL `http://localhost:3000`, Redirect URLs에 `http://localhost:3000/**` / `https://vinyla.vercel.app/**` / `exp://**` 등록 (웹·모바일 OAuth 공존 조건).
 
 ### 데이터 모델링 (`ALBUM_MASTER` / `USER_VINYL`)
 ```sql

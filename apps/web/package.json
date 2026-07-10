@@ -17,7 +17,8 @@
     "next": "16.2.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-easy-crop": "^6.0.2"
+    "react-easy-crop": "^6.0.2",
+    "recharts": "^3.9.2"
   },
   "devDependencies": {
     "@types/node": "^20",
