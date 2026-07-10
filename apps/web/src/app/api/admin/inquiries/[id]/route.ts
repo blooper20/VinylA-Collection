@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { INQUIRY_REPLY } from '@vinyla/shared-types';
 import { requireAdmin } from '../../../../../lib/adminAuth';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -18,8 +19,8 @@ export async function GET(request: NextRequest, ctx: Ctx) {
   if (error || !data) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
-  data.INQUIRY_REPLY = [...(data.INQUIRY_REPLY || [])].sort((a: any, b: any) =>
-    a.CREATED_AT.localeCompare(b.CREATED_AT)
+  data.INQUIRY_REPLY = [...(data.INQUIRY_REPLY || [])].sort(
+    (a: INQUIRY_REPLY, b: INQUIRY_REPLY) => a.CREATED_AT.localeCompare(b.CREATED_AT)
   );
   return NextResponse.json({ inquiry: data });
 }

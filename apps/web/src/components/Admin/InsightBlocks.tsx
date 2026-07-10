@@ -126,6 +126,29 @@ export const RetentionTable = ({
   </div>
 );
 
+// ── 최근 AI 스캔 실패 로그 ───────────────────────────────────────
+export const ScanFailureList = ({
+  failures,
+}: {
+  failures: { at: string; label: string }[];
+}) => (
+  <ul className={styles.failList}>
+    {failures.map((f, i) => (
+      <li key={`${f.at}-${i}`} className={styles.failRow}>
+        <span className={styles.failLabel}>{f.label}</span>
+        <span className={styles.failTime}>
+          {new Date(f.at).toLocaleString('ko-KR', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </span>
+      </li>
+    ))}
+  </ul>
+);
+
 // ── 인기 앨범 TOP 10 리스트 ──────────────────────────────────────
 export const TopAlbumsList = ({
   albums,
@@ -137,7 +160,6 @@ export const TopAlbumsList = ({
       <li key={album.albumId} className={styles.topAlbumRow}>
         <span className={styles.topAlbumRank}>{i + 1}</span>
         {album.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={album.image} alt="" className={styles.topAlbumCover} />
         ) : (
           <span className={styles.topAlbumCoverEmpty} />

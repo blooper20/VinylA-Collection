@@ -1,11 +1,12 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
-import { MockVinylData } from '@vinyla/shared-types';
-import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
+import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage } from '@vinyla/core-api';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
 import { captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
+import Image from 'next/image';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -23,7 +24,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
-  const [marketPrice, setMarketPrice] = React.useState<number | null>((album as any).MARKET_PRICE || null);
+  const [marketPrice, setMarketPrice] = React.useState<number | null>(album.MARKET_PRICE || null);
   
   const storyTemplateRef = React.useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
@@ -102,32 +103,26 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         setMarketPrice(-1);
       }
     });
+    // marketPrice를 deps에 넣으면 setMarketPrice로 인해 상세정보 재조회 루프가 발생하므로 제외
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
 
   const handleYoutubeListen = async () => {
     const query = `${album.ARTIST} ${album.TITLE} full album`;
     const results = await searchYouTube(query);
     if (results && results.length > 0) {
-      const videoId = results[0].id?.videoId;
+      const videoId = results[0];
       if (videoId) {
-        window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+        window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank', 'noopener,noreferrer');
         return;
       }
     }
-    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleDiscogsSearch = async () => {
     const query = `${album.ARTIST} ${album.TITLE}`;
-    const results = await searchDiscogs(query);
-    if (results && results.length > 0) {
-      const uri = results[0].uri;
-      if (uri) {
-        window.open(`https://www.discogs.com${uri}`, '_blank');
-        return;
-      }
-    }
-    window.open(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`, '_blank');
+    window.open(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
   };
 
   const [isSaving, setIsSaving] = React.useState(false);
@@ -152,7 +147,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       }
 
       const numericAlbumId = Number(album.ALBUM_ID);
-      let master = await getAlbumMaster(numericAlbumId);
+      const master = await getAlbumMaster(numericAlbumId);
       
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
@@ -172,7 +167,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         });
       }
 
-      const payloadData: any = {
+      const payloadData: Partial<USER_VINYL> = {
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
         STATUS: status,
@@ -202,8 +197,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       }, 600);
     } catch (error) {
       console.error('Failed to save album:', error);
+      const msg = getErrorMessage(error);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-        detail: { message: '추가에 실패했습니다. 다시 시도해주세요.' }
+        detail: { message: msg }
       }));
     } finally {
       setIsSaving(false);
@@ -223,7 +219,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     } catch (e) {
       console.error(e);
       setConfirmTarget(null);
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '삭제에 실패했습니다.' }}));
+      const msg = getErrorMessage(e);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: msg }}));
     } finally {
       setIsDeleting(false);
     }
@@ -245,7 +242,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
               />
             </div>
             <div className={styles.cover}>
-              <img src={coverUrl} alt={album.TITLE} className={styles.coverImage} />
+              <Image src={coverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
             </div>
           </div>
         </div>

@@ -1,28 +1,31 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { ShareableGridTemplate } from '../Share/ShareableGridTemplate';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
-import { copyToClipboard, captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
+import { copyToClipboard, captureElementAsBlob } from '../../utils/shareUtils';
 import { useAuthStore, createAlbumMaster, getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import { MockVinylData } from '@vinyla/shared-types';
 import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 type ViewMode = 'grid4' | 'grid6' | 'table';
 type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
+type VinylItem = ReturnType<typeof mapToFrontendModel> & { TRACKS?: string[] };
 
 interface VinylGridProps {
   statusFilter?: FilterType;
 }
 
 export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) => {
-  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [activeTag, setActiveTag] = useState<string>('ALL');
-  const [dbData, setDbData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dbData, setDbData] = useState<VinylItem[]>([]);
+  const [, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -35,9 +38,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const shareGridRef = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
-  const router = require('next/navigation').useRouter();
+  const router = useRouter();
 
-  useEffect(() => { initializeAuth(); }, []);
+  useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
   useEffect(() => {
     if (user && !user.user_metadata?.displayName) {
@@ -50,7 +53,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       setIsLoading(true);
       if (typeof window !== 'undefined') {
         const cached = localStorage.getItem('vinyls_dbData');
-        if (cached) { try { setDbData(JSON.parse(cached)); } catch(e){} }
+        if (cached) { try { setDbData(JSON.parse(cached)); } catch {} }
       }
       if (!user) { setDbData([]); setIsLoading(false); return; }
       const userVinyls = await getUserVinyls(user.id);
@@ -78,58 +81,15 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   }, [user]);
 
   useEffect(() => {
-    const handleToast = (e: any) => {
-      setToastMessage(e.detail.message);
+    const handleToast = (e: Event) => {
+      setToastMessage((e as CustomEvent<{ message: string }>).detail.message);
       setTimeout(() => setToastMessage(null), 3000);
     };
     window.addEventListener('SHOW_TOAST', handleToast);
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  // Auto-heal: strip country tags from existing records
-  useEffect(() => {
-    if (dbData.length === 0) return;
-    const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
-    const migrationDone = typeof window !== 'undefined' && localStorage.getItem('vinyls_migration_v8') === 'true';
-    if (migrationDone) return;
 
-    const albumsWithCountry = dbData.filter(a => a.GENRES && a.GENRES.some((g: string) => EXCLUDED_TAGS.includes(g)));
-    const albumsWithNoGenres = dbData.filter(a => !a.GENRES || a.GENRES.length === 0 || (a.GENRES.length === 1 && a.GENRES[0] === 'Vinyl'));
-    const allTargets = Array.from(new Set([...albumsWithCountry, ...albumsWithNoGenres]));
-
-    if (allTargets.length === 0) { localStorage.setItem('vinyls_migration_v8', 'true'); return; }
-
-    async function healData() {
-      const token = process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-      const key = process.env.NEXT_PUBLIC_DISCOGS_KEY;
-      const secret = process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-      const authString = token ? `token=${token}` : `key=${key}&secret=${secret}`;
-
-      for (const album of allTargets) {
-        try {
-          const existingGenres = (album.GENRES || []).filter((g: string) => !EXCLUDED_TAGS.includes(g));
-          if (existingGenres.length > 0) {
-            await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: album.TRACKS || [], GENRES: existingGenres });
-            continue;
-          }
-          const query = encodeURIComponent(`${album.ARTIST} ${album.TITLE}`);
-          const res = await fetch(`https://api.discogs.com/database/search?q=${query}&type=release&format=vinyl&per_page=1&${authString}`, { headers: { 'User-Agent': 'VinylA/1.0.0' } });
-          const json = await res.json();
-          const result = json.results?.[0];
-          if (result) {
-            let tracks: string[] = [];
-            try { const rr = await fetch(`https://api.discogs.com/releases/${result.id}?${authString}`, { headers: { 'User-Agent': 'VinylA/1.0.0' } }); const rj = await rr.json(); tracks = rj.tracklist?.map((t: any) => t.title) || []; } catch {}
-            const finalGenres = Array.from(new Set([...(result?.genre || []), ...(result?.style || [])]));
-            if (finalGenres.length > 0) await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: tracks.length > 0 ? tracks : (album.TRACKS || []), GENRES: finalGenres });
-          }
-        } catch (err) { console.warn(`Auto-heal failed for ${album.TITLE}:`, err); }
-      }
-      if (typeof window !== 'undefined') localStorage.setItem('vinyls_migration_v8', 'true');
-      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
-    }
-    const timer = setTimeout(healData, 1000);
-    return () => clearTimeout(timer);
-  }, [dbData]);
 
   const dataToUse = dbData.filter(album => statusFilter === 'ALL' || album.STATUS === statusFilter);
   const allTags = Array.from(new Set(dataToUse.flatMap(album => album.GENRES || []))).sort();
@@ -155,15 +115,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       await copyToClipboard(link);
       setToastMessage('프로필 링크가 복사되었습니다!');
       setTimeout(() => setToastMessage(null), 3000);
-    }
-  };
-
-  const handleShareImage = async () => {
-    if (shareGridRef.current) {
-      const blob = await captureElementAsBlob(shareGridRef.current);
-      if (blob) {
-        await shareImageNative(blob, 'vinyl-collection.jpg');
-      }
     }
   };
 
@@ -226,7 +177,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
       </header>
 
-      {viewMode !== 'table' ? (
+      {displayedAlbums.length === 0 ? (
+        <div className={styles.emptyState}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'rgba(255,255,255,0.2)', marginBottom: '16px' }}>album</span>
+          <p className={styles.emptyStateText}>컬렉션이 비어 있습니다.</p>
+          <button className={styles.emptyStateBtn} onClick={() => router.push('/search')}>새 앨범 찾기</button>
+        </div>
+      ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {displayedAlbums.map(album => (
             <AlbumCard key={album.ALBUM_ID} album={album} onClick={setSelectedAlbum} />

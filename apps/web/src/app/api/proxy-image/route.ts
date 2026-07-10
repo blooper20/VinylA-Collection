@@ -7,6 +7,29 @@ export async function GET(request: NextRequest) {
     return new NextResponse('URL parameter is required', { status: 400 });
   }
 
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch (e) {
+    return new NextResponse('Invalid URL parameter', { status: 400 });
+  }
+
+  const allowedDomains = [
+    'mzstatic.com',
+    'apple.com',
+    'discogs.com',
+    'unsplash.com',
+    'picsum.photos',
+  ];
+
+  const isAllowed = allowedDomains.some(domain => 
+    parsedUrl.hostname === domain || parsedUrl.hostname.endsWith(`.${domain}`)
+  );
+
+  if (!isAllowed) {
+    return new NextResponse('Forbidden: Domain not allowed', { status: 403 });
+  }
+
   try {
     const response = await fetch(url);
     if (!response.ok) {

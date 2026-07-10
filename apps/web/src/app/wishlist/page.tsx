@@ -11,10 +11,11 @@ import styles from './page.module.css';
 
 type ViewMode = 'grid4' | 'grid6' | 'table';
 type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
+type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
 
 export default function WishlistPage() {
-  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
-  const [wishes, setWishes] = useState<any[]>([]);
+  const [selectedAlbum, setSelectedAlbum] = useState<FrontendVinyl | null>(null);
+  const [wishes, setWishes] = useState<FrontendVinyl[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
@@ -32,11 +33,11 @@ export default function WishlistPage() {
 
   const { user, initializeAuth } = useAuthStore();
 
-  useEffect(() => { initializeAuth(); }, []);
+  useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
   // Listen for SHOW_TOAST events (e.g. from SharePreviewModal)
   useEffect(() => {
-    const handler = (e: any) => showToast(e.detail.message);
+    const handler = (e: Event) => showToast((e as CustomEvent<{ message: string }>).detail.message);
     window.addEventListener('SHOW_TOAST', handler);
     return () => window.removeEventListener('SHOW_TOAST', handler);
   }, []);

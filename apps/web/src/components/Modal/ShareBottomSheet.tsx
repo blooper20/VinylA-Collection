@@ -21,6 +21,8 @@ export const ShareBottomSheet: React.FC<ShareBottomSheetProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (isOpen) {
+      // 마운트 후 CSS 트랜지션을 위한 2단계 렌더링 패턴이라 effect 내 동기 setState가 불가피함
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRender(true);
       // Small delay to allow CSS transition to apply
       requestAnimationFrame(() => {

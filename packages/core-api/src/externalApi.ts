@@ -1,4 +1,9 @@
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
+import { AppError } from './errors';
+
+// Configure axios to retry requests on failure (e.g. rate limits, network issues)
+axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 import { logEvent } from './events';
 
 export type AlbumItem = {
@@ -13,6 +18,36 @@ export type AlbumItem = {
 };
 
 export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done' | 'error';
+
+export interface DiscogsRelease {
+  id: number;
+  master_id?: number;
+  title?: string;
+  year?: string | number;
+  format?: string[];
+  genre?: string[];
+  style?: string[];
+  country?: string;
+  thumb?: string;
+  cover_image?: string;
+}
+
+export interface ITunesResult {
+  collectionId: number;
+  collectionName: string;
+  artistName: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+  primaryGenreName?: string;
+  copyright?: string;
+  trackName?: string;
+  wrapperType?: string;
+}
+
+export interface YouTubeResult {
+  id: { videoId: string };
+  snippet: { title: string; description: string; thumbnails: Record<string, unknown> };
+}
 
 // ─── Discogs-first, Apple Music–enriched search ───────────────────────────────
 // Strategy:
@@ -56,7 +91,7 @@ export type DiscogsSearchSession = {
 export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,
-  onStatusChange?: (status: SearchStatus, total?: number) => void
+  onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void
 ): DiscogsSearchSession => {
   const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
   const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
@@ -101,9 +136,9 @@ export const createDiscogsSearchSession = (
     const alias = await aliasPromise;
 
     // ── Step 1: Discogs vinyl search (two parallel pages per batch) ────────────
-    let raw: any[] = [];
+    let raw: DiscogsRelease[] = [];
     try {
-      const fetchPage = async (params: any) => {
+      const fetchPage = async (params: Record<string, unknown>) => {
         return axios.get('https://api.discogs.com/database/search', {
           params: {
             ...params,
@@ -126,7 +161,7 @@ export const createDiscogsSearchSession = (
         const genreKeyword = query.substring(1);
 
         // Map UI categories to correct Discogs parameters
-        let discogsParams: any = {};
+        let discogsParams: Record<string, string> = {};
         switch (genreKeyword) {
           case 'Ambient': discogsParams = { style: 'Ambient' }; break;
           case 'Cinematic': discogsParams = { style: 'Soundtrack' }; break; // Stage & Screen / Soundtrack
@@ -156,9 +191,11 @@ export const createDiscogsSearchSession = (
 
       const pages = await Promise.all(promises);
       raw = pages.flat();
-    } catch (e: any) {
-      console.error('Discogs search failed:', e?.message || 'Unknown error');
-      onStatusChange?.('error', cumulativeTotal);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error('Discogs search failed:', err?.message || 'Unknown error');
+      const appErr = new AppError('EXT-001', 'Discogs 검색 중 오류가 발생했습니다.', e);
+      onStatusChange?.('error', cumulativeTotal, appErr);
       return false;
     }
 
@@ -174,7 +211,7 @@ export const createDiscogsSearchSession = (
     }
 
     // ── Step 2: Client-side filter → LP/Album formats + artist must match query ──
-    const unique: { r: any, isFeature: boolean }[] = [];
+    const unique: { r: DiscogsRelease, isFeature: boolean }[] = [];
     const queryLower = query.toLowerCase();
     const aliasLower = alias.toLowerCase();
     const isKoreanQuery = /[가-힣]/.test(query);
@@ -227,12 +264,12 @@ export const createDiscogsSearchSession = (
     // ── Step 3: Enrich each LP with Apple Music cover art (3 concurrent) ────────
     const CONCURRENCY = 3;
 
-    const enrich = async ({ r, isFeature }: { r: any, isFeature: boolean }) => {
+    const enrich = async ({ r, isFeature }: { r: DiscogsRelease, isFeature: boolean }) => {
       const { artist, title } = parseDiscogsTitle(r.title || '');
 
       // 1. Unconditionally try Apple Music for a pristine digital cover
       let thumb = '';
-      let hit: any = null;
+      let hit: ITunesResult | null = null;
       try {
         const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
         const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
@@ -241,7 +278,7 @@ export const createDiscogsSearchSession = (
           params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
         });
         // Pick the Apple Music result whose artist or title best matches
-        hit = itRes.data.results?.find((item: any) => {
+        hit = itRes.data.results?.find((item: ITunesResult) => {
           const itemArtist = item.artistName?.toLowerCase() || '';
           const itemTitle = item.collectionName?.toLowerCase() || '';
           const qArtist = cleanArtist.toLowerCase();
@@ -305,108 +342,9 @@ export const createDiscogsSearchSession = (
 export const searchDiscogsLazy = async (
   query: string,
   onItem: (album: AlbumItem) => void,
-  onStatusChange?: (status: SearchStatus, total?: number) => void
+  onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void
 ): Promise<void> => {
   await createDiscogsSearchSession(query, onItem, onStatusChange).loadMore();
-};
-
-export const searchDiscogs = async (query: string) => {
-  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
-  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-  
-  const hasAuth = token || (key && secret);
-  const authParams = token ? { token } : { key, secret };
-
-  // 1. First, search Apple Music for best relevancy and covers
-  let itunesResults: any[] = [];
-  try {
-    const response = await axios.get('https://itunes.apple.com/search', {
-      params: {
-        term: query,
-        entity: 'album',
-        limit: 20
-      }
-    });
-    itunesResults = response.data.results.map((item: any) => ({
-      id: item.collectionId,
-      title: item.collectionName,
-      artist: item.artistName,
-      thumb: item.artworkUrl100?.replace('100x100bb', '600x600bb'),
-      year: item.releaseDate ? item.releaseDate.substring(0, 4) : '',
-      genre: [item.primaryGenreName]
-    }));
-  } catch (e) {
-    console.error('iTunes search failed:', e);
-    return [];
-  }
-
-  // 2. If no auth for Discogs, just return all Apple Music results (fallback)
-  if (!hasAuth) {
-    console.warn('Discogs auth missing! Returning unfiltered Apple Music results.');
-    return itunesResults;
-  }
-
-  // 3. Filter Apple Music results by checking if they exist as Vinyl on Discogs
-  // Increase slice to 15 to catch buried LPs, 15 is safe for Discogs 60/min limit
-  const topResults = itunesResults.slice(0, 15);
-  
-  const validAlbums = (await Promise.all(topResults.map(async (album) => {
-    try {
-      // Remove (Special Edition), - EP, - Single to make matching easier
-      const cleanTitle = album.title.replace(/ - EP| - Single/g, '').replace(/\([^)]*\)/g, '').trim();
-      
-      // Try with Apple Music's Artist name first
-      let dRes = await axios.get('https://api.discogs.com/database/search', {
-        params: {
-          q: `${album.artist} ${cleanTitle}`,
-          ...authParams,
-          type: 'release',
-          format: 'vinyl'
-        }
-      });
-
-      // Find a result that actually matches the artist or original query
-      let bestMatch = dRes.data.results?.find((r: any) => {
-        const t = (r.title || '').toLowerCase();
-        return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
-      });
-
-      // If no valid match, try with the user's original query (fixes English/Korean artist name mismatch)
-      if (!bestMatch) {
-        dRes = await axios.get('https://api.discogs.com/database/search', {
-          params: {
-            q: `${query} ${cleanTitle}`,
-            ...authParams,
-            type: 'release',
-            format: 'vinyl'
-          }
-        });
-        bestMatch = dRes.data.results?.find((r: any) => {
-          const t = (r.title || '').toLowerCase();
-          return t.includes(album.artist.toLowerCase()) || t.includes(query.toLowerCase());
-        });
-      }
-      
-      if (bestMatch) {
-        const rawTitle = bestMatch.title || '';
-        // Discogs titles usually come as "Artist - Title", so we extract the Title
-        const parsedTitle = rawTitle.includes(' - ') ? rawTitle.split(' - ').slice(1).join(' - ').trim() : rawTitle;
-
-        return {
-          ...album,
-          id: bestMatch.id, // Replace iTunes ID with Discogs ID so tracklist fetches correctly!
-          title: parsedTitle || album.title
-        };
-      }
-      return null; // No vinyl found, filter it out
-    } catch (e: any) {
-      console.warn(`Discogs check failed for ${album.title}`, e.message);
-      return album; // Fallback to showing it if API fails
-    }
-  }))).filter(Boolean);
-
-  return validAlbums;
 };
 
 
@@ -431,7 +369,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
   try {
     const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: authParams });
     if (masterRes.data?.tracklist) {
-      details.tracks = masterRes.data.tracklist.map((t: any) => t.title);
+      details.tracks = masterRes.data.tracklist.map((t: { title: string }) => t.title);
     }
     if (masterRes.data?.notes) {
       details.notes = masterRes.data.notes;
@@ -443,7 +381,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
     try {
       const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
       if (releaseRes.data?.tracklist) {
-        details.tracks = releaseRes.data.tracklist.map((t: any) => t.title);
+        details.tracks = releaseRes.data.tracklist.map((t: { title: string }) => t.title);
       }
       if (releaseRes.data?.notes) {
         details.notes = releaseRes.data.notes;
@@ -466,7 +404,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
       });
       // Ensure the artist matches before taking the hit
-      const hit = itRes.data.results?.find((item: any) => {
+      const hit = itRes.data.results?.find((item: ITunesResult) => {
         const itemArtist = item.artistName?.toLowerCase() || '';
         const itemTitle = item.collectionName?.toLowerCase() || '';
         const qArtist = cleanArtist.toLowerCase();
@@ -492,14 +430,15 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
           const trackRes = await axios.get('https://itunes.apple.com/lookup', {
             params: { id: hit.collectionId, entity: 'song' }
           });
-          const songs = trackRes.data.results?.filter((r: any) => r.wrapperType === 'track') || [];
+          const songs = trackRes.data.results?.filter((r: ITunesResult) => r.wrapperType === 'track') || [];
           if (songs.length > 0) {
-            details.tracks = songs.map((s: any) => s.trackName);
+            details.tracks = songs.map((s: ITunesResult) => s.trackName || '');
           }
         }
       }
     }
-  } catch (error: any) {
+  } catch (e: unknown) {
+    const error = e as Error;
     console.warn('iTunes extra details fetch failed:', error?.message || 'Unknown error');
   }
 
@@ -507,27 +446,29 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
 };
 
 // YouTube Data API Bridge Function
-export const searchYouTube = async (query: string) => {
+export const searchYouTube = async (query: string): Promise<string[]> => {
   const apiKey = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  if (!apiKey) {
-    console.warn('YouTube API key is missing!');
-    return [];
-  }
+  if (!apiKey) return [];
 
   try {
-    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+    const res = await axios.get('https://www.googleapis.com/youtube/v3/search', {
       params: {
         part: 'snippet',
         q: query,
         type: 'video',
+        videoCategoryId: '10', // Music
+        maxResults: 3,
         key: apiKey,
-        maxResults: 5,
       },
     });
-    return response.data.items;
-  } catch (error: any) {
-    console.warn('YouTube search failed:', error?.message || 'Unknown error');
+
+    if (res.data && res.data.items) {
+      return res.data.items.map((item: YouTubeResult) => item.id.videoId);
+    }
     return [];
+  } catch (error) {
+    console.error('YouTube search error:', error);
+    throw new AppError('EXT-003', 'YouTube 검색 중 오류가 발생했습니다.', error);
   }
 };
 
@@ -557,7 +498,8 @@ export const analyzeImageWithVisionAPI = async (base64Image: string) => {
       }
     );
     return response.data.responses[0];
-  } catch (error: any) {
+  } catch (e: unknown) {
+    const error = e as Error & { response?: { data?: { error?: { message?: string } } } };
     console.error('Vision API failed:', error?.response?.data || error);
     throw new Error(error?.response?.data?.error?.message || 'Google Vision API request failed');
   }
@@ -575,8 +517,9 @@ export const getHighQualityArtwork = async (title: string, artist: string, fallb
     if (response.data.results && response.data.results.length > 0) {
       return response.data.results[0].artworkUrl100?.replace('100x100bb', '600x600bb') || fallbackUrl;
     }
-  } catch (e: any) {
-    console.warn('Failed to fetch high quality artwork from iTunes', e?.message || 'Unknown error');
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.warn('Failed to fetch high quality artwork from iTunes', err?.message || 'Unknown error');
   }
   return fallbackUrl;
 };

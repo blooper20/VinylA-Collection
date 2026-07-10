@@ -16,7 +16,7 @@ export default function SetupPage() {
 
   useEffect(() => {
     initializeAuth();
-  }, []);
+  }, [initializeAuth]);
 
   useEffect(() => {
     if (!isLoading && user?.user_metadata?.displayName) {

@@ -1,8 +1,9 @@
 import React, { forwardRef } from 'react';
 import styles from './ShareableGridTemplate.module.css';
+import { MockVinylData } from '@vinyla/shared-types';
 
 interface ShareableGridTemplateProps {
-  albums: any[];
+  albums: (MockVinylData & { COVER_URL?: string })[];
   username: string;
   title: string;
 }
@@ -31,7 +32,7 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
       <div ref={ref} className={styles.gridFrame}>
         <div className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
-          <p className={styles.subtitle}>@{username}'s Collection</p>
+          <p className={styles.subtitle}>@{username}&apos;s Collection</p>
         </div>
 
         <div className={styles.gridContainer} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>

@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import { searchYouTube, searchDiscogs, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls } from '@vinyla/core-api';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { CustomAlert } from '../../providers/AlertProvider';
 import { ShareableStoryView } from '../Share/ShareableStoryView';
@@ -196,8 +196,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
     const query = `${album.ARTIST} ${album.TITLE} full album`;
     const results = await searchYouTube(query);
-    if (results && results.length > 0 && results[0].id?.videoId) {
-      Linking.openURL(`https://www.youtube.com/watch?v=${results[0].id.videoId}`);
+    if (results && results.length > 0 && results[0]) {
+      Linking.openURL(`https://www.youtube.com/watch?v=${results[0]}`);
     } else {
       Linking.openURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
     }
@@ -206,12 +206,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const handleDiscogsSearch = async () => {
     if (!album) return;
     const query = `${album.ARTIST} ${album.TITLE}`;
-    const results = await searchDiscogs(query);
-    if (results && results.length > 0 && results[0].uri) {
-      Linking.openURL(`https://www.discogs.com${results[0].uri}`);
-    } else {
-      Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
-    }
+    Linking.openURL(`https://www.discogs.com/search/?q=${encodeURIComponent(query)}`);
   };
 
   const handleShareLink = async () => {
@@ -301,10 +296,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
       setPurchasePrice(finalPrice);
       setRealStatus('OWNED');
-      showAlert('성공', `앨범이 성공적으로 보관함에 저장되었습니다!`);
+      showAlert('성공', `앨범이 성공적으로 보관함에 저장되었습니다!`, () => handleClose());
     } catch (error) {
       console.error('Error saving album to collection:', error);
-      showAlert('오류', '앨범 저장에 실패했습니다. 다시 시도해 주세요.');
+      showAlert('오류', getErrorMessage(error));
     }
   };
 
@@ -318,9 +313,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         PURCHASE_PRICE: finalPrice
       });
       setPurchasePrice(finalPrice);
-      showAlert('저장 완료', '구입가가 성공적으로 저장되었습니다.');
+      showAlert('저장 완료', '구입가가 성공적으로 저장되었습니다.', () => handleClose());
     } catch (e) {
-      showAlert('오류', '구입가 저장에 실패했습니다.');
+      console.error(e);
+      showAlert('오류', getErrorMessage(e));
     }
   };
 
@@ -367,10 +363,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           PURCHASE_PRICE: 0
         });
         setRealStatus('WISH');
-        showAlert('성공', `위시리스트에 저장되었습니다!`);
+        showAlert('성공', `위시리스트에 저장되었습니다!`, () => handleClose());
       } catch (error) {
         console.error('Error saving album to wish:', error);
-        showAlert('오류', '위시리스트 저장에 실패했습니다. 다시 시도해 주세요.');
+        showAlert('오류', getErrorMessage(error));
       }
     }
   };
@@ -386,7 +382,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       });
     } catch (e) {
       console.error(e);
-      showAlert('오류', '삭제에 실패했습니다.');
+      showAlert('오류', getErrorMessage(e));
     }
   };
 

@@ -430,3 +430,4 @@ FodyWeavers.xsd
 .env.local
 .vercel
 .env*
+.turbo/

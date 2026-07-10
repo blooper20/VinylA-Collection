@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import Cropper from 'react-easy-crop';
+import Cropper, { Area } from 'react-easy-crop';
 import styles from './ImageCropModal.module.css';
 import getCroppedImg from '../../utils/cropImage';
 
@@ -18,17 +18,17 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
 }) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+  const handleCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
   const handleConfirm = async () => {
     try {
       setIsProcessing(true);
-      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, 0);
+      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels!, 0);
       if (croppedFile) {
         const croppedUrl = URL.createObjectURL(croppedFile);
         onCropComplete(croppedFile, croppedUrl);

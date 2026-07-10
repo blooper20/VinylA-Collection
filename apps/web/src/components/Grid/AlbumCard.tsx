@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './AlbumCard.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
+import Image from 'next/image';
 
 interface AlbumCardProps {
   album: MockVinylData;
@@ -21,11 +22,13 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
 
       {/* Album cover */}
       <div className={styles.cover}>
-        <img
+        <Image
           src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/400/400`}
           alt={album.TITLE}
           className={styles.coverImage}
-          loading="lazy"
+          width={400}
+          height={400}
+          style={{ objectFit: 'cover' }}
         />
       </div>
 

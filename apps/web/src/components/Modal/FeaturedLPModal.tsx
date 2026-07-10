@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import styles from './FeaturedLPModal.module.css';
+import { MockVinylData } from '@vinyla/shared-types';
 
 interface FeaturedLPModalProps {
   isOpen: boolean;
   onClose: () => void;
-  albums: any[];
+  albums: (MockVinylData & { COVER_URL?: string })[];
   currentFeaturedId: number | null;
   onSelect: (albumId: number) => Promise<void>;
 }
@@ -19,7 +20,7 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
     try {
       await onSelect(albumId);
       onClose();
-    } catch (e) {
+    } catch {
       alert('대표 LP 설정에 실패했습니다.');
     } finally {
       setIsSaving(false);

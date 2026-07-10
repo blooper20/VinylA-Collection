@@ -34,8 +34,19 @@ app.post('/api/scan', async (req, res) => {
       return res.status(400).json({ error: 'Missing base64Image or queries' });
     }
 
+    interface CandidateAlbum {
+      ALBUM_ID: number;
+      TITLE: string;
+      ARTIST: string;
+      RELEASE_YEAR: number;
+      IMAGE_URL: string;
+      VINYL_IMAGE_URL: string;
+      CUSTOM_COLOR_HEX: string;
+      CUSTOM_STYLE_TYPE: string;
+      GENRES: string[];
+    }
     // 1. Gather candidate albums from Discogs using the queries sequentially
-    const results: any[] = [];
+    const results: CandidateAlbum[] = [];
     
     for (let i = 0; i < queries.length; i++) {
       const q = queries[i];
@@ -43,11 +54,7 @@ app.post('/api/scan', async (req, res) => {
       let foundMain = false;
       await searchDiscogsLazy(q, (album: AlbumItem) => {
           if (results.some((a) => a.ALBUM_ID === Number(album.id))) return;
-          const combinedGenres = Array.from(new Set([
-            ...(album.country ? [album.country] : []),
-            ...(album.genre || []),
-            ...(album.style || [])
-          ]));
+          const combinedGenres = album.genre || [];
 
           results.push({
             ALBUM_ID: Number(album.id) || Date.now() + Math.random(),
@@ -87,7 +94,11 @@ app.post('/api/scan', async (req, res) => {
     );
 
     // 3. Construct VLM Prompt with Interleaved Images
-    const contentPayload: any[] = [
+    interface GeminiPart {
+      text?: string;
+      inlineData?: { mimeType: string; data: string };
+    }
+    const contentPayload: GeminiPart[] = [
       { 
         text: 'You are an expert vinyl record identifier. I will provide an Original Photo of an album cover, followed by several Candidate Albums (each with its artist, title, and cover image).\n\nYour task: Carefully compare the Original Photo with the Candidate Album images. Find the exact visual match.\n\nReturn ONLY a JSON object: {"matchedIndex": <index>}. If none match, return {"matchedIndex": -1}.\n\n--- ORIGINAL PHOTO ---' 
       },
@@ -139,7 +150,7 @@ app.post('/api/scan', async (req, res) => {
       if (typeof parsed.matchedIndex === 'number') {
         matchedIndex = parsed.matchedIndex;
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('[API] Failed to parse VLM JSON response', e);
     }
     
@@ -149,7 +160,8 @@ app.post('/api/scan', async (req, res) => {
       bestMatch: matchedIndex >= 0 && matchedIndex < candidates.length ? candidates[matchedIndex] : null
     });
 
-  } catch (error: any) {
+  } catch (e: unknown) {
+    const error = e as Error & { response?: { data?: unknown } };
     console.error('[API] Scan endpoint error:', error?.response?.data || error?.message || error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
