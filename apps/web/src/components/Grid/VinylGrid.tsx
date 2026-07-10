@@ -1,28 +1,31 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { ShareableGridTemplate } from '../Share/ShareableGridTemplate';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
-import { copyToClipboard, captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
+import { copyToClipboard, captureElementAsBlob } from '../../utils/shareUtils';
 import { useAuthStore, createAlbumMaster, getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import { MockVinylData } from '@vinyla/shared-types';
 import styles from './VinylGrid.module.css';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 type ViewMode = 'grid4' | 'grid6' | 'table';
 type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
+type VinylItem = ReturnType<typeof mapToFrontendModel> & { TRACKS?: string[] };
 
 interface VinylGridProps {
   statusFilter?: FilterType;
 }
 
 export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) => {
-  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [activeTag, setActiveTag] = useState<string>('ALL');
-  const [dbData, setDbData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dbData, setDbData] = useState<VinylItem[]>([]);
+  const [, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -35,9 +38,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const shareGridRef = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
-  const router = require('next/navigation').useRouter();
+  const router = useRouter();
 
-  useEffect(() => { initializeAuth(); }, []);
+  useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
   useEffect(() => {
     if (user && !user.user_metadata?.displayName) {
@@ -50,7 +53,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       setIsLoading(true);
       if (typeof window !== 'undefined') {
         const cached = localStorage.getItem('vinyls_dbData');
-        if (cached) { try { setDbData(JSON.parse(cached)); } catch(e){} }
+        if (cached) { try { setDbData(JSON.parse(cached)); } catch {} }
       }
       if (!user) { setDbData([]); setIsLoading(false); return; }
       const userVinyls = await getUserVinyls(user.id);
@@ -78,8 +81,8 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   }, [user]);
 
   useEffect(() => {
-    const handleToast = (e: any) => {
-      setToastMessage(e.detail.message);
+    const handleToast = (e: Event) => {
+      setToastMessage((e as CustomEvent<{ message: string }>).detail.message);
       setTimeout(() => setToastMessage(null), 3000);
     };
     window.addEventListener('SHOW_TOAST', handleToast);
@@ -118,7 +121,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           const result = json.results?.[0];
           if (result) {
             let tracks: string[] = [];
-            try { const rr = await fetch(`https://api.discogs.com/releases/${result.id}?${authString}`, { headers: { 'User-Agent': 'VinylA/1.0.0' } }); const rj = await rr.json(); tracks = rj.tracklist?.map((t: any) => t.title) || []; } catch {}
+            try { const rr = await fetch(`https://api.discogs.com/releases/${result.id}?${authString}`, { headers: { 'User-Agent': 'VinylA/1.0.0' } }); const rj = await rr.json(); tracks = rj.tracklist?.map((t: { title: string }) => t.title) || []; } catch {}
             const finalGenres = Array.from(new Set([...(result?.genre || []), ...(result?.style || [])]));
             if (finalGenres.length > 0) await createAlbumMaster({ ALBUM_ID: album.ALBUM_ID, TITLE: album.TITLE, ARTIST: album.ARTIST, RELEASE_YEAR: album.RELEASE_YEAR, IMAGE_URL: album.IMAGE_URL, VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || '', CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || '#1a1c1c', CUSTOM_STYLE_TYPE: album.CUSTOM_STYLE_TYPE || 'SOLID', TRACKS: tracks.length > 0 ? tracks : (album.TRACKS || []), GENRES: finalGenres });
           }
@@ -155,15 +158,6 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       await copyToClipboard(link);
       setToastMessage('프로필 링크가 복사되었습니다!');
       setTimeout(() => setToastMessage(null), 3000);
-    }
-  };
-
-  const handleShareImage = async () => {
-    if (shareGridRef.current) {
-      const blob = await captureElementAsBlob(shareGridRef.current);
-      if (blob) {
-        await shareImageNative(blob, 'vinyl-collection.jpg');
-      }
     }
   };
 

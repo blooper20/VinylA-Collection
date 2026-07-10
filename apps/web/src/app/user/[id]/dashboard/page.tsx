@@ -9,6 +9,7 @@ import styles from '../../../my/page.module.css';
 import dashStyles from './dashboard.module.css';
 
 type TabType = 'timeline' | 'collection' | 'wishlist';
+type VinylItem = ReturnType<typeof mapToFrontendModel>;
 
 function PublicDashboardContent() {
   const params = useParams();
@@ -27,18 +28,18 @@ function PublicDashboardContent() {
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
   const [actualTopGenre, setActualTopGenre] = useState('-');
-  const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
-  const [ownedAlbums, setOwnedAlbums] = useState<any[]>([]);
-  const [wishAlbums, setWishAlbums] = useState<any[]>([]);
-  const [featuredAlbum, setFeaturedAlbum] = useState<any | null>(null);
+  const [recentAdditions, setRecentAdditions] = useState<VinylItem[]>([]);
+  const [ownedAlbums, setOwnedAlbums] = useState<VinylItem[]>([]);
+  const [wishAlbums, setWishAlbums] = useState<VinylItem[]>([]);
+  const [featuredAlbum, setFeaturedAlbum] = useState<VinylItem | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('timeline');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<VinylItem | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const { user, initializeAuth } = useAuthStore();
 
-  useEffect(() => { initializeAuth(); }, []);
+  useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
   useEffect(() => {
     async function loadStats() {
@@ -51,14 +52,14 @@ function PublicDashboardContent() {
         
         if (data && data.length > 0) {
           // Map all data first
-          const mapped = data.map((v: any) => mapToFrontendModel(v, null));
-          const mappedOwned = mapped.filter((v: any) => v.STATUS === 'OWNED');
-          const mappedWish = mapped.filter((v: any) => v.STATUS === 'WISH');
+          const mapped = data.map((v) => mapToFrontendModel(v, null));
+          const mappedOwned = mapped.filter((v) => v.STATUS === 'OWNED');
+          const mappedWish = mapped.filter((v) => v.STATUS === 'WISH');
 
           // Find featured album by comparing ALBUM_ID as strings (handles int vs string mismatch)
-          let foundFeatured: any = null;
+          let foundFeatured: VinylItem | null = null;
           if (featuredAlbumId) {
-            foundFeatured = mapped.find((a: any) => 
+            foundFeatured = mapped.find((a) =>
               String(a.ALBUM_ID) === String(featuredAlbumId)
             ) || null;
           }
@@ -69,12 +70,12 @@ function PublicDashboardContent() {
           setWishAlbums(mappedWish);
 
           // Calculate actual spent cost
-          const spent = mappedOwned.reduce((sum: number, item: any) => sum + (item.PURCHASE_PRICE || 0), 0);
+          const spent = mappedOwned.reduce((sum: number, item) => sum + (item.PURCHASE_PRICE || 0), 0);
           setActualSpentValue(spent);
 
           // Compute actual top genre
           const genreCounts: Record<string, number> = {};
-          mappedOwned.forEach((item: any) => {
+          mappedOwned.forEach((item) => {
             if (item.GENRES && Array.isArray(item.GENRES)) {
               item.GENRES.forEach((g: string) => {
                 genreCounts[g] = (genreCounts[g] || 0) + 1;
@@ -101,7 +102,7 @@ function PublicDashboardContent() {
 
   if (!id) return null;
 
-  const handleAlbumClick = (album: any) => {
+  const handleAlbumClick = (album: VinylItem) => {
     if (!user) {
       setShowLoginPrompt(true);
     } else {
@@ -292,12 +293,12 @@ function PublicDashboardContent() {
                 background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.6)', fontSize: '15px', cursor: 'pointer'
               }}>취소</button>
-              <a href="/" style={{
+              <Link href="/" style={{
                 flex: 1, padding: '14px', borderRadius: '12px',
                 background: 'linear-gradient(135deg, #d4af37, #f3e5ab)',
                 color: '#111', fontSize: '15px', fontWeight: 700,
                 textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>로그인</a>
+              }}>로그인</Link>
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ const COHORT_WEEKS = 8;
 
 // supabase-js silently caps selects at 1000 rows — page through with .range()
 const fetchAll = async <T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
 ): Promise<T[]> => {
   const all: T[] = [];
   let from = 0;
@@ -69,13 +69,27 @@ const listAllUsers = async (admin: SupabaseClient): Promise<AdminUser[]> => {
   return users;
 };
 
+// EVENT_LOG.META에서 집계에 쓰는 필드만 좁혀서 타입 지정
+type EventMeta = {
+  result?: string;
+  status?: number | string;
+  source?: string;
+  sharedFrom?: string;
+};
 type EventRow = {
   EVENT_TYPE: string;
   USER_ID: string | null;
   CREATED_AT: string;
-  META: Record<string, any> | null;
+  META: EventMeta | null;
 };
 type VinylRow = { USER_ID: string; ALBUM_ID: number; STATUS: string; PURCHASE_PRICE: number | null };
+type AlbumMasterRow = {
+  ALBUM_ID: number;
+  TITLE: string;
+  ARTIST: string;
+  IMAGE_URL: string;
+  MARKET_PRICE: number | null;
+};
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
@@ -285,7 +299,7 @@ export async function GET(request: NextRequest) {
     // ── 유입(Acquisition): 방문 → 가입 전환, 유입 소스, 가입 provider ──
     const visits = periodEvents.filter((e) => e.EVENT_TYPE === 'VISIT');
     const signupEvents = periodEvents.filter((e) => e.EVENT_TYPE === 'SIGNUP');
-    const countBy = (rows: EventRow[], pick: (e: EventRow) => string) => {
+    const countBy = (rows: EventRow[], pick: (e: EventRow) => string | undefined) => {
       const m = new Map<string, number>();
       for (const r of rows) {
         const k = pick(r) || 'unknown';
@@ -321,10 +335,10 @@ export async function GET(request: NextRequest) {
       interestByAlbum.get(r.ALBUM_ID)!.add(r.USER_ID);
     }
     const allAlbumIds = Array.from(interestByAlbum.keys());
-    const masterById = new Map<number, { TITLE: string; ARTIST: string; IMAGE_URL: string; MARKET_PRICE: number | null }>();
+    const masterById = new Map<number, AlbumMasterRow>();
     for (let i = 0; i < allAlbumIds.length; i += 500) {
       const chunk = allAlbumIds.slice(i, i + 500);
-      const masters = await fetchAll<any>((from, to) =>
+      const masters = await fetchAll<AlbumMasterRow>((from, to) =>
         admin
           .from('ALBUM_MASTER')
           .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE')
@@ -422,8 +436,8 @@ export async function GET(request: NextRequest) {
       topAlbums,
       topArtists,
     });
-  } catch (e: any) {
-    console.error('admin stats failed:', e?.message || e);
+  } catch (e) {
+    console.error('admin stats failed:', e instanceof Error ? e.message : e);
     return NextResponse.json({ error: 'stats aggregation failed' }, { status: 500 });
   }
 }

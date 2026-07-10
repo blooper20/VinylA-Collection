@@ -56,6 +56,8 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
+    // 마운트/유저 변경 시 문의 목록을 불러오는 비동기 데이터 로딩 패턴 (의도된 동작)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user) loadInquiries();
   }, [user, loadInquiries]);
 

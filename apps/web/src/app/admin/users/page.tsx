@@ -39,9 +39,9 @@ export default function AdminUsersPage() {
         }
         const body = await res.json();
         setUsers(body.users || []);
-      } catch (e: any) {
+      } catch (e) {
         console.error('Failed to load users', e);
-        setError(e?.message || '사용자 목록을 불러오지 못했습니다');
+        setError(e instanceof Error ? e.message : '사용자 목록을 불러오지 못했습니다');
       } finally {
         setIsLoading(false);
       }

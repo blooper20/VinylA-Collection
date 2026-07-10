@@ -21,6 +21,8 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* 아이콘 폰트는 로딩 전 리거처 텍스트가 보이면 안 되므로 display=block이 맞다 */}
+        {/* eslint-disable-next-line @next/next/google-font-display */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
           rel="stylesheet"

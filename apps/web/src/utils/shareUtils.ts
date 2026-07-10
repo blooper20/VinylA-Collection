@@ -32,8 +32,8 @@ export async function captureElementAsBlob(element: HTMLElement, format: 'jpeg' 
       get() {
         try {
           return originalRulesDescriptor.get?.call(this) || [];
-        } catch (e: any) {
-          if (e.name === 'SecurityError') {
+        } catch (e) {
+          if (e instanceof Error && e.name === 'SecurityError') {
             return []; // Return empty array to suppress the error
           }
           throw e;

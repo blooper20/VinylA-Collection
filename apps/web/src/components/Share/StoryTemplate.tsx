@@ -1,8 +1,9 @@
 import React, { forwardRef } from 'react';
 import styles from './StoryTemplate.module.css';
+import { MockVinylData } from '@vinyla/shared-types';
 
 interface StoryTemplateProps {
-  album: any;
+  album: MockVinylData & { COVER_URL?: string };
   username: string;
 }
 

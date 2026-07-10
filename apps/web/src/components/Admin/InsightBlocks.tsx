@@ -160,7 +160,6 @@ export const TopAlbumsList = ({
       <li key={album.albumId} className={styles.topAlbumRow}>
         <span className={styles.topAlbumRank}>{i + 1}</span>
         {album.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={album.image} alt="" className={styles.topAlbumCover} />
         ) : (
           <span className={styles.topAlbumCoverEmpty} />

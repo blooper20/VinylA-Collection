@@ -17,6 +17,7 @@ import {
   LabelList,
   Cell,
 } from 'recharts';
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 import {
   ACCENT_LINE,
   ACCENT_FILL,
@@ -46,7 +47,7 @@ export const SignupAreaChart = ({ data }: { data: { date: string; count: number 
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any) => [`${v}명`, '신규 가입']}
+        formatter={(v: ValueType | undefined) => [`${v}명`, '신규 가입']}
         cursor={{ stroke: GRID_COLOR }}
       />
       <Area
@@ -72,7 +73,7 @@ export const DauTrendChart = ({ data }: { data: { date: string; count: number }[
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any) => [`${v}명`, '활성 사용자']}
+        formatter={(v: ValueType | undefined) => [`${v}명`, '활성 사용자']}
         cursor={{ stroke: GRID_COLOR }}
       />
       <Area
@@ -111,7 +112,7 @@ export const HorizontalBarChart = ({
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any) => [`${v}${unit}`, '']}
+        formatter={(v: ValueType | undefined) => [`${v}${unit}`, '']}
         cursor={{ fill: 'rgba(255,255,255,0.04)' }}
       />
       <Bar dataKey="count" fill={color} radius={[0, 4, 4, 0]} barSize={16}>
@@ -135,7 +136,10 @@ export const ScanStackedBars = ({
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any, name: any) => [v, name === 'success' ? '성공' : '실패']}
+        formatter={(v: ValueType | undefined, name: NameType | undefined) => [
+          v,
+          name === 'success' ? '성공' : '실패',
+        ]}
         cursor={{ fill: 'rgba(255,255,255,0.04)' }}
       />
       <Legend
@@ -159,11 +163,11 @@ export const ScanSuccessRateLine = ({
     <LineChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
       <CartesianGrid stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="date" {...axisProps} tickFormatter={shortDate} minTickGap={28} />
-      <YAxis {...axisProps} domain={[0, 100]} tickFormatter={(v: any) => `${v}%`} width={46} />
+      <YAxis {...axisProps} domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} width={46} />
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any) => [`${v}%`, '성공률']}
+        formatter={(v: ValueType | undefined) => [`${v}%`, '성공률']}
         cursor={{ stroke: GRID_COLOR }}
       />
       <Line
@@ -189,7 +193,7 @@ export const CollectionHistogram = ({ data }: { data: { bucket: string; users: n
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
         labelStyle={{ color: '#8e9192' }}
-        formatter={(v: any) => [`${v}명`, '사용자']}
+        formatter={(v: ValueType | undefined) => [`${v}명`, '사용자']}
         cursor={{ fill: 'rgba(255,255,255,0.04)' }}
       />
       <Bar dataKey="users" radius={[4, 4, 0, 0]} barSize={32}>

@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
-import { MockVinylData } from '@vinyla/shared-types';
+import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { searchYouTube, searchDiscogs, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum } from '@vinyla/core-api';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -23,7 +23,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
-  const [marketPrice, setMarketPrice] = React.useState<number | null>((album as any).MARKET_PRICE || null);
+  const [marketPrice, setMarketPrice] = React.useState<number | null>(album.MARKET_PRICE || null);
   
   const storyTemplateRef = React.useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
@@ -102,6 +102,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         setMarketPrice(-1);
       }
     });
+    // marketPrice를 deps에 넣으면 setMarketPrice로 인해 상세정보 재조회 루프가 발생하므로 제외
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
 
   const handleYoutubeListen = async () => {
@@ -152,7 +154,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       }
 
       const numericAlbumId = Number(album.ALBUM_ID);
-      let master = await getAlbumMaster(numericAlbumId);
+      const master = await getAlbumMaster(numericAlbumId);
       
       const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
       
@@ -172,7 +174,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         });
       }
 
-      const payloadData: any = {
+      const payloadData: Partial<USER_VINYL> = {
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
         STATUS: status,

@@ -2,8 +2,20 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { searchDiscogsLazy, AlbumItem, SearchStatus, useAuthStore, getUserVinyls } from '@vinyla/core-api';
+import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { DetailModal } from '../../components/Modal/DetailModal';
 import styles from './page.module.css';
+
+// 검색 결과(AlbumItem)에서 DetailModal로 넘기는 앨범 형태
+type SelectedAlbum = {
+  ALBUM_ID: number | string;
+  TITLE: string;
+  ARTIST: string;
+  IMAGE_URL: string;
+  RELEASE_YEAR: number | string;
+  GENRES?: string[];
+  STATUS?: 'OWNED' | 'WISH' | 'NONE';
+};
 
 const genres = [
   { title: '팝',            sub: 'Pop',         height: 260, img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop' },
@@ -70,16 +82,16 @@ export default function SearchPage() {
   const [status, setStatus] = useState<SearchStatus>('idle');
   const [totalToCheck, setTotalToCheck] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<SelectedAlbum | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
-  const [userVinyls, setUserVinyls] = useState<any[]>([]);
+  const [userVinyls, setUserVinyls] = useState<USER_VINYL[]>([]);
 
   React.useEffect(() => {
     initializeAuth();
-  }, []);
+  }, [initializeAuth]);
 
   React.useEffect(() => {
     async function loadData() {
@@ -102,8 +114,8 @@ export default function SearchPage() {
   const searchIdRef = useRef(0);
 
   React.useEffect(() => {
-    const handleToast = (e: any) => {
-      setToastMessage(e.detail.message);
+    const handleToast = (e: Event) => {
+      setToastMessage((e as CustomEvent<{ message: string }>).detail.message);
       setTimeout(() => setToastMessage(null), 3000);
     };
     window.addEventListener('SHOW_TOAST', handleToast);
@@ -162,6 +174,8 @@ export default function SearchPage() {
     }
 
     return () => observer.disconnect();
+    // hasMore를 deps에 넣으면 무한 스크롤 fetch가 재트리거되므로 제외 (동작 유지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, status, executeSearch]);
 
   const handleSearch = useCallback((e: React.FormEvent) => {
@@ -328,7 +342,7 @@ export default function SearchPage() {
       </main>
 
       {selectedAlbum && (
-        <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />
+        <DetailModal album={selectedAlbum as MockVinylData} onClose={() => setSelectedAlbum(null)} />
       )}
 
       {toastMessage && (

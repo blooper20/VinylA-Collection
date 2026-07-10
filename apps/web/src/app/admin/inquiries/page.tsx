@@ -56,6 +56,8 @@ export default function AdminInquiriesPage() {
   }, []);
 
   useEffect(() => {
+    // 필터 변경 시 이전 목록이 잠깐 노출되지 않도록 로딩 플래그를 동기로 켜야 함
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadInquiries(statusFilter);
   }, [statusFilter, loadInquiries]);
 

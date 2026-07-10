@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import styles from './PublicGrid.module.css';
-import { supabase } from '@vinyla/core-api/src/supabase';
 import { getUserVinyls, useAuthStore } from '@vinyla/core-api';
+import { MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../Modal/DetailModal';
+
+type PublicVinyl = MockVinylData & { COVER_URL?: string };
 
 interface PublicGridProps {
   userId: string;
@@ -13,15 +15,15 @@ interface PublicGridProps {
 }
 
 export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'Collector', initialAvatar = '/logo.png', filterType = 'collection' }) => {
-  const [dbData, setDbData] = useState<any[]>([]);
-  const [profileName, setProfileName] = useState<string>(initialName);
-  const [avatarUrl, setAvatarUrl] = useState<string>(initialAvatar);
+  const [dbData, setDbData] = useState<PublicVinyl[]>([]);
+  const [profileName] = useState<string>(initialName);
+  const [avatarUrl] = useState<string>(initialAvatar);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<PublicVinyl | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const { user, initializeAuth } = useAuthStore();
-  useEffect(() => { initializeAuth(); }, []);
+  useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
   useEffect(() => {
     async function fetchPublicData() {
@@ -30,7 +32,7 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
         const vinyls = await getUserVinyls(userId);
 
         if (vinyls && vinyls.length > 0) {
-          const formatted = vinyls.map((v: any) => ({
+          const formatted: PublicVinyl[] = vinyls.map((v) => ({
             ...(v.ALBUM_MASTER || {}),
             STATUS: v.STATUS,
             PURCHASE_PRICE: v.PURCHASE_PRICE,
@@ -54,7 +56,7 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
     return <div className={styles.loading}>컬렉션 불러오는 중...</div>;
   }
 
-  const handleAlbumClick = (album: any) => {
+  const handleAlbumClick = (album: PublicVinyl) => {
     if (!user) {
       setShowLoginPrompt(true);
     } else {
@@ -122,12 +124,12 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
                 background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.6)', fontSize: '15px', cursor: 'pointer'
               }}>취소</button>
-              <a href="/" style={{
+              <Link href="/" style={{
                 flex: 1, padding: '14px', borderRadius: '12px',
                 background: 'linear-gradient(135deg, #d4af37, #f3e5ab)',
                 color: '#111', fontSize: '15px', fontWeight: 700,
                 textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>로그인</a>
+              }}>로그인</Link>
             </div>
           </div>
         </div>

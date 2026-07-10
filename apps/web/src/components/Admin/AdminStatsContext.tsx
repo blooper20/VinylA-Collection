@@ -114,9 +114,9 @@ export const AdminStatsProvider = ({ children }: { children: React.ReactNode }) 
       cacheRef.current.set(period, { stats: payload, at });
       setStats(payload);
       setLastUpdated(at);
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to load stats', e);
-      setError(e?.message || '통계를 불러오지 못했습니다');
+      setError(e instanceof Error ? e.message : '통계를 불러오지 못했습니다');
     } finally {
       setIsLoading(false);
     }

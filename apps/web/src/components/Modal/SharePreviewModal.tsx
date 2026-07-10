@@ -16,6 +16,8 @@ export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, on
   useEffect(() => {
     if (isOpen && blob) {
       const url = URL.createObjectURL(blob);
+      // blob→objectURL 생성/해제를 effect 생명주기에 묶어야 해서 동기 setState가 불가피함
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setImageUrl(url);
       return () => URL.revokeObjectURL(url);
     } else {

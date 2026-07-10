@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     return NextResponse.json({ users });
-  } catch (e: any) {
-    console.error('admin users failed:', e?.message || e);
+  } catch (e) {
+    console.error('admin users failed:', e instanceof Error ? e.message : e);
     return NextResponse.json({ error: 'users query failed' }, { status: 500 });
   }
 }

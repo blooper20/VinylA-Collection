@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
 import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
@@ -9,13 +9,7 @@ import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { ImageCropModal } from '../../components/Modal/ImageCropModal';
 import { copyToClipboard } from '../../utils/shareUtils';
 
-const PRESET_AVATARS = [
-  '/logo.png',
-  'https://i.pravatar.cc/150?img=12',
-  'https://i.pravatar.cc/150?img=5',
-  'https://i.pravatar.cc/150?img=11',
-  'https://i.pravatar.cc/150?img=68',
-];
+type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
 
 const AVAILABLE_GENRES = [
   'Pop', 'Rock', 'Jazz', 'Electronic', 'Hip Hop', 'R&B / Soul', 'Folk', 'Classical', 'Blues', 'Reggae', 'Cinematic', 'Ambient', 'World'
@@ -28,8 +22,8 @@ export default function MyProfilePage() {
   const [ownedCount, setOwnedCount] = useState(0);
   const [topGenre, setTopGenre] = useState('-');
   const [actualTopGenre, setActualTopGenre] = useState('-');
-  const [recentAdditions, setRecentAdditions] = useState<any[]>([]);
-  const [allAlbumsList, setAllAlbumsList] = useState<any[]>([]);
+  const [recentAdditions, setRecentAdditions] = useState<FrontendVinyl[]>([]);
+  const [allAlbumsList, setAllAlbumsList] = useState<FrontendVinyl[]>([]);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = allAlbumsList.find(a => a.ALBUM_ID === featuredAlbumId);
@@ -56,11 +50,11 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     initializeAuth();
-  }, []);
+  }, [initializeAuth]);
 
   useEffect(() => {
-    const handleToast = (e: any) => {
-      setToastMessage(e.detail.message);
+    const handleToast = (e: Event) => {
+      setToastMessage((e as CustomEvent<{ message: string }>).detail.message);
       setTimeout(() => setToastMessage(null), 3000);
     };
     window.addEventListener('SHOW_TOAST', handleToast);
@@ -176,7 +170,7 @@ export default function MyProfilePage() {
       }
     }
     loadStats();
-  }, [user]);
+  }, [user, updateUnlockedBadges]);
 
   const handleSaveProfile = async () => {
     try {
@@ -185,7 +179,7 @@ export default function MyProfilePage() {
       setIsEditing(false);
       setTopGenre(editGenre);
       setIsAvatarRemoved(false);
-    } catch (e) {
+    } catch {
       alert('프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)');
     } finally {
       setIsSaving(false);
@@ -233,7 +227,7 @@ export default function MyProfilePage() {
     }
   };
 
-  const stats = [
+  const stats: { label: string; value: string; unit: string; sub: string; isSpent?: boolean }[] = [
     { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: 'Discogs 기준 최저가 합산' },
     { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산', isSpent: true },
     { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
@@ -397,7 +391,7 @@ export default function MyProfilePage() {
       <section className={styles.analytics}>
         <div className={styles.analyticsGrid}>
 
-          {stats.map((stat: any, i) => (
+          {stats.map((stat, i) => (
             <div key={i} className={styles.statCard}>
               <span className={styles.statLabel}>{stat.label}</span>
               <div className={styles.statValue}>
