@@ -56,6 +56,42 @@
   color: var(--text-primary);
 }
 
+.tabBar {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px 0 24px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.tabBar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.tabBtn {
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  color: var(--text-muted);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.tabBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.tabBtn.activeTab {
+  background: var(--text-primary);
+  color: var(--bg-deep);
+  border-color: var(--text-primary);
+}
+
 .content {
   padding: 24px;
   overflow-y: auto;
@@ -110,6 +146,19 @@
   background: rgba(233, 195, 73, 0.1);
   color: var(--accent);
 }
+
+/* Tier Colors */
+.tierBronze .iconWrapper { color: #cd7f32 !important; background: rgba(205, 127, 50, 0.1) !important; }
+.tierSilver .iconWrapper { color: #c0c0c0 !important; background: rgba(192, 192, 192, 0.1) !important; }
+.tierGold .iconWrapper { color: #d4af37 !important; background: rgba(212, 175, 55, 0.1) !important; }
+.tierPlatinum .iconWrapper { color: #e5e4e2 !important; background: rgba(229, 228, 226, 0.1) !important; }
+.tierDiamond .iconWrapper { color: #b9f2ff !important; background: rgba(185, 242, 255, 0.1) !important; }
+
+.badgeItem.selected.tierBronze { border-color: #cd7f32; background: rgba(205, 127, 50, 0.05); }
+.badgeItem.selected.tierSilver { border-color: #c0c0c0; background: rgba(192, 192, 192, 0.05); }
+.badgeItem.selected.tierGold { border-color: #d4af37; background: rgba(212, 175, 55, 0.05); }
+.badgeItem.selected.tierPlatinum { border-color: #e5e4e2; background: rgba(229, 228, 226, 0.05); }
+.badgeItem.selected.tierDiamond { border-color: #b9f2ff; background: rgba(185, 242, 255, 0.05); }
 
 .badgeInfo {
   flex: 1;
