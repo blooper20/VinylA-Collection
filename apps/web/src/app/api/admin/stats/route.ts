@@ -263,6 +263,48 @@ export async function GET(request: NextRequest) {
       wishToOwned: wishAdds > 0 ? Math.round((wishConverted / wishAdds) * 100) : null,
     };
 
+    // ── AI 스캔 사용량 (Gemini 파이프라인): 일별 성공/실패 + 성공률 + 오류 유형 ──
+    const scanEvents = periodEvents.filter((e) => e.EVENT_TYPE === 'SCAN');
+    const scanByDay = new Map<string, { success: number; fail: number }>();
+    for (const e of scanEvents) {
+      const d = toKstDate(e.CREATED_AT);
+      const row = scanByDay.get(d) || { success: 0, fail: 0 };
+      if (e.META?.result === 'success') row.success += 1;
+      else row.fail += 1;
+      scanByDay.set(d, row);
+    }
+    const scanSeries = dayKeys.map((date) => {
+      const row = scanByDay.get(date) || { success: 0, fail: 0 };
+      const total = row.success + row.fail;
+      return {
+        date,
+        success: row.success,
+        fail: row.fail,
+        rate: total > 0 ? Math.round((row.success / total) * 100) : null,
+      };
+    });
+    const scanTotal = scanEvents.length;
+    const scanSuccess = scanEvents.filter((e) => e.META?.result === 'success').length;
+    const scanErrorTypes = new Map<string, number>();
+    for (const e of scanEvents) {
+      if (e.META?.result === 'success') continue;
+      const label =
+        e.META?.result === 'no_match'
+          ? '후보 없음'
+          : e.META?.status
+            ? `HTTP ${e.META.status}`
+            : '기타 오류';
+      scanErrorTypes.set(label, (scanErrorTypes.get(label) || 0) + 1);
+    }
+    const scanStats = {
+      total: scanTotal,
+      successRate: scanTotal > 0 ? Math.round((scanSuccess / scanTotal) * 100) : null,
+      series: scanSeries,
+      errorTypes: Array.from(scanErrorTypes.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, count]) => ({ label, count })),
+    };
+
     // ── 유입(Acquisition): 방문 → 가입 전환, 유입 소스, 가입 provider ──
     const visits = periodEvents.filter((e) => e.EVENT_TYPE === 'VISIT');
     const signupEvents = periodEvents.filter((e) => e.EVENT_TYPE === 'SIGNUP');
@@ -421,6 +463,7 @@ export async function GET(request: NextRequest) {
       funnel,
       conversion,
       acquisition,
+      scanStats,
       signupTrend,
       dauTrend,
       eventTypes,

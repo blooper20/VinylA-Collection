@@ -12,6 +12,7 @@ import { Dimensions } from 'react-native';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useAlert } from '../providers/AlertProvider';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { logEvent } from '@vinyla/core-api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 export const ScanScreen = () => {
@@ -108,14 +109,22 @@ export const ScanScreen = () => {
         // AI가 완벽하게 찾았든 못 찾았든, 무조건 후보군 리스트를 먼저 보여줍니다.
         // 사용자가 직접 리스트에서 클릭하여 상세 페이지로 진입하도록 유도합니다.
         setImageSearchResults(data.candidates);
+        logEvent('SCAN', { result: 'success', candidates: data.candidates.length });
       } else {
         showAlert('검색 결과 없음', '해당 앨범과 일치하는 후보를 찾지 못했습니다.');
         setImageSearchResults(null);
         cameraRef.current?.resumePreview();
+        logEvent('SCAN', { result: 'no_match' });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to process image:', error);
+      const statusMatch = String(error?.message || '').match(/Server returned (\d+)/);
+      logEvent('SCAN', {
+        result: 'error',
+        status: statusMatch ? Number(statusMatch[1]) : undefined,
+        message: String(error?.message || '').slice(0, 120),
+      });
       showAlert('인식 실패', '앨범 커버를 인식하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.');
       cameraRef.current?.resumePreview();
     } finally {

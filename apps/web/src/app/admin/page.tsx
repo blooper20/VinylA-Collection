@@ -11,6 +11,8 @@ import {
   DauTrendChart,
   HorizontalBarChart,
   CollectionHistogram,
+  ScanStackedBars,
+  ScanSuccessRateLine,
 } from '../../components/Admin/charts/AdminCharts';
 import {
   FunnelBars,
@@ -56,6 +58,12 @@ interface StatsPayload {
     signupsByProvider: { label: string; count: number }[];
     shareVisits: number;
     shareSignups: number;
+  };
+  scanStats: {
+    total: number;
+    successRate: number | null;
+    series: { date: string; success: number; fail: number; rate: number | null }[];
+    errorTypes: { label: string; count: number }[];
   };
   signupTrend: { date: string; count: number }[];
   dauTrend: { date: string; count: number }[];
@@ -301,6 +309,37 @@ export default function AdminDashboardPage() {
           emptyText="이벤트 수집 시작 이후부터 채워집니다"
         >
           {stats && <ActivityHeatmap data={stats.heatmap} />}
+        </ChartCard>
+        <ChartCard
+          title="AI 스캔 사용량"
+          sub={
+            stats && stats.scanStats.successRate !== null
+              ? `총 ${stats.scanStats.total}회 · 성공률 ${stats.scanStats.successRate}%`
+              : `최근 ${days}일 · Gemini 스캔 파이프라인`
+          }
+          isLoading={isLoading}
+          isEmpty={!!stats && stats.scanStats.total === 0}
+          emptyText="앱에서 카메라 스캔이 실행되면 채워집니다"
+        >
+          {stats && <ScanStackedBars data={stats.scanStats.series} />}
+        </ChartCard>
+        <ChartCard
+          title="AI 스캔 성공률"
+          sub="일별 · 스캔 없는 날은 표시 안 함"
+          isLoading={isLoading}
+          isEmpty={!!stats && stats.scanStats.total === 0}
+          emptyText="앱에서 카메라 스캔이 실행되면 채워집니다"
+        >
+          {stats && <ScanSuccessRateLine data={stats.scanStats.series} />}
+        </ChartCard>
+        <ChartCard
+          title="스캔 오류 유형"
+          sub={`최근 ${days}일`}
+          isLoading={isLoading}
+          isEmpty={!!stats && stats.scanStats.errorTypes.length === 0}
+          emptyText="오류가 없습니다 🎉"
+        >
+          {stats && <HorizontalBarChart data={stats.scanStats.errorTypes} color="#e66767" unit="회" />}
         </ChartCard>
       </div>
 

@@ -164,6 +164,64 @@ export const HorizontalBarChart = ({
   </ResponsiveContainer>
 );
 
+// ── AI 스캔 요청 수 (일별 성공/실패 스택 바 — 상태 색상: 성공 teal / 실패 red) ──
+export const ScanStackedBars = ({
+  data,
+}: {
+  data: { date: string; success: number; fail: number }[];
+}) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <XAxis dataKey="date" {...axisProps} tickFormatter={shortDate} minTickGap={28} />
+      <YAxis {...axisProps} allowDecimals={false} width={46} />
+      <Tooltip
+        contentStyle={TOOLTIP_STYLE}
+        labelStyle={{ color: '#8e9192' }}
+        formatter={(v: any, name: any) => [v, name === 'success' ? '성공' : '실패']}
+        cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+      />
+      <Legend
+        formatter={(name: string) => (
+          <span style={{ color: '#c4c7c8', fontSize: 12 }}>{name === 'success' ? '성공' : '실패'}</span>
+        )}
+      />
+      <Bar dataKey="success" stackId="scan" fill="#199e70" stroke="#131313" strokeWidth={1} />
+      <Bar dataKey="fail" stackId="scan" fill="#e66767" stroke="#131313" strokeWidth={1} radius={[4, 4, 0, 0]} />
+    </BarChart>
+  </ResponsiveContainer>
+);
+
+// ── AI 스캔 성공률 (%) — 단일 시리즈 라인, 데이터 없는 날은 끊김 ──
+export const ScanSuccessRateLine = ({
+  data,
+}: {
+  data: { date: string; rate: number | null }[];
+}) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <XAxis dataKey="date" {...axisProps} tickFormatter={shortDate} minTickGap={28} />
+      <YAxis {...axisProps} domain={[0, 100]} tickFormatter={(v: any) => `${v}%`} width={46} />
+      <Tooltip
+        contentStyle={TOOLTIP_STYLE}
+        labelStyle={{ color: '#8e9192' }}
+        formatter={(v: any) => [`${v}%`, '성공률']}
+        cursor={{ stroke: GRID_COLOR }}
+      />
+      <Line
+        type="monotone"
+        dataKey="rate"
+        stroke="#199e70"
+        strokeWidth={2}
+        dot={{ r: 2 }}
+        activeDot={{ r: 4 }}
+        connectNulls={false}
+      />
+    </LineChart>
+  </ResponsiveContainer>
+);
+
 // ── 4. 컬렉션 규모 분포 (histogram column, 단일 블루) ──
 export const CollectionHistogram = ({ data }: { data: { bucket: string; users: number }[] }) => (
   <ResponsiveContainer width="100%" height="100%">
