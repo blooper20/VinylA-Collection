@@ -97,18 +97,18 @@
   padding-top: 60px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.footerBrandRow {
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 20px;
   flex-wrap: nowrap;
   white-space: nowrap;
-}
-
-.footerText {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
 }
 
 .brand {
