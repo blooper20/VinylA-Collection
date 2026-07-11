@@ -83,6 +83,7 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
             <img src="/logo_transparent.png" alt="VinylA Collection Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => { e.currentTarget.src = '/logo.png'; e.currentTarget.style.mixBlendMode = 'screen'; }} crossOrigin="anonymous" />
             <span className={styles.brand}>Curated by VinylA Collection</span>
           </div>
+          <span className={styles.url}>vinyla.vercel.app</span>
         </div>
       </div>
     </div>
