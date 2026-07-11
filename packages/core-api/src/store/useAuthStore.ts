@@ -6,6 +6,11 @@ import { logEvent, getFirstTouch } from '../events';
 // metrics to once per user per app load.
 let loginLoggedForUserId: string | null = null;
 
+// initializeAuth is called from several screens/components; without a guard
+// each call registered another onAuthStateChange listener that was never
+// unsubscribed, so auth events ran the wipe/set logic N times.
+let authInitialized = false;
+
 // 신규 가입(created_at이 방금)이면 first-touch 유입 정보를 붙여 SIGNUP 기록.
 // localStorage 플래그로 평생 1회만.
 const logSignupIfNew = (user: any) => {
@@ -45,6 +50,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   setUser: (user) => set({ user }),
   initializeAuth: async () => {
+    if (authInitialized) return;
+    authInitialized = true;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -101,6 +108,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to initialize auth', error);
+      authInitialized = false; // allow a later call to retry registration
       set({ isLoading: false });
     }
   },
@@ -206,7 +214,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         avatarUrl = '/logo.png';
       } else if (file) {
         const fileExt = file.name.split('.').pop();
-        const filePath = `${user.id}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        // Per-user folder so the storage RLS policy can verify ownership
+        // ((storage.foldername(name))[1] = auth.uid())
+        const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('avatars')

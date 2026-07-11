@@ -3,8 +3,16 @@ import { ALBUM_MASTER, USER_VINYL, VINYL_TAG } from '@vinyla/shared-types';
 import { logEvent } from './events';
 import { AppError } from './errors';
 
+// React Native's navigator has no onLine property (it is undefined, so a
+// plain `!navigator.onLine` check reports "offline" on every device). Only
+// trust the flag when the platform actually provides a boolean.
+const isOffline = () =>
+  typeof navigator !== 'undefined' &&
+  typeof navigator.onLine === 'boolean' &&
+  !navigator.onLine;
+
 const isNetworkError = (error: any) => {
-  return error?.message === 'Failed to fetch' || error?.message?.includes('NetworkError') || !navigator.onLine;
+  return error?.message === 'Failed to fetch' || error?.message?.includes('NetworkError') || isOffline();
 };
 
 // =======================
@@ -12,7 +20,7 @@ const isNetworkError = (error: any) => {
 // =======================
 
 export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | null> => {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+  if (isOffline()) {
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
   }
 
@@ -56,11 +64,14 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
   delete (payload as any).PURCHASE_PRICE;
   delete (payload as any).GENRES;
   
+  // maybeSingle: with ignoreDuplicates the upsert returns zero rows when the
+  // album already exists — .single() treated that as an error and skipped the
+  // tag save below, so genres were never stored for pre-existing albums.
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
     .upsert([payload], { onConflict: 'ALBUM_ID', ignoreDuplicates: true })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.warn('createAlbumMaster error or DB not connected, saving to localStorage:', error);
@@ -86,7 +97,7 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
     localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
   }
 
-  return error ? (album as ALBUM_MASTER) : (data as ALBUM_MASTER);
+  return error || !data ? (album as ALBUM_MASTER) : (data as ALBUM_MASTER);
 };
 
 // =======================
@@ -94,7 +105,7 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
 // =======================
 
 export const getUserVinyls = async (userId: string | number): Promise<any[]> => {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+  if (isOffline()) {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       const localV = localStorage.getItem('VINYL_A_LOCAL_COLLECTION');
       const localM = localStorage.getItem('VINYL_A_LOCAL_MASTERS');
@@ -159,7 +170,7 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
 };
 
 export const wipeUserData = async (userId: string): Promise<void> => {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+  if (isOffline()) {
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
   }
   const { error } = await supabase
@@ -182,7 +193,8 @@ export const wipeUserData = async (userId: string): Promise<void> => {
 };
 
 export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
-  // First, check if the user already has this album
+  // Read the current row first (only to decide which metric to log below —
+  // the write itself is a single atomic upsert on (USER_ID, ALBUM_ID)).
   let existing = null;
   if (userVinyl.USER_ID && userVinyl.ALBUM_ID) {
     const { data } = await supabase
@@ -190,7 +202,7 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
       .select('*')
       .eq('USER_ID', userVinyl.USER_ID)
       .eq('ALBUM_ID', userVinyl.ALBUM_ID)
-      .single();
+      .maybeSingle();
     existing = data;
   }
 
@@ -198,7 +210,7 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
 
   const { data, error } = await supabase
     .from('USER_VINYL')
-    .upsert([payload])
+    .upsert([payload], { onConflict: 'USER_ID,ALBUM_ID' })
     .select()
     .single();
 
@@ -244,7 +256,7 @@ export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => 
 };
 
 export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+  if (isOffline()) {
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
   }
 
