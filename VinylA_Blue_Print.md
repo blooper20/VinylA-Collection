@@ -33,13 +33,13 @@
     *   **대시보드**: 프로필 요약 수치(보유 장수, 위시 장수, 전체 가치 등) 및 설정 관리. 두께 강약을 활용한 세련된 타이포그래피.
     *   **호칭(Badge) 업적 시스템**: 사용자의 컬렉션 상태(장수, 가격, 특정 장르 집중도 등)를 다각도로 평가하여 자동으로 호칭(예: 재즈 처돌이, 플렉스 콜렉터)을 해금하고 프로필에 장착하는 게이미피케이션 기능 제공. 일부 희귀 업적은 숨겨진 상태(`???`)로 노출해 수집 욕구 자극.
 *   **상세 팝업 (Detail Modal)**: 앨범 클릭 시 블러 배경과 함께 오픈. 트랙리스트 표시 및 YouTube Data 연동. 개별 앨범도 공유 버튼으로 세로형 스토리 이미지를 만들어 공유 가능(§3-3 참고).
-*   **🌐 Public Dashboard (퍼블릭 공유)**: 내 프로필과 컬렉션 현황을 타인에게 공유할 수 있는 읽기 전용 URL(`user/[id]/dashboard`). 비로그인 유저가 앨범 클릭 시 로그인 유도 팝업(Login Gate)을 띄워 신규 유입(Acquisition) 유도.
+*   **🌐 Public Dashboard (퍼블릭 공유)**: 내 프로필과 컬렉션 현황을 타인에게 공유할 수 있는 읽기 전용 URL(`user/[id]/dashboard`). 비로그인 유저가 앨범 클릭 시 로그인 유도 팝업(Login Gate)을 띄워 신규 유입(Acquisition) 유도. `/user/[id]*` 경로는 인증된 앱의 사이드바 없이 렌더링되는 "chrome-free" 레이아웃(`AppShell`)으로 분리되어 있어, 로그인 없이 링크로 처음 접속하는 방문자에게 불필요한 내비게이션이 노출되지 않는다. 반응형 브레이크포인트가 적용되어 있어 모바일 브라우저로 열어도 레이아웃이 깨지지 않는다.
 
 ### 📱 모바일 화면 (Mobile 전용)
 *   모바일 환경에 맞춰 미니멀하게 압축된 풀스크린 고해상도 구동.
 *   **온보딩(Onboarding)**: 에디토리얼 스타일 3스텝 — `01 · PURE ARCHIVE`(바닐라꽃 각인 패턴이 새겨진 레코드가 회전하고 톤암이 내려앉는 애니메이션) / `02 · SCAN & ARCHIVE`(뷰파인더 + 골드 스캔라인 스윕) / `03 · UNLOCK YOUR VAULT`(글래스 로그인 패널, `VINYL + VANILLA` 태그 칩). 좌측 정렬 타이포(골드 오버라인 → 한글 헤드라인의 핵심 단어 골드 강조), 반투명 고스트 스텝 넘버, 하단 고정 페이지네이션 + 골드 원형 '다음' 버튼(마지막 스텝에서 페이드아웃). 로그인은 Google/Apple 공용 OAuth 핸들러(Apple은 Supabase provider 연동 시 활성화).
 *   **검색(Search)**: 장르 탐색 그리드 + Discogs 무한 스크롤. `createDiscogsSearchSession`(core-api)이 중복 제거·별칭·페이지 커서를 세션 단위로 유지하며 스크롤 바닥 근처에서 ~20장씩 추가 로드. 검색 결과 화면에서 왼쪽 가장자리 스와이프 시 장르 탐색 화면으로 복귀(탐색 화면에서는 제스처 비활성).
-*   **하단 플로팅 탭 바(Floating Tab Bar)**: 중앙의 '스캔' 버튼 영역이 위로 볼록하게 돌출된 원형 UI(FAB) 구조.
+*   **하단 플로팅 탭 바(Floating Tab Bar)**: 중앙의 '스캔' 버튼 영역이 위로 볼록하게 돌출된 원형 UI(FAB) 구조. 탭 바 높이는 기기의 하단 안전영역(홈 인디케이터)을 반영해 동적으로 계산되며(`useTabBarHeight`), 토스트·공유 시트 등 탭 바 위에 떠야 하는 요소들도 같은 값을 공유해 가려짐 없이 배치된다.
 *   **홈 / 위시리스트 공용 헤더(`AppHeader`)**: 배경 없는 3D 골드 로고 + 타이틀 + `MY COLLECTION`/`WISHLIST` 모드 배지. 가장 우측에 그리드/테이블 뷰 전환 토글을 배치.
 *   **뷰 전환 & 정렬**: 그리드(커버 중심) ↔ 테이블(커버·제목/아티스트·출시연도·태그 한 행 표시) 전환 가능. 최신순/오래된순/가나다순/출시연도순 정렬 칩을 웹 `VinylGrid`와 동일한 기준으로 제공.
 *   **마이페이지 설정**: '글래스 효과 강도' 등 세부 설정은 로그아웃 버튼 위 "설정 열기/닫기" 토글로 접었다 펼 수 있음. 로그아웃 아래에는 회원 탈퇴 버튼 배치(soft-delete, 웹과 동일 로직).
@@ -58,17 +58,25 @@
 
 ### 외부 연동 (packages/core-api / apps/mobile/utils)
 *   **Gemini 2.5 Flash (OCR)**: 모바일 기기에서 이미지 스캔 시 아티스트, 앨범명, 수록곡, 시각 키워드를 직접 추출 (`visionAPI.ts`)
-*   **Gemini 2.5 Flash (VLM)**: 추출된 데이터를 기반으로 Discogs에서 검색한 후보군 중, 원본 이미지와 완벽히 일치하는 정답 앨범 판별 (Node.js 백엔드 직접 연동)
+*   **Gemini 2.5 Flash (VLM)**: 추출된 데이터를 기반으로 Discogs에서 검색한 후보군 중, 원본 이미지와 완벽히 일치하는 정답 앨범 판별 (Next.js API 라우트 `apps/web/src/app/api/scan`에서 직접 연동)
 *   **Discogs API**: 전 세계 LP 데이터베이스 검색 및 마스터 데이터 획득 (`searchDiscogs`)
 *   **YouTube Data API**: 앨범 트랙리스트나 Full Album 자동 매핑 청음 (`searchYouTube`)
 *   **Supabase (PostgreSQL)**: 유저의 컬렉션 및 위시리스트 데이터를 영구 보관 (`getUserVinyls`, `upsertUserVinyl`)
 
-### 🔒 보안 (RLS · 2026-07-09 적용 완료)
+### 🔒 보안 (RLS · 2026-07-09 적용, 2026-07-11 하드닝 마이그레이션 적용 완료)
 *   전 테이블(ALBUM_MASTER / VINYL_TAG / USER_VINYL / PROFILES)에 Row Level Security 적용.
 *   **공개 읽기**: 비로그인 방문자용 퍼블릭 대시보드(`/user/[id]`)와 실시간 구독이 익명 SELECT에 의존하므로 읽기는 전면 허용.
 *   **쓰기 규칙**: 로그인 사용자만 쓰기 가능. `USER_VINYL`·`PROFILES`는 소유자(`auth.uid()`) 본인 행만 삽입/수정/삭제 가능. 공용 마스터(`ALBUM_MASTER`/`VINYL_TAG`)는 스캔·검색 플로우가 생성해야 하므로 로그인 사용자 전체에 쓰기 허용(마스터 삭제는 불가).
 *   정책 SQL은 루트 `supabase_schema.sql`의 RLS 섹션에서 관리하며 재실행 안전(idempotent). 스키마 참고: `USER_VINYL.USER_ID`는 실제로 UUID 문자열.
 *   **Auth URL 구성**: Site URL `http://localhost:3000`, Redirect URLs에 `http://localhost:3000/**` / `https://vinyla.vercel.app/**` / `exp://**` 등록 (웹·모바일 OAuth 공존 조건).
+*   **보안 하드닝 마이그레이션 (2026-07-11)**: `supabase_schema.sql`의 "Hardening migration" 섹션, SQL Editor에서 실행 완료·검증됨.
+    *   `PROFILES` 테이블 DDL을 파일에 코드화(기존엔 대시보드에서만 생성됨).
+    *   닉네임 30일 쿨다운을 클라이언트 검증에서 DB 트리거(`enforce_nickname_cooldown`)로 이전 — PostgREST로 우회해 `LAST_NAME_CHANGED_AT`을 조작할 수 없음.
+    *   로그인 유저의 `VISIT` 로그가 기존 `event_log_insert_own` 정책(`USER_ID = auth.uid()` 요구)에 막혀 누락되던 문제를 `event_log_insert_visit_auth` 정책으로 해결.
+    *   `EVENT_LOG`에 `EVENT_TYPE`/`META` 크기 CHECK 제약 추가, anon `VISIT` 삽입을 분당 120건으로 제한하는 플러딩 방지 트리거(`event_log_flood_brake`) 도입 — anon key가 공개돼 있어 무제한 삽입이 가능했던 취약점 방어.
+    *   `USER_VINYL`: (user, album) 중복 행 제거 + UNIQUE 제약, `USER_ID` 인덱스, `auth.users` FK(계정 삭제 시 cascade), `STATUS`/`PURCHASE_PRICE` 값 검증 CHECK 추가.
+    *   `INQUIRY`: 카테고리/상태/플랫폼 enum을 주석에서 실제 CHECK 제약으로 승격. 유저가 답장하면 자동으로 `OPEN` 상태로 재오픈되고 `UPDATED_AT`이 갱신되는 트리거(`on_inquiry_reply`) 추가.
+    *   `avatars` 스토리지 버킷 정책(전체 공개 읽기, 본인 폴더에만 업로드/삭제)을 대시보드 전용 설정에서 파일로 코드화.
 
 ### 데이터 모델링 (`ALBUM_MASTER` / `USER_VINYL`)
 ```sql
@@ -96,16 +104,16 @@ vinyla-monorepo/
 ├── apps/
 │   ├── web/                     # 🖥️ Next.js 웹 앱 (Vercel 배포, Port 3000)
 │   │   ├── src/app/             # Home, Wishlist, Search, My 라우팅
+│   │   ├── src/app/api/         # scan(VLM 매칭), external/*(Discogs·YouTube 프록시) 라우트
 │   │   ├── src/components/      # Grid, Modal, Navigation (사이드바)
 │   │   └── package.json
-│   ├── mobile/                  # 📱 Expo / React Native 앱 (Port 8081)
-│   └── api/                     # ⚙️ Express 백엔드 서버 (VLM 중계, Port 3001)
+│   └── mobile/                  # 📱 Expo / React Native 앱 (Port 8081)
 ├── packages/
 │   ├── core-api/                # 🔗 외부 연동 (Discogs, YouTube, Supabase) 및 Fallback 처리
 │   ├── shared-types/            # 📦 공통 타입 (MockVinylData 등)
 │   ├── ui/                      # 디자인 시스템 (차후 분리용)
 ├── DAILY_LOG.md                 # 📝 데일리 작업 및 변경 사항 아카이브
-├── turbo.json                   # 🚀 3개 앱(web, mobile, api) 동시 로컬 개발 서버 구동 (npm run dev)
+├── turbo.json                   # 🚀 web·mobile 동시 로컬 개발 서버 구동 (npm run dev)
 └── package.json
 ```
 
