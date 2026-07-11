@@ -344,3 +344,60 @@ apps/web/
   src/components/Modal/DetailModal.tsx
   src/app/search/page.tsx         ← getErrorMessage 연동 및 UI Toast 연동
 ```
+
+---
+
+## 2026-07-11 (Day 19)
+### 🎯 핵심 목표: 프로젝트 전체 UI/UX 전수 점검, 보안 하드닝 마이그레이션 반영, 문서 정비
+
+#### 1. 🔍 UI/UX 전수 점검 및 버그 수정 (모바일 + 웹, 15건)
+웹·모바일 전 화면을 훑어 어색한 부분·겹침·잠재 오류를 찾아 심각도 순으로 정리 후 전부 수정.
+
+**🔴 심각**
+- **웹 DetailModal 팝업 오작동**: 공유 시트/삭제 확인/구입가 입력/미리보기 팝업이 배경 클릭 이벤트를 상위로 전파시켜, 팝업 배경만 눌러도 앨범 상세 모달 전체가 함께 닫히던 버그. `stopPropagation` 추가로 해결.
+- **마이페이지 대표 LP 미표시**: `featured_album_id`가 문자열로 오는 경우 `ALBUM_ID`(숫자)와 엄격 비교(`===`)에 걸려 대표 LP가 조용히 안 뜨던 버그. `String()` 비교로 통일.
+- **모바일 홈 그리드가 탭바에 가려짐**: 하단 리스트 패딩 부족으로 마지막 줄 앨범이 플로팅 탭바 뒤에 깔리던 문제.
+- **로그아웃/탈퇴 시 네비게이션 크래시 위험**: `navigation.replace('Onboarding')`을 auth 상태 변경 전에 호출해, 아직 등록 안 된 라우트로 이동을 시도하던 문제. RootNavigator가 auth 상태로 알아서 전환하도록 호출 제거.
+- **웹 실시간 구독 무필터**: `VinylGrid`의 Supabase realtime 구독에 `USER_ID` 필터가 없어, 다른 유저가 앨범을 추가할 때마다 전체 접속자가 재조회하던 문제.
+
+**🟠 중간**
+- 웹 반응형 미디어쿼리 전면 부재 → SideNav/DetailModal/마이페이지/공개 대시보드/PublicGrid에 브레이크포인트 추가.
+- **퍼블릭 공유 페이지 인증 UI 노출 발견 및 수정**: `/user/[id]*`가 인증 앱의 사이드바(+80px 여백)를 그대로 노출하고 있어, 로그인 없이 링크로 들어온 방문자에게 혼란을 주던 문제. 레이아웃을 `AppShell` 컴포넌트로 분리해 해당 경로는 chrome-free로 렌더링.
+- 스캔 결과 카드가 홀수 개일 때 마지막 카드가 전체 폭으로 늘어나던 문제, ScanScreen/SearchScreen의 상단 여백이 safe area를 무시하던 문제, 구입가 입력창이 키보드에 가려지던 문제, 탭바 높이가 홈 인디케이터 영역을 반영 못 하던 문제(→ `useTabBarHeight` 훅으로 통일), 마이 화면 히어로(아바타+대표 LP)가 좁은 화면에서 겹치던 문제 수정.
+
+**🟡 낮음**
+- 위시리스트/빈 상태 화면의 테마 무시 하드코딩 색상 수정, 마이 화면 통계가 탭 재진입 시 갱신 안 되던 문제(`useFocusEffect` 적용), 공유 링크 URL 하드코딩 통일, `alert()` → 토스트 전환, 빈 이미지 URL 프록시 호출 방지.
+- **공개 프로필에서 앨범 삭제 버튼 오동작 발견**: `PublicGrid`/공개 대시보드에서 남의 앨범을 열면 "보관함 삭제" 버튼이 프로필 주인의 상태를 기준으로 표시되면서도 실제로는 로그인한 방문자 본인의 데이터를 대상으로 동작해 혼란을 주던 문제. 로그인한 방문자 본인의 소장 여부를 별도 조회해 정확한 버튼 상태로 교정.
+
+#### 2. 🔐 Supabase 보안 하드닝 마이그레이션 실행 검증 및 커밋
+- 이전 세션에서 작성돼 있던 `supabase_schema.sql`의 "Hardening migration (2026-07-11)" 섹션(PROFILES DDL 코드화, 닉네임 쿨다운 DB 트리거화, EVENT_LOG 검증/anon 플러딩 방지, USER_VINYL 무결성 제약, INQUIRY 자동 재오픈 트리거, avatars 정책 코드화)을 사용자가 Supabase SQL Editor에서 직접 실행 → `Success. No rows returned`로 반영 확인.
+- 라이브 DB 반영을 확인한 뒤 `supabase_schema.sql`을 커밋해 코드와 실제 DB 상태 일치시킴.
+
+#### 3. 📦 커밋 정리 (성격별 3건 분리)
+- `fix(db)`: 보안 하드닝 마이그레이션.
+- `feat(api)`: 스캔/외부 API 프록시를 별도 Node 서버(`apps/api`)에서 Next.js API 라우트(`apps/web/src/app/api/scan`, `api/external/*`)로 이전한, 이전 세션에서 작성돼 있던 작업분 커밋. 모바일 Supabase 세션이 재시작마다 유실되던 문제(AsyncStorage 미연동)도 함께 포함.
+- `fix(mobile,web)`: 이번 세션의 UI/UX 버그 수정 15건.
+
+#### 4. 📚 문서 정비
+- `README.md`를 개발자 전용 문서에서 **클라이언트·사용자가 읽을 수 있는 제품 소개 문서**로 재구성 — 서비스 개요/철학, 웹 페이지별 안내, 모바일 앱 화면별 안내, 핵심 기능 하이라이트를 상단에 배치하고, 기존 기술 스택/에러 코드/실행 방법은 "개발자를 위한 안내" 섹션으로 하단 재배치.
+- `VinylA_Blue_Print.md`: 퍼블릭 공유 페이지의 chrome-free 레이아웃, 탭바 safe-area 대응, 2026-07-11 보안 하드닝 마이그레이션 상세, `apps/api` 폐지 및 Next.js API 라우트 이전을 반영해 폴더 구조·보안 섹션 갱신.
+
+---
+
+### 📦 오늘 변경된 주요 파일
+```
+apps/mobile/
+  src/screens/HomeScreen.tsx, WishScreen.tsx, MyScreen.tsx, ScanScreen.tsx, SearchScreen.tsx
+  src/components/Modal/DetailModal.tsx, EmptyState.tsx, Toast/NativeToast.tsx
+  src/navigation/TabNavigator.tsx, src/constants/layout.ts   ← useTabBarHeight 훅 신설
+apps/web/
+  src/components/Modal/DetailModal.tsx, ShareBottomSheet.tsx, SharePreviewModal.tsx
+  src/components/Grid/VinylGrid.tsx, PublicGrid.tsx
+  src/components/Navigation/SideNav.tsx, SideNav.module.css
+  src/components/Layout/AppShell.tsx                          ← NEW
+  src/components/Share/StoryTemplate.tsx, ShareableGridTemplate.tsx
+  src/app/layout.tsx, globals.css, my/page.tsx, my/page.module.css
+  src/app/user/[id]/dashboard/page.tsx, dashboard.module.css
+supabase_schema.sql                                           ← Hardening migration 커밋
+README.md / VinylA_Blue_Print.md / DAILY_LOG.md / dev-log.md  ← 문서 정비
+```

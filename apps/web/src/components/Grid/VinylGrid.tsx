@@ -68,12 +68,19 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       setIsLoading(false);
     }
     if (user !== undefined) loadData();
-    const subscription = supabase
-      .channel('public:USER_VINYL:web_home')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, () => { if (user) loadData(); })
-      .subscribe();
+
     const handleRefresh = () => loadData();
     window.addEventListener('REFRESH_VINYLS', handleRefresh);
+
+    // Subscribe only to this user's rows — an unfiltered subscription makes
+    // every client refetch on every other user's change.
+    if (!user) {
+      return () => window.removeEventListener('REFRESH_VINYLS', handleRefresh);
+    }
+    const subscription = supabase
+      .channel('public:USER_VINYL:web_home')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL', filter: `USER_ID=eq.${user.id}` }, () => loadData())
+      .subscribe();
     return () => {
         window.removeEventListener('REFRESH_VINYLS', handleRefresh);
         subscription.unsubscribe();

@@ -1,7 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingScanButton } from '../components/TabBar/FloatingScanButton';
+import { TAB_BAR_BASE_HEIGHT } from '../constants/layout';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { WishScreen } from '../screens/WishScreen';
@@ -24,13 +26,14 @@ import { useTheme } from '@vinyla/ui';
 
 export const TabNavigator = () => {
   const { themeColors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = getStyles(themeColors);
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { height: TAB_BAR_BASE_HEIGHT + insets.bottom, paddingBottom: insets.bottom }],
         tabBarActiveTintColor: themeColors.accent,
         tabBarInactiveTintColor: themeColors.textSecondary,
         tabBarShowLabel: true,
@@ -86,7 +89,6 @@ const getStyles = (themeColors: any) => StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
     backgroundColor: themeColors.background,
     borderTopWidth: 1,
     borderTopColor: themeColors.border,

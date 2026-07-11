@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
@@ -25,6 +26,7 @@ const genres = [
 ];
 
 export const SearchScreen = ({ route }: any) => {
+  const insets = useSafeAreaInsets();
   const initialQuery = route?.params?.initialQuery || '';
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<MockVinylData[]>([]);
@@ -166,7 +168,7 @@ export const SearchScreen = ({ route }: any) => {
     // Gesture handlers are only attached while a search is active — the
     // genre-explore landing view must not react to edge swipes at all.
     <View style={styles.container} {...(query ? backGesture.panHandlers : {})}>
-      <View style={styles.searchHero}>
+      <View style={[styles.searchHero, { paddingTop: insets.top + 40 }]}>
         <View style={styles.searchInputContainer}>
           <TextInput 
             style={styles.searchInput}
@@ -280,7 +282,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   searchHero: {
-    paddingTop: 80,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },

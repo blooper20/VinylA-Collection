@@ -49,6 +49,12 @@
   --sidebar-expanded:  256px;
 }
 
+@media (max-width: 640px) {
+  :root {
+    --sidebar-collapsed: 60px;
+  }
+}
+
 /* ============================================
    RESET & BASE
    ============================================ */
@@ -159,6 +165,12 @@ img {
   min-height: 100dvh;
   position: relative;
   transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Chrome-free routes (landing/auth, public share links) render without a
+   SideNav sibling, so there's no fixed sidebar to keep clear of. */
+.main-content--full {
+  margin-left: 0;
 }
 
 /* ============================================

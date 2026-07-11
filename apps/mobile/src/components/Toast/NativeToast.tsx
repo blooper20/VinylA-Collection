@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@vinyla/ui';
 import * as Haptics from 'expo-haptics';
-import { TAB_BAR_HEIGHT } from '../../constants/layout';
+import { useTabBarHeight } from '../../constants/layout';
 
 interface NativeToastProps {
   message: string;
@@ -12,10 +12,11 @@ interface NativeToastProps {
 
 export const NativeToast: React.FC<NativeToastProps> = ({ message, visible, onHide }) => {
   const { themeColors } = useTheme();
+  const tabBarHeight = useTabBarHeight();
   // Only clear the tab bar's flat top edge — it's fine for the toast to sit
   // behind the FloatingScanButton's protruding logo in the center; trying to
   // dodge that too pushes the toast awkwardly high.
-  const styles = getStyles(themeColors, TAB_BAR_HEIGHT);
+  const styles = getStyles(themeColors, tabBarHeight);
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

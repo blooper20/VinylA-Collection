@@ -6,6 +6,29 @@ import { AppError } from './errors';
 axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 import { logEvent } from './events';
 
+// ── Credential handling ───────────────────────────────────────────────────
+// API keys must never ship in a client bundle (the old EXPO_PUBLIC_/
+// NEXT_PUBLIC_ vars were extractable from the web JS and the app binary).
+// Server contexts (Next.js API routes, apps/api) provide unprefixed env
+// vars and call the third-party APIs directly; clients get no credentials
+// and go through the Next.js proxy routes instead.
+
+const getDiscogsAuth = (): Record<string, string> | null => {
+  if (process.env.DISCOGS_TOKEN) return { token: process.env.DISCOGS_TOKEN };
+  if (process.env.DISCOGS_KEY && process.env.DISCOGS_SECRET) {
+    return { key: process.env.DISCOGS_KEY, secret: process.env.DISCOGS_SECRET };
+  }
+  return null;
+};
+
+// Where clients reach the proxy that holds the keys:
+// - web browser: same-origin Next.js API routes ('')
+// - React Native: apps/mobile sets this global at startup (dev Metro host
+//   or the production web URL) — a global instead of an import so this
+//   shared package never pulls Expo modules into the web bundle.
+export const getProxyBaseUrl = (): string =>
+  (globalThis as any).__VINYLA_API_BASE__ || '';
+
 export type AlbumItem = {
   id: number | string;
   title: string;
@@ -93,10 +116,7 @@ export const createDiscogsSearchSession = (
   onItem: (album: AlbumItem) => void,
   onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void
 ): DiscogsSearchSession => {
-  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
-  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-  const authParams = token ? { token } : { key, secret };
+  const serverAuth = getDiscogsAuth();
   const isGenreQuery = query.startsWith('#');
 
   // State persisting across batches so paging never re-shows the same LP.
@@ -139,17 +159,20 @@ export const createDiscogsSearchSession = (
     let raw: DiscogsRelease[] = [];
     try {
       const fetchPage = async (params: Record<string, unknown>) => {
-        return axios.get('https://api.discogs.com/database/search', {
-          params: {
-            ...params,
-            ...authParams,
-            type: 'release',
-            format: 'vinyl',
-            per_page: 50,
-            sort: 'want',
-            sort_order: 'desc',
-          },
-        }).then((r) => r.data.results || []).catch((e) => {
+        const request = serverAuth
+          ? axios.get('https://api.discogs.com/database/search', {
+              params: {
+                ...params,
+                ...serverAuth,
+                type: 'release',
+                format: 'vinyl',
+                per_page: 50,
+                sort: 'want',
+                sort_order: 'desc',
+              },
+            })
+          : axios.get(`${getProxyBaseUrl()}/api/external/discogs-search`, { params });
+        return request.then((r) => r.data.results || []).catch((e) => {
           if (e.response && e.response.status === 404) return [];
           throw e;
         });
@@ -358,39 +381,49 @@ export interface AlbumExtraDetails {
 }
 
 export const getAlbumExtraDetails = async (albumId: string | number, artist?: string, title?: string): Promise<AlbumExtraDetails> => {
-  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.NEXT_PUBLIC_DISCOGS_TOKEN;
-  const key = process.env.EXPO_PUBLIC_DISCOGS_KEY || process.env.NEXT_PUBLIC_DISCOGS_KEY;
-  const secret = process.env.EXPO_PUBLIC_DISCOGS_SECRET || process.env.NEXT_PUBLIC_DISCOGS_SECRET;
-  const authParams = token ? { token } : { key, secret };
-
+  const serverAuth = getDiscogsAuth();
   const details: AlbumExtraDetails = { tracks: [] };
 
-  // 1. Try Discogs first
-  try {
-    const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: authParams });
-    if (masterRes.data?.tracklist) {
-      details.tracks = masterRes.data.tracklist.map((t: { title: string }) => t.title);
-    }
-    if (masterRes.data?.notes) {
-      details.notes = masterRes.data.notes;
-    }
-    if (masterRes.data?.lowest_price) {
-      details.marketPrice = Math.round(masterRes.data.lowest_price * 1400); // Convert USD/EUR to KRW roughly
-    }
-  } catch (e) {
+  // 1. Try Discogs first (directly with server credentials, or through the
+  //    key-holding proxy from client bundles)
+  if (serverAuth) {
     try {
-      const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: authParams });
-      if (releaseRes.data?.tracklist) {
-        details.tracks = releaseRes.data.tracklist.map((t: { title: string }) => t.title);
+      const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: serverAuth });
+      if (masterRes.data?.tracklist) {
+        details.tracks = masterRes.data.tracklist.map((t: { title: string }) => t.title);
       }
-      if (releaseRes.data?.notes) {
-        details.notes = releaseRes.data.notes;
+      if (masterRes.data?.notes) {
+        details.notes = masterRes.data.notes;
       }
-      if (releaseRes.data?.lowest_price) {
-        details.marketPrice = Math.round(releaseRes.data.lowest_price * 1400);
+      if (masterRes.data?.lowest_price) {
+        details.marketPrice = Math.round(masterRes.data.lowest_price * 1400); // Convert USD/EUR to KRW roughly
       }
-    } catch (e2) {
-      // ignore
+    } catch (e) {
+      try {
+        const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: serverAuth });
+        if (releaseRes.data?.tracklist) {
+          details.tracks = releaseRes.data.tracklist.map((t: { title: string }) => t.title);
+        }
+        if (releaseRes.data?.notes) {
+          details.notes = releaseRes.data.notes;
+        }
+        if (releaseRes.data?.lowest_price) {
+          details.marketPrice = Math.round(releaseRes.data.lowest_price * 1400);
+        }
+      } catch (e2) {
+        // ignore
+      }
+    }
+  } else {
+    try {
+      const res = await axios.get(`${getProxyBaseUrl()}/api/external/discogs-details`, { params: { albumId } });
+      if (Array.isArray(res.data?.tracks)) details.tracks = res.data.tracks;
+      if (res.data?.notes) details.notes = res.data.notes;
+      if (typeof res.data?.lowest_price === 'number') {
+        details.marketPrice = Math.round(res.data.lowest_price * 1400); // Convert USD/EUR to KRW roughly
+      }
+    } catch (e) {
+      // ignore — iTunes fallback below still runs
     }
   }
 
@@ -445,63 +478,33 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
   return details;
 };
 
-// YouTube Data API Bridge Function
+// YouTube Data API Bridge Function — direct with a server-side key, or via
+// the key-holding proxy from client bundles.
 export const searchYouTube = async (query: string): Promise<string[]> => {
-  const apiKey = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  if (!apiKey) return [];
-
   try {
-    const res = await axios.get('https://www.googleapis.com/youtube/v3/search', {
-      params: {
-        part: 'snippet',
-        q: query,
-        type: 'video',
-        videoCategoryId: '10', // Music
-        maxResults: 3,
-        key: apiKey,
-      },
-    });
-
-    if (res.data && res.data.items) {
-      return res.data.items.map((item: YouTubeResult) => item.id.videoId);
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (apiKey) {
+      const res = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+        params: {
+          part: 'snippet',
+          q: query,
+          type: 'video',
+          videoCategoryId: '10', // Music
+          maxResults: 3,
+          key: apiKey,
+        },
+      });
+      if (res.data && res.data.items) {
+        return res.data.items.map((item: YouTubeResult) => item.id.videoId);
+      }
+      return [];
     }
-    return [];
+
+    const res = await axios.get(`${getProxyBaseUrl()}/api/external/youtube`, { params: { q: query } });
+    return Array.isArray(res.data?.videoIds) ? res.data.videoIds : [];
   } catch (error) {
     console.error('YouTube search error:', error);
     throw new AppError('EXT-003', 'YouTube 검색 중 오류가 발생했습니다.', error);
-  }
-};
-
-// Google Cloud Vision API Function
-export const analyzeImageWithVisionAPI = async (base64Image: string) => {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_VISION_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error('Google Vision API key is missing. Please add EXPO_PUBLIC_GOOGLE_VISION_API_KEY to your .env file.');
-  }
-
-  try {
-    const response = await axios.post(
-      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-      {
-        requests: [
-          {
-            image: {
-              content: base64Image,
-            },
-            features: [
-              { type: 'TEXT_DETECTION', maxResults: 10 },
-              { type: 'WEB_DETECTION', maxResults: 5 }
-            ],
-          },
-        ],
-      }
-    );
-    return response.data.responses[0];
-  } catch (e: unknown) {
-    const error = e as Error & { response?: { data?: { error?: { message?: string } } } };
-    console.error('Vision API failed:', error?.response?.data || error);
-    throw new Error(error?.response?.data?.error?.message || 'Google Vision API request failed');
   }
 };
 

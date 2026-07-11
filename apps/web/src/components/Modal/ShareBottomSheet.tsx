@@ -44,7 +44,10 @@ export const ShareBottomSheet: React.FC<ShareBottomSheetProps> = ({ isOpen, onCl
   if (!render) return null;
 
   return (
-    <div className={`${styles.overlay} ${show ? styles.overlayShow : ''}`} onClick={onClose}>
+    <div
+      className={`${styles.overlay} ${show ? styles.overlayShow : ''}`}
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
       <div 
         className={`${styles.sheet} ${show ? styles.sheetShow : ''}`} 
         onClick={(e) => e.stopPropagation()}

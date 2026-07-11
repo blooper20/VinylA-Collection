@@ -602,3 +602,52 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
 }
+
+/* ============================================
+   RESPONSIVE — narrow / phone viewports
+   ============================================ */
+@media (max-width: 860px) {
+  .overlay {
+    align-items: flex-end;
+  }
+
+  .modal {
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    height: 92vh;
+    max-height: none;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .closeBtn {
+    top: 16px;
+    right: 16px;
+  }
+
+  .leftPanel {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 32px 24px 24px;
+    flex: none;
+  }
+
+  .coverContainer {
+    width: min(60vw, 280px);
+  }
+
+  .rightPanel {
+    padding: 32px 24px 40px;
+    overflow-y: visible;
+  }
+
+  .title {
+    font-size: clamp(26px, 7vw, 36px);
+  }
+
+  .actions,
+  .externalLinks {
+    flex-wrap: wrap;
+  }
+}

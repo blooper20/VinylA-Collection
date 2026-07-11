@@ -21,9 +21,34 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<PublicVinyl | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [viewerStatusMap, setViewerStatusMap] = useState<Record<string, 'OWNED' | 'WISH'>>({});
 
   const { user, initializeAuth } = useAuthStore();
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
+
+  // The album's STATUS field reflects the profile OWNER's collection, but
+  // DetailModal's add/delete actions always mutate the logged-in VIEWER's
+  // own collection — so when browsing someone else's page we need the
+  // viewer's own status for that album, not the owner's, to avoid a
+  // "delete" button that's mislabeled relative to what it actually does.
+  useEffect(() => {
+    async function fetchViewerStatus() {
+      if (!user?.id || user.id === userId) return;
+      try {
+        const vinyls = await getUserVinyls(user.id);
+        const map: Record<string, 'OWNED' | 'WISH'> = {};
+        (vinyls || []).forEach((v) => {
+          if (v.STATUS === 'OWNED' || v.STATUS === 'WISH') {
+            map[String(v.ALBUM_ID)] = v.STATUS;
+          }
+        });
+        setViewerStatusMap(map);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchViewerStatus();
+  }, [user?.id, userId]);
 
   useEffect(() => {
     async function fetchPublicData() {
@@ -60,7 +85,8 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
     if (!user) {
       setShowLoginPrompt(true);
     } else {
-      setSelectedAlbum(album);
+      const viewerStatus = user.id === userId ? album.STATUS : viewerStatusMap[String(album.ALBUM_ID)];
+      setSelectedAlbum({ ...album, STATUS: viewerStatus });
     }
   };
 

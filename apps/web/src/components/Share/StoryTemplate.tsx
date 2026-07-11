@@ -24,6 +24,11 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
 
   const neon = STATUS_NEON[overrideStatus || album.STATUS as string] || STATUS_NEON.NONE;
 
+  const rawImageUrl = album.COVER_URL || album.IMAGE_URL;
+  // A local asset needs no CORS proxying, and proxying an empty string would
+  // fire a useless /api/proxy-image?url= request.
+  const imageSrc = rawImageUrl ? `/api/proxy-image?url=${encodeURIComponent(rawImageUrl)}` : '/logo.png';
+
   return (
     <div className={styles.offscreenContainer}>
       <div ref={ref} className={styles.storyFrame} style={bgStyle}>
@@ -43,13 +48,13 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
               }}>
                 <div className={styles.vinylGroove} />
                 <div className={styles.vinylLabel}>
-                  <img src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} alt="label" crossOrigin="anonymous" />
+                  <img src={imageSrc} alt="label" crossOrigin="anonymous" />
                 </div>
               </div>
               {/* The cover */}
-              <img 
-                src={`/api/proxy-image?url=${encodeURIComponent(album.COVER_URL || album.IMAGE_URL)}`} 
-                alt="cover" 
+              <img
+                src={imageSrc}
+                alt="cover"
                 className={styles.coverImage}
                 crossOrigin="anonymous"
               />

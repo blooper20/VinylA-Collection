@@ -192,3 +192,170 @@ CREATE POLICY "event_log_insert_own" ON public."EVENT_LOG" FOR INSERT TO authent
 DROP POLICY IF EXISTS "event_log_insert_visit_anon" ON public."EVENT_LOG";
 CREATE POLICY "event_log_insert_visit_anon" ON public."EVENT_LOG" FOR INSERT TO anon
   WITH CHECK ("EVENT_TYPE" = 'VISIT' AND "USER_ID" IS NULL);
+
+-- ============================================================
+-- Hardening migration (2026-07-11)
+-- Run this whole section manually in the Supabase SQL Editor.
+--
+-- Fixes found in the security audit:
+--   1. PROFILES had no DDL in this file (dashboard-only) → codified.
+--   2. Nickname 30-day cooldown was client-side only → DB trigger.
+--   3. Logged-in visits were dropped by RLS (insert_own requires
+--      USER_ID = auth.uid(), but VISIT rows carry NULL) → new policy.
+--   4. EVENT_LOG accepted any EVENT_TYPE / unbounded META from any
+--      authenticated user → CHECK constraints + anon flood brake.
+--   5. USER_VINYL allowed duplicate (user, album) rows, had no index
+--      on USER_ID, no FK to auth.users, no STATUS/price validation.
+--   6. INQUIRY enum values existed only as comments → CHECKs; user
+--      replies now reopen the inquiry and bump UPDATED_AT.
+--   7. avatars bucket policies lived only in the dashboard → codified
+--      (uploads now go to a per-user folder: {uid}/avatar-*.ext).
+-- ============================================================
+
+-- 1. PROFILES table (previously created via dashboard only)
+CREATE TABLE IF NOT EXISTS public."PROFILES" (
+    "USER_ID" uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    "DISPLAY_NAME" text UNIQUE,
+    "LAST_NAME_CHANGED_AT" timestamp with time zone
+);
+
+-- 2. Nickname cooldown enforced in the DB. The trigger also owns
+--    LAST_NAME_CHANGED_AT so clients can't backdate it via PostgREST.
+CREATE OR REPLACE FUNCTION public.enforce_nickname_cooldown()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW."LAST_NAME_CHANGED_AT" := now();
+  ELSIF NEW."DISPLAY_NAME" IS DISTINCT FROM OLD."DISPLAY_NAME" THEN
+    IF OLD."LAST_NAME_CHANGED_AT" IS NOT NULL
+       AND OLD."LAST_NAME_CHANGED_AT" > now() - interval '30 days' THEN
+      RAISE EXCEPTION '닉네임은 30일에 한 번만 변경 가능합니다.'
+        USING ERRCODE = 'P0001';
+    END IF;
+    NEW."LAST_NAME_CHANGED_AT" := now();
+  ELSE
+    NEW."LAST_NAME_CHANGED_AT" := OLD."LAST_NAME_CHANGED_AT";
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_nickname_cooldown ON public."PROFILES";
+CREATE TRIGGER trg_nickname_cooldown
+  BEFORE INSERT OR UPDATE ON public."PROFILES"
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_nickname_cooldown();
+
+-- 3. Logged-in sessions also record VISIT rows with USER_ID NULL
+--    (events.ts nulls it for VISIT), which event_log_insert_own rejected.
+DROP POLICY IF EXISTS "event_log_insert_visit_auth" ON public."EVENT_LOG";
+CREATE POLICY "event_log_insert_visit_auth" ON public."EVENT_LOG" FOR INSERT TO authenticated
+  WITH CHECK ("EVENT_TYPE" = 'VISIT' AND "USER_ID" IS NULL);
+
+-- 4a. EVENT_LOG value/size validation (NOT VALID: applies to new rows only,
+--     so it can't fail on pre-existing data)
+ALTER TABLE public."EVENT_LOG" DROP CONSTRAINT IF EXISTS "event_log_type_check";
+ALTER TABLE public."EVENT_LOG" ADD CONSTRAINT "event_log_type_check"
+  CHECK ("EVENT_TYPE" IN ('VISIT','SIGNUP','LOGIN','SEARCH','SCAN','ALBUM_ADD','WISH_ADD','SHARE')) NOT VALID;
+ALTER TABLE public."EVENT_LOG" DROP CONSTRAINT IF EXISTS "event_log_meta_size_check";
+ALTER TABLE public."EVENT_LOG" ADD CONSTRAINT "event_log_meta_size_check"
+  CHECK ("META" IS NULL OR pg_column_size("META") < 4096) NOT VALID;
+
+-- 4b. Flood brake: the anon key is public, so a curl loop could insert
+--     unlimited VISIT rows (storage cost + poisoned acquisition metrics).
+--     Hard-cap anonymous VISIT inserts at 120/min globally — legit traffic
+--     never hits this, a spam loop stops doing damage after one minute.
+--     (Uses idx_event_log_type_created, so the count is an index-only scan.)
+CREATE OR REPLACE FUNCTION public.event_log_flood_brake()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW."EVENT_TYPE" = 'VISIT' AND NEW."USER_ID" IS NULL THEN
+    IF (SELECT count(*) FROM public."EVENT_LOG"
+        WHERE "EVENT_TYPE" = 'VISIT'
+          AND "CREATED_AT" > now() - interval '1 minute') >= 120 THEN
+      RAISE EXCEPTION 'VISIT rate limit exceeded' USING ERRCODE = 'P0002';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_event_log_flood_brake ON public."EVENT_LOG";
+CREATE TRIGGER trg_event_log_flood_brake
+  BEFORE INSERT ON public."EVENT_LOG"
+  FOR EACH ROW EXECUTE FUNCTION public.event_log_flood_brake();
+
+-- 5. USER_VINYL integrity: dedupe, then one row per (user, album),
+--    index for the hot USER_ID lookups, FK cleanup on account deletion,
+--    and STATUS/price validation.
+DELETE FROM public."USER_VINYL" a
+  USING public."USER_VINYL" b
+  WHERE a."USER_VINYL_ID" > b."USER_VINYL_ID"
+    AND a."USER_ID" = b."USER_ID"
+    AND a."ALBUM_ID" = b."ALBUM_ID";
+ALTER TABLE public."USER_VINYL" DROP CONSTRAINT IF EXISTS "user_vinyl_user_album_key";
+ALTER TABLE public."USER_VINYL" ADD CONSTRAINT "user_vinyl_user_album_key"
+  UNIQUE ("USER_ID", "ALBUM_ID");
+CREATE INDEX IF NOT EXISTS "idx_user_vinyl_user" ON public."USER_VINYL" ("USER_ID");
+DELETE FROM public."USER_VINYL" uv
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = uv."USER_ID");
+ALTER TABLE public."USER_VINYL" DROP CONSTRAINT IF EXISTS "user_vinyl_user_fk";
+ALTER TABLE public."USER_VINYL" ADD CONSTRAINT "user_vinyl_user_fk"
+  FOREIGN KEY ("USER_ID") REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public."USER_VINYL" DROP CONSTRAINT IF EXISTS "user_vinyl_status_check";
+ALTER TABLE public."USER_VINYL" ADD CONSTRAINT "user_vinyl_status_check"
+  CHECK ("STATUS" IN ('OWNED','WISH')) NOT VALID;
+ALTER TABLE public."USER_VINYL" DROP CONSTRAINT IF EXISTS "user_vinyl_price_check";
+ALTER TABLE public."USER_VINYL" ADD CONSTRAINT "user_vinyl_price_check"
+  CHECK ("PURCHASE_PRICE" IS NULL OR ("PURCHASE_PRICE" >= 0 AND "PURCHASE_PRICE" <= 100000000)) NOT VALID;
+
+-- 6a. INQUIRY enum comments promoted to real constraints
+ALTER TABLE public."INQUIRY" DROP CONSTRAINT IF EXISTS "inquiry_category_check";
+ALTER TABLE public."INQUIRY" ADD CONSTRAINT "inquiry_category_check"
+  CHECK ("CATEGORY" IN ('COMPLAINT','SUGGESTION','BUG','GENERAL')) NOT VALID;
+ALTER TABLE public."INQUIRY" DROP CONSTRAINT IF EXISTS "inquiry_status_check";
+ALTER TABLE public."INQUIRY" ADD CONSTRAINT "inquiry_status_check"
+  CHECK ("STATUS" IN ('OPEN','ANSWERED','CLOSED')) NOT VALID;
+ALTER TABLE public."INQUIRY" DROP CONSTRAINT IF EXISTS "inquiry_platform_check";
+ALTER TABLE public."INQUIRY" ADD CONSTRAINT "inquiry_platform_check"
+  CHECK ("PLATFORM" IN ('WEB','MOBILE')) NOT VALID;
+
+-- 6b. A user reply must reopen the inquiry and bump UPDATED_AT so the
+--     admin sees the follow-up. Clients have no UPDATE policy on INQUIRY
+--     (by design), so this runs as a SECURITY DEFINER trigger instead.
+CREATE OR REPLACE FUNCTION public.on_inquiry_reply()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public."INQUIRY"
+     SET "UPDATED_AT" = now(),
+         "STATUS" = CASE WHEN NEW."IS_ADMIN" THEN "STATUS" ELSE 'OPEN' END
+   WHERE "INQUIRY_ID" = NEW."INQUIRY_ID";
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_on_inquiry_reply ON public."INQUIRY_REPLY";
+CREATE TRIGGER trg_on_inquiry_reply
+  AFTER INSERT ON public."INQUIRY_REPLY"
+  FOR EACH ROW EXECUTE FUNCTION public.on_inquiry_reply();
+
+-- 7. avatars bucket: codified policies. App code now uploads to a
+--    per-user folder ({uid}/avatar-{ts}.ext) so ownership is checkable.
+--    Public read is intended (avatars render on public dashboards).
+DROP POLICY IF EXISTS "avatar_read_all" ON storage.objects;
+CREATE POLICY "avatar_read_all" ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+DROP POLICY IF EXISTS "avatar_upload_own" ON storage.objects;
+CREATE POLICY "avatar_upload_own" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
+DROP POLICY IF EXISTS "avatar_delete_own" ON storage.objects;
+CREATE POLICY "avatar_delete_own" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
