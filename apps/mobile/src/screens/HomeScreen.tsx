@@ -16,14 +16,15 @@ import { SortChipRow } from '../components/SortChipRow';
 import { VinylTableRow } from '../components/VinylTableRow';
 import { sortVinyls, SortMode } from '../utils/sortVinyls';
 import { shareToInstagramStory } from '../utils/nativeShare';
-import { TAB_BAR_HEIGHT } from '../constants/layout';
+import { useTabBarHeight } from '../constants/layout';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
 
 export const HomeScreen = () => {
   const { themeColors, glassIntensity } = useTheme();
-  const styles = getStyles(themeColors, shadows, shape);
+  const tabBarHeight = useTabBarHeight();
+  const styles = getStyles(themeColors, shadows, shape, tabBarHeight);
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [ownedAlbums, setOwnedAlbums] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,34 +60,46 @@ export const HomeScreen = () => {
         return;
       }
 
-      const userId = user.id;
-      const userVinyls = await getUserVinyls(userId);
-      if (userVinyls && userVinyls.length > 0) {
-        const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
-        const owned = mapped.filter(a => a.STATUS === 'OWNED');
-        setOwnedAlbums(owned);
-        
-        // Save to offline cache
-        try {
-          await AsyncStorage.setItem('@vinyls_owned', JSON.stringify(owned));
-        } catch (e) {
-          console.error('Failed to save cache', e);
+      try {
+        const userId = user.id;
+        const userVinyls = await getUserVinyls(userId);
+        if (userVinyls && userVinyls.length > 0) {
+          const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
+          const owned = mapped.filter(a => a.STATUS === 'OWNED');
+          setOwnedAlbums(owned);
+
+          // Save to offline cache
+          try {
+            await AsyncStorage.setItem('@vinyls_owned', JSON.stringify(owned));
+          } catch (e) {
+            console.error('Failed to save cache', e);
+          }
+        } else {
+          setOwnedAlbums([]);
         }
-      } else {
-        setOwnedAlbums([]);
+      } catch (e) {
+        // Keep whatever the offline cache already rendered; just surface it.
+        console.error('Failed to load collection', e);
+        showToast('컬렉션을 불러오지 못했습니다. 네트워크를 확인해주세요.');
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
-    
+
     if (user !== undefined) {
        loadData();
     }
 
+    // Subscribe only to this user's rows — an unfiltered subscription makes
+    // every client refetch on every other user's change.
+    if (!user) return;
     const subscription = supabase
       .channel('public:USER_VINYL:mobile_home')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, payload => {
-        if (user) loadData();
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'USER_VINYL', filter: `USER_ID=eq.${user.id}` },
+        () => loadData()
+      )
       .subscribe();
 
     return () => {
@@ -205,7 +218,7 @@ export const HomeScreen = () => {
         isProcessing={isSharingProcessing}
         onShareLink={handleShareLink}
         onImageShare={handleImageShare}
-        bottomInset={TAB_BAR_HEIGHT}
+        bottomInset={tabBarHeight}
       />
 
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
@@ -213,7 +226,7 @@ export const HomeScreen = () => {
   );
 };
 
-const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.create({
+const getStyles = (themeColors: any, shadows: any, shape: any, tabBarHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -224,9 +237,10 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   },
   list: {
     padding: 16,
+    paddingBottom: tabBarHeight + 20,
   },
   tableList: {
-    paddingBottom: 16,
+    paddingBottom: tabBarHeight + 20,
   },
   card: {
     width: itemSize,

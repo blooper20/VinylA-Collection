@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share } from 'react-native';
+import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -216,7 +216,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     }
     try {
       setIsSharingProcessing(true);
-      const link = `https://vinyla.vercel.app/collection?album=${album.ALBUM_ID}`;
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
+      const link = `${baseUrl}/collection?album=${album.ALBUM_ID}`;
       await Share.share({
         message: `🎧 ${album.ARTIST} - ${album.TITLE}\n\n${link}`,
       });
@@ -374,8 +375,12 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const handleDelete = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!album) return;
+    if (!user) {
+      showAlert('오류', '로그인이 필요합니다.');
+      return;
+    }
     try {
-      await deleteUserVinylByAlbum(user?.id || 1, Number(album.ALBUM_ID));
+      await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
       setRealStatus('NONE');
       showAlert('성공', '보관함에서 삭제되었습니다.', () => {
         handleClose();
@@ -617,7 +622,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           }}
         />
         {pricePromptVisible && (
-          <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }]}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }]}
+          >
             <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
             <View style={{ width: '75%', padding: 24, borderRadius: 24, backgroundColor: 'rgba(20,20,20,0.8)', borderWidth: 1, borderColor: themeColors.border, alignItems: 'center' }}>
               <Text style={{ color: themeColors.textPrimary, fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>구입가 입력</Text>
@@ -649,7 +657,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         )}
       </Animated.View>
     </Modal>

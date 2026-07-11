@@ -648,3 +648,53 @@
   margin-top: 32px;
   justify-content: flex-end;
 }
+
+/* ============================================
+   RESPONSIVE — narrow / phone viewports
+   ============================================ */
+@media (max-width: 860px) {
+  .hero {
+    padding: 40px 24px 32px;
+  }
+
+  .heroInner {
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .profileInfo {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .featuredContainer {
+    margin-left: 0;
+    order: 3;
+    flex: 1 1 100%;
+    align-items: flex-start;
+  }
+
+  .featuredContainer::before,
+  .featuredContainer::after {
+    display: none;
+  }
+
+  .analytics,
+  .journey,
+  .actions {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .analyticsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .editProfileBox {
+    padding: 24px;
+  }
+
+  .editActions {
+    flex-wrap: wrap;
+  }
+}

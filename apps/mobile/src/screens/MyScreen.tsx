@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { mockVinyls } from '@vinyla/shared-types';
 import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase } from '@vinyla/core-api';
@@ -24,6 +24,23 @@ import { NicknameEditModal } from '../components/Modal/NicknameEditModal';
 import { DeleteAccountModal } from '../components/Modal/DeleteAccountModal';
 
 const { width } = Dimensions.get('window');
+// Avatar + featured-LP frame + paddings can overflow narrow phones
+// (e.g. 320px-wide devices), so scale both down below a width threshold.
+const IS_NARROW_SCREEN = width < 380;
+const AVATAR_SIZE = IS_NARROW_SCREEN ? 92 : 120;
+const FEATURED_FRAME_WIDTH = IS_NARROW_SCREEN ? 130 : 155;
+const FEATURED_FRAME_HEIGHT = IS_NARROW_SCREEN ? 100 : 120;
+// The vinyl disc peeking out from behind the cover art is sized/positioned
+// off a 155px-wide frame baseline — scale every dimension together so it
+// doesn't spill out of a narrower frame.
+const FEATURED_SCALE = FEATURED_FRAME_WIDTH / 155;
+const ALBUM_INNER_SIZE = Math.round(88 * FEATURED_SCALE);
+const VINYL_DISC_SIZE = Math.round(86 * FEATURED_SCALE);
+const VINYL_DISC_LEFT = Math.round(45 * FEATURED_SCALE);
+const VINYL_GROOVE_1_SIZE = Math.round(74 * FEATURED_SCALE);
+const VINYL_GROOVE_2_SIZE = Math.round(60 * FEATURED_SCALE);
+const VINYL_LABEL_SIZE = Math.round(30 * FEATURED_SCALE);
+const VINYL_HOLE_SIZE = Math.round(4 * FEATURED_SCALE);
 
 const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent, glassIntensity, onPress }: any) => {
   const editable = !!onPress;
@@ -85,7 +102,6 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, deleteAccount } = useAuthStore();
-  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
   const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
@@ -237,9 +253,13 @@ export const MyScreen = () => {
     }
   }, [user, updateUnlockedBadges]);
 
-  React.useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+  // Refresh on every focus (not just mount) so stats reflect albums added
+  // via Scan while the My tab was already mounted in the background.
+  useFocusEffect(
+    React.useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -339,7 +359,8 @@ export const MyScreen = () => {
                   try {
                     const uri = result.assets[0].uri;
                     const fileExt = uri.split('.').pop() || 'jpeg';
-                    const filePath = `${user?.id}-${Date.now()}.${fileExt}`;
+                    // Per-user folder so the storage RLS policy can verify ownership
+                    const filePath = `${user?.id}/avatar-${Date.now()}.${fileExt}`;
                     
                     const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
                     
@@ -589,7 +610,10 @@ export const MyScreen = () => {
             try {
               const { signOut } = await import('@vinyla/core-api');
               await signOut();
-              navigation.replace('Onboarding');
+              // RootNavigator swaps to the Onboarding stack automatically once
+              // useAuthStore's user becomes null — an explicit replace() here
+              // can fire before that re-render lands, and Onboarding isn't
+              // registered in the still-current Main stack yet.
             } catch (error) {
               console.error('Logout error:', error);
             }
@@ -653,8 +677,9 @@ export const MyScreen = () => {
         visible={isDeleteModalVisible}
         onClose={() => setDeleteModalVisible(false)}
         onConfirm={async () => {
+          // deleteAccount() sets user to null in the store, which drives
+          // RootNavigator to swap to the Onboarding stack on its own.
           await deleteAccount();
-          navigation.replace('Onboarding');
         }}
       />
     </View>
@@ -682,9 +707,9 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   avatarFrame: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -734,8 +759,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   featuredFrame: {
-    width: 155, // Reduced width
-    height: 120,
+    width: FEATURED_FRAME_WIDTH,
+    height: FEATURED_FRAME_HEIGHT,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     paddingLeft: 12,
@@ -759,8 +784,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   albumInner: {
-    width: 88,
-    height: 88,
+    width: ALBUM_INNER_SIZE,
+    height: ALBUM_INNER_SIZE,
     zIndex: 2,
     ...shadows.strong,
     backgroundColor: '#0a0a0a',
@@ -769,12 +794,12 @@ const styles = StyleSheet.create({
     borderRadius: shape.sm,
   },
   vinylDisc: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: VINYL_DISC_SIZE,
+    height: VINYL_DISC_SIZE,
+    borderRadius: VINYL_DISC_SIZE / 2,
     backgroundColor: '#0a0a0a',
     position: 'absolute',
-    left: 45, // Tucked further in
+    left: VINYL_DISC_LEFT, // Tucked further in
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
@@ -784,33 +809,33 @@ const styles = StyleSheet.create({
   },
   vinylGrooves: {
     position: 'absolute',
-    width: 74,
-    height: 74,
-    borderRadius: 37,
+    width: VINYL_GROOVE_1_SIZE,
+    height: VINYL_GROOVE_1_SIZE,
+    borderRadius: VINYL_GROOVE_1_SIZE / 2,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.05)',
   },
   vinylGrooves2: {
     position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: VINYL_GROOVE_2_SIZE,
+    height: VINYL_GROOVE_2_SIZE,
+    borderRadius: VINYL_GROOVE_2_SIZE / 2,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.05)',
   },
   vinylLabel: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: VINYL_LABEL_SIZE,
+    height: VINYL_LABEL_SIZE,
+    borderRadius: VINYL_LABEL_SIZE / 2,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
   vinylHole: {
     position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: VINYL_HOLE_SIZE,
+    height: VINYL_HOLE_SIZE,
+    borderRadius: VINYL_HOLE_SIZE / 2,
     backgroundColor: '#fffcf5',
   },
   featuredCover: {
@@ -819,8 +844,8 @@ const styles = StyleSheet.create({
   },
   wishIconBadge: {
     position: 'absolute',
-    top: -20,
-    right: -10,
+    top: -16,
+    right: -4,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
@@ -841,8 +866,8 @@ const styles = StyleSheet.create({
   },
   ownedIconBadge: {
     position: 'absolute',
-    top: -20,
-    right: -10,
+    top: -16,
+    right: -4,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,

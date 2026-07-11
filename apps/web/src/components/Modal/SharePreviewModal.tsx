@@ -40,7 +40,7 @@ export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, on
         if (success) {
           window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '이미지가 클립보드에 복사되었습니다.' } }));
         } else {
-          alert('이미지 복사가 지원되지 않는 브라우저입니다.');
+          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '이미지 복사가 지원되지 않는 브라우저입니다.' } }));
         }
       }
       onClose();
@@ -52,7 +52,7 @@ export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, on
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
           <h3 className={styles.title}>미리보기</h3>

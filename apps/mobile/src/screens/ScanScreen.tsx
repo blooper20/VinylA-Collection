@@ -9,16 +9,22 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useNavigation } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useAlert } from '../providers/AlertProvider';
 import { getApiBaseUrl } from '../utils/apiConfig';
-import { logEvent } from '@vinyla/core-api';
+import { logEvent, supabase } from '@vinyla/core-api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+// listContent has 10px horizontal padding and each card has 10px margin on
+// all sides, so two columns must divide (screenWidth - 10*2 - 10*4) evenly —
+// flex:1 would otherwise stretch a lone odd-count last card to full width.
+const RESULT_CARD_WIDTH = (screenWidth - 60) / 2;
 export const ScanScreen = () => {
   const { themeColors } = useTheme();
   const { showAlert } = useAlert();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedAlbum, setScannedAlbum] = useState<MockVinylData | null>(null);
@@ -89,12 +95,20 @@ export const ScanScreen = () => {
          throw new Error("Could not visually identify the album from the image. Gemini returned no data.");
       }
 
-      // 3. 백엔드(Node.js) 서버로 이미지와 검색어 전달하여 VLM 매칭
+      // 3. 서버(Next.js API route)로 이미지와 검색어 전달하여 VLM 매칭
+      //    (비용이 드는 Gemini 호출이라 로그인 세션 토큰이 필수)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('로그인이 필요합니다.');
+      }
       const apiBaseUrl = getApiBaseUrl();
-      console.log(`Sending request to Middle Server (${apiBaseUrl}/api/scan)...`);
+      console.log(`Sending request to scan server (${apiBaseUrl}/api/scan)...`);
       const response = await fetch(`${apiBaseUrl}/api/scan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ base64Image: base64Str, queries })
       });
 
@@ -232,7 +246,7 @@ export const ScanScreen = () => {
       </CameraView>
       
       {imageSearchResults && (
-        <View style={[StyleSheet.absoluteFillObject, styles.resultsContainer]}>
+        <View style={[StyleSheet.absoluteFillObject, styles.resultsContainer, { paddingTop: insets.top + 12 }]}>
           <View style={styles.resultsHeader}>
              <Text style={styles.resultsTitle}>스캔 검색 결과 ({imageSearchResults.length})</Text>
              <TouchableOpacity onPress={() => {
@@ -390,7 +404,6 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
   resultsContainer: {
     flex: 1,
     backgroundColor: themeColors.background,
-    paddingTop: 60,
   },
   resultsHeader: {
     flexDirection: 'row',
@@ -409,7 +422,7 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     paddingBottom: 100,
   },
   resultCard: {
-    flex: 1,
+    width: RESULT_CARD_WIDTH,
     margin: 10,
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: shape.md,

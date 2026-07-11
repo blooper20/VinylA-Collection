@@ -26,7 +26,7 @@ export default function MyProfilePage() {
   const [allAlbumsList, setAllAlbumsList] = useState<FrontendVinyl[]>([]);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
-  const featuredAlbum = allAlbumsList.find(a => a.ALBUM_ID === featuredAlbumId);
+  const featuredAlbum = featuredAlbumId ? allAlbumsList.find(a => String(a.ALBUM_ID) === String(featuredAlbumId)) : undefined;
 
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
@@ -180,7 +180,7 @@ export default function MyProfilePage() {
       setTopGenre(editGenre);
       setIsAvatarRemoved(false);
     } catch {
-      alert('프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)');
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)' } }));
     } finally {
       setIsSaving(false);
     }

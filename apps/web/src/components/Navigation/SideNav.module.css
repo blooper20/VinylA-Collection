@@ -182,3 +182,18 @@
   background: var(--border);
   margin: 0 10px 16px;
 }
+
+/* On phones there's no real "hover" — leaving the expand-on-hover behavior
+   active risks the sidebar getting stuck open (or half-open) after a tap,
+   eating a big chunk of a narrow viewport. Keep it collapsed at all times. */
+@media (max-width: 640px) {
+  .sidebar:hover {
+    width: var(--sidebar-collapsed);
+  }
+
+  .sidebar:hover .brandText,
+  .sidebar:hover .navLabel {
+    opacity: 0;
+    transform: none;
+  }
+}

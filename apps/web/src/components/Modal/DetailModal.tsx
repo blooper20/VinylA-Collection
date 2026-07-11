@@ -49,7 +49,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       setIsShareOpen(false);
       const link = `${window.location.origin}/collection?album=${album.ALBUM_ID}`;
       await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
-      alert('앨범 링크가 복사되었습니다!');
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '앨범 링크가 복사되었습니다!' } }));
     },
     saveImage: async () => {
       setIsShareOpen(false);
@@ -392,7 +392,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
       {/* Custom Confirmation Popup */}
       {confirmTarget && (
-        <div className={styles.confirmOverlay} onClick={() => setConfirmTarget(null)}>
+        <div className={styles.confirmOverlay} onClick={(e) => { e.stopPropagation(); setConfirmTarget(null); }}>
           <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.confirmIcon}>
               <span className="material-symbols-outlined">warning</span>
@@ -415,7 +415,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
       {/* Price Input Popup */}
       {pricePromptOpen && (
-        <div className={styles.confirmOverlay} onClick={() => setPricePromptOpen(false)}>
+        <div className={styles.confirmOverlay} onClick={(e) => { e.stopPropagation(); setPricePromptOpen(false); }}>
           <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.confirmIcon} style={{ color: 'var(--accent)', backgroundColor: 'rgba(233, 195, 73, 0.1)' }}>
               <span className="material-symbols-outlined">payments</span>

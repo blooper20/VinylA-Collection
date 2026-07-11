@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme } from '@vinyla/ui';
 
 interface EmptyStateProps {
   title?: string;
@@ -14,6 +15,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   buttonText = '앨범 스캔하기',
   onPressAction,
 }) => {
+  const { themeColors } = useTheme();
+  const styles = getStyles(themeColors);
   return (
     <View style={styles.container}>
       <View style={styles.shelfContainer}>
@@ -33,10 +36,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: themeColors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
@@ -71,7 +74,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#5c3a21',
   },
   title: {
-    color: '#e9c349',
+    color: themeColors.accent,
     fontSize: 22,
     fontFamily: 'Bodoni Moda',
     fontWeight: 'bold',
@@ -79,19 +82,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   description: {
-    color: '#aaa',
+    color: themeColors.textSecondary,
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
   },
   actionButton: {
-    backgroundColor: '#e9c349',
+    backgroundColor: themeColors.accent,
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 30,
     elevation: 3,
-    shadowColor: '#e9c349',
+    shadowColor: themeColors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

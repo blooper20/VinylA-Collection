@@ -36,10 +36,33 @@ function PublicDashboardContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<VinylItem | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [viewerStatusMap, setViewerStatusMap] = useState<Record<string, 'OWNED' | 'WISH'>>({});
 
   const { user, initializeAuth } = useAuthStore();
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
+
+  // DetailModal's add/delete actions mutate the logged-in VIEWER's own
+  // collection, not the profile owner's — so when browsing someone else's
+  // dashboard we need the viewer's own status for the clicked album.
+  useEffect(() => {
+    async function fetchViewerStatus() {
+      if (!user?.id || user.id === id) return;
+      try {
+        const vinyls = await getUserVinyls(user.id);
+        const map: Record<string, 'OWNED' | 'WISH'> = {};
+        (vinyls || []).forEach((v) => {
+          if (v.STATUS === 'OWNED' || v.STATUS === 'WISH') {
+            map[String(v.ALBUM_ID)] = v.STATUS;
+          }
+        });
+        setViewerStatusMap(map);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchViewerStatus();
+  }, [user?.id, id]);
 
   useEffect(() => {
     async function loadStats() {
@@ -106,7 +129,8 @@ function PublicDashboardContent() {
     if (!user) {
       setShowLoginPrompt(true);
     } else {
-      setSelectedAlbum(album);
+      const viewerStatus = user.id === id ? album.STATUS : viewerStatusMap[String(album.ALBUM_ID)];
+      setSelectedAlbum({ ...album, STATUS: viewerStatus });
     }
   };
 

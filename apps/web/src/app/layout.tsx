@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@vinyla/ui";
 import { ThemeSync } from "../components/Theme/ThemeSync";
-import { SideNav } from "../components/Navigation/SideNav";
+import { AppShell } from "../components/Layout/AppShell";
 import { AuthGuard } from "../components/Auth/AuthGuard";
 import { AttributionTracker } from "../components/Analytics/AttributionTracker";
 import "./globals.css";
@@ -60,12 +60,7 @@ export default function RootLayout({
             <div className="texture-overlay" />
             {/* Layout shell */}
             <AuthGuard>
-              <div className="layout-shell">
-                <SideNav />
-                <main className="main-content">
-                  {children}
-                </main>
-              </div>
+              <AppShell>{children}</AppShell>
             </AuthGuard>
           </ThemeSync>
         </ThemeProvider>

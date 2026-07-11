@@ -15,13 +15,15 @@ import { SortChipRow } from '../components/SortChipRow';
 import { VinylTableRow } from '../components/VinylTableRow';
 import { sortVinyls, SortMode } from '../utils/sortVinyls';
 import { shareToInstagramStory } from '../utils/nativeShare';
-import { TAB_BAR_HEIGHT } from '../constants/layout';
+import { useTabBarHeight } from '../constants/layout';
 
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
 
 export const WishScreen = () => {
   const { themeColors } = useTheme();
+  const tabBarHeight = useTabBarHeight();
+  const styles = getStyles(themeColors, tabBarHeight);
   const [wishes, setWishes] = useState<MockVinylData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShareSheetVisible, setShareSheetVisible] = useState(false);
@@ -52,32 +54,44 @@ export const WishScreen = () => {
       return;
     }
 
-    const userId = user.id;
-    const userVinyls = await getUserVinyls(userId);
-    if (userVinyls && userVinyls.length > 0) {
-      const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
-      const wishesData = mapped.filter(a => a.STATUS === 'WISH');
-      setWishes(wishesData);
-      
-      try {
-        await AsyncStorage.setItem('@vinyls_wish', JSON.stringify(wishesData));
-      } catch (e) {
-        console.error('Failed to save cache', e);
+    try {
+      const userId = user.id;
+      const userVinyls = await getUserVinyls(userId);
+      if (userVinyls && userVinyls.length > 0) {
+        const mapped = userVinyls.map(v => mapToFrontendModel(v, null));
+        const wishesData = mapped.filter(a => a.STATUS === 'WISH');
+        setWishes(wishesData);
+
+        try {
+          await AsyncStorage.setItem('@vinyls_wish', JSON.stringify(wishesData));
+        } catch (e) {
+          console.error('Failed to save cache', e);
+        }
+      } else {
+        setWishes([]);
       }
-    } else {
-      setWishes([]);
+    } catch (e) {
+      // Keep whatever the offline cache already rendered; just surface it.
+      console.error('Failed to load wishlist', e);
+      showToast('위시리스트를 불러오지 못했습니다. 네트워크를 확인해주세요.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
     if (user !== undefined) loadData();
 
+    // Subscribe only to this user's rows — an unfiltered subscription makes
+    // every client refetch on every other user's change.
+    if (!user) return;
     const subscription = supabase
       .channel('public:USER_VINYL:mobile_wish')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'USER_VINYL' }, payload => {
-        if (user) loadData();
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'USER_VINYL', filter: `USER_ID=eq.${user.id}` },
+        () => loadData()
+      )
       .subscribe();
 
     return () => {
@@ -208,7 +222,7 @@ export const WishScreen = () => {
         isProcessing={isSharingProcessing}
         onShareLink={handleShareLink}
         onImageShare={handleImageShare}
-        bottomInset={TAB_BAR_HEIGHT}
+        bottomInset={tabBarHeight}
       />
 
       <NativeToast message={toastMessage} visible={isToastVisible} onHide={() => setIsToastVisible(false)} />
@@ -216,7 +230,7 @@ export const WishScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (themeColors: any, tabBarHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -227,10 +241,10 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: tabBarHeight + 20,
   },
   tableList: {
-    paddingBottom: 100,
+    paddingBottom: tabBarHeight + 20,
   },
   card: {
     width: itemSize,
@@ -241,19 +255,19 @@ const styles = StyleSheet.create({
     width: itemSize,
     height: itemSize,
     borderRadius: 8,
-    backgroundColor: '#222',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   info: {
     marginTop: 8,
     paddingHorizontal: 4,
   },
   title: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
   artist: {
-    color: '#a0a0a0',
+    color: themeColors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
