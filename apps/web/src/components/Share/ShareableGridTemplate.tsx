@@ -55,7 +55,10 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
 
         <div className={styles.footer}>
           <img src="/logo_transparent.png" alt="VinylA Collection Logo" style={{ width: '50px', height: '50px', objectFit: 'contain' }} onError={(e) => { e.currentTarget.src = '/logo.png'; e.currentTarget.style.mixBlendMode = 'screen'; }} crossOrigin="anonymous" />
-          <span className={styles.brand}>Curated by VinylA Collection</span>
+          <div className={styles.footerText}>
+            <span className={styles.brand}>Curated by VinylA Collection</span>
+            <span className={styles.url}>vinyla.vercel.app</span>
+          </div>
         </div>
       </div>
     </div>
