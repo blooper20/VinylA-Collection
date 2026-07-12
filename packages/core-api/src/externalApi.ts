@@ -147,6 +147,9 @@ interface AladinItem {
 // lookaround regex (unreliable on Hermes, the RN JS engine this also runs
 // under via apps/mobile).
 const isAladinLP = (title: string): boolean =>
+  // Merch listings (season's greetings, calendars) can carry an "LP" token
+  // via bundled trinkets ("미니 LP 키링") without being records at all.
+  !/시즌\s*그리팅|키링|달력|다이어리|굿즈/.test(title || '') &&
   (title || '').split(/[^A-Za-z0-9]+/).some((token) => /^\d*LP$/i.test(token));
 
 // Aladin titles carry commerce/packaging text Discogs titles don't (e.g.
@@ -188,6 +191,9 @@ const cleanAladinTitle = (rawTitle: string): string => {
     })
     .split(' - ')[0] // drop trailing packaging notes after a second " - "
     .replace(ALADIN_ORDINAL, ' ')
+    // Edition designations glued to the title ("실리카겔 일반반") — commerce
+    // noise, never part of the album name.
+    .replace(/일반반|한정반|합본반|초도한정반/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (base) return base;
