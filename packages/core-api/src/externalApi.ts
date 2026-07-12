@@ -249,7 +249,7 @@ export const createDiscogsSearchSession = (
   const resolveAlias = async (): Promise<string> => {
     try {
       const itRes = await axios.get('https://itunes.apple.com/search', {
-        params: { term: query, entity: 'musicArtist', limit: 3 }
+        params: { term: query, entity: 'musicArtist', limit: 3, country: 'KR' }
       });
       const artistName = itRes.data.results?.[0]?.artistName;
       if (artistName && artistName.toLowerCase() !== query.toLowerCase()) {
@@ -434,10 +434,11 @@ export const createDiscogsSearchSession = (
         const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
 
         const itRes = await axios.get('https://itunes.apple.com/search', {
-          params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
+          params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3, country: 'KR' }
         });
         // Pick the Apple Music result whose artist or title best matches
-        hit = itRes.data.results?.find((item: ITunesResult) => {
+        const itResults: ITunesResult[] = itRes.data.results || [];
+        hit = itResults.find((item: ITunesResult) => {
           const itemArtist = item.artistName?.toLowerCase() || '';
           const itemTitle = item.collectionName?.toLowerCase() || '';
           const qArtist = cleanArtist.toLowerCase();
@@ -449,8 +450,14 @@ export const createDiscogsSearchSession = (
                               (alias && itemArtist.includes(alias.toLowerCase()));
           const titleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
 
-          return artistMatch && titleMatch;
-        });
+          // Apple Music sometimes stores a fully English-translated title for
+          // a Korean release (e.g. "눈에 보이지 않는 노래는" →
+          // "The Song That Is Invisible To The Eyes Is"), which never
+          // substring-matches the Korean query text. Trust a confident
+          // artist match on its own when the search already returned just
+          // one candidate — the term itself already disambiguated it.
+          return artistMatch && (titleMatch || itResults.length === 1);
+        }) ?? null;
 
         // 만약 Apple Music에 정확히 일치하는 아티스트나 앨범이 없다면 엉뚱한 커버(예: 피켓전도뮤직 1집)를
         // 가져오는 대참사가 발생하므로, 무조건 첫 번째 결과를 믿는 로직을 완전히 삭제합니다!
@@ -570,19 +577,24 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
       const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
 
       const itRes = await axios.get('https://itunes.apple.com/search', {
-        params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3 }
+        params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3, country: 'KR' }
       });
       // Ensure the artist matches before taking the hit
-      const hit = itRes.data.results?.find((item: ITunesResult) => {
+      const itResults: ITunesResult[] = itRes.data.results || [];
+      const hit = itResults.find((item: ITunesResult) => {
         const itemArtist = item.artistName?.toLowerCase() || '';
         const itemTitle = item.collectionName?.toLowerCase() || '';
         const qArtist = cleanArtist.toLowerCase();
         const qTitle = cleanTitle.toLowerCase();
-        
+
         const artistMatch = itemArtist.includes(qArtist) || qArtist.includes(itemArtist);
         const titleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
-        
-        return artistMatch && titleMatch;
+
+        // Apple Music sometimes stores a fully English-translated title for a
+        // Korean release, which never substring-matches the Korean query
+        // text. Trust a confident artist match alone when the search already
+        // returned just one candidate.
+        return artistMatch && (titleMatch || itResults.length === 1);
       });
       if (hit) {
         details.copyright = hit.copyright;
@@ -597,7 +609,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         if (details.tracks.length === 0) {
           // Fallback to iTunes tracks if Discogs failed
           const trackRes = await axios.get('https://itunes.apple.com/lookup', {
-            params: { id: hit.collectionId, entity: 'song' }
+            params: { id: hit.collectionId, entity: 'song', country: 'KR' }
           });
           const songs = trackRes.data.results?.filter((r: ITunesResult) => r.wrapperType === 'track') || [];
           if (songs.length > 0) {
@@ -650,7 +662,8 @@ export const getHighQualityArtwork = async (title: string, artist: string, fallb
       params: {
         term: `${artist} ${title}`,
         entity: 'album',
-        limit: 1
+        limit: 1,
+        country: 'KR'
       }
     });
     if (response.data.results && response.data.results.length > 0) {
