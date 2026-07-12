@@ -126,6 +126,38 @@
   color: var(--accent);
 }
 
+@keyframes holoShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.collectorBadgeHolo {
+  border-color: rgba(255, 215, 110, 0.4);
+  background: linear-gradient(120deg, rgba(255,110,196,0.1), rgba(255,215,110,0.1), rgba(110,255,224,0.1), rgba(110,159,255,0.1), rgba(215,110,255,0.1));
+  background-size: 400% 400%;
+  animation: holoShift 3s ease infinite;
+}
+
+.collectorBadgeIconHolo {
+  background: linear-gradient(120deg, #ff6ec4, #ffd76e, #6effe0, #6e9fff, #d76eff, #ff6ec4);
+  background-size: 400% 400%;
+  animation: holoShift 3s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.collectorBadgeTextHolo {
+  background: linear-gradient(120deg, #ff6ec4, #ffd76e, #6effe0, #6e9fff, #d76eff, #ff6ec4);
+  background-size: 400% 400%;
+  animation: holoShift 3s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
 /* Featured LP */
 .featuredContainer {
   margin-left: auto;

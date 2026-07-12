@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Badge, BadgeCategory, BadgeTier, getBadgeText } from '@vinyla/core-api';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '@vinyla/ui';
 import { useLocale, TranslationKey } from '@vinyla/i18n';
+
+const HOLO_COLORS = ['#ff6ec4', '#ffd76e', '#6effe0', '#6e9fff', '#d76eff'] as const;
 
 interface ExtendedBadge extends Badge {
   isEarned: boolean;
@@ -41,6 +44,19 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
   const { glassIntensity } = useTheme();
   const { locale, t } = useLocale();
   const [activeTab, setActiveTab] = useState<BadgeCategory | 'all'>('all');
+  const holoAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(holoAnim, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true })
+    ).start();
+  }, [holoAnim]);
+
+  const holoShimmerTranslate = holoAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 80] });
+  const holoTextColor = holoAnim.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
+    outputRange: [...HOLO_COLORS, HOLO_COLORS[0]],
+  });
 
   const filteredBadges = badges.filter(b => activeTab === 'all' || b.category === activeTab);
 
@@ -77,6 +93,7 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
             {filteredBadges.filter(b => b.isEarned || !b.isHidden).map((badge) => {
               const tierColor = getTierColor(badge.tier);
               const badgeText = getBadgeText(badge, locale, t, { number: signupNumber ?? '' });
+              const isHolographic = badge.id === 'founding_100' && badge.isEarned;
               return (
                 <TouchableOpacity
                   key={badge.id}
@@ -84,16 +101,40 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
                   onPress={() => badge.isEarned && onSelect(badge)}
                   disabled={!badge.isEarned}
                 >
-                  <View style={[styles.badgeIconPlaceholder, badge.isEarned && { backgroundColor: `${tierColor}1A` }]}>
+                  <View style={[styles.badgeIconPlaceholder, badge.isEarned && { backgroundColor: `${tierColor}1A` }, isHolographic && styles.holoIconWrapper]}>
+                    {isHolographic && (
+                      <>
+                        <LinearGradient
+                          colors={HOLO_COLORS}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                        />
+                        <Animated.View style={[styles.holoShimmerBand, { transform: [{ translateX: holoShimmerTranslate }] }]}>
+                          <LinearGradient
+                            colors={['transparent', 'rgba(255,255,255,0.65)', 'transparent']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                        </Animated.View>
+                      </>
+                    )}
                     {badge.isEarned ? (
-                      <FontAwesome5 name={badge.icon === 'diamond' ? 'gem' : 'medal'} size={24} color={tierColor} />
+                      <FontAwesome5 name={badge.icon === 'diamond' ? 'gem' : 'medal'} size={24} color={isHolographic ? '#fff' : tierColor} />
                     ) : (
                       <Text style={styles.unearnedText}>?</Text>
                     )}
                   </View>
-                  <Text style={styles.badgeName}>
-                    {badge.isEarned ? badgeText.name : t('mobile.badgeSelect.notEarned')}
-                  </Text>
+                  {isHolographic ? (
+                    <Animated.Text style={[styles.badgeName, { color: holoTextColor }]}>
+                      {badgeText.name}
+                    </Animated.Text>
+                  ) : (
+                    <Text style={styles.badgeName}>
+                      {badge.isEarned ? badgeText.name : t('mobile.badgeSelect.notEarned')}
+                    </Text>
+                  )}
                   <Text style={styles.badgeDesc} numberOfLines={2}>
                     {badgeText.description}
                   </Text>
@@ -188,6 +229,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  holoIconWrapper: {
+    overflow: 'hidden',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  holoShimmerBand: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 30,
   },
   unearnedText: {
     fontFamily: 'Pretendard',

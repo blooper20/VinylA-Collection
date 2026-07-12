@@ -298,6 +298,11 @@ export const en = {
     },
     founding_100: { name: 'Founding Member #{{number}}/100', description: "You're one of VinylA Collection's first 100 members. (hidden)" },
   },
+  founding: {
+    celebrationTitle: "🎉 You're a Founding Member!",
+    celebrationBody: "Thanks for joining as VinylA Collection's member #{{number}}. This title only ever goes to 100 people.",
+    confirmButton: 'Got it',
+  },
   mobile: {
     tab: {
       home: 'Home',

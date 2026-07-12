@@ -297,6 +297,11 @@ export const ko = {
     },
     founding_100: { name: '창단 멤버 #{{number}}/100', description: 'VinylA Collection 서비스 초기 100번째 가입자 안에 들었습니다. (히든)' },
   },
+  founding: {
+    celebrationTitle: '🎉 창단 멤버가 되셨습니다!',
+    celebrationBody: 'VinylA Collection의 {{number}}번째 멤버로 함께해주셔서 감사합니다. 이 칭호는 딱 100명에게만 주어집니다.',
+    confirmButton: '확인',
+  },
   mobile: {
     tab: {
       home: '홈',
