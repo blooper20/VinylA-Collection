@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES, getBadgeText } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES, getBadgeText, getSignupNumber } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { DetailModal } from '../../../../components/Modal/DetailModal';
 import styles from '../../../my/page.module.css';
@@ -38,9 +38,16 @@ function PublicDashboardContent() {
   const [selectedAlbum, setSelectedAlbum] = useState<VinylItem | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [viewerStatusMap, setViewerStatusMap] = useState<Record<string, 'OWNED' | 'WISH'>>({});
+  const [signupNumber, setSignupNumber] = useState<number | null>(null);
 
   const { user, initializeAuth } = useAuthStore();
   const { locale, t } = useLocale();
+
+  useEffect(() => {
+    if (id && selectedBadgeId === 'founding_100') {
+      getSignupNumber(id).then(setSignupNumber);
+    }
+  }, [id, selectedBadgeId]);
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
@@ -162,7 +169,7 @@ function PublicDashboardContent() {
                 {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
               </span>
               <span className={styles.collectorBadgeText}>
-                {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t).name : t('my.verifiedCollector')}
+                {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
               </span>
             </div>
           </div>

@@ -14,6 +14,7 @@ interface BadgeSelectModalProps {
   visible: boolean;
   onClose: () => void;
   badges: ExtendedBadge[];
+  signupNumber?: number | null;
   onSelect: (badge: ExtendedBadge) => void;
 }
 
@@ -36,7 +37,7 @@ function getTierColor(tier: BadgeTier): string {
   }
 }
 
-export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onClose, badges, onSelect }) => {
+export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onClose, badges, signupNumber, onSelect }) => {
   const { glassIntensity } = useTheme();
   const { locale, t } = useLocale();
   const [activeTab, setActiveTab] = useState<BadgeCategory | 'all'>('all');
@@ -75,7 +76,7 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
           <ScrollView contentContainerStyle={styles.badgeContainer}>
             {filteredBadges.filter(b => b.isEarned || !b.isHidden).map((badge) => {
               const tierColor = getTierColor(badge.tier);
-              const badgeText = getBadgeText(badge, locale, t);
+              const badgeText = getBadgeText(badge, locale, t, { number: signupNumber ?? '' });
               return (
                 <TouchableOpacity
                   key={badge.id}

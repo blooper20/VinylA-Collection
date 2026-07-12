@@ -480,7 +480,14 @@ const GENRE_BADGE_TIERS: Record<string, string> = { '1': 'tier1', '5': 'tier5', 
 // instead of reading the fields directly, passing their own useLocale().
 // Genre badges are id-templated (genre_<id>_<tier>), so their text is built
 // from a small suffix template rather than 65 flat dictionary entries.
-export function getBadgeText(badge: Badge, locale: 'ko' | 'en', t: Translate): { name: string; description: string } {
+export function getBadgeText(
+  badge: Badge,
+  locale: 'ko' | 'en',
+  t: Translate,
+  // Per-user data a badge's static definition can't carry, e.g. founding_100's
+  // signup number. Harmless to pass for badges whose templates don't use it.
+  extraParams?: Record<string, string | number>
+): { name: string; description: string } {
   const genreMatch = badge.id.match(/^genre_(.+)_(\d+)$/);
   if (genreMatch) {
     const [, genreId, tierNum] = genreMatch;
@@ -492,7 +499,7 @@ export function getBadgeText(badge: Badge, locale: 'ko' | 'en', t: Translate): {
     };
   }
   return {
-    name: t(`badge.${badge.id}.name` as TranslationKey),
-    description: t(`badge.${badge.id}.description` as TranslationKey),
+    name: t(`badge.${badge.id}.name` as TranslationKey, extraParams),
+    description: t(`badge.${badge.id}.description` as TranslationKey, extraParams),
   };
 }
