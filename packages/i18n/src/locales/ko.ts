@@ -157,6 +157,7 @@ export const ko = {
     removedFromTarget: '성공적으로 {{target}}에서 삭제되었습니다.',
     loginRequired: '로그인이 필요합니다.',
     linkCopied: '앨범 링크가 복사되었습니다!',
+    firstSaveCelebration: '🎉 첫 기록을 남겼어요! 나만의 컬렉션이 시작됐습니다.',
   },
   previewModal: {
     title: '미리보기',

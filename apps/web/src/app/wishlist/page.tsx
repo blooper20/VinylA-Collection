@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { DetailModal } from '../../components/Modal/DetailModal';
 import { ShareBottomSheet } from '../../components/Modal/ShareBottomSheet';
 import { SharePreviewModal } from '../../components/Modal/SharePreviewModal';
@@ -34,6 +35,7 @@ export default function WishlistPage() {
 
   const { user, initializeAuth } = useAuthStore();
   const { t } = useLocale();
+  const router = useRouter();
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
@@ -133,7 +135,11 @@ export default function WishlistPage() {
       {isLoading ? (
         <div className={styles.empty}>{t('common.loading')}</div>
       ) : sorted.length === 0 ? (
-        <div className={styles.empty}>{t('wishlist.empty')}</div>
+        <div className={styles.emptyState}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'rgba(255,255,255,0.2)', marginBottom: '16px' }}>favorite</span>
+          <p className={styles.emptyStateText}>{t('wishlist.empty')}</p>
+          <button className={styles.emptyStateBtn} onClick={() => router.push('/search')}>{t('collection.emptyCta')}</button>
+        </div>
       ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {sorted.map(rec => (

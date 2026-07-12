@@ -192,7 +192,9 @@ export const wipeUserData = async (userId: string): Promise<void> => {
   }
 };
 
-export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<USER_VINYL | null> => {
+export const upsertUserVinyl = async (
+  userVinyl: Partial<USER_VINYL>
+): Promise<(USER_VINYL & { isFirstEverSave?: boolean }) | null> => {
   // Read the current row first (only to decide which metric to log below —
   // the write itself is a single atomic upsert on (USER_ID, ALBUM_ID)).
   let existing = null;
@@ -214,8 +216,17 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
     .select()
     .single();
 
+  let isFirstEverSave = false;
   if (!error && !existing) {
     logEvent(userVinyl.STATUS === 'WISH' ? 'WISH_ADD' : 'ALBUM_ADD', { albumId: userVinyl.ALBUM_ID });
+    if (userVinyl.USER_ID) {
+      // 방금 넣은 행이 이 유저의 유일한 행이면 "첫 저장" — 온보딩 축하 메시지에 사용.
+      const { count } = await supabase
+        .from('USER_VINYL')
+        .select('*', { count: 'exact', head: true })
+        .eq('USER_ID', userVinyl.USER_ID);
+      isFirstEverSave = count === 1;
+    }
   } else if (!error && existing?.STATUS === 'WISH' && userVinyl.STATUS === 'OWNED') {
     // 위시 → 보유 전환 (admin 대시보드의 전환율 지표)
     logEvent('ALBUM_ADD', { albumId: userVinyl.ALBUM_ID, fromWish: true });
@@ -239,7 +250,7 @@ export const upsertUserVinyl = async (userVinyl: Partial<USER_VINYL>): Promise<U
     }
     throw new AppError('DB-001', '앨범 저장 중 오류가 발생했습니다.', error);
   }
-  return data as USER_VINYL;
+  return data ? { ...(data as USER_VINYL), isFirstEverSave } : null;
 };
 
 export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => {

@@ -181,15 +181,17 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         payloadData.PURCHASE_DATE = new Date().toISOString();
       }
 
-      await upsertUserVinyl(payloadData);
+      const result = await upsertUserVinyl(payloadData);
 
       setIsSaving(true);
       setTimeout(() => {
         onClose();
-        
+
         let message = t('detail.savedToTarget', { target: status === 'OWNED' ? t('nav.collection') : t('nav.wishlist') });
         if (status === 'OWNED' && album.STATUS === 'OWNED') {
           message = t('detail.priceSaved');
+        } else if (result?.isFirstEverSave) {
+          message = t('detail.firstSaveCelebration');
         }
 
         // Dispatch custom event for Toast
