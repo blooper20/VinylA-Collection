@@ -209,6 +209,23 @@ const cleanAladinTitle = (rawTitle: string): string => {
 const upgradeAladinCover = (url?: string): string =>
   (url || '').replace(/\/cover\w*\//, '/cover500/');
 
+// Compilation listings put every participating artist in `author`
+// ("강승원, 선우정아, 아이유 (IU), … 여러 아티스트 (Various Artists)") —
+// carried whole, that list poisons every downstream search term and makes
+// artist matching impossible. The first listed artist is the primary one
+// (project albums list the project owner first); catalog entries filed
+// under "Various Artists" are handled by the matchers (see
+// isVariousArtistsName).
+const primaryAladinAuthor = (author?: string): string =>
+  (author || '').split(',')[0].trim();
+
+// Music catalogs file compilations under "Various Artists" (Apple ko:
+// "여러 아티스트"), which no queried artist text can ever match — matchers
+// treat it as an artist wildcard, gated by a title or localized-page-name
+// match so it can't grab arbitrary albums.
+const isVariousArtistsName = (name?: string): boolean =>
+  /various artists|여러 아티스트/i.test(name || '');
+
 const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
   try {
     const ttbKey = getAladinAuth();
@@ -249,7 +266,7 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
         return {
           id: ALADIN_ID_OFFSET + it.itemId,
           master_id: ALADIN_ID_OFFSET + it.itemId,
-          title: `${it.author} - ${cleanTitle}`,
+          title: `${primaryAladinAuthor(it.author)} - ${cleanTitle}`,
           year: it.pubDate ? it.pubDate.slice(0, 4) : '',
           format: ['LP'],
           thumb: cover,
@@ -313,7 +330,10 @@ const searchDeezerAlbum = async (artist: string, title: string, alias?: string):
       // candidates, require both.
       const artistMatch = (!!qArtist && (cArtist.includes(qArtist) || qArtist.includes(cArtist))) ||
         (!!alias && cArtist.includes(alias.toLowerCase()));
-      return (titleMatch && artistMatch) ||
+      // "Various Artists" compilations pass on a title match alone (never on
+      // the lone-candidate relaxation — that would let any stray compilation
+      // through).
+      return (titleMatch && (artistMatch || isVariousArtistsName(c.artist?.name))) ||
         (candidates.length === 1 && (titleMatch || artistMatch));
     }) ?? null;
   } catch {
@@ -626,7 +646,10 @@ export const createDiscogsSearchSession = (
           // substring-matches the Korean query text. Trust a confident
           // artist match on its own when the search already returned just
           // one candidate — the term itself already disambiguated it.
-          return artistMatch && (titleMatch || itResults.length === 1);
+          // Compilations are filed under "Various Artists"; accept those on
+          // a title match alone.
+          return (artistMatch && (titleMatch || itResults.length === 1)) ||
+            (isVariousArtistsName(item.artistName) && titleMatch);
         }) ?? null;
 
         // 만약 Apple Music에 정확히 일치하는 아티스트나 앨범이 없다면 엉뚱한 커버(예: 피켓전도뮤직 1집)를
@@ -774,8 +797,10 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         // Apple Music sometimes stores a fully English-translated title for a
         // Korean release, which never substring-matches the Korean query
         // text. Trust a confident artist match alone when the search already
-        // returned just one candidate.
-        return artistMatches(item) && (titleMatch || itResults.length === 1);
+        // returned just one candidate. Compilations are filed under
+        // "Various Artists" — accept those on a title match alone.
+        return (artistMatches(item) && (titleMatch || itResults.length === 1)) ||
+          (isVariousArtistsName(item.artistName) && titleMatch);
       }) ?? null;
 
       // When several candidates come back with translated titles (개화 →
@@ -786,7 +811,13 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
       let pageAlbum: AppleMusicAlbumPage | null = null;
       if (!hit) {
         for (const item of itResults) {
-          if (!item.collectionId || !artistMatches(item)) continue;
+          // "Various Artists" entries are admitted here too — the localized
+          // page-name check below is what gates acceptance. Singles never
+          // are: we're resolving an LP, and a project's singles carry the
+          // project name in their localized page titles ("이집"), which
+          // would pass the name check with a one-track "tracklist".
+          if (!item.collectionId || /- single$/i.test(item.collectionName || '') ||
+              !(artistMatches(item) || isVariousArtistsName(item.artistName))) continue;
           const page = await fetchAppleMusicAlbumPage(item.collectionId);
           const pageName = page?.name?.toLowerCase() || '';
           if (pageName && (pageName.includes(qTitle) || qTitle.includes(pageName))) {
