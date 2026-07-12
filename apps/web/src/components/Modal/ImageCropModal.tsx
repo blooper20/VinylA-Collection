@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import styles from './ImageCropModal.module.css';
 import getCroppedImg from '../../utils/cropImage';
+import { useLocale } from '@vinyla/i18n';
 
 interface ImageCropModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { t } = useLocale();
 
   const handleCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -35,7 +37,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
       }
     } catch (e) {
       console.error(e);
-      alert('이미지 편집에 실패했습니다.');
+      alert(t('imageCrop.failed'));
     } finally {
       setIsProcessing(false);
     }
@@ -47,7 +49,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h3>프로필 사진 조정</h3>
+          <h3>{t('imageCrop.title')}</h3>
           <button className={styles.closeBtn} onClick={onClose}>
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -84,10 +86,10 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
 
         <div className={styles.footer}>
           <button className={styles.btnSecondary} onClick={onClose} disabled={isProcessing}>
-            취소
+            {t('common.cancel')}
           </button>
           <button className={styles.btnPrimary} onClick={handleConfirm} disabled={isProcessing}>
-            {isProcessing ? '처리 중...' : '확인'}
+            {isProcessing ? t('imageCrop.processing') : t('imageCrop.confirm')}
           </button>
         </div>
       </div>

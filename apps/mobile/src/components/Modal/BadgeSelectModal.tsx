@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Badge, BadgeCategory, BadgeTier } from '@vinyla/core-api';
+import { Badge, BadgeCategory, BadgeTier, getBadgeText } from '@vinyla/core-api';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '@vinyla/ui';
+import { useLocale, TranslationKey } from '@vinyla/i18n';
 
 interface ExtendedBadge extends Badge {
   isEarned: boolean;
@@ -16,12 +17,12 @@ interface BadgeSelectModalProps {
   onSelect: (badge: ExtendedBadge) => void;
 }
 
-const CATEGORIES: { id: BadgeCategory | 'all', label: string }[] = [
-  { id: 'all', label: '전체' },
-  { id: 'collection', label: '보유량' },
-  { id: 'wealth', label: '자산/지출' },
-  { id: 'wishlist', label: '위시리스트' },
-  { id: 'genre', label: '장르' },
+const CATEGORIES: { id: BadgeCategory | 'all', labelKey: TranslationKey }[] = [
+  { id: 'all', labelKey: 'badgeSelect.categoryAll' },
+  { id: 'collection', labelKey: 'badgeSelect.categoryCollection' },
+  { id: 'wealth', labelKey: 'mobile.badgeSelect.categoryWealth' },
+  { id: 'wishlist', labelKey: 'badgeSelect.categoryWishlist' },
+  { id: 'genre', labelKey: 'mobile.badgeSelect.categoryGenre' },
 ];
 
 function getTierColor(tier: BadgeTier): string {
@@ -37,6 +38,7 @@ function getTierColor(tier: BadgeTier): string {
 
 export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onClose, badges, onSelect }) => {
   const { glassIntensity } = useTheme();
+  const { locale, t } = useLocale();
   const [activeTab, setActiveTab] = useState<BadgeCategory | 'all'>('all');
 
   const filteredBadges = badges.filter(b => activeTab === 'all' || b.category === activeTab);
@@ -52,7 +54,7 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
         <TouchableOpacity style={styles.backgroundTouch} onPress={onClose} activeOpacity={1} />
         <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.bottomSheet}>
           <View style={styles.handle} />
-          <Text style={styles.title}>칭호 선택</Text>
+          <Text style={styles.title}>{t('badgeSelect.title')}</Text>
 
           <View style={styles.tabBarWrapper}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBar}>
@@ -63,7 +65,7 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
                   onPress={() => setActiveTab(cat.id)}
                 >
                   <Text style={[styles.tabText, activeTab === cat.id && styles.activeTabText]}>
-                    {cat.label}
+                    {t(cat.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -73,6 +75,7 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
           <ScrollView contentContainerStyle={styles.badgeContainer}>
             {filteredBadges.filter(b => b.isEarned || !b.isHidden).map((badge) => {
               const tierColor = getTierColor(badge.tier);
+              const badgeText = getBadgeText(badge, locale, t);
               return (
                 <TouchableOpacity
                   key={badge.id}
@@ -88,10 +91,10 @@ export const BadgeSelectModal: React.FC<BadgeSelectModalProps> = ({ visible, onC
                     )}
                   </View>
                   <Text style={styles.badgeName}>
-                    {badge.isEarned ? badge.name : '미획득'}
+                    {badge.isEarned ? badgeText.name : t('mobile.badgeSelect.notEarned')}
                   </Text>
                   <Text style={styles.badgeDesc} numberOfLines={2}>
-                    {badge.description}
+                    {badgeText.description}
                   </Text>
                 </TouchableOpacity>
               );

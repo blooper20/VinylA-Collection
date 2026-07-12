@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@vinyla/ui";
+import { LocaleProvider } from "@vinyla/i18n";
 import { ThemeSync } from "../components/Theme/ThemeSync";
+import { LocaleSync } from "../components/Locale/LocaleSync";
 import { AppShell } from "../components/Layout/AppShell";
 import { AuthGuard } from "../components/Auth/AuthGuard";
 import { AttributionTracker } from "../components/Analytics/AttributionTracker";
@@ -53,16 +55,20 @@ export default function RootLayout({
       <body>
         <AttributionTracker />
         <ThemeProvider>
-          <ThemeSync>
-            {/* Atmospheric background */}
-            <div className="atmo-bg" />
-            {/* Film grain texture */}
-            <div className="texture-overlay" />
-            {/* Layout shell */}
-            <AuthGuard>
-              <AppShell>{children}</AppShell>
-            </AuthGuard>
-          </ThemeSync>
+          <LocaleProvider>
+            <ThemeSync>
+              <LocaleSync>
+                {/* Atmospheric background */}
+                <div className="atmo-bg" />
+                {/* Film grain texture */}
+                <div className="texture-overlay" />
+                {/* Layout shell */}
+                <AuthGuard>
+                  <AppShell>{children}</AppShell>
+                </AuthGuard>
+              </LocaleSync>
+            </ThemeSync>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

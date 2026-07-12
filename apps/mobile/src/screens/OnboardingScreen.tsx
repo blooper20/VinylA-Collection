@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { signInWithGoogle, signInWithApple, useAuthStore, supabase } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { useAlert } from '../providers/AlertProvider';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -122,6 +123,7 @@ const VanillaBlossom = ({ size, style, opacity = 0.5 }: { size: number; style?: 
 
 export const OnboardingScreen = ({ navigation }: any) => {
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const styles = getStyles(themeColors, shadows, shape);
@@ -359,9 +361,9 @@ export const OnboardingScreen = ({ navigation }: any) => {
           <Animated.View style={[styles.textArea, { transform: [{ translateX: getTranslateX(0, 0.6) }] }]}>
             <Text style={styles.overline}>01 · PURE ARCHIVE</Text>
             <Text style={styles.headline}>
-              노이즈 없이 채워가는{'\n'}당신의 <Text style={styles.headlineAccent}>비밀 박물관</Text>
+              {t('mobile.onboarding.step1HeadlineLine1')}{'\n'}{t('mobile.onboarding.step1HeadlineLine2Prefix')}<Text style={styles.headlineAccent}>{t('mobile.onboarding.step1HeadlineAccent')}</Text>
             </Text>
-            <Text style={styles.subCopy}>아티스트의 순정 데이터만으로{'\n'}실물 LP의 가치를 온전히 보관하세요</Text>
+            <Text style={styles.subCopy}>{t('mobile.onboarding.step1Sub')}</Text>
           </Animated.View>
         </View>
 
@@ -398,9 +400,9 @@ export const OnboardingScreen = ({ navigation }: any) => {
           <Animated.View style={[styles.textArea, { transform: [{ translateX: getTranslateX(1, 0.6) }] }]}>
             <Text style={styles.overline}>02 · SCAN & ARCHIVE</Text>
             <Text style={styles.headline}>
-              커버를 비추는 순간,{'\n'}LP는 <Text style={styles.headlineAccent}>자산</Text>이 됩니다
+              {t('mobile.onboarding.step2HeadlineLine1')}{'\n'}{t('mobile.onboarding.step2HeadlineLine2Prefix')}<Text style={styles.headlineAccent}>{t('mobile.onboarding.step2HeadlineAccent')}</Text>{t('mobile.onboarding.step2HeadlineSuffix')}
             </Text>
-            <Text style={styles.subCopy}>카메라 스캔 한 번으로 재킷부터{'\n'}수록곡, 시장 가치까지 자동 등록</Text>
+            <Text style={styles.subCopy}>{t('mobile.onboarding.step2Sub')}</Text>
           </Animated.View>
         </View>
 
@@ -411,7 +413,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           <Animated.View style={[styles.textAreaTop, { transform: [{ translateX: getTranslateX(2, 0.4) }] }]}>
             <Text style={styles.overline}>03 · UNLOCK YOUR VAULT</Text>
             <Text style={styles.headline}>
-              이제, 당신만의{'\n'}<Text style={styles.headlineAccent}>LP 전시실</Text>로 들어갈 차례
+              {t('mobile.onboarding.step3HeadlineLine1')}{'\n'}<Text style={styles.headlineAccent}>{t('mobile.onboarding.step3HeadlineAccent')}</Text>{t('mobile.onboarding.step3HeadlineSuffix')}
             </Text>
           </Animated.View>
 
@@ -427,7 +429,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
               </View>
               <Text style={styles.panelTitle}>VinylA</Text>
               <Text style={styles.panelCollection}>Collection</Text>
-              <Text style={styles.panelSubtitle}>순정 그대로의 컬렉션</Text>
+              <Text style={styles.panelSubtitle}>{t('mobile.onboarding.panelSubtitle')}</Text>
 
               <TouchableScale style={styles.loginBtn} onPress={() => handleOAuthLogin('google')}>
                 <View style={styles.loginBtnInnerGoogle}>

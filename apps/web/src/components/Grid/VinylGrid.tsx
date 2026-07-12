@@ -9,6 +9,7 @@ import { ShareableGridTemplate } from '../Share/ShareableGridTemplate';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
 import { copyToClipboard, captureElementAsBlob } from '../../utils/shareUtils';
 import { useAuthStore, createAlbumMaster, getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
 import styles from './VinylGrid.module.css';
 
@@ -38,6 +39,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const shareGridRef = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
+  const { t } = useLocale();
   const router = useRouter();
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
@@ -120,7 +122,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
       const link = `${window.location.origin}/user/${user.id}?n=${name}&a=${avatar}`;
       await copyToClipboard(link);
-      setToastMessage('프로필 링크가 복사되었습니다!');
+      setToastMessage(t('collection.linkCopied'));
       setTimeout(() => setToastMessage(null), 3000);
     }
   };
@@ -131,8 +133,8 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         <div className={styles.headerLeft}>
           <span className={styles.pageEyebrow}>My Collection</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <h1 className={styles.pageTitle}>보관함</h1>
-            <button className={styles.shareBtn} onClick={() => setIsShareOpen(true)} title="공유하기">
+            <h1 className={styles.pageTitle}>{t('collection.title')}</h1>
+            <button className={styles.shareBtn} onClick={() => setIsShareOpen(true)} title={t('common.share')}>
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
             </button>
           </div>
@@ -142,10 +144,10 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           <div className={styles.controlsRow}>
             <div className={styles.sortGroup}>
               {([
-                { key: 'latest', label: '최신순' },
-                { key: 'oldest', label: '오래된순' },
-                { key: 'alpha',  label: '가나다순' },
-                { key: 'year',   label: '출시연도순' },
+                { key: 'latest', label: t('sort.latest') },
+                { key: 'oldest', label: t('sort.oldest') },
+                { key: 'alpha',  label: t('sort.alpha') },
+                { key: 'year',   label: t('sort.year') },
               ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
                 <button key={key} className={`${styles.controlChip} ${sortMode === key ? styles.controlActive : ''}`} onClick={() => setSortMode(key)}>
                   {label}
@@ -153,20 +155,20 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               ))}
             </div>
             <div className={styles.viewGroup}>
-              <button className={`${styles.viewBtn} ${viewMode === 'grid4' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid4')} title="4열 그리드">
+              <button className={`${styles.viewBtn} ${viewMode === 'grid4' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid4')} title={t('view.grid4')}>
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
                   <rect x="0" y="0" width="6" height="6"/><rect x="9" y="0" width="6" height="6"/>
                   <rect x="0" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/>
                 </svg>
               </button>
-              <button className={`${styles.viewBtn} ${viewMode === 'grid6' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid6')} title="조밀 그리드">
+              <button className={`${styles.viewBtn} ${viewMode === 'grid6' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid6')} title={t('view.compact')}>
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
                   <rect x="0" y="0" width="3" height="3"/><rect x="6" y="0" width="3" height="3"/><rect x="12" y="0" width="3" height="3"/>
                   <rect x="0" y="6" width="3" height="3"/><rect x="6" y="6" width="3" height="3"/><rect x="12" y="6" width="3" height="3"/>
                   <rect x="0" y="12" width="3" height="3"/><rect x="6" y="12" width="3" height="3"/><rect x="12" y="12" width="3" height="3"/>
                 </svg>
               </button>
-              <button className={`${styles.viewBtn} ${viewMode === 'table' ? styles.viewActive : ''}`} onClick={() => setViewMode('table')} title="테이블 보기">
+              <button className={`${styles.viewBtn} ${viewMode === 'table' ? styles.viewActive : ''}`} onClick={() => setViewMode('table')} title={t('view.table')}>
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
                   <rect x="0" y="0" width="15" height="2.5"/><rect x="0" y="4.5" width="15" height="2.5"/>
                   <rect x="0" y="9" width="15" height="2.5"/><rect x="0" y="13.5" width="15" height="1.5"/>
@@ -176,7 +178,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           </div>
           <div className={styles.tagRow}>
             <div className={styles.spacer} />
-            <button className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`} onClick={() => setActiveTag('ALL')}>전체</button>
+            <button className={`${styles.filterChip} ${activeTag === 'ALL' ? styles.active : ''}`} onClick={() => setActiveTag('ALL')}>{t('collection.filterAll')}</button>
             {allTags.map(tag => (
               <button key={tag} className={`${styles.filterChip} ${activeTag === tag ? styles.active : ''}`} onClick={() => setActiveTag(tag)}>{tag}</button>
             ))}
@@ -187,8 +189,8 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       {displayedAlbums.length === 0 ? (
         <div className={styles.emptyState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'rgba(255,255,255,0.2)', marginBottom: '16px' }}>album</span>
-          <p className={styles.emptyStateText}>컬렉션이 비어 있습니다.</p>
-          <button className={styles.emptyStateBtn} onClick={() => router.push('/search')}>새 앨범 찾기</button>
+          <p className={styles.emptyStateText}>{t('collection.emptyTitle')}</p>
+          <button className={styles.emptyStateBtn} onClick={() => router.push('/search')}>{t('collection.emptyCta')}</button>
         </div>
       ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
@@ -202,11 +204,11 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
             <thead>
               <tr>
                 <th className={styles.thCover}></th>
-                <th className={styles.thTitle}>앨범</th>
-                <th className={styles.thArtist}>아티스트</th>
-                <th className={styles.thYear}>출시</th>
-                <th className={styles.thTags}>태그</th>
-                <th className={styles.thStatus}>상태</th>
+                <th className={styles.thTitle}>{t('table.album')}</th>
+                <th className={styles.thArtist}>{t('table.artist')}</th>
+                <th className={styles.thYear}>{t('table.year')}</th>
+                <th className={styles.thTags}>{t('table.tags')}</th>
+                <th className={styles.thStatus}>{t('table.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -225,7 +227,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                   </td>
                   <td className={styles.tdStatus}>
                     <span className={album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}>
-                      {album.STATUS === 'OWNED' ? '보유' : '위시'}
+                      {album.STATUS === 'OWNED' ? t('collection.statusOwned') : t('collection.statusWish')}
                     </span>
                   </td>
                 </tr>
@@ -244,12 +246,12 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
       )}
 
-      <ShareBottomSheet 
+      <ShareBottomSheet
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        title="보관함 공유하기"
+        title={t('collection.shareSheetTitle')}
         options={[
-          { id: 'image', label: '이미지 저장', icon: 'download', action: async () => {
+          { id: 'image', label: t('share.saveImage'), icon: 'download', action: async () => {
               setIsShareOpen(false);
               const blob = await captureElementAsBlob(shareGridRef.current!, 'jpeg');
               if (blob) {
@@ -259,7 +261,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               }
             }
           },
-          { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: async () => {
+          { id: 'copy', label: t('share.copyImage'), icon: 'content_copy', action: async () => {
               setIsShareOpen(false);
               const blob = await captureElementAsBlob(shareGridRef.current!, 'png');
               if (blob) {
@@ -267,9 +269,9 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                 setPreviewMode('copy');
                 setIsPreviewOpen(true);
               }
-            } 
+            }
           },
-          { id: 'link', label: '링크 복사', icon: 'link', action: handleShareLink }
+          { id: 'link', label: t('share.copyLink'), icon: 'link', action: handleShareLink }
         ]}
       />
 
@@ -284,7 +286,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         ref={shareGridRef}
         albums={displayedAlbums.filter(a => a.STATUS !== 'WISH')}
         username={user?.user_metadata?.displayName || 'Collector'}
-        title="보관함"
+        title={t('collection.title')}
       />
     </div>
   );

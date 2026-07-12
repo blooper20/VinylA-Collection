@@ -23,9 +23,11 @@ export const tabLinkingConfig = {
 
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 
 export const TabNavigator = () => {
   const { themeColors } = useTheme();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
   const styles = getStyles(themeColors);
 
@@ -42,42 +44,42 @@ export const TabNavigator = () => {
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
-        options={{ 
-          tabBarLabel: '홈',
+        options={{
+          tabBarLabel: t('mobile.tab.home'),
           tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size} />
-        }} 
+        }}
       />
-      <Tab.Screen 
-        name="Wish" 
-        component={WishScreen} 
-        options={{ 
-          tabBarLabel: '위시',
+      <Tab.Screen
+        name="Wish"
+        component={WishScreen}
+        options={{
+          tabBarLabel: t('mobile.tab.wish'),
           tabBarIcon: ({ color, size }) => <Feather name="heart" color={color} size={size} />
-        }} 
+        }}
       />
       <Tab.Screen
         name="Scan"
         component={ScanScreen}
         options={{
-          tabBarLabel: '스캔',
+          tabBarLabel: t('mobile.tab.scan'),
           tabBarButton: (props) => <FloatingScanButton onPress={props.onPress} />
         }}
       />
-      <Tab.Screen 
-        name="Search" 
-        component={SearchScreen} 
-        options={{ 
-          tabBarLabel: '검색',
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          tabBarLabel: t('mobile.tab.search'),
           tabBarIcon: ({ color, size }) => <Feather name="search" color={color} size={size} />
-        }} 
+        }}
       />
-      <Tab.Screen 
-        name="My" 
-        component={MyScreen} 
-        options={{ 
-          tabBarLabel: '마이',
+      <Tab.Screen
+        name="My"
+        component={MyScreen}
+        options={{
+          tabBarLabel: t('mobile.tab.my'),
           tabBarIcon: ({ color, size }) => <Feather name="user" color={color} size={size} />
-        }} 
+        }}
       />
     </Tab.Navigator>
   );

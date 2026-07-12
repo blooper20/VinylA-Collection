@@ -3,7 +3,8 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES, getBadgeText } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import { DetailModal } from '../../../../components/Modal/DetailModal';
 import styles from '../../../my/page.module.css';
 import dashStyles from './dashboard.module.css';
@@ -39,6 +40,7 @@ function PublicDashboardContent() {
   const [viewerStatusMap, setViewerStatusMap] = useState<Record<string, 'OWNED' | 'WISH'>>({});
 
   const { user, initializeAuth } = useAuthStore();
+  const { locale, t } = useLocale();
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
@@ -135,10 +137,10 @@ function PublicDashboardContent() {
   };
 
   const stats = [
-    ...(isSpentPublic ? [{ label: '실제 지출액', value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산' }] : []),
-    { label: '보유 LP',        value: ownedCount.toLocaleString(), unit: '', sub: '등록된 전체 LP 수' },
-    { label: '관심 장르',      value: topGenre,      unit: '', sub: '프로필 설정 기준' },
-    { label: '실제 관심 장르', value: actualTopGenre, unit: '', sub: '내 콜렉션 데이터 기준' },
+    ...(isSpentPublic ? [{ label: t('stats.actualSpent'), value: actualSpentValue.toLocaleString(), unit: '₩', sub: t('stats.actualSpentSub') }] : []),
+    { label: t('stats.ownedLp'), value: ownedCount.toLocaleString(), unit: '', sub: t('stats.ownedLpSub') },
+    { label: t('stats.interestGenre'), value: topGenre, unit: '', sub: t('stats.interestGenreSub') },
+    { label: t('stats.actualTopGenre'), value: actualTopGenre, unit: '', sub: t('stats.actualTopGenreSub') },
   ];
 
   return (
@@ -147,7 +149,7 @@ function PublicDashboardContent() {
         <div className={styles.heroBg} />
         <div className={styles.heroInner}>
           <div className={styles.avatarRing}>
-            <img src={avatarUrl} alt="프로필" className={styles.avatarImage} />
+            <img src={avatarUrl} alt="Profile" className={styles.avatarImage} />
           </div>
 
           <div className={styles.profileInfo}>
@@ -160,7 +162,7 @@ function PublicDashboardContent() {
                 {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
               </span>
               <span className={styles.collectorBadgeText}>
-                {selectedBadgeObj ? selectedBadgeObj.name : 'Verified Collector'}
+                {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t).name : t('my.verifiedCollector')}
               </span>
             </div>
           </div>
@@ -209,13 +211,13 @@ function PublicDashboardContent() {
       <section className={dashStyles.tabSection}>
         <div className={dashStyles.tabBar}>
           <button className={`${dashStyles.tab} ${activeTab === 'timeline' ? dashStyles.tabActive : ''}`} onClick={() => setActiveTab('timeline')}>
-            최근 수집 기록
+            {t('publicDashboard.tabTimeline')}
           </button>
           <button className={`${dashStyles.tab} ${activeTab === 'collection' ? dashStyles.tabActive : ''}`} onClick={() => setActiveTab('collection')}>
-            보유 LP <span className={dashStyles.tabCount}>{ownedCount}</span>
+            {t('stats.ownedLp')} <span className={dashStyles.tabCount}>{ownedCount}</span>
           </button>
           <button className={`${dashStyles.tab} ${activeTab === 'wishlist' ? dashStyles.tabActive : ''}`} onClick={() => setActiveTab('wishlist')}>
-            위시리스트 <span className={dashStyles.tabCount}>{wishAlbums.length}</span>
+            {t('publicDashboard.tabWishlist')} <span className={dashStyles.tabCount}>{wishAlbums.length}</span>
           </button>
         </div>
 
@@ -233,7 +235,7 @@ function PublicDashboardContent() {
                 </div>
               </div>
             )) : (
-              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>아직 기록된 LP가 없습니다.</p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('publicDashboard.noRecentLp')}</p>
             )}
           </div>
         )}
@@ -248,7 +250,7 @@ function PublicDashboardContent() {
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
               </div>
             )) : (
-              <p style={{ color: 'rgba(255,255,255,0.5)', padding: '24px' }}>보유 LP가 없습니다.</p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', padding: '24px' }}>{t('publicDashboard.noOwnedLp')}</p>
             )}
           </div>
         )}
@@ -263,7 +265,7 @@ function PublicDashboardContent() {
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
               </div>
             )) : (
-              <p style={{ color: 'rgba(255,255,255,0.5)', padding: '24px' }}>위시리스트가 없습니다.</p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', padding: '24px' }}>{t('publicDashboard.noWishLp')}</p>
             )}
           </div>
         )}
@@ -283,7 +285,7 @@ function PublicDashboardContent() {
             gap: '8px',
             boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)'
         }}>
-          이 컬렉터의 보관함 구경하기
+          {t('publicDashboard.viewCollectionCta')}
           <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_forward</span>
         </Link>
       </div>
@@ -307,22 +309,22 @@ function PublicDashboardContent() {
             boxShadow: '0 24px 60px rgba(0,0,0,0.6)'
           }}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#d4af37', marginBottom: '16px', display: 'block', fontVariationSettings: "'FILL' 1" }}>lock</span>
-            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>로그인이 필요해요</h3>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>{t('publicGrid.loginRequiredTitle')}</h3>
             <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, margin: '0 0 32px' }}>
-              LP 상세 정보는 VinylA 회원만 볼 수 있어요.<br />로그인 후 이용해 주세요.
+              {t('publicGrid.loginRequiredLine1')}<br />{t('publicGrid.loginRequiredLine2')}
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => setShowLoginPrompt(false)} style={{
                 flex: 1, padding: '14px', borderRadius: '12px',
                 background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.6)', fontSize: '15px', cursor: 'pointer'
-              }}>취소</button>
+              }}>{t('common.cancel')}</button>
               <Link href="/" style={{
                 flex: 1, padding: '14px', borderRadius: '12px',
                 background: 'linear-gradient(135deg, #d4af37, #f3e5ab)',
                 color: '#111', fontSize: '15px', fontWeight: 700,
                 textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>로그인</Link>
+              }}>{t('common.login')}</Link>
             </div>
           </div>
         </div>

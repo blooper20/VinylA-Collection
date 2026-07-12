@@ -3,9 +3,11 @@
 import React from 'react';
 import styles from './page.module.css';
 import { useAuthStore } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 
 export default function LandingPage() {
   const { isLoading } = useAuthStore();
+  const { locale, setLocale, t } = useLocale();
 
   const handleGoogleLogin = async () => {
     try {
@@ -20,24 +22,39 @@ export default function LandingPage() {
 
   return (
     <div className={styles.container}>
+      <div className={styles.localeToggle}>
+        <button
+          className={`${styles.localeToggleBtn} ${locale === 'ko' ? styles.localeToggleActive : ''}`}
+          onClick={() => setLocale('ko')}
+        >
+          KO
+        </button>
+        <button
+          className={`${styles.localeToggleBtn} ${locale === 'en' ? styles.localeToggleActive : ''}`}
+          onClick={() => setLocale('en')}
+        >
+          EN
+        </button>
+      </div>
+
       <div className={styles.spotlight1} />
       <div className={styles.spotlight2} />
-      
+
       <main className={styles.main}>
         <div className={styles.heroContent}>
           <img src="/logo.png" alt="VinylA Collection" className={styles.heroLogo} />
           <div className={styles.badge}>VinylA Collection</div>
           <h1 className={styles.title}>
-            당신만의 프리미엄<br />바이닐 아카이브
+            {t('landing.titleLine1')}<br />{t('landing.titleLine2')}
           </h1>
           <p className={styles.subtitle}>
-            빛바랜 LP부터 방금 뜯은 신보까지.<br />
-            가장 아름다운 형태로 당신의 음악을 수집하세요.
+            {t('landing.subtitleLine1')}<br />
+            {t('landing.subtitleLine2')}
           </p>
-          
+
           <button className={styles.ctaButton} onClick={handleGoogleLogin}>
             <span className="material-symbols-outlined">login</span>
-            Google 계정으로 시작하기
+            {t('landing.cta')}
           </button>
         </div>
 
@@ -61,22 +78,22 @@ export default function LandingPage() {
           <div className={styles.featureIcon}>
             <span className="material-symbols-outlined">search</span>
           </div>
-          <h3>10초 만에 끝나는 등록</h3>
-          <p>Discogs API 연동으로 앨범명만 입력하면 모든 정보를 자동으로 불러옵니다.</p>
+          <h3>{t('landing.feature1Title')}</h3>
+          <p>{t('landing.feature1Desc')}</p>
         </div>
         <div className={styles.featureCard}>
           <div className={styles.featureIcon}>
             <span className="material-symbols-outlined">gallery_thumbnail</span>
           </div>
-          <h3>미니멀 갤러리 뷰</h3>
-          <p>복잡한 데이터는 숨기고 오직 아름다운 앨범 커버에만 집중할 수 있습니다.</p>
+          <h3>{t('landing.feature2Title')}</h3>
+          <p>{t('landing.feature2Desc')}</p>
         </div>
         <div className={styles.featureCard}>
           <div className={styles.featureIcon}>
             <span className="material-symbols-outlined">military_tech</span>
           </div>
-          <h3>컬렉터 호칭 시스템</h3>
-          <p>보유 장수와 장르에 따라 특별한 호칭을 획득하고 프로필에 장착해보세요.</p>
+          <h3>{t('landing.feature3Title')}</h3>
+          <p>{t('landing.feature3Desc')}</p>
         </div>
       </section>
     </div>

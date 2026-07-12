@@ -36,7 +36,8 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan vinyl records."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-localization"
     ]
   }
 }

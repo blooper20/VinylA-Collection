@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styles from './FeaturedLPModal.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
+import { useLocale } from '@vinyla/i18n';
 
 interface FeaturedLPModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface FeaturedLPModalProps {
 
 export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, onSelect }: FeaturedLPModalProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const { t } = useLocale();
 
   if (!isOpen) return null;
 
@@ -21,7 +23,7 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
       await onSelect(albumId);
       onClose();
     } catch {
-      alert('대표 LP 설정에 실패했습니다.');
+      alert(t('featuredLp.setFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -31,7 +33,7 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>대표 LP 설정</h2>
+          <h2 className={styles.title}>{t('featuredLp.title')}</h2>
           <button className={styles.closeBtn} onClick={onClose} disabled={isSaving}>
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -50,7 +52,7 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
                   
                   {/* Status Badge */}
                   <div className={`${styles.statusBadge} ${album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}`}>
-                    {album.STATUS === 'OWNED' ? '보유중' : '위시'}
+                    {album.STATUS === 'OWNED' ? t('featuredLp.statusOwned') : t('featuredLp.statusWish')}
                   </div>
 
                   <div className={styles.itemInfo}>
@@ -62,7 +64,7 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
             </div>
           ) : (
             <div className={styles.empty}>
-              보관함에 LP가 없습니다.
+              {t('featuredLp.empty')}
             </div>
           )}
         </div>

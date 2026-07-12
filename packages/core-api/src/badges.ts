@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@vinyla/i18n';
+
 export interface UserStats {
   ownedCount: number;
   wishCount: number;
@@ -448,4 +450,31 @@ export const BADGES: Badge[] = [
 
 export function evaluateBadges(stats: UserStats): string[] {
   return BADGES.filter(badge => badge.check(stats)).map(badge => badge.id);
+}
+
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+const GENRE_BADGE_TIERS: Record<string, string> = { '1': 'tier1', '5': 'tier5', '10': 'tier10', '50': 'tier50', '100': 'tier100' };
+
+// `badge.name`/`badge.description` stay Korean-only (see errors.ts for the
+// same fallback pattern) so mobile screens — not translated yet — keep
+// compiling and behaving identically. Web call sites should use this
+// instead of reading the fields directly, passing their own useLocale().
+// Genre badges are id-templated (genre_<id>_<tier>), so their text is built
+// from a small suffix template rather than 65 flat dictionary entries.
+export function getBadgeText(badge: Badge, locale: 'ko' | 'en', t: Translate): { name: string; description: string } {
+  const genreMatch = badge.id.match(/^genre_(.+)_(\d+)$/);
+  if (genreMatch) {
+    const [, genreId, tierNum] = genreMatch;
+    const tierKey = GENRE_BADGE_TIERS[tierNum] || 'tier1';
+    const genreName = locale === 'ko' ? (POPULAR_GENRES.find(g => g.id === genreId)?.name || genreId) : genreId;
+    return {
+      name: t(`badge.genreSuffix.${tierKey}.name` as TranslationKey, { genre: genreName, genreId }),
+      description: t(`badge.genreSuffix.${tierKey}.description` as TranslationKey, { genre: genreName, genreId }),
+    };
+  }
+  return {
+    name: t(`badge.${badge.id}.name` as TranslationKey),
+    description: t(`badge.${badge.id}.description` as TranslationKey),
+  };
 }

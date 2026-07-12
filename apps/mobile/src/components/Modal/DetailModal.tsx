@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
 import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
 import { ShareableStoryView } from '../Share/ShareableStoryView';
 import { ShareOptionsSheet } from './ShareOptionsSheet';
@@ -71,6 +72,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [realStatus, setRealStatus] = React.useState<string | null>(null);
 
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const styles = getStyles(themeColors, shadows, shape);
 
   const [alertVisible, setAlertVisible] = React.useState(false);
@@ -235,7 +237,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share image', e);
-      showAlert('오류', '이미지 공유에 실패했습니다.');
+      showAlert(t('common.error'), t('mobile.detail.imageShareFailed'));
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -297,10 +299,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
       setPurchasePrice(finalPrice);
       setRealStatus('OWNED');
-      showAlert('성공', `앨범이 성공적으로 보관함에 저장되었습니다!`, () => handleClose());
+      showAlert(t('mobile.detail.successTitle'), t('mobile.detail.savedToCollection'), () => handleClose());
     } catch (error) {
       console.error('Error saving album to collection:', error);
-      showAlert('오류', getErrorMessage(error));
+      showAlert(t('common.error'), getErrorMessage(error, t));
     }
   };
 
@@ -314,10 +316,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         PURCHASE_PRICE: finalPrice
       });
       setPurchasePrice(finalPrice);
-      showAlert('저장 완료', '구입가가 성공적으로 저장되었습니다.', () => handleClose());
+      showAlert(t('mobile.detail.priceSavedTitle'), t('detail.priceSaved'), () => handleClose());
     } catch (e) {
       console.error(e);
-      showAlert('오류', getErrorMessage(e));
+      showAlert(t('common.error'), getErrorMessage(e, t));
     }
   };
 
@@ -339,7 +341,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     if (!album) return;
 
     if (!user) {
-      showAlert('오류', '로그인이 필요합니다.');
+      showAlert(t('common.error'), t('detail.loginRequired'));
       return;
     }
 
@@ -364,10 +366,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           PURCHASE_PRICE: 0
         });
         setRealStatus('WISH');
-        showAlert('성공', `위시리스트에 저장되었습니다!`, () => handleClose());
+        showAlert(t('mobile.detail.successTitle'), t('mobile.detail.savedToWish'), () => handleClose());
       } catch (error) {
         console.error('Error saving album to wish:', error);
-        showAlert('오류', getErrorMessage(error));
+        showAlert(t('common.error'), getErrorMessage(error, t));
       }
     }
   };
@@ -376,18 +378,18 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!album) return;
     if (!user) {
-      showAlert('오류', '로그인이 필요합니다.');
+      showAlert(t('common.error'), t('detail.loginRequired'));
       return;
     }
     try {
       await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
       setRealStatus('NONE');
-      showAlert('성공', '보관함에서 삭제되었습니다.', () => {
+      showAlert(t('mobile.detail.successTitle'), t('mobile.detail.deletedFromCollection'), () => {
         handleClose();
       });
     } catch (e) {
       console.error(e);
-      showAlert('오류', getErrorMessage(e));
+      showAlert(t('common.error'), getErrorMessage(e, t));
     }
   };
 
@@ -478,13 +480,13 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               <View style={styles.priceContainer}>
                 <View style={styles.priceRow}>
                   <FontAwesome5 name="coins" size={14} color="#e9c349" />
-                  <Text style={styles.marketPriceText}>시장 추정가: {marketPrice === -1 ? '정보 없음' : marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}</Text>
+                  <Text style={styles.marketPriceText}>{t('detail.marketPrice')} {marketPrice === -1 ? t('detail.marketPriceUnknown') : marketPrice ? `₩${marketPrice.toLocaleString()}` : t('common.loading')}</Text>
                 </View>
                 {realStatus === 'OWNED' && (
                   <TouchableOpacity onPress={handleEditPrice} style={[styles.priceRow, { marginTop: 6 }]}>
                     <FontAwesome5 name="receipt" size={14} color="#aaa" />
                     <Text style={styles.actualPriceText}>
-                      실제 구입가: {purchasePrice ? `₩${purchasePrice.toLocaleString()}` : '미입력'}
+                      {t('detail.actualPrice')} {purchasePrice ? `₩${purchasePrice.toLocaleString()}` : t('detail.notEntered')}
                     </Text>
                     <FontAwesome5 name="edit" size={12} color="#888" style={{ marginLeft: 6 }} />
                   </TouchableOpacity>
@@ -507,20 +509,20 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 {isTracksLoading ? (
                   <View style={{ paddingVertical: 20, alignItems: 'center' }}>
                     <ActivityIndicator size="small" color="#e9c349" />
-                    <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0, marginTop: 10, color: '#888' }]}>트랙리스트를 불러오는 중입니다...</Text>
+                    <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0, marginTop: 10, color: '#888' }]}>{t('mobile.detail.tracklistLoading')}</Text>
                   </View>
                 ) : tracks.length > 0 ? tracks.map((track, i) => (
                   <Text key={i} style={styles.track}>{String(i + 1).padStart(2, '0')}. {track}</Text>
                 )) : (
-                  <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>트랙리스트 정보가 없습니다</Text>
+                  <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>{t('mobile.detail.noTracklist')}</Text>
                 )}
               </View>
 
               {/* Extra Details */}
               {(releaseDate || copyright || notes) && (
                 <View style={styles.extraDetailsContainer}>
-                  {releaseDate && <Text style={styles.extraDetailText}><Text style={styles.extraDetailLabel}>발매일:</Text> {releaseDate}</Text>}
-                  {copyright && <Text style={styles.extraDetailText}><Text style={styles.extraDetailLabel}>소속사:</Text> {copyright}</Text>}
+                  {releaseDate && <Text style={styles.extraDetailText}><Text style={styles.extraDetailLabel}>{t('detail.releaseDate')}</Text> {releaseDate}</Text>}
+                  {copyright && <Text style={styles.extraDetailText}><Text style={styles.extraDetailLabel}>{t('detail.label')}</Text> {copyright}</Text>}
                   {notes && <Text style={styles.extraNotes}>{notes}</Text>}
                 </View>
               )}
@@ -529,25 +531,25 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
             {realStatus !== 'OWNED' && (
               <View style={styles.actions}>
                 {realStatus === 'WISH' ? (
-                  <AnimatedButton 
+                  <AnimatedButton
                     style={styles.btnPrimary}
                     onPress={() => handleSave('OWNED')}
                   >
-                    <Text style={styles.btnPrimaryText}>보관함 추가</Text>
+                    <Text style={styles.btnPrimaryText}>{t('detail.addToCollection')}</Text>
                   </AnimatedButton>
                 ) : (
                   <>
-                    <AnimatedButton 
+                    <AnimatedButton
                       style={styles.btnPrimary}
                       onPress={() => handleSave('OWNED')}
                     >
-                      <Text style={styles.btnPrimaryText}>내 콜렉션에 추가</Text>
+                      <Text style={styles.btnPrimaryText}>{t('mobile.detail.addToCollectionNew')}</Text>
                     </AnimatedButton>
-                    <AnimatedButton 
+                    <AnimatedButton
                       style={styles.btnOutline}
                       onPress={() => handleSave('WISH')}
                     >
-                      <Text style={styles.btnOutlineText}>위시 추가</Text>
+                      <Text style={styles.btnOutlineText}>{t('mobile.detail.addToWishlistBtn')}</Text>
                     </AnimatedButton>
                   </>
                 )}
@@ -561,32 +563,32 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 isHeavy
               >
                 <FontAwesome5 name="youtube" size={18} color="#fff" />
-                <Text style={[styles.btnYoutubeText, { marginLeft: 8 }]}>유튜브로 듣기</Text>
+                <Text style={[styles.btnYoutubeText, { marginLeft: 8 }]}>{t('mobile.detail.listenOnYoutube')}</Text>
               </AnimatedButton>
-              <AnimatedButton 
+              <AnimatedButton
                 style={[styles.btnYoutube, { backgroundColor: '#333', marginTop: 10 }]}
                 onPress={handleDiscogsSearch}
                 isHeavy
               >
-                <Text style={styles.btnYoutubeText}>Discogs에서 검색</Text>
+                <Text style={styles.btnYoutubeText}>{t('mobile.detail.searchOnDiscogs')}</Text>
               </AnimatedButton>
             </View>
 
             {(realStatus === 'OWNED' || realStatus === 'WISH') && (
               <View style={[styles.actions, { marginTop: 10 }]}>
                 {realStatus === 'OWNED' ? (
-                  <AnimatedButton 
+                  <AnimatedButton
                     style={[styles.btnPrimary, { backgroundColor: '#d32f2f', borderColor: '#d32f2f' }]}
                     onPress={handleDelete}
                   >
-                    <Text style={styles.btnPrimaryText}>보관함 삭제</Text>
+                    <Text style={styles.btnPrimaryText}>{t('detail.removeFromCollection')}</Text>
                   </AnimatedButton>
                 ) : (
-                  <AnimatedButton 
+                  <AnimatedButton
                     style={[styles.btnOutline, { borderColor: '#d32f2f', flex: 1 }]}
                     onPress={handleDelete}
                   >
-                    <Text style={[styles.btnOutlineText, { color: '#d32f2f' }]}>위시 삭제</Text>
+                    <Text style={[styles.btnOutlineText, { color: '#d32f2f' }]}>{t('detail.removeFromWishlist')}</Text>
                   </AnimatedButton>
                 )}
               </View>
@@ -599,14 +601,14 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           <ShareableStoryView
             ref={shareViewRef}
             album={album}
-            username={user?.user_metadata?.displayName || '컬렉터'}
+            username={user?.user_metadata?.displayName || t('common.defaultCollectorName')}
           />
         </View>
 
         <ShareOptionsSheet
           visible={isShareSheetVisible}
           onClose={() => setShareSheetVisible(false)}
-          title="앨범 공유하기"
+          title={t('mobile.detail.shareSheetTitle')}
           isProcessing={isSharingProcessing}
           onShareLink={handleShareLink}
           onImageShare={handleImageShare}
@@ -628,8 +630,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           >
             <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
             <View style={{ width: '75%', padding: 24, borderRadius: 24, backgroundColor: 'rgba(20,20,20,0.8)', borderWidth: 1, borderColor: themeColors.border, alignItems: 'center' }}>
-              <Text style={{ color: themeColors.textPrimary, fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>구입가 입력</Text>
-              <Text style={{ color: themeColors.textSecondary, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>이 LP를 얼마에 구매하셨나요?</Text>
+              <Text style={{ color: themeColors.textPrimary, fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>{t('detail.priceInputTitle')}</Text>
+              <Text style={{ color: themeColors.textSecondary, fontSize: 14, marginBottom: 20, textAlign: 'center' }}>{t('mobile.detail.priceInputQuestionShort')}</Text>
               <TextInput
                 style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.05)', color: themeColors.textPrimary, padding: 16, borderRadius: 12, fontSize: 18, textAlign: 'center', marginBottom: 24, borderWidth: 1, borderColor: themeColors.border }}
                 keyboardType="numeric"
@@ -646,14 +648,14 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                   onPress={() => handlePriceSubmit(true)}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: 'bold' }}>생략</Text>
+                  <Text style={{ color: themeColors.textSecondary, fontSize: 16, fontWeight: 'bold' }}>{t('mobile.detail.skipBtn')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={{ flex: 1, paddingVertical: 14, backgroundColor: themeColors.accent, borderRadius: 16, alignItems: 'center' }} 
+                <TouchableOpacity
+                  style={{ flex: 1, paddingVertical: 14, backgroundColor: themeColors.accent, borderRadius: 16, alignItems: 'center' }}
                   onPress={() => handlePriceSubmit(false)}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ color: '#000', fontSize: 16, fontWeight: 'bold' }}>저장</Text>
+                  <Text style={{ color: '#000', fontSize: 16, fontWeight: 'bold' }}>{t('mobile.detail.saveBtn')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -8,6 +8,40 @@
   padding: 40px 24px;
 }
 
+.localeToggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 2;
+  display: flex;
+  border: 1px solid var(--border-mid);
+  border-radius: 100px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+}
+
+.localeToggleBtn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.localeToggleBtn:hover {
+  color: var(--text-primary);
+}
+
+.localeToggleActive {
+  background: rgba(233, 195, 73, 0.12);
+  color: var(--accent);
+}
+
 .spotlight1 {
   position: absolute;
   top: -20%;

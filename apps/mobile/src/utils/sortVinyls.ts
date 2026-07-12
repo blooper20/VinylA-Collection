@@ -2,11 +2,11 @@ import { MockVinylData } from '@vinyla/shared-types';
 
 export type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
 
-export const SORT_OPTIONS: { key: SortMode; label: string }[] = [
-  { key: 'latest', label: '최신순' },
-  { key: 'oldest', label: '오래된순' },
-  { key: 'alpha', label: '가나다순' },
-  { key: 'year', label: '출시연도순' },
+export const SORT_OPTIONS: { key: SortMode }[] = [
+  { key: 'latest' },
+  { key: 'oldest' },
+  { key: 'alpha' },
+  { key: 'year' },
 ];
 
 const purchaseDateString = (value: string | Date | undefined): string =>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
@@ -19,6 +20,7 @@ const ALL_GENRES = [
 
 export const GenreSelectModal = ({ visible, onClose, initialSelected, onSave }: GenreSelectModalProps) => {
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export const GenreSelectModal = ({ visible, onClose, initialSelected, onSave }: 
         <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={[styles.content, { backgroundColor: 'rgba(20,20,20,0.6)', borderColor: themeColors.border }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: themeColors.textPrimary }]}>관심 장르 설정</Text>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>{t('mobile.genreSelect.title')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Text style={{ color: themeColors.textPrimary, fontSize: 16 }}>✕</Text>
             </TouchableOpacity>
@@ -84,7 +86,7 @@ export const GenreSelectModal = ({ visible, onClose, initialSelected, onSave }: 
               style={[styles.saveBtn, { backgroundColor: themeColors.textPrimary }]} 
               onPress={handleSave}
             >
-              <Text style={[styles.saveBtnText, { color: '#000' }]}>저장하기</Text>
+              <Text style={[styles.saveBtnText, { color: '#000' }]}>{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>

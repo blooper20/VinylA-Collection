@@ -2,9 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useLocale } from '@vinyla/i18n';
 import styles from './not-found.module.css';
 
 export default function NotFound() {
+  const { t } = useLocale();
   return (
     <div className={styles.container}>
       <div className={styles.noiseOverlay} />
@@ -12,15 +14,15 @@ export default function NotFound() {
       <div className={styles.content}>
         <img src="/logo.png" alt="VinylA Collection" className={styles.logo} />
         <div className={styles.errorCode}>404</div>
-        <h1 className={styles.title}>Track Not Found</h1>
+        <h1 className={styles.title}>{t('notFound.title')}</h1>
         <p className={styles.subtitle}>
-          존재하지 않는 페이지입니다.<br />
-          바늘이 레코드판 바깥을 맴돌고 있네요.
+          {t('notFound.subtitleLine1')}<br />
+          {t('notFound.subtitleLine2')}
         </p>
-        
+
         <Link href="/" className={styles.backButton}>
           <span className="material-symbols-outlined">home</span>
-          홈으로 돌아가기
+          {t('notFound.backHome')}
         </Link>
       </div>
 

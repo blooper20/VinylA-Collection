@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import styles from './setup.module.css';
 
 const INTERESTS = ['Jazz', 'Rock', 'Classical', 'Hip-Hop', 'Pop', 'Electronic', 'R&B', 'Folk'];
 
 export default function SetupPage() {
   const router = useRouter();
+  const { t } = useLocale();
   const { user, updateProfile, initializeAuth, isLoading } = useAuthStore();
   const [name, setName] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -34,17 +36,17 @@ export default function SetupPage() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('이름을 입력해주세요.');
+      alert(t('setup.nameRequired'));
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
       await updateProfile(name, selectedInterests);
       router.replace('/');
     } catch (error) {
       console.error('Failed to update profile:', error);
-      alert('프로필 설정에 실패했습니다.');
+      alert(t('setup.saveFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -75,17 +77,19 @@ export default function SetupPage() {
 
       <div className={styles.setupBox}>
         <h1 className={styles.title}>Welcome to VinylA</h1>
-        <p className={styles.subtitle}>당신만의 컬렉션을 시작하기 위해 프로필을 완성해주세요.</p>
+        <p className={styles.subtitle}>{t('setup.subtitle')}</p>
 
         <div className={styles.formGroup}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label className={styles.label}>닉네임</label>
-            <span style={{ fontSize: '12px', opacity: 0.6 }}>{name.length}/{NICKNAME_MAX_LENGTH}자</span>
+            <label className={styles.label}>{t('setup.nicknameLabel')}</label>
+            <span style={{ fontSize: '12px', opacity: 0.6 }}>
+              {t('setup.nicknameCounter', { current: name.length, max: NICKNAME_MAX_LENGTH })}
+            </span>
           </div>
           <input
             type="text"
             className={styles.input}
-            placeholder="닉네임을 입력하세요"
+            placeholder={t('setup.nicknamePlaceholder')}
             value={name}
             maxLength={NICKNAME_MAX_LENGTH}
             onChange={(e) => setName(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
@@ -93,7 +97,7 @@ export default function SetupPage() {
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>관심 장르 (선택)</label>
+          <label className={styles.label}>{t('setup.interestsLabel')}</label>
           <div className={styles.tagsContainer}>
             {INTERESTS.map(interest => {
               const isSelected = selectedInterests.includes(interest);
@@ -115,7 +119,7 @@ export default function SetupPage() {
           onClick={handleSave}
           disabled={isSubmitting}
         >
-          {isSubmitting ? '저장 중...' : '시작하기'}
+          {isSubmitting ? t('setup.savingButton') : t('setup.startButton')}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 
@@ -30,6 +31,7 @@ export const ShareOptionsSheet = ({
   bottomInset = 0,
 }: ShareOptionsSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const translateY = useRef(new Animated.Value(300)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = React.useState(visible);
@@ -52,8 +54,8 @@ export const ShareOptionsSheet = ({
   if (!rendered) return null;
 
   const options: { id: string; label: string; icon: 'share-2' | 'image'; onPress: () => void }[] = [
-    { id: 'image', label: '이미지 공유', icon: 'image', onPress: onImageShare },
-    { id: 'link', label: '링크 공유', icon: 'share-2', onPress: onShareLink },
+    { id: 'image', label: t('mobile.shareOptions.imageShare'), icon: 'image', onPress: onImageShare },
+    { id: 'link', label: t('mobile.shareOptions.linkShare'), icon: 'share-2', onPress: onShareLink },
   ];
 
   return (

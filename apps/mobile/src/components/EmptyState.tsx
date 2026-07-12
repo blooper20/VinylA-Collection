@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 
 interface EmptyStateProps {
   title?: string;
@@ -10,12 +11,13 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  title = '컬렉션이 비어 있습니다',
-  description = '새로운 LP 앨범을 스캔하여 당신만의 멋진 진열대를 채워보세요.',
-  buttonText = '앨범 스캔하기',
+  title,
+  description,
+  buttonText,
   onPressAction,
 }) => {
   const { themeColors } = useTheme();
+  const { t } = useLocale();
   const styles = getStyles(themeColors);
   return (
     <View style={styles.container}>
@@ -25,11 +27,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <View style={styles.shelfDivider} />
         <View style={styles.shelfBottom} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.description}>{description}</Text>
+      <Text style={styles.title}>{title || t('mobile.emptyState.title')}</Text>
+      <Text style={styles.description}>{description || t('mobile.emptyState.description')}</Text>
       {onPressAction && (
         <TouchableOpacity style={styles.actionButton} onPress={onPressAction}>
-          <Text style={styles.actionButtonText}>{buttonText}</Text>
+          <Text style={styles.actionButtonText}>{buttonText || t('mobile.emptyState.buttonText')}</Text>
         </TouchableOpacity>
       )}
     </View>
