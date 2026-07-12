@@ -274,14 +274,17 @@ const searchDeezerAlbum = async (artist: string, title: string, alias?: string):
       const cArtist = c.artist?.name?.toLowerCase() || '';
       const cTitle = c.title?.toLowerCase() || '';
       const titleMatch = !!cTitle && (cTitle.includes(qTitle) || qTitle.includes(cTitle));
-      // Deezer stores romanized names for Korean artists ("백예린" →
-      // "Yerin Baek"), so the artist text often can't match a Korean query
-      // directly. Deezer's own search already matched the full
-      // "<artist> <title>" string against its alias index, so a confident
-      // title match on a lone candidate is trustworthy by itself.
+      // Deezer stores romanized artist names ("백예린" → "Yerin Baek") AND
+      // sometimes translated album titles ("개화" → "FLOWERING"), so one of
+      // the two text matches routinely fails for Korean releases. Deezer's
+      // own search already matched the full "<artist> <title>" string
+      // against its localized metadata, so when it returns exactly ONE
+      // candidate, either match alone is enough to trust it. With several
+      // candidates, require both.
       const artistMatch = (!!qArtist && (cArtist.includes(qArtist) || qArtist.includes(cArtist))) ||
         (!!alias && cArtist.includes(alias.toLowerCase()));
-      return titleMatch && (artistMatch || candidates.length === 1);
+      return (titleMatch && artistMatch) ||
+        (candidates.length === 1 && (titleMatch || artistMatch));
     }) ?? null;
   } catch {
     return null;
@@ -297,39 +300,54 @@ const getDeezerAlbumDetail = async (albumId: number): Promise<DeezerAlbumDetail 
   }
 };
 
-// ── Apple Music album page: last-resort tracklist source ───────────────────
-// Streaming-only albums return no track entities from the free iTunes
-// lookup API (they're not sold on the iTunes Store), and Korean indie
-// releases are often missing from Deezer too — but the public
-// music.apple.com album page embeds the full tracklist as schema.org
-// ld+json, in the original language (the API's collectionName may be an
-// English translation). Only called with a collectionId the search step
-// already confirmed, so no matching is needed here. Browsers can't fetch
-// the page cross-origin, so they go through the apple-tracks proxy route;
-// React Native and server contexts fetch it directly.
-export const parseAppleMusicTracks = (html: string): string[] => {
+// ── Apple Music album page: localized name + tracklist source ──────────────
+// The free iTunes API stores the label's canonical (often English) album
+// title — 개화 comes back as "FLOWERING", 사랑을 사람으로 그린다면 as
+// "If I Draw Love As A Person" — and returns no track entities at all for
+// streaming-only albums (not sold on the iTunes Store). The public KR
+// album page, however, embeds schema.org ld+json with the *localized*
+// Korean name and the full tracklist. That makes it useful twice over:
+// as the last-resort tracklist source, and to VERIFY a search candidate
+// whose translated title can't be text-matched against a Korean query.
+// Browsers can't fetch the page cross-origin, so they go through the
+// apple-tracks proxy route; React Native and server contexts fetch it
+// directly.
+export interface AppleMusicAlbumPage {
+  name: string;
+  tracks: string[];
+}
+
+export const parseAppleMusicAlbumPage = (html: string): AppleMusicAlbumPage | null => {
   const re = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
     try {
       const data = JSON.parse(m[1]);
-      if (Array.isArray(data?.tracks) && data.tracks.length > 0) {
-        return data.tracks
-          .map((t: { name?: string }) => t?.name || '')
-          .filter(Boolean);
+      if (data && data['@type'] === 'MusicAlbum') {
+        return {
+          name: typeof data.name === 'string' ? data.name : '',
+          tracks: Array.isArray(data.tracks)
+            ? data.tracks.map((t: { name?: string }) => t?.name || '').filter(Boolean)
+            : [],
+        };
       }
     } catch { /* try the next ld+json block */ }
   }
-  return [];
+  return null;
 };
 
-const fetchAppleMusicTracks = async (collectionId: number): Promise<string[]> => {
+const fetchAppleMusicAlbumPage = async (collectionId: number): Promise<AppleMusicAlbumPage | null> => {
   try {
     if (typeof document !== 'undefined') {
       const res = await axios.get(`${getProxyBaseUrl()}/api/external/apple-tracks`, {
         params: { id: collectionId },
       });
-      return Array.isArray(res.data?.tracks) ? res.data.tracks : [];
+      const d = res.data;
+      if (!d || (typeof d.name !== 'string' && !Array.isArray(d.tracks))) return null;
+      return {
+        name: typeof d.name === 'string' ? d.name : '',
+        tracks: Array.isArray(d.tracks) ? d.tracks : [],
+      };
     }
     const res = await axios.get(`https://music.apple.com/kr/album/${collectionId}`, {
       headers: {
@@ -339,9 +357,9 @@ const fetchAppleMusicTracks = async (collectionId: number): Promise<string[]> =>
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
       },
     });
-    return parseAppleMusicTracks(String(res.data));
+    return parseAppleMusicAlbumPage(String(res.data));
   } catch {
-    return [];
+    return null;
   }
 };
 
@@ -713,21 +731,42 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
       });
       // Ensure the artist matches before taking the hit
       const itResults: ITunesResult[] = itRes.data.results || [];
-      const hit = itResults.find((item: ITunesResult) => {
+      const qArtist = cleanArtist.toLowerCase();
+      const qTitle = cleanTitle.toLowerCase();
+      const artistMatches = (item: ITunesResult): boolean => {
         const itemArtist = item.artistName?.toLowerCase() || '';
+        return itemArtist.includes(qArtist) || qArtist.includes(itemArtist);
+      };
+      let hit = itResults.find((item: ITunesResult) => {
         const itemTitle = item.collectionName?.toLowerCase() || '';
-        const qArtist = cleanArtist.toLowerCase();
-        const qTitle = cleanTitle.toLowerCase();
-
-        const artistMatch = itemArtist.includes(qArtist) || qArtist.includes(itemArtist);
         const titleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
 
         // Apple Music sometimes stores a fully English-translated title for a
         // Korean release, which never substring-matches the Korean query
         // text. Trust a confident artist match alone when the search already
         // returned just one candidate.
-        return artistMatch && (titleMatch || itResults.length === 1);
-      });
+        return artistMatches(item) && (titleMatch || itResults.length === 1);
+      }) ?? null;
+
+      // When several candidates come back with translated titles (개화 →
+      // "FLOWERING"), no text match can pick one — but each candidate's KR
+      // album page carries the localized Korean name. Verify artist-matching
+      // candidates against their own page and take the first whose localized
+      // name matches the query title. The page also hands us the tracklist.
+      let pageAlbum: AppleMusicAlbumPage | null = null;
+      if (!hit) {
+        for (const item of itResults) {
+          if (!item.collectionId || !artistMatches(item)) continue;
+          const page = await fetchAppleMusicAlbumPage(item.collectionId);
+          const pageName = page?.name?.toLowerCase() || '';
+          if (pageName && (pageName.includes(qTitle) || qTitle.includes(pageName))) {
+            hit = item;
+            pageAlbum = page;
+            break;
+          }
+        }
+      }
+
       if (hit) {
         details.copyright = hit.copyright;
         if (hit.artworkUrl100) {
@@ -737,6 +776,10 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
           details.releaseDate = new Date(hit.releaseDate).toLocaleDateString('ko-KR', {
             year: 'numeric', month: 'long', day: 'numeric'
           });
+        }
+        if (details.tracks.length === 0 && pageAlbum && pageAlbum.tracks.length > 0) {
+          // The verify step above already fetched the page — reuse its tracks.
+          details.tracks = pageAlbum.tracks;
         }
         if (details.tracks.length === 0) {
           // Fallback to iTunes tracks if Discogs failed
@@ -750,9 +793,8 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         }
         if (details.tracks.length === 0 && hit.collectionId) {
           // Streaming-only albums return no track entities from the lookup
-          // above — the public album page still lists them (see
-          // fetchAppleMusicTracks).
-          details.tracks = await fetchAppleMusicTracks(hit.collectionId);
+          // above — the public album page still lists them.
+          details.tracks = (await fetchAppleMusicAlbumPage(hit.collectionId))?.tracks || [];
         }
       }
     }
