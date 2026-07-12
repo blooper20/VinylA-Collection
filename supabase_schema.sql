@@ -403,9 +403,25 @@ CREATE TRIGGER trg_assign_signup_number
   BEFORE INSERT OR UPDATE ON public."PROFILES"
   FOR EACH ROW EXECUTE FUNCTION public.assign_signup_number();
 
--- 3. Backfill existing profiles using their real auth.users.created_at
+-- 3. Some accounts (e.g. anyone whose displayName was already set before
+--    this migration ever existed) never went through updateProfile()'s
+--    "only upsert PROFILES when the name is changing" path, so they have
+--    no PROFILES row at all and would be silently excluded from both the
+--    badge and the backfill below. Create the missing rows from their
+--    existing auth metadata. Trigger is off here since its INSERT branch
+--    would otherwise force a fresh nextval() instead of leaving room for
+--    step 4's full, order-correct renumber.
+ALTER TABLE public."PROFILES" DISABLE TRIGGER trg_assign_signup_number;
+INSERT INTO public."PROFILES" ("USER_ID", "DISPLAY_NAME")
+SELECT u.id, u.raw_user_meta_data->>'displayName'
+FROM auth.users u
+LEFT JOIN public."PROFILES" p ON p."USER_ID" = u.id
+WHERE p."USER_ID" IS NULL AND u.raw_user_meta_data->>'displayName' IS NOT NULL
+ON CONFLICT ("USER_ID") DO NOTHING;
+
+-- 4. Full (re-)number of every profile by real auth.users.created_at
 --    (PROFILES has no CREATED_AT of its own, and LAST_NAME_CHANGED_AT
---    drifts forward if they ever changed their nickname).
+--    drifts forward if they ever changed their nickname). Safe to re-run.
 WITH ordered AS (
   SELECT p."USER_ID", row_number() OVER (ORDER BY u.created_at) AS rn
   FROM public."PROFILES" p
@@ -414,8 +430,9 @@ WITH ordered AS (
 UPDATE public."PROFILES" p
 SET "SIGNUP_NUMBER" = ordered.rn
 FROM ordered
-WHERE p."USER_ID" = ordered."USER_ID" AND p."SIGNUP_NUMBER" IS NULL;
+WHERE p."USER_ID" = ordered."USER_ID";
+ALTER TABLE public."PROFILES" ENABLE TRIGGER trg_assign_signup_number;
 
--- 4. Point the sequence past the backfilled rows so new signups continue
---    the count instead of colliding with it.
+-- 5. Point the sequence past the (re-)numbered rows so new signups
+--    continue the count instead of colliding with it.
 SELECT setval('public.profiles_signup_seq', GREATEST((SELECT count(*) FROM public."PROFILES"), 1));
