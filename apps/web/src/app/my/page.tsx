@@ -26,6 +26,7 @@ export default function MyProfilePage() {
   const [actualTopGenre, setActualTopGenre] = useState('-');
   const [recentAdditions, setRecentAdditions] = useState<FrontendVinyl[]>([]);
   const [allAlbumsList, setAllAlbumsList] = useState<FrontendVinyl[]>([]);
+  const [signupNumber, setSignupNumber] = useState<number | null>(null);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = featuredAlbumId ? allAlbumsList.find(a => String(a.ALBUM_ID) === String(featuredAlbumId)) : undefined;
@@ -140,7 +141,8 @@ export default function MyProfilePage() {
           }
         });
 
-        const signupNumber = await getSignupNumber(user.id);
+        const fetchedSignupNumber = await getSignupNumber(user.id);
+        setSignupNumber(fetchedSignupNumber);
 
         const stats: UserStats = {
           ownedCount: mappedOwned.length,
@@ -153,7 +155,7 @@ export default function MyProfilePage() {
           favoriteGenre: currentGenre,
           ownedGenres: genreCounts,
           wishGenres,
-          signupNumber: signupNumber ?? undefined
+          signupNumber: fetchedSignupNumber ?? undefined
         };
 
         const newlyUnlocked = evaluateBadges(stats);
@@ -365,7 +367,7 @@ export default function MyProfilePage() {
                     {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
                   </span>
                   <span className={styles.collectorBadgeText}>
-                    {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t).name : t('my.verifiedCollector')}
+                    {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
                   </span>
                 </div>
               </div>
@@ -467,11 +469,12 @@ export default function MyProfilePage() {
         onSelect={updateFeaturedAlbum}
       />
       
-      <BadgeSelectModal 
+      <BadgeSelectModal
         isOpen={isBadgeModalOpen}
         onClose={() => setIsBadgeModalOpen(false)}
         unlockedBadgeIds={unlockedBadgeIds}
         selectedBadgeId={selectedBadgeId}
+        signupNumber={signupNumber}
         onEquip={async (badgeId) => {
           await updateSelectedBadge(badgeId);
         }}

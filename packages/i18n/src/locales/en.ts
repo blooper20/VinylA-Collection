@@ -296,7 +296,7 @@ export const en = {
       tier50: { name: '{{genreId}} Enthusiast', description: 'Own 50 or more {{genreId}} albums' },
       tier100: { name: '{{genreId}} Fanatic', description: 'Own 100 or more {{genreId}} albums (hidden)' },
     },
-    founding_100: { name: 'Founding Member', description: "You're one of VinylA Collection's first 100 members. (hidden)" },
+    founding_100: { name: 'Founding Member #{{number}}/100', description: "You're one of VinylA Collection's first 100 members. (hidden)" },
   },
   mobile: {
     tab: {

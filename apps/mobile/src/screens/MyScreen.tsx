@@ -129,6 +129,7 @@ export const MyScreen = () => {
   const [actualTopGenre, setActualTopGenre] = React.useState('-');
   const [recentAdditions, setRecentAdditions] = React.useState<any[]>([]);
   const [allAlbums, setAllAlbums] = React.useState<any[]>([]);
+  const [signupNumber, setSignupNumber] = React.useState<number | null>(null);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = allAlbums.find(a => Number(a.ALBUM_ID) === Number(featuredAlbumId));
@@ -221,7 +222,8 @@ export const MyScreen = () => {
           }
         });
 
-        const signupNumber = await getSignupNumber(user.id);
+        const fetchedSignupNumber = await getSignupNumber(user.id);
+        setSignupNumber(fetchedSignupNumber);
 
         const stats: UserStats = {
           ownedCount: mappedOwned.length,
@@ -234,7 +236,7 @@ export const MyScreen = () => {
           favoriteGenre: currentGenre,
           ownedGenres: genreCounts,
           wishGenres,
-          signupNumber: signupNumber ?? undefined
+          signupNumber: fetchedSignupNumber ?? undefined
         };
 
         const newlyUnlocked = evaluateBadges(stats);
@@ -316,7 +318,7 @@ export const MyScreen = () => {
     setBadgeModalVisible(false);
     if (badge.isEarned) {
       await updateSelectedBadge(badge.id);
-      setToastMessage(t('mobile.my.badgeEquipped', { name: getBadgeText(badge, locale, t).name }));
+      setToastMessage(t('mobile.my.badgeEquipped', { name: getBadgeText(badge, locale, t, { number: signupNumber ?? '' }).name }));
       setIsToastVisible(true);
     } else {
       setToastMessage(t('mobile.my.badgeNotEarned'));
@@ -422,7 +424,7 @@ export const MyScreen = () => {
               style={[styles.badge, { backgroundColor: themeColors.accent }]}
               onPress={() => setBadgeModalVisible(true)}
             >
-              <Text style={styles.badgeText}>{getBadgeText(selectedBadgeObj, locale, t).name}</Text>
+              <Text style={styles.badgeText}>{getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.shareIconBtn, { borderColor: themeColors.border }]}
@@ -671,6 +673,7 @@ export const MyScreen = () => {
         visible={isBadgeModalVisible}
         onClose={() => setBadgeModalVisible(false)}
         badges={availableBadges}
+        signupNumber={signupNumber}
         onSelect={handleBadgeSelect}
       />
 

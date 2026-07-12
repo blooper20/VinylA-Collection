@@ -8,6 +8,7 @@ interface BadgeSelectModalProps {
   onClose: () => void;
   unlockedBadgeIds: string[];
   selectedBadgeId: string | null;
+  signupNumber?: number | null;
   onEquip: (badgeId: string) => void;
 }
 
@@ -27,6 +28,7 @@ export default function BadgeSelectModal({
   onClose,
   unlockedBadgeIds,
   selectedBadgeId,
+  signupNumber,
   onEquip
 }: BadgeSelectModalProps) {
   const [activeTab, setActiveTab] = useState<BadgeCategory | 'all'>('all');
@@ -87,7 +89,7 @@ export default function BadgeSelectModal({
               );
             }
 
-            const { name, description } = getBadgeText(badge, locale, t);
+            const { name, description } = getBadgeText(badge, locale, t, { number: signupNumber ?? '' });
 
             return (
               <div
