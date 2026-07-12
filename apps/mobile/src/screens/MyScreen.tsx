@@ -105,7 +105,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
   const { locale, setLocale, t } = useLocale();
-  const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, deleteAccount } = useAuthStore();
+  const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, markFoundingCelebrationSeen, deleteAccount } = useAuthStore();
   const insets = useSafeAreaInsets();
 
   const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
@@ -263,11 +263,6 @@ export const MyScreen = () => {
            const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
            await updateUnlockedBadges(nextBadges);
 
-           // founding_100 gets its own grand celebration modal instead of the
-           // generic toast — everything else keeps the normal notification.
-           if (newBadges.includes('founding_100')) {
-             setShowFoundingCelebration(true);
-           }
            const toastWorthyBadges = newBadges.filter(id => id !== 'founding_100');
            if (toastWorthyBadges.length > 0) {
              const newBadgeNames = toastWorthyBadges
@@ -281,6 +276,15 @@ export const MyScreen = () => {
            }
         }
 
+        // founding_100's grand celebration is keyed off "have they seen it
+        // yet" rather than "was it newly unlocked this session" — accounts
+        // that silently got the badge before this modal existed would
+        // otherwise never see it, since it'd never show up as "new" again.
+        if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
+          setShowFoundingCelebration(true);
+          markFoundingCelebrationSeen();
+        }
+
       } else {
         setTopGenre(currentGenre);
         setActualTopGenre('-');
@@ -288,7 +292,7 @@ export const MyScreen = () => {
     } catch (e) {
       console.error('Failed to load stats', e);
     }
-  }, [user, updateUnlockedBadges, locale, t]);
+  }, [user, updateUnlockedBadges, markFoundingCelebrationSeen, locale, t]);
 
   // Refresh on every focus (not just mount) so stats reflect albums added
   // via Scan while the My tab was already mounted in the background.

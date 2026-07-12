@@ -18,7 +18,7 @@ const AVAILABLE_GENRES = [
 ];
 
 export default function MyProfilePage() {
-  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge, deleteAccount } = useAuthStore();
+  const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge, markFoundingCelebrationSeen, deleteAccount } = useAuthStore();
   const { locale, t } = useLocale();
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
@@ -168,11 +168,6 @@ export default function MyProfilePage() {
            const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
            updateUnlockedBadges(nextBadges);
 
-           // founding_100 gets its own grand celebration modal instead of the
-           // generic toast — everything else keeps the normal notification.
-           if (newBadges.includes('founding_100')) {
-             setShowFoundingCelebration(true);
-           }
            const toastWorthyBadges = newBadges.filter(b => b !== 'founding_100');
            if (toastWorthyBadges.length > 0) {
              const newBadgeNames = toastWorthyBadges
@@ -185,13 +180,22 @@ export default function MyProfilePage() {
              window.dispatchEvent(event);
            }
         }
+
+        // founding_100's grand celebration is keyed off "have they seen it
+        // yet" rather than "was it newly unlocked this session" — accounts
+        // that silently got the badge before this modal existed would
+        // otherwise never see it, since it'd never show up as "new" again.
+        if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
+          setShowFoundingCelebration(true);
+          markFoundingCelebrationSeen();
+        }
         // --- 끝 ---
       } else {
         setActualTopGenre('-');
       }
     }
     loadStats();
-  }, [user, updateUnlockedBadges, locale, t]);
+  }, [user, updateUnlockedBadges, markFoundingCelebrationSeen, locale, t]);
 
   const handleSaveProfile = async () => {
     try {

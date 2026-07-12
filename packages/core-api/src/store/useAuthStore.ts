@@ -42,6 +42,7 @@ interface AuthState {
   updateFeaturedAlbum: (albumId: number | null) => Promise<void>;
   updateUnlockedBadges: (badgeIds: string[]) => Promise<void>;
   updateSelectedBadge: (badgeId: string | null) => Promise<void>;
+  markFoundingCelebrationSeen: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -289,6 +290,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Failed to update selected badge', error);
       throw error;
+    }
+  },
+  markFoundingCelebrationSeen: async () => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { founding_celebration_seen: true }
+      });
+      if (error) throw error;
+      if (data.user) {
+        set({ user: data.user });
+      }
+    } catch (error) {
+      console.error('Failed to mark founding celebration seen', error);
     }
   },
   deleteAccount: async () => {
