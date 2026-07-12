@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseAppleMusicTracks } from '@vinyla/core-api';
+import { parseAppleMusicAlbumPage } from '@vinyla/core-api';
 
-// Extracts the tracklist a streaming-only album embeds in its public
-// music.apple.com page (schema.org ld+json). The free iTunes lookup API
-// returns no track entities for albums not sold on the iTunes Store, and
-// Korean indie releases are often missing from Deezer too — the album page
-// is the last keyless source, and it carries original-language titles.
-// Browser bundles can't fetch the page cross-origin, so this route does it
-// server-side. Keyless and read-only; the id is validated as numeric.
+// Extracts the localized album name + tracklist a release embeds in its
+// public music.apple.com page (schema.org ld+json). The free iTunes API
+// stores the label's canonical (often English) title and returns no track
+// entities for streaming-only albums — the KR page carries the Korean name
+// (used to verify translated-title search candidates) and the full
+// tracklist. Browser bundles can't fetch the page cross-origin, so this
+// route does it server-side. Keyless and read-only; the id is validated
+// as numeric.
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
   if (!id || !/^\d+$/.test(id)) {
-    return NextResponse.json({ tracks: [] });
+    return NextResponse.json({ name: '', tracks: [] });
   }
 
   try {
@@ -23,10 +24,10 @@ export async function GET(request: NextRequest) {
       },
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return NextResponse.json({ tracks: [] });
-    const tracks = parseAppleMusicTracks(await res.text());
-    return NextResponse.json({ tracks });
+    if (!res.ok) return NextResponse.json({ name: '', tracks: [] });
+    const page = parseAppleMusicAlbumPage(await res.text());
+    return NextResponse.json(page ?? { name: '', tracks: [] });
   } catch {
-    return NextResponse.json({ tracks: [] });
+    return NextResponse.json({ name: '', tracks: [] });
   }
 }
