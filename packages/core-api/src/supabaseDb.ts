@@ -253,6 +253,18 @@ export const upsertUserVinyl = async (
   return data ? { ...(data as USER_VINYL), isFirstEverSave } : null;
 };
 
+// DB-assigned, tamper-proof order this user completed /setup in (see the
+// PROFILES.SIGNUP_NUMBER migration) — backs the founding_100 badge.
+export const getSignupNumber = async (userId: string): Promise<number | null> => {
+  const { data, error } = await supabase
+    .from('PROFILES')
+    .select('SIGNUP_NUMBER')
+    .eq('USER_ID', userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.SIGNUP_NUMBER ?? null;
+};
+
 export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => {
   const { error } = await supabase
     .from('USER_VINYL')

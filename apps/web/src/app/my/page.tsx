@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
@@ -140,6 +140,8 @@ export default function MyProfilePage() {
           }
         });
 
+        const signupNumber = await getSignupNumber(user.id);
+
         const stats: UserStats = {
           ownedCount: mappedOwned.length,
           wishCount: mappedWish.length,
@@ -150,7 +152,8 @@ export default function MyProfilePage() {
           averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
           favoriteGenre: currentGenre,
           ownedGenres: genreCounts,
-          wishGenres
+          wishGenres,
+          signupNumber: signupNumber ?? undefined
         };
 
         const newlyUnlocked = evaluateBadges(stats);

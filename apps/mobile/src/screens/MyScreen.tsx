@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber } from '@vinyla/core-api';
 import * as ImagePicker from 'expo-image-picker';
 // v19 (SDK 54) moved readAsStringAsync to the legacy entry point
 import * as FileSystem from 'expo-file-system/legacy';
@@ -221,6 +221,8 @@ export const MyScreen = () => {
           }
         });
 
+        const signupNumber = await getSignupNumber(user.id);
+
         const stats: UserStats = {
           ownedCount: mappedOwned.length,
           wishCount: mappedWish.length,
@@ -231,7 +233,8 @@ export const MyScreen = () => {
           averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
           favoriteGenre: currentGenre,
           ownedGenres: genreCounts,
-          wishGenres
+          wishGenres,
+          signupNumber: signupNumber ?? undefined
         };
 
         const newlyUnlocked = evaluateBadges(stats);

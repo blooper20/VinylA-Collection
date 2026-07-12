@@ -359,3 +359,58 @@ CREATE POLICY "avatar_upload_own" ON storage.objects FOR INSERT TO authenticated
 DROP POLICY IF EXISTS "avatar_delete_own" ON storage.objects;
 CREATE POLICY "avatar_delete_own" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ============================================================
+-- Founding member badge migration (2026-07-12)
+-- Run this whole section manually in the Supabase SQL Editor.
+--
+-- Adds a permanent, DB-assigned signup number to PROFILES so a "first
+-- 100 users" badge can't be spoofed. Every other badge is evaluated
+-- client-side from the user's own collection stats and self-reported
+-- via updateUnlockedBadges() with no server validation — fine for
+-- vanity badges, not fine for something meant to be scarce/exclusive.
+-- ============================================================
+
+-- 1. One monotonically increasing number per profile, assigned once.
+CREATE SEQUENCE IF NOT EXISTS public.profiles_signup_seq;
+ALTER TABLE public."PROFILES" ADD COLUMN IF NOT EXISTS "SIGNUP_NUMBER" integer;
+
+-- 2. Trigger owns SIGNUP_NUMBER (same pattern as enforce_nickname_cooldown
+--    owning LAST_NAME_CHANGED_AT) — a client can UPDATE its own PROFILES
+--    row under RLS, but can never move up the queue this way.
+CREATE OR REPLACE FUNCTION public.assign_signup_number()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW."SIGNUP_NUMBER" := nextval('public.profiles_signup_seq');
+  ELSE
+    NEW."SIGNUP_NUMBER" := OLD."SIGNUP_NUMBER";
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_assign_signup_number ON public."PROFILES";
+CREATE TRIGGER trg_assign_signup_number
+  BEFORE INSERT OR UPDATE ON public."PROFILES"
+  FOR EACH ROW EXECUTE FUNCTION public.assign_signup_number();
+
+-- 3. Backfill existing profiles using their real auth.users.created_at
+--    (PROFILES has no CREATED_AT of its own, and LAST_NAME_CHANGED_AT
+--    drifts forward if they ever changed their nickname).
+WITH ordered AS (
+  SELECT p."USER_ID", row_number() OVER (ORDER BY u.created_at) AS rn
+  FROM public."PROFILES" p
+  JOIN auth.users u ON u.id = p."USER_ID"
+)
+UPDATE public."PROFILES" p
+SET "SIGNUP_NUMBER" = ordered.rn
+FROM ordered
+WHERE p."USER_ID" = ordered."USER_ID" AND p."SIGNUP_NUMBER" IS NULL;
+
+-- 4. Point the sequence past the backfilled rows so new signups continue
+--    the count instead of colliding with it.
+SELECT setval('public.profiles_signup_seq', GREATEST((SELECT count(*) FROM public."PROFILES"), 1));

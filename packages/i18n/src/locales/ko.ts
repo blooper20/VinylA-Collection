@@ -295,6 +295,7 @@ export const ko = {
       tier50: { name: '{{genre}} 마니아', description: '{{genreId}} 장르 앨범 50장 이상 보유' },
       tier100: { name: '{{genre}} 처돌이', description: '{{genreId}} 장르 앨범 100장 이상 보유 (히든)' },
     },
+    founding_100: { name: '창단 멤버', description: 'VinylA Collection 서비스 초기 100번째 가입자 안에 들었습니다. (히든)' },
   },
   mobile: {
     tab: {
