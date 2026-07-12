@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { BlurView } from 'expo-blur';
 
 interface DeleteAccountModalProps {
@@ -11,6 +12,7 @@ interface DeleteAccountModalProps {
 
 export const DeleteAccountModal = ({ visible, onClose, onConfirm }: DeleteAccountModalProps) => {
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleConfirm = async () => {
@@ -33,13 +35,13 @@ export const DeleteAccountModal = ({ visible, onClose, onConfirm }: DeleteAccoun
           <View style={[styles.iconWrapper, { backgroundColor: 'rgba(255,82,82,0.12)' }]}>
             <Text style={styles.iconText}>⚠️</Text>
           </View>
-          <Text style={[styles.title, { color: themeColors.textPrimary }]}>정말 탈퇴하시겠습니까?</Text>
+          <Text style={[styles.title, { color: themeColors.textPrimary }]}>{t('deleteAccount.title')}</Text>
           <Text style={[styles.body, { color: themeColors.textSecondary }]}>
-            탈퇴 시 회원님의 모든 컬렉션, 호칭, 위시리스트 및 프로필 정보가 영구적으로 삭제됩니다.
+            {t('deleteAccount.body')}
           </Text>
           <View style={[styles.warningBox, { backgroundColor: 'rgba(255,82,82,0.08)', borderColor: 'rgba(255,82,82,0.3)' }]}>
             <Text style={styles.warningText}>
-              이 작업은 되돌릴 수 없습니다. 삭제된 데이터는 복구할 수 없습니다. 정말 탈퇴하시겠습니까?
+              {t('deleteAccount.warning')}
             </Text>
           </View>
           <View style={styles.actions}>
@@ -48,14 +50,14 @@ export const DeleteAccountModal = ({ visible, onClose, onConfirm }: DeleteAccoun
               onPress={onClose}
               disabled={isDeleting}
             >
-              <Text style={[styles.btnCancelText, { color: themeColors.textPrimary }]}>취소</Text>
+              <Text style={[styles.btnCancelText, { color: themeColors.textPrimary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btnDelete, isDeleting && { opacity: 0.6 }]}
               onPress={handleConfirm}
               disabled={isDeleting}
             >
-              <Text style={styles.btnDeleteText}>{isDeleting ? '처리 중...' : '탈퇴하기'}</Text>
+              <Text style={styles.btnDeleteText}>{isDeleting ? t('deleteAccount.processing') : t('deleteAccount.confirmButton')}</Text>
             </TouchableOpacity>
           </View>
         </BlurView>

@@ -1,15 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useLocale } from '@vinyla/i18n';
 
 interface ErrorStateProps {
   message?: string;
   onRetry?: () => void;
 }
 
-export const ErrorState: React.FC<ErrorStateProps> = ({ 
-  message = '통신이 원활하지 않습니다', 
-  onRetry 
+export const ErrorState: React.FC<ErrorStateProps> = ({
+  message,
+  onRetry
 }) => {
+  const { t } = useLocale();
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
@@ -17,10 +19,10 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
         <View style={styles.lpLabel} />
         <View style={styles.lpHole} />
       </View>
-      <Text style={styles.errorMessage}>{message}</Text>
+      <Text style={styles.errorMessage}>{message || t('mobile.errorState.defaultMessage')}</Text>
       {onRetry && (
         <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-          <Text style={styles.retryText}>다시 시도</Text>
+          <Text style={styles.retryText}>{t('errorPage.retry')}</Text>
         </TouchableOpacity>
       )}
     </View>

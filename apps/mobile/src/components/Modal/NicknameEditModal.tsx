@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -16,6 +17,7 @@ const { height } = Dimensions.get('window');
 
 export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }: NicknameEditModalProps) => {
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -30,14 +32,14 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
 
   const handleSave = async () => {
     if (!nickname.trim()) {
-      setErrorMsg('닉네임을 입력해주세요.');
+      setErrorMsg(t('mobile.nicknameEdit.required'));
       return;
     }
     if (nickname === initialNickname) {
       onClose();
       return;
     }
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
     setErrorMsg('');
@@ -45,7 +47,7 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
       await onSave(nickname.trim());
       onClose();
     } catch (e: any) {
-      setErrorMsg(e.message || '저장에 실패했습니다.');
+      setErrorMsg(e.message || t('mobile.nicknameEdit.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -57,21 +59,21 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
         <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={[styles.content, { backgroundColor: 'rgba(20,20,20,0.6)', borderColor: themeColors.border }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: themeColors.textPrimary }]}>닉네임 변경</Text>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>{t('mobile.nicknameEdit.title')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} disabled={loading}>
               <Text style={{ color: themeColors.textPrimary, fontSize: 16 }}>✕</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.body}>
             <View style={[styles.alertBox, { backgroundColor: 'rgba(255,152,0,0.1)', borderColor: '#ff9800' }]}>
-              <Text style={styles.alertText}>⚠️ 닉네임은 다른 사용자와 중복될 수 없으며, 한 번 변경하면 30일 동안 다시 변경할 수 없습니다.</Text>
+              <Text style={styles.alertText}>{t('mobile.nicknameEdit.warningText')}</Text>
             </View>
 
             <View style={styles.labelRow}>
-              <Text style={[styles.label, { color: themeColors.textSecondary }]}>새 닉네임</Text>
+              <Text style={[styles.label, { color: themeColors.textSecondary }]}>{t('mobile.nicknameEdit.label')}</Text>
               <Text style={[styles.counter, { color: themeColors.textSecondary }]}>
-                {nickname.length}/{NICKNAME_MAX_LENGTH}자
+                {t('setup.nicknameCounter', { current: nickname.length, max: NICKNAME_MAX_LENGTH })}
               </Text>
             </View>
             <TextInput
@@ -81,7 +83,7 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
                 setNickname(text.slice(0, NICKNAME_MAX_LENGTH));
                 setErrorMsg('');
               }}
-              placeholder="닉네임을 입력하세요"
+              placeholder={t('setup.nicknamePlaceholder')}
               placeholderTextColor={themeColors.textSecondary}
               maxLength={NICKNAME_MAX_LENGTH}
               autoCapitalize="none"
@@ -92,16 +94,16 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.saveBtn, 
+                styles.saveBtn,
                 { backgroundColor: themeColors.textPrimary },
                 (loading || !nickname.trim()) && { opacity: 0.5 }
-              ]} 
+              ]}
               onPress={handleSave}
               disabled={loading || !nickname.trim()}
             >
-              <Text style={[styles.saveBtnText, { color: '#000' }]}>{loading ? '저장 중...' : '저장하기'}</Text>
+              <Text style={[styles.saveBtnText, { color: '#000' }]}>{loading ? t('common.saving') : t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>

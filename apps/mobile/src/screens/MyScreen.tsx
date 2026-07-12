@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText } from '@vinyla/core-api';
 import * as ImagePicker from 'expo-image-picker';
 // v19 (SDK 54) moved readAsStringAsync to the legacy entry point
 import * as FileSystem from 'expo-file-system/legacy';
@@ -43,6 +44,7 @@ const VINYL_LABEL_SIZE = Math.round(30 * FEATURED_SCALE);
 const VINYL_HOLE_SIZE = Math.round(4 * FEATURED_SCALE);
 
 const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentPublic, onToggleSpent, glassIntensity, onPress }: any) => {
+  const { t } = useLocale();
   const editable = !!onPress;
   const content = (
     <BlurView
@@ -86,7 +88,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
             style={[styles.spentToggleText, { color: isSpentPublic ? '#d4af37' : 'rgba(255,255,255,0.4)' }]}
             numberOfLines={1}
           >
-            {isSpentPublic ? '공개' : '비공개'}
+            {isSpentPublic ? t('mobile.my.spentPublicShort') : t('mobile.my.spentPrivateShort')}
           </Text>
         </TouchableOpacity>
       )}
@@ -101,6 +103,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
 
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
+  const { locale, t } = useLocale();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, deleteAccount } = useAuthStore();
   const insets = useSafeAreaInsets();
 
@@ -238,9 +241,13 @@ export const MyScreen = () => {
         if (newBadges.length > 0) {
            const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
            await updateUnlockedBadges(nextBadges);
-           const newBadgeNames = newBadges.map(id => BADGES.find(b => b.id === id)?.name).filter(Boolean).join(', ');
-           
-           setToastMessage(`🎉 새로운 호칭 획득: ${newBadgeNames}`);
+           const newBadgeNames = newBadges
+             .map(id => BADGES.find(b => b.id === id))
+             .filter((b): b is Badge => Boolean(b))
+             .map(b => getBadgeText(b, locale, t).name)
+             .join(', ');
+
+           setToastMessage(t('my.badgeUnlocked', { names: newBadgeNames }));
            setIsToastVisible(true);
         }
 
@@ -251,7 +258,7 @@ export const MyScreen = () => {
     } catch (e) {
       console.error('Failed to load stats', e);
     }
-  }, [user, updateUnlockedBadges]);
+  }, [user, updateUnlockedBadges, locale, t]);
 
   // Refresh on every focus (not just mount) so stats reflect albums added
   // via Scan while the My tab was already mounted in the background.
@@ -294,7 +301,7 @@ export const MyScreen = () => {
       
       try {
         await Share.share({
-          message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 레코드 컬렉션을 확인해보세요!\n\n${link}`,
+          message: t('mobile.home.shareMessage', { name: user.user_metadata?.displayName || t('common.defaultCollectorName'), link }),
         });
       } catch (error) {
         console.error(error);
@@ -306,10 +313,10 @@ export const MyScreen = () => {
     setBadgeModalVisible(false);
     if (badge.isEarned) {
       await updateSelectedBadge(badge.id);
-      setToastMessage(`'${badge.name}' 뱃지를 장착했습니다!`);
+      setToastMessage(t('mobile.my.badgeEquipped', { name: getBadgeText(badge, locale, t).name }));
       setIsToastVisible(true);
     } else {
-      setToastMessage(`아직 획득하지 못한 뱃지입니다.`);
+      setToastMessage(t('mobile.my.badgeNotEarned'));
       setIsToastVisible(true);
     }
   };
@@ -317,7 +324,7 @@ export const MyScreen = () => {
   const handleFeaturedSelect = async (albumId: string | number | null) => {
     const numericId = albumId ? Number(albumId) : null;
     await updateFeaturedAlbum(numericId);
-    setToastMessage(numericId ? '대표 LP가 설정되었습니다.' : '대표 LP 설정이 해제되었습니다.');
+    setToastMessage(numericId ? t('mobile.my.featuredSet') : t('mobile.my.featuredUnset'));
     setIsToastVisible(true);
   };
 
@@ -334,7 +341,7 @@ export const MyScreen = () => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={themeColors.accent || '#E9C349'}
-            title="새로고침 중..."
+            title={t('mobile.my.refreshing')}
             titleColor={themeColors.accent || '#E9C349'}
             colors={[themeColors.accent || '#E9C349']}
             progressViewOffset={20}
@@ -373,12 +380,12 @@ export const MyScreen = () => {
                     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
                     
                     await updateProfile(
-                      user?.user_metadata?.displayName || '컬렉터', 
-                      user?.user_metadata?.interests || [], 
+                      user?.user_metadata?.displayName || t('common.defaultCollectorName'),
+                      user?.user_metadata?.interests || [],
                       data.publicUrl
                     );
-                    
-                    setToastMessage('프로필 사진이 변경되었습니다.');
+
+                    setToastMessage(t('mobile.my.avatarUpdated'));
                     setIsToastVisible(true);
                   } finally {
                     setIsUploading(false);
@@ -386,7 +393,7 @@ export const MyScreen = () => {
                 }
               } catch (error) {
                 console.error(error);
-                setToastMessage('업로드에 실패했습니다.');
+                setToastMessage(t('mobile.my.uploadFailed'));
                 setIsToastVisible(true);
               }
             }}
@@ -403,7 +410,7 @@ export const MyScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setNicknameModalVisible(true)} style={styles.nicknameRow}>
             <Text style={[styles.userName, { color: themeColors.textPrimary }]} numberOfLines={1}>
-              {user?.user_metadata?.displayName || '컬렉터'}
+              {user?.user_metadata?.displayName || t('common.defaultCollectorName')}
             </Text>
             <Feather name="edit-2" size={13} color={themeColors.textSecondary} style={styles.nicknameEditIcon} />
           </TouchableOpacity>
@@ -412,7 +419,7 @@ export const MyScreen = () => {
               style={[styles.badge, { backgroundColor: themeColors.accent }]}
               onPress={() => setBadgeModalVisible(true)}
             >
-              <Text style={styles.badgeText}>{selectedBadgeObj.name}</Text>
+              <Text style={styles.badgeText}>{getBadgeText(selectedBadgeObj, locale, t).name}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.shareIconBtn, { borderColor: themeColors.border }]}
@@ -499,7 +506,7 @@ export const MyScreen = () => {
             ) : (
               <View style={styles.featuredEmpty}>
                 <Text style={{ color: themeColors.textSecondary, fontSize: 32, marginBottom: 8 }}>+</Text>
-                <Text style={{ color: themeColors.textSecondary, fontSize: 14 }}>대표 LP 설정</Text>
+                <Text style={{ color: themeColors.textSecondary, fontSize: 14 }}>{t('featuredLp.title')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -507,56 +514,56 @@ export const MyScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>컬렉션 분석</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>{t('mobile.my.analysisTitle')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-          <AnalyticsCard title="시장 추정가" value={collectionValue.toLocaleString()} unit="₩" sub="Discogs 기준 최저가 합산" themeColors={themeColors} glassIntensity={glassIntensity} />
-          <AnalyticsCard 
-            title="실제 지출액" 
-            value={isSpentPublic ? actualSpentValue.toLocaleString() : '비공개'} 
-            unit={isSpentPublic ? "₩" : ""} 
-            sub="입력된 구매가 합산" 
+          <AnalyticsCard title={t('stats.marketPrice')} value={collectionValue.toLocaleString()} unit="₩" sub={t('stats.marketPriceSub')} themeColors={themeColors} glassIntensity={glassIntensity} />
+          <AnalyticsCard
+            title={t('stats.actualSpent')}
+            value={isSpentPublic ? actualSpentValue.toLocaleString() : t('mobile.my.spentPrivateShort')}
+            unit={isSpentPublic ? "₩" : ""}
+            sub={t('stats.actualSpentSub')}
             themeColors={themeColors}
             isSpent={true}
             isSpentPublic={isSpentPublic}
             onToggleSpent={() => setIsSpentPublic(!isSpentPublic)}
             glassIntensity={glassIntensity}
           />
-          <AnalyticsCard title="보유 LP" value={ownedCount.toLocaleString()} sub="등록된 전체 LP 수" themeColors={themeColors} glassIntensity={glassIntensity} />
-          <AnalyticsCard 
-            title="관심 장르" 
-            value={(user?.user_metadata?.interests && user?.user_metadata?.interests.length > 0) 
-              ? user.user_metadata.interests[0] 
-              : "없음"} 
-            sub={(user?.user_metadata?.interests && user.user_metadata.interests.length > 1) 
-              ? `외 ${user.user_metadata.interests.length - 1}개` 
+          <AnalyticsCard title={t('stats.ownedLp')} value={ownedCount.toLocaleString()} sub={t('stats.ownedLpSub')} themeColors={themeColors} glassIntensity={glassIntensity} />
+          <AnalyticsCard
+            title={t('stats.interestGenre')}
+            value={(user?.user_metadata?.interests && user?.user_metadata?.interests.length > 0)
+              ? user.user_metadata.interests[0]
+              : t('mobile.my.noneFallback')}
+            sub={(user?.user_metadata?.interests && user.user_metadata.interests.length > 1)
+              ? t('mobile.my.moreCount', { count: user.user_metadata.interests.length - 1 })
               : ""}
-            themeColors={themeColors} 
+            themeColors={themeColors}
             glassIntensity={glassIntensity}
             onPress={() => setGenreModalVisible(true)}
           />
-          <AnalyticsCard title="실제 관심 장르" value={actualTopGenre} sub="내 콜렉션 데이터 기준" themeColors={themeColors} glassIntensity={glassIntensity} />
+          <AnalyticsCard title={t('stats.actualTopGenre')} value={actualTopGenre} sub={t('stats.actualTopGenreSub')} themeColors={themeColors} glassIntensity={glassIntensity} />
         </ScrollView>
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>나의 레코드 여정</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>{t('mobile.my.journeyTitle')}</Text>
         <View style={styles.timeline}>
           {recentAdditions.length > 0 ? recentAdditions.map((album, index) => (
             <View key={album.ALBUM_ID + '-' + index} style={styles.timelineItem}>
               <View style={[styles.timelineLine, { backgroundColor: themeColors.border }]} />
               <View style={[styles.timelineDot, { backgroundColor: themeColors.accent }]} />
-              <Image 
-                source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                style={styles.timelineImage} 
+              <Image
+                source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../assets/logo_real_transparent.png')}
+                style={styles.timelineImage}
                 resizeMode={album.IMAGE_URL ? "cover" : "contain"}
               />
               <View style={styles.timelineContent}>
                 <Text style={[styles.timelineTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{album.TITLE}</Text>
-                <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>최근 수집됨</Text>
+                <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>{t('mobile.my.recentlyAdded')}</Text>
               </View>
             </View>
           )) : (
-            <Text style={{ color: themeColors.textSecondary, marginLeft: 20 }}>아직 기록된 LP가 없습니다.</Text>
+            <Text style={{ color: themeColors.textSecondary, marginLeft: 20 }}>{t('my.noRecentLp')}</Text>
           )}
         </View>
       </View>
@@ -567,14 +574,14 @@ export const MyScreen = () => {
           onPress={() => setIsSettingsExpanded(v => !v)}
           activeOpacity={0.7}
         >
-          <Text style={[styles.settingsToggleText, { color: themeColors.textPrimary }]}>설정 {isSettingsExpanded ? '닫기' : '열기'}</Text>
+          <Text style={[styles.settingsToggleText, { color: themeColors.textPrimary }]}>{isSettingsExpanded ? t('mobile.my.settingsToggleClose') : t('mobile.my.settingsToggleOpen')}</Text>
           <Feather name={isSettingsExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={themeColors.textPrimary} />
         </TouchableOpacity>
         <View style={[styles.settingsDivider, { backgroundColor: themeColors.border }]} />
 
         {isSettingsExpanded && (
           <View style={{ marginTop: 20 }}>
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>글래스 효과 강도</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>{t('mobile.my.glassIntensityTitle')}</Text>
             <View style={{ flexDirection: 'row', paddingHorizontal: 20, justifyContent: 'space-between', gap: 8 }}>
               {[10, 30, 50, 70, 90].map((val) => (
                 <TouchableOpacity
@@ -594,7 +601,7 @@ export const MyScreen = () => {
                   }}
                 >
                   <Text style={[styles.themeBtnText, { color: glassIntensity === val ? themeColors.accent : themeColors.textSecondary }]}>
-                    {val === 10 ? '약함' : val === 90 ? '강함' : val}
+                    {val === 10 ? t('mobile.my.weak') : val === 90 ? t('mobile.my.strong') : val}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -619,14 +626,14 @@ export const MyScreen = () => {
             }
           }}
         >
-          <Text style={styles.logoutBtnText}>로그아웃</Text>
+          <Text style={styles.logoutBtnText}>{t('nav.logout')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.deleteAccountBtn}
           onPress={() => setDeleteModalVisible(true)}
         >
-          <Text style={styles.deleteAccountBtnText}>회원 탈퇴</Text>
+          <Text style={styles.deleteAccountBtnText}>{t('my.accountDelete')}</Text>
         </TouchableOpacity>
       </View>
       </ScrollView>
@@ -656,7 +663,7 @@ export const MyScreen = () => {
         onSave={async (genres) => {
           await updateProfile(user?.user_metadata?.displayName || '', genres, user?.user_metadata?.avatar_url);
           setGenreModalVisible(false);
-          setToastMessage('관심 장르가 업데이트되었습니다.');
+          setToastMessage(t('mobile.my.genreUpdated'));
           setIsToastVisible(true);
         }}
       />
@@ -668,7 +675,7 @@ export const MyScreen = () => {
         onSave={async (nickname) => {
           await updateProfile(nickname, user?.user_metadata?.interests || [], user?.user_metadata?.avatar_url);
           setNicknameModalVisible(false);
-          setToastMessage('닉네임이 업데이트되었습니다.');
+          setToastMessage(t('mobile.my.nicknameUpdated'));
           setIsToastVisible(true);
         }}
       />

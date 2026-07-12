@@ -5,6 +5,7 @@ import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, AlbumIt
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
 import { MockVinylData } from '@vinyla/shared-types';
+import { useLocale } from '@vinyla/i18n';
 
 const { width } = Dimensions.get('window');
 const itemSize = (width - 40 - 16) / 2; // (Screen Width - Padding * 2 - Gap) / 2
@@ -27,6 +28,7 @@ const genres = [
 
 export const SearchScreen = ({ route }: any) => {
   const insets = useSafeAreaInsets();
+  const { locale, t } = useLocale();
   const initialQuery = route?.params?.initialQuery || '';
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<MockVinylData[]>([]);
@@ -103,7 +105,7 @@ export const SearchScreen = ({ route }: any) => {
           import('@vinyla/core-api').then(({ getErrorMessage }) => {
             // Need to import Alert from react-native or use custom Alert
             import('react-native').then(({ Alert }) => {
-              Alert.alert('오류', getErrorMessage(error));
+              Alert.alert(t('common.error'), getErrorMessage(error, t));
             });
           });
         }
@@ -170,9 +172,9 @@ export const SearchScreen = ({ route }: any) => {
     <View style={styles.container} {...(query ? backGesture.panHandlers : {})}>
       <View style={[styles.searchHero, { paddingTop: insets.top + 40 }]}>
         <View style={styles.searchInputContainer}>
-          <TextInput 
+          <TextInput
             style={styles.searchInput}
-            placeholder="어떤 바이닐을 찾으시나요?"
+            placeholder={t('mobile.search.placeholder')}
             placeholderTextColor="rgba(255,255,255,0.3)"
             value={query}
             onChangeText={setQuery}
@@ -199,23 +201,23 @@ export const SearchScreen = ({ route }: any) => {
         >
           {!query && (
             <View>
-              <Text style={styles.sectionTitle}>장르 탐색</Text>
+              <Text style={styles.sectionTitle}>{t('mobile.search.genreSectionTitle')}</Text>
               <View style={styles.genresGrid}>
                 {genres.map((genre, index) => (
-                  <TouchableOpacity 
-                    key={index} 
+                  <TouchableOpacity
+                    key={index}
                     style={[styles.genreCard, { height: genre.height }]}
                     onPress={() => handleGenreClick(genre.title, genre.sub)}
                   >
-                    <ImageBackground 
-                      source={{ uri: genre.img }} 
-                      style={StyleSheet.absoluteFill} 
+                    <ImageBackground
+                      source={{ uri: genre.img }}
+                      style={StyleSheet.absoluteFill}
                       imageStyle={styles.genreImage}
                     >
                       <View style={styles.genreOverlay} />
                       <View style={styles.genreTextContainer}>
-                        <Text style={styles.genreText}>{genre.title}</Text>
-                        <Text style={styles.genreSubText}>{genre.sub}</Text>
+                        <Text style={styles.genreText}>{locale === 'ko' ? genre.title : genre.sub}</Text>
+                        {locale === 'ko' && <Text style={styles.genreSubText}>{genre.sub}</Text>}
                       </View>
                     </ImageBackground>
                   </TouchableOpacity>
@@ -229,12 +231,12 @@ export const SearchScreen = ({ route }: any) => {
               <View style={styles.titleRow}>
                 <Text style={styles.sectionTitle}>
                   {isLoadingMore
-                    ? `검색 결과 (${results.length})`
+                    ? t('mobile.search.resultsCount', { count: results.length })
                     : isEnriching
-                      ? `고화질 커버 불러오는 중... (${results.length} / ${totalToCheck})`
+                      ? t('mobile.search.enrichingProgress', { current: results.length, total: totalToCheck })
                       : isLoading
-                        ? 'Discogs 검색 중...'
-                        : `검색 결과 (${results.length})`
+                        ? t('mobile.search.searching')
+                        : t('mobile.search.resultsCount', { count: results.length })
                   }
                 </Text>
                 {isLoading && !isLoadingMore && <ActivityIndicator size="small" color="#e9c349" />}
@@ -259,7 +261,7 @@ export const SearchScreen = ({ route }: any) => {
               {isLoadingMore && (
                 <View style={styles.loadMoreRow}>
                   <ActivityIndicator size="small" color="#e9c349" />
-                  <Text style={styles.loadMoreText}>더 불러오는 중...</Text>
+                  <Text style={styles.loadMoreText}>{t('mobile.search.loadingMore')}</Text>
                 </View>
               )}
             </View>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { SortMode, SORT_OPTIONS } from '../utils/sortVinyls';
 
 interface SortChipRowProps {
@@ -10,6 +11,7 @@ interface SortChipRowProps {
 
 export const SortChipRow = ({ value, onChange }: SortChipRowProps) => {
   const { themeColors } = useTheme();
+  const { t } = useLocale();
 
   return (
     <ScrollView
@@ -33,7 +35,7 @@ export const SortChipRow = ({ value, onChange }: SortChipRowProps) => {
             onPress={() => onChange(opt.key)}
           >
             <Text style={[styles.chipText, { color: active ? themeColors.accent : themeColors.textSecondary }]}>
-              {opt.label}
+              {t(`sort.${opt.key}`)}
             </Text>
           </TouchableOpacity>
         );

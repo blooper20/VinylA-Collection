@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -17,7 +18,8 @@ const { width, height } = Dimensions.get('window');
 
 export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, onSelect }: FeaturedLPModalProps) => {
   const { themeColors, glassIntensity } = useTheme();
-  
+  const { t } = useLocale();
+
   const handleSelect = (id: number | null) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSelect(id);
@@ -30,7 +32,7 @@ export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, o
         <BlurView intensity={glassIntensity || 30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={[styles.content, { backgroundColor: 'rgba(20,20,20,0.6)', borderColor: themeColors.border }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: themeColors.textPrimary }]}>대표 LP 설정</Text>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>{t('featuredLp.title')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Text style={{ color: themeColors.textPrimary, fontSize: 16 }}>✕</Text>
             </TouchableOpacity>
@@ -48,7 +50,7 @@ export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, o
               <View style={[styles.emptyCover, { borderColor: themeColors.border }]}>
                 <Text style={{ color: themeColors.textSecondary }}>✕</Text>
               </View>
-              <Text style={[styles.albumTitle, { color: themeColors.textPrimary }]}>선택 안함</Text>
+              <Text style={[styles.albumTitle, { color: themeColors.textPrimary }]}>{t('featuredLp.none')}</Text>
             </TouchableOpacity>
 
             {albums.map((album) => (

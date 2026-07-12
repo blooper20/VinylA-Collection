@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Share } from 'react-native';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
 import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
 import { EmptyState } from '../components/EmptyState';
@@ -22,6 +23,7 @@ const itemSize = width / 2 - 24;
 
 export const WishScreen = () => {
   const { themeColors } = useTheme();
+  const { t } = useLocale();
   const tabBarHeight = useTabBarHeight();
   const styles = getStyles(themeColors, tabBarHeight);
   const [wishes, setWishes] = useState<MockVinylData[]>([]);
@@ -73,7 +75,7 @@ export const WishScreen = () => {
     } catch (e) {
       // Keep whatever the offline cache already rendered; just surface it.
       console.error('Failed to load wishlist', e);
-      showToast('위시리스트를 불러오지 못했습니다. 네트워크를 확인해주세요.');
+      showToast(t('mobile.wish.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +120,7 @@ export const WishScreen = () => {
       const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
       const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}&type=wishlist`;
       await Share.share({
-        message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 위시리스트를 확인해보세요!\n\n${link}`,
+        message: t('mobile.wish.shareMessage', { name: user.user_metadata?.displayName || t('common.defaultCollectorName'), link }),
       });
     } catch (e) {
       console.error(e);
@@ -134,7 +136,7 @@ export const WishScreen = () => {
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share image', e);
-      showToast('이미지 공유에 실패했습니다.');
+      showToast(t('mobile.wish.imageShareFailed'));
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -152,9 +154,9 @@ export const WishScreen = () => {
 
       {!isLoading && wishes.length === 0 ? (
         <EmptyState
-          title="위시리스트가 비어 있습니다"
-          description="갖고 싶은 앨범을 검색하여 위시리스트에 추가해보세요."
-          buttonText="앨범 검색하기"
+          title={t('mobile.wish.emptyTitle')}
+          description={t('mobile.wish.emptyDesc')}
+          buttonText={t('mobile.wish.emptyButton')}
           onPressAction={() => navigation.navigate('Search')}
         />
       ) : (
@@ -211,14 +213,14 @@ export const WishScreen = () => {
           ref={shareViewRef}
           albums={sortedWishes}
           mode="wishlist"
-          username={user?.user_metadata?.displayName || '컬렉터'}
+          username={user?.user_metadata?.displayName || t('common.defaultCollectorName')}
         />
       </View>
 
       <ShareOptionsSheet
         visible={isShareSheetVisible}
         onClose={() => setShareSheetVisible(false)}
-        title="위시리스트 공유하기"
+        title={t('wishlist.shareSheetTitle')}
         isProcessing={isSharingProcessing}
         onShareLink={handleShareLink}
         onImageShare={handleImageShare}

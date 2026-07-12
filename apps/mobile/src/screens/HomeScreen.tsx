@@ -7,6 +7,7 @@ import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@viny
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { BlurView } from 'expo-blur';
 import { AppHeader, VinylViewMode } from '../components/AppHeader';
 import { ShareableGridView } from '../components/Share/ShareableGridView';
@@ -23,6 +24,7 @@ const itemSize = width / 2 - 24;
 
 export const HomeScreen = () => {
   const { themeColors, glassIntensity } = useTheme();
+  const { t } = useLocale();
   const tabBarHeight = useTabBarHeight();
   const styles = getStyles(themeColors, shadows, shape, tabBarHeight);
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
@@ -80,7 +82,7 @@ export const HomeScreen = () => {
       } catch (e) {
         // Keep whatever the offline cache already rendered; just surface it.
         console.error('Failed to load collection', e);
-        showToast('컬렉션을 불러오지 못했습니다. 네트워크를 확인해주세요.');
+        showToast(t('mobile.home.loadFailed'));
       } finally {
         setIsLoading(false);
       }
@@ -126,7 +128,7 @@ export const HomeScreen = () => {
       const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://vinyla.vercel.app';
       const link = `${baseUrl}/user/${user.id}?n=${name}&a=${avatar}`;
       await Share.share({
-        message: `🎧 ${user.user_metadata?.displayName || '컬렉터'}님의 레코드 컬렉션을 확인해보세요!\n\n${link}`,
+        message: t('mobile.home.shareMessage', { name: user.user_metadata?.displayName || t('common.defaultCollectorName'), link }),
       });
     } catch (e) {
       console.error(e);
@@ -142,7 +144,7 @@ export const HomeScreen = () => {
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share image', e);
-      showToast('이미지 공유에 실패했습니다.');
+      showToast(t('mobile.home.imageShareFailed'));
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -207,14 +209,14 @@ export const HomeScreen = () => {
           ref={shareViewRef}
           albums={sortedAlbums}
           mode="collection"
-          username={user?.user_metadata?.displayName || '컬렉터'}
+          username={user?.user_metadata?.displayName || t('common.defaultCollectorName')}
         />
       </View>
 
       <ShareOptionsSheet
         visible={isShareSheetVisible}
         onClose={() => setShareSheetVisible(false)}
-        title="보관함 공유하기"
+        title={t('collection.shareSheetTitle')}
         isProcessing={isSharingProcessing}
         onShareLink={handleShareLink}
         onImageShare={handleImageShare}

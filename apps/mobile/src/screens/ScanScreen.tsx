@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, shadows, shape } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 import { useAlert } from '../providers/AlertProvider';
 import { getApiBaseUrl } from '../utils/apiConfig';
 import { logEvent, supabase } from '@vinyla/core-api';
@@ -22,6 +23,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const RESULT_CARD_WIDTH = (screenWidth - 60) / 2;
 export const ScanScreen = () => {
   const { themeColors } = useTheme();
+  const { t } = useLocale();
   const { showAlert } = useAlert();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -38,12 +40,12 @@ export const ScanScreen = () => {
   if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
-        <Text style={styles.permissionTitle}>카메라 권한 안내</Text>
+        <Text style={styles.permissionTitle}>{t('mobile.scan.permissionTitle')}</Text>
         <Text style={styles.permissionDesc}>
-          LP 앨범 커버를 인식하여 프라이빗 컬렉션에 추가하기 위해 카메라 권한이 필요합니다.
+          {t('mobile.scan.permissionDesc')}
         </Text>
         <TouchableOpacity style={styles.btnPrimary} onPress={requestPermission}>
-          <Text style={styles.btnPrimaryText}>권한 허용하기</Text>
+          <Text style={styles.btnPrimaryText}>{t('mobile.scan.permissionAllow')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -125,7 +127,7 @@ export const ScanScreen = () => {
         setImageSearchResults(data.candidates);
         logEvent('SCAN', { result: 'success', candidates: data.candidates.length });
       } else {
-        showAlert('검색 결과 없음', '해당 앨범과 일치하는 후보를 찾지 못했습니다.');
+        showAlert(t('mobile.scan.noMatchTitle'), t('mobile.scan.noMatchDesc'));
         setImageSearchResults(null);
         cameraRef.current?.resumePreview();
         logEvent('SCAN', { result: 'no_match' });
@@ -139,7 +141,7 @@ export const ScanScreen = () => {
         status: statusMatch ? Number(statusMatch[1]) : undefined,
         message: String(error?.message || '').slice(0, 120),
       });
-      showAlert('인식 실패', '앨범 커버를 인식하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.');
+      showAlert(t('mobile.scan.recognitionFailedTitle'), t('mobile.scan.recognitionFailedDesc'));
       cameraRef.current?.resumePreview();
     } finally {
       setIsScanning(false);
@@ -184,7 +186,7 @@ export const ScanScreen = () => {
       }
     } catch (error) {
       console.error('Failed to take picture:', error);
-      showAlert('촬영 실패', '사진 촬영에 실패했습니다.');
+      showAlert(t('mobile.scan.captureFailedTitle'), t('mobile.scan.captureFailedDesc'));
       cameraRef.current?.resumePreview();
       setIsScanning(false);
     }
@@ -204,7 +206,7 @@ export const ScanScreen = () => {
       }
     } catch (error) {
       console.error('Failed to pick image:', error);
-      showAlert('오류', '이미지를 불러오는데 실패했습니다.');
+      showAlert(t('common.error'), t('mobile.scan.pickErrorDesc'));
     }
   };
 
@@ -219,7 +221,7 @@ export const ScanScreen = () => {
         {!imageSearchResults && (
           <View style={styles.overlay}>
             <View style={[styles.topDim, { justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 24 }]}>
-              <Text style={styles.guideText}>사각형 안에 앨범을 맞춰주세요</Text>
+              <Text style={styles.guideText}>{t('mobile.scan.guideText')}</Text>
             </View>
             <View style={styles.middleRow}>
               <View style={styles.sideDim} />
@@ -248,7 +250,7 @@ export const ScanScreen = () => {
       {imageSearchResults && (
         <View style={[StyleSheet.absoluteFillObject, styles.resultsContainer, { paddingTop: insets.top + 12 }]}>
           <View style={styles.resultsHeader}>
-             <Text style={styles.resultsTitle}>스캔 검색 결과 ({imageSearchResults.length})</Text>
+             <Text style={styles.resultsTitle}>{t('mobile.scan.resultsTitle', { count: imageSearchResults.length })}</Text>
              <TouchableOpacity onPress={() => {
                setImageSearchResults(null);
                cameraRef.current?.resumePreview();
