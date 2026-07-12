@@ -387,9 +387,14 @@ AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     NEW."SIGNUP_NUMBER" := nextval('public.profiles_signup_seq');
-  ELSE
+  ELSIF OLD."SIGNUP_NUMBER" IS NOT NULL THEN
+    -- Already assigned — immutable, ignore whatever the client sent.
     NEW."SIGNUP_NUMBER" := OLD."SIGNUP_NUMBER";
   END IF;
+  -- else: OLD.SIGNUP_NUMBER IS NULL (not yet backfilled) — let NEW's
+  -- value through. Only matters for step 3's one-time backfill UPDATE
+  -- below; every row inserted after this migration gets its number at
+  -- INSERT time, so OLD.SIGNUP_NUMBER is never NULL for it again.
   RETURN NEW;
 END;
 $$;
