@@ -111,6 +111,92 @@ export type DiscogsSearchSession = {
   loadMore: () => Promise<boolean>;
 };
 
+// ── Aladin: supplementary source for Korean domestic LPs ──────────────────
+// Discogs is crowdsourced from people who physically own the record — a
+// Korean indie/pop LP that's still on pre-order (or just released) genuinely
+// has no Discogs entry yet. Aladin's 음반 storefront lists pre-order and
+// new-release LPs directly, filling that specific gap. Only queried for
+// Korean-language, non-genre searches (see isKoreanQuery below) — English/
+// genre browsing is already well covered by Discogs and querying Aladin
+// there would just burn the free-tier daily quota for no benefit.
+//
+// ALBUM_ID is bigint in Postgres / typed `number` everywhere in the app, so
+// Aladin items can't carry a string id — but they also can't reuse Discogs's
+// numeric id space directly (two independent id authorities could collide).
+// Offsetting well above Discogs's real id range (currently low millions)
+// keeps every id numeric, unique, and reversible.
+const ALADIN_ID_OFFSET = 9_000_000_000;
+
+const getAladinAuth = (): string | null => process.env.ALADIN_TTB_KEY || null;
+
+interface AladinItem {
+  itemId: number;
+  title: string;
+  author: string;
+  pubDate?: string;
+  cover?: string;
+  stockStatus?: string;
+}
+
+// Aladin's SearchTarget=Music returns every music format (CD, cassette,
+// etc.) — it has no separate structured format field, but the format is
+// reliably present as bracketed text in the title (e.g. "[180g White 2LP]",
+// "[2CD]", "[...12\" LP]"). Split into alphanumeric tokens and check for an
+// exact "(digits)LP" token — avoids both \bLP\b's false negative on "2LP"
+// (digits are word characters, so there's no boundary before "L") and
+// lookaround regex (unreliable on Hermes, the RN JS engine this also runs
+// under via apps/mobile).
+const isAladinLP = (title: string): boolean =>
+  (title || '').split(/[^A-Za-z0-9]+/).some((token) => /^\d*LP$/i.test(token));
+
+const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
+  try {
+    const ttbKey = getAladinAuth();
+    const items: AladinItem[] = ttbKey
+      ? await axios
+          .get('https://www.aladin.co.kr/ttb/api/ItemSearch.aspx', {
+            params: {
+              ttbkey: ttbKey,
+              Query: query.slice(0, 200),
+              QueryType: 'Keyword',
+              SearchTarget: 'Music',
+              output: 'js',
+              Version: '20131101',
+              MaxResults: 20,
+            },
+          })
+          .then((r) =>
+            Array.isArray(r.data?.item)
+              ? r.data.item.map((it: Record<string, unknown>) => ({
+                  itemId: it.itemId,
+                  title: it.title,
+                  author: it.author,
+                  pubDate: it.pubDate,
+                  cover: it.cover,
+                  stockStatus: it.stockStatus,
+                }))
+              : []
+          )
+      : await axios
+          .get(`${getProxyBaseUrl()}/api/external/aladin-search`, { params: { q: query } })
+          .then((r) => (Array.isArray(r.data?.items) ? r.data.items : []));
+
+    return items
+      .filter((it) => it.itemId && isAladinLP(it.title))
+      .map((it): DiscogsRelease => ({
+        id: ALADIN_ID_OFFSET + it.itemId,
+        master_id: ALADIN_ID_OFFSET + it.itemId,
+        title: it.title,
+        year: it.pubDate ? it.pubDate.slice(0, 4) : '',
+        format: ['LP'],
+        thumb: it.cover || '',
+        cover_image: it.cover || '',
+      }));
+  } catch {
+    return [];
+  }
+};
+
 export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,
@@ -118,6 +204,7 @@ export const createDiscogsSearchSession = (
 ): DiscogsSearchSession => {
   const serverAuth = getDiscogsAuth();
   const isGenreQuery = query.startsWith('#');
+  const isKoreanQuery = /[가-힣]/.test(query);
 
   // State persisting across batches so paging never re-shows the same LP.
   const seenMasters = new Set<number>();
@@ -210,6 +297,13 @@ export const createDiscogsSearchSession = (
         if (alias) {
           promises.push(fetchPage({ artist: alias, page: batch + 1 }));
         }
+        // Korean domestic releases (pre-order-only LPs especially) are often
+        // missing from Discogs entirely — see fetchAladinResults above.
+        // Fetched once per session, not per page (Aladin isn't paginated
+        // the same way Discogs batches are).
+        if (isKoreanQuery && batch === 0) {
+          promises.push(fetchAladinResults(query));
+        }
       }
 
       const pages = await Promise.all(promises);
@@ -237,7 +331,6 @@ export const createDiscogsSearchSession = (
     const unique: { r: DiscogsRelease, isFeature: boolean }[] = [];
     const queryLower = query.toLowerCase();
     const aliasLower = alias.toLowerCase();
-    const isKoreanQuery = /[가-힣]/.test(query);
 
     for (const r of raw) {
       const formats: string[] = r.format || [];
