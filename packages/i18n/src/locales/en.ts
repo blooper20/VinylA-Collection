@@ -340,7 +340,7 @@ export const en = {
       shareMessage: '🎧 Check out {{name}}\'s wishlist!\n\n{{link}}',
     },
     search: {
-      placeholder: 'What vinyl are you looking for?',
+      placeholder: 'Search for vinyl',
       genreSectionTitle: 'Explore Genres',
       resultsCount: 'Results ({{count}})',
       enrichingProgress: 'Loading high-res covers... ({{current}} / {{total}})',
