@@ -149,6 +149,28 @@ interface AladinItem {
 const isAladinLP = (title: string): boolean =>
   (title || '').split(/[^A-Za-z0-9]+/).some((token) => /^\d*LP$/i.test(token));
 
+// Aladin titles carry commerce/packaging text Discogs titles don't (e.g.
+// "정규 3집 Flash and Core [180g White 2LP] - Triple Gatefold Jacket") — left
+// as-is, that whole string becomes the "title" half of the shared
+// "Artist - Title" pipeline, which then feeds a near-useless search term
+// into the Apple Music cover/tracklist lookup (enrich()) and shows a messy
+// title in the UI. Strips everything after the *first* " - " (the artist
+// prefix — found positionally, not by matching Aladin's separate `author`
+// field text, since that sometimes differs from the title's own prefix,
+// e.g. author "연정 (YEONJEONG)" vs title-prefix "연정"), then the bracketed
+// spec and anything after a second " - " (packaging notes).
+const cleanAladinTitle = (rawTitle: string): string => {
+  const raw = rawTitle || '';
+  const idx = raw.indexOf(' - ');
+  const rest = idx >= 0 ? raw.slice(idx + 3) : raw;
+  return rest
+    .replace(/\[[^\]]*\]/g, '') // bracketed format/edition spec, e.g. "[180g White 2LP]"
+    .split(' - ')[0] // drop trailing packaging notes after a second " - "
+    .replace(/정규\s*\d+집/g, '') // "정규 3집" style numbering — noise, not part of the title
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
   try {
     const ttbKey = getAladinAuth();
@@ -183,15 +205,18 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
 
     return items
       .filter((it) => it.itemId && isAladinLP(it.title))
-      .map((it): DiscogsRelease => ({
-        id: ALADIN_ID_OFFSET + it.itemId,
-        master_id: ALADIN_ID_OFFSET + it.itemId,
-        title: it.title,
-        year: it.pubDate ? it.pubDate.slice(0, 4) : '',
-        format: ['LP'],
-        thumb: it.cover || '',
-        cover_image: it.cover || '',
-      }));
+      .map((it): DiscogsRelease => {
+        const cleanTitle = cleanAladinTitle(it.title) || it.title;
+        return {
+          id: ALADIN_ID_OFFSET + it.itemId,
+          master_id: ALADIN_ID_OFFSET + it.itemId,
+          title: `${it.author} - ${cleanTitle}`,
+          year: it.pubDate ? it.pubDate.slice(0, 4) : '',
+          format: ['LP'],
+          thumb: it.cover || '',
+          cover_image: it.cover || '',
+        };
+      });
   } catch {
     return [];
   }
