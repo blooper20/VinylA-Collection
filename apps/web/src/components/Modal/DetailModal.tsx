@@ -2,6 +2,7 @@ import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
@@ -15,6 +16,7 @@ interface DetailModalProps {
 
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const { user } = useAuthStore();
+  const { t } = useLocale();
   const [tracks, setTracks] = React.useState<string[]>(album.TRACKS || []);
   const [notes, setNotes] = React.useState<string>('');
   const [copyright, setCopyright] = React.useState<string>('');
@@ -49,7 +51,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       setIsShareOpen(false);
       const link = `${window.location.origin}/collection?album=${album.ALBUM_ID}`;
       await import('../../utils/shareUtils').then(m => m.copyToClipboard(link));
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '앨범 링크가 복사되었습니다!' } }));
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.linkCopied') } }));
     },
     saveImage: async () => {
       setIsShareOpen(false);
@@ -72,7 +74,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     shareNative: async () => {
       const blob = await captureStoryImage('jpeg');
       if (blob) {
-        await shareImageNative(blob, 'vinyla-story.jpg');
+        await shareImageNative(blob, 'vinyla-story.jpg', t('previewModal.imageCopied'));
       }
     }
   };
@@ -142,7 +144,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
       if (!user?.id) {
         window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-          detail: { message: '로그인이 필요합니다.' }
+          detail: { message: t('detail.loginRequired') }
         }));
         return;
       }
@@ -185,9 +187,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       setTimeout(() => {
         onClose();
         
-        let message = `성공적으로 ${status === 'OWNED' ? '보관함' : '위시리스트'}에 추가되었습니다!`;
+        let message = t('detail.savedToTarget', { target: status === 'OWNED' ? t('nav.collection') : t('nav.wishlist') });
         if (status === 'OWNED' && album.STATUS === 'OWNED') {
-          message = '구입가가 성공적으로 저장되었습니다!';
+          message = t('detail.priceSaved');
         }
 
         // Dispatch custom event for Toast
@@ -198,7 +200,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       }, 600);
     } catch (error) {
       console.error('Failed to save album:', error);
-      const msg = getErrorMessage(error);
+      const msg = getErrorMessage(error, t);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
         detail: { message: msg }
       }));
@@ -214,13 +216,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
       onClose();
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-        detail: { message: `성공적으로 ${target === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제되었습니다.` }
+        detail: { message: t('detail.removedFromTarget', { target: target === 'OWNED' ? t('nav.collection') : t('nav.wishlist') }) }
       }));
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     } catch (e) {
       console.error(e);
       setConfirmTarget(null);
-      const msg = getErrorMessage(e);
+      const msg = getErrorMessage(e, t);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: msg }}));
     } finally {
       setIsDeleting(false);
@@ -257,23 +259,23 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <div style={{ marginBottom: 24 }}>
               <div className={styles.estimatedValue} style={{ marginBottom: 4 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
-                시장 추정가: {marketPrice === -1 ? '정보 없음' : marketPrice ? `₩${marketPrice.toLocaleString()}` : '불러오는 중...'}
+                {t('detail.marketPrice')} {marketPrice === -1 ? t('detail.marketPriceUnknown') : marketPrice ? `₩${marketPrice.toLocaleString()}` : t('common.loading')}
               </div>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginLeft: '22px', marginTop: '-2px' }}>
-                * Discogs 기준 최저가
+                {t('detail.discogsLowestNote')}
               </div>
             </div>
             {album.STATUS === 'OWNED' ? (
               <div className={styles.actualValue}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>receipt_long</span>
-                실제 구입가: {album.PURCHASE_PRICE ? `₩${(album.PURCHASE_PRICE).toLocaleString()}` : '미입력'}
-                <button 
+                {t('detail.actualPrice')} {album.PURCHASE_PRICE ? `₩${(album.PURCHASE_PRICE).toLocaleString()}` : t('detail.notEntered')}
+                <button
                   className={styles.editPriceBtn}
                   onClick={() => {
                     setPurchasePriceInput(album.PURCHASE_PRICE ? String(album.PURCHASE_PRICE) : '');
                     setPricePromptOpen(true);
                   }}
-                  title="구입가 수정"
+                  title={t('detail.editPriceTitle')}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                 </button>
@@ -320,8 +322,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             </ul>
             {(releaseDate || copyright || notes) && (
               <div className={styles.extraDetails}>
-                {releaseDate && <div className={styles.detailItem}><span className={styles.detailLabel}>발매일:</span> {releaseDate}</div>}
-                {copyright && <div className={styles.detailItem}><span className={styles.detailLabel}>소속사:</span> {copyright}</div>}
+                {releaseDate && <div className={styles.detailItem}><span className={styles.detailLabel}>{t('detail.releaseDate')}</span> {releaseDate}</div>}
+                {copyright && <div className={styles.detailItem}><span className={styles.detailLabel}>{t('detail.label')}</span> {copyright}</div>}
                 {notes && <div className={styles.detailNotes}>{notes}</div>}
               </div>
             )}
@@ -336,24 +338,24 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                 disabled={isSaving}
               >
                 <span className="material-symbols-outlined">delete</span>
-                보관함 삭제
+                {t('detail.removeFromCollection')}
               </button>
             )}
-            
+
             {album.STATUS === 'WISH' && (
               <>
                 <button className={styles.btnPrimary} onClick={() => setPricePromptOpen(true)} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
-                  보관함 추가
+                  {t('detail.addToCollection')}
                 </button>
-                <button 
-                  className={styles.btnSecondary} 
+                <button
+                  className={styles.btnSecondary}
                   style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f', color: 'white' }}
-                  onClick={() => setConfirmTarget('WISH')} 
+                  onClick={() => setConfirmTarget('WISH')}
                   disabled={isSaving}
                 >
                   <span className="material-symbols-outlined">delete</span>
-                  위시 삭제
+                  {t('detail.removeFromWishlist')}
                 </button>
               </>
             )}
@@ -362,11 +364,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
               <>
                 <button className={styles.btnPrimary} onClick={() => setPricePromptOpen(true)} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
-                  보관함 추가
+                  {t('detail.addToCollection')}
                 </button>
                 <button className={styles.btnSecondary} onClick={() => handleSave('WISH')} disabled={isSaving}>
                   <span className="material-symbols-outlined">bookmark_add</span>
-                  위시
+                  {t('detail.addToWishlist')}
                 </button>
               </>
             )}
@@ -375,7 +377,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           <div className={styles.externalLinks}>
             <button className={styles.linkBtn} onClick={() => setIsShareOpen(true)} disabled={isCapturing}>
               <span className="material-symbols-outlined">ios_share</span>
-              공유하기
+              {t('common.share')}
             </button>
             <button className={styles.linkBtn} onClick={handleYoutubeListen}>
               <span className="material-symbols-outlined">play_circle</span>
@@ -397,16 +399,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <div className={styles.confirmIcon}>
               <span className="material-symbols-outlined">warning</span>
             </div>
-            <h3 className={styles.confirmTitle}>삭제 확인</h3>
+            <h3 className={styles.confirmTitle}>{t('detail.deleteConfirmTitle')}</h3>
             <p className={styles.confirmMessage}>
-              정말로 {confirmTarget === 'OWNED' ? '보관함' : '위시리스트'}에서 삭제하시겠습니까?
+              {t('detail.deleteConfirmMessage', { target: confirmTarget === 'OWNED' ? t('nav.collection') : t('nav.wishlist') })}
             </p>
             <div className={styles.confirmActions}>
               <button className={styles.btnCancel} onClick={() => setConfirmTarget(null)} disabled={isDeleting}>
-                취소
+                {t('common.cancel')}
               </button>
               <button className={styles.btnDelete} onClick={() => handleDelete(confirmTarget)} disabled={isDeleting}>
-                {isDeleting ? '삭제 중...' : '삭제하기'}
+                {isDeleting ? t('common.deleting') : t('common.delete')}
               </button>
             </div>
           </div>
@@ -420,35 +422,35 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             <div className={styles.confirmIcon} style={{ color: 'var(--accent)', backgroundColor: 'rgba(233, 195, 73, 0.1)' }}>
               <span className="material-symbols-outlined">payments</span>
             </div>
-            <h3 className={styles.confirmTitle}>구입가 입력</h3>
+            <h3 className={styles.confirmTitle}>{t('detail.priceInputTitle')}</h3>
             <p className={styles.confirmMessage}>
-              이 LP를 얼마에 구매하셨나요? (숫자만 입력)
+              {t('detail.priceInputQuestion')}
             </p>
-            <input 
-              type="text" 
+            <input
+              type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              value={purchasePriceInput} 
+              value={purchasePriceInput}
               onChange={(e) => setPurchasePriceInput(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="예: 45000"
+              placeholder={t('detail.pricePlaceholder')}
               className={styles.priceInput}
               autoFocus
             />
             <div className={styles.confirmActions}>
               <button className={styles.btnCancel} onClick={() => setPricePromptOpen(false)} disabled={isSaving}>
-                건너뛰기
+                {t('detail.skip')}
               </button>
-              <button 
-                className={styles.btnPrimary} 
+              <button
+                className={styles.btnPrimary}
                 style={{ flex: 1, padding: '12px' }}
                 onClick={() => {
                   const price = Number(purchasePriceInput) || 0;
                   handleSave('OWNED', price);
                   setPricePromptOpen(false);
-                }} 
+                }}
                 disabled={isSaving}
               >
-                {isSaving ? '저장 중...' : '저장하기'}
+                {isSaving ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>
@@ -456,20 +458,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       )}
 
       <StoryTemplate ref={storyTemplateRef} album={album} username={user?.user_metadata?.displayName || 'Collector'} overrideStatus={shareTag as any} />
-      <ShareBottomSheet 
+      <ShareBottomSheet
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        title="공유하기"
+        title={t('common.share')}
         options={[
-          { id: 'link', label: 'URL 복사', icon: 'link', action: handleShareOptions.copyUrl },
-          { id: 'save', label: '이미지 저장', icon: 'download', action: handleShareOptions.saveImage },
-          { id: 'copy', label: '이미지 복사', icon: 'content_copy', action: handleShareOptions.copyImage },
-          { id: 'ig', label: '인스타그램', icon: 'camera_alt', action: handleShareOptions.shareNative },
+          { id: 'link', label: t('share.copyUrl'), icon: 'link', action: handleShareOptions.copyUrl },
+          { id: 'save', label: t('share.saveImage'), icon: 'download', action: handleShareOptions.saveImage },
+          { id: 'copy', label: t('share.copyImage'), icon: 'content_copy', action: handleShareOptions.copyImage },
+          { id: 'ig', label: t('share.instagram'), icon: 'camera_alt', action: handleShareOptions.shareNative },
         ]}
       >
         <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginBottom: '4px' }}>
-            이미지 상단 태그 선택
+            {t('detail.tagSelectPrompt')}
           </div>
           <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '4px' }}>
             {[

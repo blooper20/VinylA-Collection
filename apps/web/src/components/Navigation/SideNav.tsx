@@ -4,25 +4,27 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import styles from './SideNav.module.css';
-
-const navItems = [
-  { name: '컬렉션', path: '/collection', icon: 'shelves' },
-  { name: '탐색',   path: '/search',     icon: 'travel_explore' },
-  { name: '위시리스트', path: '/wishlist',   icon: 'bookmark' },
-  { name: '마이페이지', path: '/my',         icon: 'person' },
-  { name: '문의하기', path: '/support',    icon: 'support_agent' },
-];
-
-const adminNavItem = { name: '관리자', path: '/admin', icon: 'admin_panel_settings' };
 
 export const SideNav: React.FC = () => {
   const pathname = usePathname();
   const { user, initializeAuth } = useAuthStore();
+  const { locale, setLocale, t } = useLocale();
 
   React.useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  const navItems = [
+    { name: t('nav.collection'), path: '/collection', icon: 'shelves' },
+    { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
+    { name: t('nav.wishlist'), path: '/wishlist', icon: 'bookmark' },
+    { name: t('nav.my'), path: '/my', icon: 'person' },
+    { name: t('nav.support'), path: '/support', icon: 'support_agent' },
+  ];
+
+  const adminNavItem = { name: t('nav.admin'), path: '/admin', icon: 'admin_panel_settings' };
 
   return (
     <>
@@ -64,6 +66,14 @@ export const SideNav: React.FC = () => {
 
       {/* Bottom */}
       <div className={styles.bottom}>
+        <div
+          className={styles.navItem}
+          style={{ color: 'var(--text-muted)', cursor: 'pointer' }}
+          onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
+        >
+          <span className={`material-symbols-outlined ${styles.navIcon}`}>language</span>
+          <span className={styles.navLabel}>{locale === 'ko' ? 'EN' : 'KO'}</span>
+        </div>
         <div className={styles.bottomDivider} />
         {user ? (
           <div className={styles.navItem} style={{ color: 'var(--text-muted)' }} onClick={async () => {
@@ -72,12 +82,12 @@ export const SideNav: React.FC = () => {
             window.location.href = '/';
           }}>
             <span className={`material-symbols-outlined ${styles.navIcon}`}>logout</span>
-            <span className={styles.navLabel}>로그아웃</span>
+            <span className={styles.navLabel}>{t('nav.logout')}</span>
           </div>
         ) : (
           <Link href="/" className={styles.navItem} style={{ color: 'var(--text-muted)' }}>
             <span className={`material-symbols-outlined ${styles.navIcon}`}>login</span>
-            <span className={styles.navLabel}>로그인</span>
+            <span className={styles.navLabel}>{t('common.login')}</span>
           </Link>
         )}
       </div>

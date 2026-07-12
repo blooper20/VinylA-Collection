@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useLocale } from "@vinyla/i18n";
 
 export default function Error({
   error,
@@ -9,6 +10,8 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useLocale();
+
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -33,9 +36,9 @@ export default function Error({
         borderRadius: '16px',
         maxWidth: '500px'
       }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>문제가 발생했습니다.</h2>
+        <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>{t('errorPage.title')}</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-          페이지를 불러오는 중 오류가 발생했습니다.<br/>일시적인 네트워크 문제일 수 있습니다.
+          {t('errorPage.subtitleLine1')}<br/>{t('errorPage.subtitleLine2')}
         </p>
         <button
           onClick={() => reset()}
@@ -53,7 +56,7 @@ export default function Error({
           onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
           onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
         >
-          다시 시도
+          {t('errorPage.retry')}
         </button>
       </div>
     </div>

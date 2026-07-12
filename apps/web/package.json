@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@vinyla/core-api": "*",
+    "@vinyla/i18n": "*",
     "@vinyla/shared-types": "*",
     "@vinyla/ui": "*",
     "dom-to-image-more": "^3.10.0",

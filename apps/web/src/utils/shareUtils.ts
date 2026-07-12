@@ -95,7 +95,7 @@ export async function copyImageBlobToClipboard(blob: Blob) {
 /**
  * Share via Native Share Sheet or fallback to Clipboard (State Manager)
  */
-export async function shareImageNative(blob: Blob, fileName: string = 'vinyla-share.jpg') {
+export async function shareImageNative(blob: Blob, fileName: string = 'vinyla-share.jpg', clipboardFallbackMessage: string = 'Image copied to clipboard.') {
   const file = new File([blob], fileName, { type: blob.type });
 
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -117,7 +117,7 @@ export async function shareImageNative(blob: Blob, fileName: string = 'vinyla-sh
       if (navigator.clipboard && window.ClipboardItem) {
         const item = new ClipboardItem({ [blob.type]: blob });
         await navigator.clipboard.write([item]);
-        alert('이미지가 클립보드에 복사되었습니다.');
+        alert(clipboardFallbackMessage);
         return true;
       }
     } catch (err) {

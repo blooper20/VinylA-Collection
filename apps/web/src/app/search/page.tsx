@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { searchDiscogsLazy, AlbumItem, SearchStatus, useAuthStore, getUserVinyls } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { DetailModal } from '../../components/Modal/DetailModal';
 import styles from './page.module.css';
@@ -87,6 +88,7 @@ export default function SearchPage() {
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
+  const { locale, t } = useLocale();
   const [userVinyls, setUserVinyls] = useState<USER_VINYL[]>([]);
 
   React.useEffect(() => {
@@ -153,7 +155,7 @@ export default function SearchPage() {
         if (newStatus === 'error' && error) {
           import('@vinyla/core-api').then(({ getErrorMessage }) => {
             window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-              detail: { message: getErrorMessage(error) }
+              detail: { message: getErrorMessage(error, t) }
             }));
           });
         }
@@ -166,7 +168,7 @@ export default function SearchPage() {
         }
       }
     );
-  }, []);
+  }, [t]);
 
   React.useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -216,15 +218,15 @@ export default function SearchPage() {
 
   const sectionTitle = isLoading
     ? isEnriching
-      ? `커버 이미지 불러오는 중... (${results.length} / ${totalToCheck})`
-      : 'Discogs에서 LP 검색 중...'
+      ? t('search.enrichingProgress', { current: results.length, total: totalToCheck })
+      : t('search.loadingDiscogs')
     : mainResults.length > 0
-      ? `LP 검색 결과 (${mainResults.length})`
+      ? t('search.resultsCount', { count: mainResults.length })
       : status === 'done'
-        ? 'Discogs에 등록된 정규 LP가 없습니다'
+        ? t('search.noResults')
         : status === 'error'
-          ? '서버 요청 한도 초과 (잠시 후 다시 시도해주세요)'
-          : '장르';
+          ? t('search.rateLimited')
+          : t('search.genreSectionDefault');
 
   return (
     <div className={styles.container}>
@@ -233,8 +235,8 @@ export default function SearchPage() {
         <div className={styles.heroInner}>
           <span className={styles.heroEyebrow}>Discover Archive</span>
           <h1 className={styles.heroTitle}>
-            지금, 어떤<br />
-            <em>음악</em>이요?
+            {t('search.heroLine1')}<br />
+            <em>{t('search.heroEm')}</em>{t('search.heroSuffix')}
           </h1>
           <form className={styles.searchBar} onSubmit={handleSearch}>
             <span className={`material-symbols-outlined ${styles.searchIcon}`}>search</span>
@@ -242,10 +244,10 @@ export default function SearchPage() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="앨범, 아티스트, 레이블 검색"
+              placeholder={t('search.placeholder')}
               className={styles.searchInput}
             />
-            <button type="submit" style={{ display: 'none' }}>검색</button>
+            <button type="submit" style={{ display: 'none' }}>{t('search.submitButton')}</button>
           </form>
         </div>
       </header>
@@ -306,8 +308,8 @@ export default function SearchPage() {
                   loading="lazy"
                 />
                 <div className={styles.genreContent}>
-                  <h3 className={styles.genreTitle}>{genre.title}</h3>
-                  <p className={styles.genreSub}>{genre.sub}</p>
+                  <h3 className={styles.genreTitle}>{locale === 'ko' ? genre.title : genre.sub}</h3>
+                  {locale === 'ko' && <p className={styles.genreSub}>{genre.sub}</p>}
                 </div>
               </div>
             ))}
@@ -323,7 +325,7 @@ export default function SearchPage() {
         {featuredResults.length > 0 && (
           <section style={{ marginTop: '4rem' }}>
             <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>피처링 및 참여 앨범 ({featuredResults.length})</h2>
+              <h2 className={styles.sectionTitle}>{t('search.featuredSection', { count: featuredResults.length })}</h2>
             </div>
             <div className={styles.masonryGrid}>
               {featuredResults.map((item) => (

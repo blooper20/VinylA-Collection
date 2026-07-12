@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './AlbumCard.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
+import { useLocale } from '@vinyla/i18n';
 import Image from 'next/image';
 
 interface AlbumCardProps {
@@ -9,6 +10,7 @@ interface AlbumCardProps {
 }
 
 export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
+  const { t } = useLocale();
   return (
     <div className={styles.card} onClick={() => onClick(album)}>
       {/* Vinyl disc behind */}
@@ -43,7 +45,7 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
 
       {/* Status badge */}
       <div className={`${styles.badge} ${album.STATUS === 'OWNED' ? styles.badgeOwned : styles.badgeWish}`}>
-        {album.STATUS === 'OWNED' ? '보유' : '위시'}
+        {album.STATUS === 'OWNED' ? t('collection.statusOwned') : t('collection.statusWish')}
       </div>
     </div>
   );

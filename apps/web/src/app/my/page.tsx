@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
@@ -17,6 +18,7 @@ const AVAILABLE_GENRES = [
 
 export default function MyProfilePage() {
   const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge, deleteAccount } = useAuthStore();
+  const { locale, t } = useLocale();
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
@@ -158,10 +160,14 @@ export default function MyProfilePage() {
         if (newBadges.length > 0) {
            const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
            updateUnlockedBadges(nextBadges);
-           const newBadgeNames = newBadges.map(id => BADGES.find(b => b.id === id)?.name).filter(Boolean).join(', ');
-           
+           const newBadgeNames = newBadges
+             .map(id => BADGES.find(b => b.id === id))
+             .filter((b): b is NonNullable<typeof b> => Boolean(b))
+             .map(b => getBadgeText(b, locale, t).name)
+             .join(', ');
+
            // Notify user
-           const event = new CustomEvent('SHOW_TOAST', { detail: { message: `🎉 새로운 호칭 획득: ${newBadgeNames}` } });
+           const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.badgeUnlocked', { names: newBadgeNames }) } });
            window.dispatchEvent(event);
         }
         // --- 끝 ---
@@ -170,7 +176,7 @@ export default function MyProfilePage() {
       }
     }
     loadStats();
-  }, [user, updateUnlockedBadges]);
+  }, [user, updateUnlockedBadges, locale, t]);
 
   const handleSaveProfile = async () => {
     try {
@@ -180,7 +186,7 @@ export default function MyProfilePage() {
       setTopGenre(editGenre);
       setIsAvatarRemoved(false);
     } catch {
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '프로필 업데이트에 실패했습니다. (Storage 버킷 설정을 확인해주세요)' } }));
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('my.profileSaveFailed') } }));
     } finally {
       setIsSaving(false);
     }
@@ -221,18 +227,18 @@ export default function MyProfilePage() {
       
       const link = `${window.location.origin}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
       await copyToClipboard(link);
-      
-      const event = new CustomEvent('SHOW_TOAST', { detail: { message: '프로필 링크가 복사되었습니다!' } });
+
+      const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.profileLinkCopied') } });
       window.dispatchEvent(event);
     }
   };
 
   const stats: { label: string; value: string; unit: string; sub: string; isSpent?: boolean }[] = [
-    { label: '시장 추정가',  value: collectionValue.toLocaleString(), unit: '₩', sub: 'Discogs 기준 최저가 합산' },
-    { label: '실제 지출액',  value: actualSpentValue.toLocaleString(), unit: '₩', sub: '입력된 구매가 합산', isSpent: true },
-    { label: '보유 LP',      value: ownedCount.toLocaleString(),       unit: '',   sub: '등록된 전체 LP 수' },
-    { label: '관심 장르',    value: topGenre,      unit: '',   sub: '프로필 설정 기준' },
-    { label: '실제 관심 장르', value: actualTopGenre,  unit: '',   sub: '내 콜렉션 데이터 기준' },
+    { label: t('stats.marketPrice'), value: collectionValue.toLocaleString(), unit: '₩', sub: t('stats.marketPriceSub') },
+    { label: t('stats.actualSpent'), value: actualSpentValue.toLocaleString(), unit: '₩', sub: t('stats.actualSpentSub'), isSpent: true },
+    { label: t('stats.ownedLp'), value: ownedCount.toLocaleString(), unit: '', sub: t('stats.ownedLpSub') },
+    { label: t('stats.interestGenre'), value: topGenre, unit: '', sub: t('stats.interestGenreSub') },
+    { label: t('stats.actualTopGenre'), value: actualTopGenre, unit: '', sub: t('stats.actualTopGenreSub') },
   ];
 
   const displayName = user?.user_metadata?.displayName || 'Collector';
@@ -245,37 +251,37 @@ export default function MyProfilePage() {
         <div className={styles.heroInner}>
           {isEditing ? (
             <div className={styles.editProfileBox}>
-              <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 700 }}>프로필 수정</h2>
-              
+              <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 700 }}>{t('my.editProfile')}</h2>
+
               <div className={styles.editField}>
-                <label>프로필 사진 업로드</label>
+                <label>{t('my.photoUploadLabel')}</label>
                 <div className={styles.avatarUploadWrapper}>
                   <label className={styles.avatarUploadLabel}>
-                    <img 
-                      src={previewAvatarUrl} 
+                    <img
+                      src={previewAvatarUrl}
                       className={styles.avatarPreview}
                       alt="preview"
                     />
                     <div className={styles.avatarUploadOverlay}>
                       <span className="material-symbols-outlined">photo_camera</span>
                     </div>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
                       style={{ display: 'none' }}
                       onChange={handleFileChange}
                     />
                   </label>
                   <div className={styles.avatarUploadText}>
-                    <span className={styles.avatarUploadTitle}>사진 변경하기</span>
-                    <span className={styles.avatarUploadDesc}>클릭하여 새로운 프로필 사진을 선택하세요.</span>
+                    <span className={styles.avatarUploadTitle}>{t('my.editPhoto')}</span>
+                    <span className={styles.avatarUploadDesc}>{t('my.editPhotoDesc')}</span>
                     {previewAvatarUrl !== '/logo.png' && (
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={handleRemoveAvatar}
                         style={{ marginTop: '8px', background: 'none', border: 'none', color: '#eb5757', cursor: 'pointer', fontSize: '13px', padding: 0, textDecoration: 'underline' }}
                       >
-                        현재 사진 삭제
+                        {t('my.removePhoto')}
                       </button>
                     )}
                   </div>
@@ -284,8 +290,8 @@ export default function MyProfilePage() {
 
               <div className={styles.editField}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label>닉네임</label>
-                  <span style={{ fontSize: '12px', opacity: 0.6 }}>{editName.length}/{NICKNAME_MAX_LENGTH}자</span>
+                  <label>{t('setup.nicknameLabel')}</label>
+                  <span style={{ fontSize: '12px', opacity: 0.6 }}>{t('setup.nicknameCounter', { current: editName.length, max: NICKNAME_MAX_LENGTH })}</span>
                 </div>
                 <input
                   type="text"
@@ -297,10 +303,10 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.editField}>
-                <label>관심 장르 설정</label>
-                <select 
-                  value={editGenre} 
-                  onChange={e => setEditGenre(e.target.value)} 
+                <label>{t('my.genreSettingsLabel')}</label>
+                <select
+                  value={editGenre}
+                  onChange={e => setEditGenre(e.target.value)}
                   className={styles.editSelect}
                 >
                   {AVAILABLE_GENRES.map(g => (
@@ -310,17 +316,17 @@ export default function MyProfilePage() {
               </div>
 
               <div className={styles.editActions}>
-                <button 
-                  className={styles.btnSecondary} 
-                  style={{ color: '#eb5757', borderColor: 'transparent', marginRight: 'auto', paddingLeft: 0 }} 
-                  onClick={() => setIsDeleteModalOpen(true)} 
+                <button
+                  className={styles.btnSecondary}
+                  style={{ color: '#eb5757', borderColor: 'transparent', marginRight: 'auto', paddingLeft: 0 }}
+                  onClick={() => setIsDeleteModalOpen(true)}
                   disabled={isSaving}
                 >
-                  회원 탈퇴
+                  {t('my.accountDelete')}
                 </button>
-                <button className={styles.btnSecondary} onClick={() => setIsEditing(false)} disabled={isSaving}>취소</button>
+                <button className={styles.btnSecondary} onClick={() => setIsEditing(false)} disabled={isSaving}>{t('common.cancel')}</button>
                 <button className={styles.btnPrimary} onClick={handleSaveProfile} disabled={isSaving}>
-                  {isSaving ? '업로드 중...' : '저장하기'}
+                  {isSaving ? t('my.uploading') : t('common.save')}
                 </button>
               </div>
             </div>
@@ -329,24 +335,24 @@ export default function MyProfilePage() {
               <div className={styles.avatarRing}>
                 <img
                   src={avatarUrl}
-                  alt="프로필"
+                  alt="Profile"
                   className={styles.avatarImage}
                 />
               </div>
 
               <div className={styles.profileInfo}>
-                <p className={styles.profileEyebrow}>VinylA Collection Member</p>
+                <p className={styles.profileEyebrow}>{t('my.memberSince')}</p>
                 <div className={styles.nameRow}>
                   <h1 className={styles.profileName}>{displayName}</h1>
                   <button className={styles.editBtnToggle} onClick={() => setIsEditing(true)}>
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit</span>
                   </button>
-                  <button className={styles.editBtnToggle} onClick={handleShareProfile} title="공유하기" style={{ marginLeft: '8px' }}>
+                  <button className={styles.editBtnToggle} onClick={handleShareProfile} title={t('common.share')} style={{ marginLeft: '8px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
                   </button>
                 </div>
-                <div 
-                  className={styles.collectorBadge} 
+                <div
+                  className={styles.collectorBadge}
                   onClick={() => setIsBadgeModalOpen(true)}
                   style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
                   onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
@@ -356,7 +362,7 @@ export default function MyProfilePage() {
                     {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
                   </span>
                   <span className={styles.collectorBadgeText}>
-                    {selectedBadgeObj ? selectedBadgeObj.name : 'Verified Collector'}
+                    {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t).name : t('my.verifiedCollector')}
                   </span>
                 </div>
               </div>
@@ -379,7 +385,7 @@ export default function MyProfilePage() {
                 ) : (
                   <div className={styles.featuredEmpty}>
                     <span className="material-symbols-outlined">add_circle</span>
-                    <p>대표 LP 설정</p>
+                    <p>{t('my.noFeaturedLp')}</p>
                   </div>
                 )}
               </div>
@@ -420,7 +426,7 @@ export default function MyProfilePage() {
                   <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>
                     {isSpentPublic ? 'visibility' : 'visibility_off'}
                   </span>
-                  {isSpentPublic ? '공개됨' : '비공개 (링크에 숨김)'}
+                  {isSpentPublic ? t('my.spentPublic') : t('my.spentPrivate')}
                 </button>
               )}
             </div>
@@ -431,7 +437,7 @@ export default function MyProfilePage() {
       <section className={styles.journey}>
         <div className={styles.journeySectionHeader}>
           <div className={styles.journeyAccentLine} />
-          <h2 className={styles.journeySectionTitle}>최근 수집 기록</h2>
+          <h2 className={styles.journeySectionTitle}>{t('my.journeyTitle')}</h2>
         </div>
         <div className={styles.timeline}>
           {recentAdditions.length > 0 ? recentAdditions.map((item, i) => (
@@ -445,7 +451,7 @@ export default function MyProfilePage() {
               </div>
             </div>
           )) : (
-            <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>아직 기록된 LP가 없습니다.</p>
+            <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('my.noRecentLp')}</p>
           )}
         </div>
       </section>

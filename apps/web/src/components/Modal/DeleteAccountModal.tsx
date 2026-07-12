@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './DeleteAccountModal.module.css';
+import { useLocale } from '@vinyla/i18n';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export default function DeleteAccountModal({
   onConfirm
 }: DeleteAccountModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { t } = useLocale();
 
   if (!isOpen) return null;
 
@@ -22,7 +24,7 @@ export default function DeleteAccountModal({
       await onConfirm();
     } catch (e) {
       console.error(e);
-      alert('탈퇴 처리 중 문제가 발생했습니다.');
+      alert(t('deleteAccount.failed'));
     } finally {
       setIsDeleting(false);
       onClose();
@@ -36,28 +38,28 @@ export default function DeleteAccountModal({
           <div className={styles.iconWrapper}>
             <span className="material-symbols-outlined">warning</span>
           </div>
-          <h3 className={styles.title}>정말 탈퇴하시겠습니까?</h3>
+          <h3 className={styles.title}>{t('deleteAccount.title')}</h3>
         </div>
         <div className={styles.content}>
-          <p>탈퇴 시 회원님의 모든 컬렉션, 호칭, 위시리스트 및 프로필 정보가 영구적으로 삭제됩니다.</p>
+          <p>{t('deleteAccount.body')}</p>
           <div className={styles.warning}>
-            이 작업은 되돌릴 수 없습니다. 삭제된 데이터는 복구할 수 없습니다. 정말 탈퇴하시겠습니까?
+            {t('deleteAccount.warning')}
           </div>
         </div>
         <div className={styles.actions}>
-          <button 
-            className={styles.btnCancel} 
+          <button
+            className={styles.btnCancel}
             onClick={onClose}
             disabled={isDeleting}
           >
-            취소
+            {t('common.cancel')}
           </button>
-          <button 
-            className={styles.btnDelete} 
+          <button
+            className={styles.btnDelete}
             onClick={handleConfirm}
             disabled={isDeleting}
           >
-            {isDeleting ? '처리 중...' : '탈퇴하기'}
+            {isDeleting ? t('deleteAccount.processing') : t('deleteAccount.confirmButton')}
           </button>
         </div>
       </div>
