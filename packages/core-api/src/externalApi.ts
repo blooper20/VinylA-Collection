@@ -315,24 +315,32 @@ export const createDiscogsSearchSession = (
           fetchPage({ ...discogsParams, page: page1 + 1 })
         );
       } else {
-        // Korean domestic releases (pre-order-only LPs especially) are often
-        // missing from Discogs entirely — see fetchAladinResults above.
-        // Fetched once per session, not per page (Aladin isn't paginated
-        // the same way Discogs batches are). Pushed *first* so its (usually
-        // small, highly relevant) results land early in `raw` — Step 2's
-        // dedup loop stops once it has collected 20 unique albums, and an
-        // artist with a deep Discogs catalog (reissues, singles, etc.) can
-        // fill that cap on its own, starving out whatever's appended later.
-        if (isKoreanQuery && batch === 0) {
-          promises.push(fetchAladinResults(query));
-        }
-        // Original query text search
         const page1 = batch * 2 + 1;
-        promises.push(fetchPage({ q: query, page: page1 }), fetchPage({ q: query, page: page1 + 1 }));
-        // If we found an English alias, do an exact ARTIST search to avoid noise
+
+        // Push sources in *precision* order, not just "whatever we have" —
+        // Step 2's dedup loop stops once it has collected 20 unique albums,
+        // and a plain keyword query can rack up dozens of coincidental,
+        // unrelated matches (a short Korean query like "연정" hits old vinyl
+        // credits that happen to contain that word) that would fill the cap
+        // before any of the *precise* sources below are ever processed.
+        //
+        // 1. Exact artist-alias search — an English-aliased Discogs
+        //    artist=... lookup is Discogs's own most exact match for the
+        //    query; confirmed live that Discogs had a real, well-formed
+        //    entry for an artist only reachable this way (plain-text search
+        //    for the Korean name returned only unrelated noise).
         if (alias) {
           promises.push(fetchPage({ artist: alias, page: batch + 1 }));
         }
+        // 2. Aladin — fills the Korean-domestic-release gap Discogs's own
+        //    catalog has (see fetchAladinResults above). Fetched once per
+        //    session, not per page (Aladin isn't paginated the same way).
+        if (isKoreanQuery && batch === 0) {
+          promises.push(fetchAladinResults(query));
+        }
+        // 3. Plain keyword search — broadest and noisiest, pushed last on
+        //    purpose so it can't crowd out the more precise sources above.
+        promises.push(fetchPage({ q: query, page: page1 }), fetchPage({ q: query, page: page1 + 1 }));
       }
 
       const pages = await Promise.all(promises);
@@ -392,10 +400,16 @@ export const createDiscogsSearchSession = (
       if (r.master_id && r.master_id !== 0) seenMasters.add(r.master_id);
       seenTitles.add(normTitle);
       unique.push({ r, isFeature });
-
-      // Stop if we have enough of both main and featured albums (max 20 per batch)
-      if (unique.length >= 20) break;
+      // No early break here on purpose — `raw` is already bounded (a
+      // handful of Discogs pages + at most ~20 Aladin items), so scoring
+      // every candidate before capping is cheap, and doing it this way
+      // means every *source* gets a fair chance at dedup regardless of
+      // which array position it landed in. Breaking early here previously
+      // caused two different real bugs: a broad source's noise filling the
+      // cap before a later, more precise source was ever reached.
     }
+
+    unique.splice(20); // cap display count *after* every candidate was considered
 
     if (unique.length === 0) {
       exhausted = true;
