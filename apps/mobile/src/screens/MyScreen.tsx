@@ -103,7 +103,7 @@ const AnalyticsCard = ({ title, value, unit, sub, themeColors, isSpent, isSpentP
 
 export const MyScreen = () => {
   const { theme, themeColors, glassIntensity, setGlassIntensity } = useTheme();
-  const { locale, t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, deleteAccount } = useAuthStore();
   const insets = useSafeAreaInsets();
 
@@ -602,6 +602,29 @@ export const MyScreen = () => {
                 >
                   <Text style={[styles.themeBtnText, { color: glassIntensity === val ? themeColors.accent : themeColors.textSecondary }]}>
                     {val === 10 ? t('mobile.my.weak') : val === 90 ? t('mobile.my.strong') : val}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary, marginTop: 24 }]}>{t('mobile.my.languageTitle')}</Text>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 8 }}>
+              {(['ko', 'en'] as const).map((loc) => (
+                <TouchableOpacity
+                  key={loc}
+                  style={[
+                    styles.themeBtn,
+                    {
+                      flex: 0,
+                      minWidth: 72,
+                      borderColor: locale === loc ? themeColors.accent : themeColors.border,
+                      backgroundColor: locale === loc ? 'rgba(197, 160, 89, 0.15)' : 'rgba(255,255,255,0.02)'
+                    }
+                  ]}
+                  onPress={() => setLocale(loc)}
+                >
+                  <Text style={[styles.themeBtnText, { color: locale === loc ? themeColors.accent : themeColors.textSecondary }]}>
+                    {loc === 'ko' ? '한국어' : 'English'}
                   </Text>
                 </TouchableOpacity>
               ))}

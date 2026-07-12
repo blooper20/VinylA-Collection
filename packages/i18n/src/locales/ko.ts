@@ -414,6 +414,7 @@ export const ko = {
       glassIntensityTitle: '글래스 효과 강도',
       weak: '약함',
       strong: '강함',
+      languageTitle: '언어',
       genreUpdated: '관심 장르가 업데이트되었습니다.',
       nicknameUpdated: '닉네임이 업데이트되었습니다.',
       spentPublicShort: '공개',

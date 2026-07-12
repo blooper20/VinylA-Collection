@@ -415,6 +415,7 @@ export const en = {
       glassIntensityTitle: 'Glass Effect Intensity',
       weak: 'Weak',
       strong: 'Strong',
+      languageTitle: 'Language',
       genreUpdated: 'Favorite genres updated.',
       nicknameUpdated: 'Nickname updated.',
       spentPublicShort: 'Public',
