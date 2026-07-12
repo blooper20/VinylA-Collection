@@ -173,7 +173,7 @@ export const ko = {
     heroSuffix: '이요?',
     placeholder: '앨범, 아티스트, 레이블 검색',
     submitButton: '검색',
-    loadingDiscogs: 'Discogs에서 LP 검색 중...',
+    loadingDiscogs: '전 세계 레코드 상자를 뒤지는 중...',
     enrichingProgress: '커버 이미지 불러오는 중... ({{current}} / {{total}})',
     resultsCount: 'LP 검색 결과 ({{count}})',
     noResults: 'Discogs에 등록된 정규 LP가 없습니다',
@@ -350,7 +350,7 @@ export const ko = {
       genreSectionTitle: '장르 탐색',
       resultsCount: '검색 결과 ({{count}})',
       enrichingProgress: '고화질 커버 불러오는 중... ({{current}} / {{total}})',
-      searching: 'Discogs 검색 중...',
+      searching: '레코드 상자 뒤지는 중...',
       loadingMore: '더 불러오는 중...',
     },
     onboarding: {

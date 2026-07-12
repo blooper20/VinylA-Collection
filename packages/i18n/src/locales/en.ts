@@ -174,7 +174,7 @@ export const en = {
     heroSuffix: ' today?',
     placeholder: 'Search albums, artists, labels',
     submitButton: 'Search',
-    loadingDiscogs: 'Searching Discogs for LPs...',
+    loadingDiscogs: 'Digging through the crates...',
     enrichingProgress: 'Loading cover art... ({{current}} / {{total}})',
     resultsCount: 'LP Results ({{count}})',
     noResults: 'No original LP releases found on Discogs',
@@ -351,7 +351,7 @@ export const en = {
       genreSectionTitle: 'Explore Genres',
       resultsCount: 'Results ({{count}})',
       enrichingProgress: 'Loading high-res covers... ({{current}} / {{total}})',
-      searching: 'Searching Discogs...',
+      searching: 'Digging through the crates...',
       loadingMore: 'Loading more...',
     },
     onboarding: {
