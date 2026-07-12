@@ -171,6 +171,14 @@ const cleanAladinTitle = (rawTitle: string): string => {
     .trim();
 };
 
+// Aladin's ItemSearch returns small covers (a /coversum/ or /cover200/ path
+// segment in the image URL). The same image is also hosted under /cover500/
+// (500×500 — the largest variant Aladin serves; cover1000 etc. 404). Swapping
+// the path segment is the only way to get it, since no API parameter goes
+// above 200px. Verified live against image.aladin.co.kr before relying on it.
+const upgradeAladinCover = (url?: string): string =>
+  (url || '').replace(/\/cover\w*\//, '/cover500/');
+
 const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
   try {
     const ttbKey = getAladinAuth();
@@ -207,18 +215,85 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
       .filter((it) => it.itemId && isAladinLP(it.title))
       .map((it): DiscogsRelease => {
         const cleanTitle = cleanAladinTitle(it.title) || it.title;
+        const cover = upgradeAladinCover(it.cover);
         return {
           id: ALADIN_ID_OFFSET + it.itemId,
           master_id: ALADIN_ID_OFFSET + it.itemId,
           title: `${it.author} - ${cleanTitle}`,
           year: it.pubDate ? it.pubDate.slice(0, 4) : '',
           format: ['LP'],
-          thumb: it.cover || '',
-          cover_image: it.cover || '',
+          thumb: cover,
+          cover_image: cover,
         };
       });
   } catch {
     return [];
+  }
+};
+
+// ── Deezer: keyless fallback when the free iTunes Search API misses ────────
+// Apple-Music-exclusive albums (streaming-only, never sold on the iTunes
+// Store) are invisible to itunes.apple.com/search even with country=KR —
+// e.g. 백예린 "Flash and Core" — yet Deezer's catalog has them, with 1000px
+// covers and full tracklists, no API key required. Deezer sends no CORS
+// headers though, so web-browser bundles reach it through the same-origin
+// deezer-album proxy route; React Native and server contexts (no CORS
+// enforcement) call api.deezer.com directly.
+interface DeezerAlbumHit {
+  id: number;
+  title?: string;
+  artist?: { name?: string };
+  cover_xl?: string;
+  cover_big?: string;
+}
+
+interface DeezerAlbumDetail extends DeezerAlbumHit {
+  release_date?: string;
+  tracks?: { data?: Array<{ title?: string }> };
+}
+
+const deezerGet = async (params: { q: string } | { id: number }): Promise<unknown> => {
+  if (typeof document !== 'undefined') {
+    // Web browser: no CORS from Deezer, go through the same-origin proxy
+    const res = await axios.get(`${getProxyBaseUrl()}/api/external/deezer-album`, { params });
+    return res.data;
+  }
+  const res = 'id' in params
+    ? await axios.get(`https://api.deezer.com/album/${params.id}`)
+    : await axios.get('https://api.deezer.com/search/album', { params: { q: params.q } });
+  return res.data;
+};
+
+const searchDeezerAlbum = async (artist: string, title: string, alias?: string): Promise<DeezerAlbumHit | null> => {
+  try {
+    const data = (await deezerGet({ q: `${artist} ${title}`.trim() })) as { data?: DeezerAlbumHit[] };
+    const candidates = Array.isArray(data?.data) ? data.data.slice(0, 5) : [];
+    const qArtist = artist.toLowerCase();
+    const qTitle = title.toLowerCase();
+    return candidates.find((c) => {
+      const cArtist = c.artist?.name?.toLowerCase() || '';
+      const cTitle = c.title?.toLowerCase() || '';
+      const titleMatch = !!cTitle && (cTitle.includes(qTitle) || qTitle.includes(cTitle));
+      // Deezer stores romanized names for Korean artists ("백예린" →
+      // "Yerin Baek"), so the artist text often can't match a Korean query
+      // directly. Deezer's own search already matched the full
+      // "<artist> <title>" string against its alias index, so a confident
+      // title match on a lone candidate is trustworthy by itself.
+      const artistMatch = (!!qArtist && (cArtist.includes(qArtist) || qArtist.includes(cArtist))) ||
+        (!!alias && cArtist.includes(alias.toLowerCase()));
+      return titleMatch && (artistMatch || candidates.length === 1);
+    }) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const getDeezerAlbumDetail = async (albumId: number): Promise<DeezerAlbumDetail | null> => {
+  try {
+    const data = (await deezerGet({ id: albumId })) as DeezerAlbumDetail;
+    return data && typeof data.id === 'number' ? data : null;
+  } catch {
+    return null;
   }
 };
 
@@ -429,10 +504,9 @@ export const createDiscogsSearchSession = (
       // 1. Unconditionally try Apple Music for a pristine digital cover
       let thumb = '';
       let hit: ITunesResult | null = null;
+      const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+      const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
       try {
-        const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
-        const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
-
         const itRes = await axios.get('https://itunes.apple.com/search', {
           params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3, country: 'KR' }
         });
@@ -466,6 +540,16 @@ export const createDiscogsSearchSession = (
           thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
         }
       } catch (e) { /* ignore */ }
+
+      // 1b. Apple-Music-exclusive albums never appear in the free iTunes
+      // search index even with country=KR (e.g. 백예린 "Flash and Core") —
+      // try Deezer's keyless catalog before settling for the source's own
+      // cover, which for Aladin items is at best 500px.
+      if (!thumb || thumb.includes('spacer.gif')) {
+        const dz = await searchDeezerAlbum(cleanArtist, cleanTitle, alias);
+        const dzCover = dz?.cover_xl || dz?.cover_big;
+        if (dzCover) thumb = dzCover;
+      }
 
       // 2. Fallback to Discogs cover image if Apple Music failed
       if (!thumb || thumb.includes('spacer.gif')) {
@@ -623,6 +707,37 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
     console.warn('iTunes extra details fetch failed:', error?.message || 'Unknown error');
   }
 
+  // 3. Deezer fallback for whatever the two sources above couldn't provide.
+  //    Aladin-sourced Korean LPs often end here with nothing: Discogs has no
+  //    entry yet and the album is Apple-Music-exclusive (invisible to the
+  //    free iTunes search index) — but Deezer carries the tracklist, a
+  //    1000px cover, and the release date, keyless.
+  if (artist && title && (details.tracks.length === 0 || !details.highResCover)) {
+    const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+    const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
+    const dzHit = await searchDeezerAlbum(cleanArtist, cleanTitle);
+    if (dzHit) {
+      if (!details.highResCover && (dzHit.cover_xl || dzHit.cover_big)) {
+        details.highResCover = dzHit.cover_xl || dzHit.cover_big;
+      }
+      if (details.tracks.length === 0 || !details.releaseDate) {
+        const dz = await getDeezerAlbumDetail(dzHit.id);
+        if (dz) {
+          if (details.tracks.length === 0 && Array.isArray(dz.tracks?.data)) {
+            details.tracks = dz.tracks.data
+              .map((t) => t.title || '')
+              .filter(Boolean);
+          }
+          if (!details.releaseDate && dz.release_date) {
+            details.releaseDate = new Date(dz.release_date).toLocaleDateString('ko-KR', {
+              year: 'numeric', month: 'long', day: 'numeric'
+            });
+          }
+        }
+      }
+    }
+  }
+
   return details;
 };
 
@@ -673,6 +788,9 @@ export const getHighQualityArtwork = async (title: string, artist: string, fallb
     const err = e as Error;
     console.warn('Failed to fetch high quality artwork from iTunes', err?.message || 'Unknown error');
   }
-  return fallbackUrl;
+  // Same Apple-Music-exclusive gap as enrich(): albums missing from the free
+  // iTunes search index can still have a 1000px cover on Deezer.
+  const dz = await searchDeezerAlbum(artist, title);
+  return dz?.cover_xl || dz?.cover_big || fallbackUrl;
 };
 
