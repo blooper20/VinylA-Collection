@@ -289,7 +289,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       const numericAlbumId = Number(album.ALBUM_ID);
       await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
 
-      await upsertUserVinyl({
+      const result = await upsertUserVinyl({
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
         STATUS: 'OWNED',
@@ -299,7 +299,11 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
       setPurchasePrice(finalPrice);
       setRealStatus('OWNED');
-      showAlert(t('mobile.detail.successTitle'), t('mobile.detail.savedToCollection'), () => handleClose());
+      showAlert(
+        t('mobile.detail.successTitle'),
+        result?.isFirstEverSave ? t('detail.firstSaveCelebration') : t('mobile.detail.savedToCollection'),
+        () => handleClose()
+      );
     } catch (error) {
       console.error('Error saving album to collection:', error);
       showAlert(t('common.error'), getErrorMessage(error, t));
@@ -359,14 +363,18 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         
         await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
 
-        await upsertUserVinyl({
+        const result = await upsertUserVinyl({
           USER_ID: user.id,
           ALBUM_ID: numericAlbumId,
           STATUS: 'WISH',
           PURCHASE_PRICE: 0
         });
         setRealStatus('WISH');
-        showAlert(t('mobile.detail.successTitle'), t('mobile.detail.savedToWish'), () => handleClose());
+        showAlert(
+          t('mobile.detail.successTitle'),
+          result?.isFirstEverSave ? t('detail.firstSaveCelebration') : t('mobile.detail.savedToWish'),
+          () => handleClose()
+        );
       } catch (error) {
         console.error('Error saving album to wish:', error);
         showAlert(t('common.error'), getErrorMessage(error, t));

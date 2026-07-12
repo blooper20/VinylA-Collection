@@ -47,7 +47,7 @@ export default function SetupPage() {
     try {
       setIsSubmitting(true);
       await updateProfile(name, selectedInterests);
-      router.replace('/');
+      router.replace('/search');
     } catch (error) {
       console.error('Failed to update profile:', error);
       alert(t('setup.saveFailed'));

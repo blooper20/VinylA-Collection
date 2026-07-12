@@ -158,6 +158,7 @@ export const en = {
     removedFromTarget: 'Successfully removed from your {{target}}.',
     loginRequired: 'You need to sign in first.',
     linkCopied: 'Album link copied!',
+    firstSaveCelebration: "🎉 Your first record is in! Your collection has begun.",
   },
   previewModal: {
     title: 'Preview',

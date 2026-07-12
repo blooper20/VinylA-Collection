@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { SetupScreen } from '../screens/SetupScreen';
 import { TabNavigator } from './TabNavigator';
 import { tabLinkingConfig } from './TabNavigator';
 import { useAuthStore } from '@vinyla/core-api';
@@ -32,6 +33,8 @@ export const RootNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      ) : !user.user_metadata?.displayName ? (
+        <Stack.Screen name="Setup" component={SetupScreen} />
       ) : (
         <Stack.Screen name="Main" component={TabNavigator} />
       )}
