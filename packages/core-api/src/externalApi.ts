@@ -297,6 +297,54 @@ const getDeezerAlbumDetail = async (albumId: number): Promise<DeezerAlbumDetail 
   }
 };
 
+// ── Apple Music album page: last-resort tracklist source ───────────────────
+// Streaming-only albums return no track entities from the free iTunes
+// lookup API (they're not sold on the iTunes Store), and Korean indie
+// releases are often missing from Deezer too — but the public
+// music.apple.com album page embeds the full tracklist as schema.org
+// ld+json, in the original language (the API's collectionName may be an
+// English translation). Only called with a collectionId the search step
+// already confirmed, so no matching is needed here. Browsers can't fetch
+// the page cross-origin, so they go through the apple-tracks proxy route;
+// React Native and server contexts fetch it directly.
+export const parseAppleMusicTracks = (html: string): string[] => {
+  const re = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    try {
+      const data = JSON.parse(m[1]);
+      if (Array.isArray(data?.tracks) && data.tracks.length > 0) {
+        return data.tracks
+          .map((t: { name?: string }) => t?.name || '')
+          .filter(Boolean);
+      }
+    } catch { /* try the next ld+json block */ }
+  }
+  return [];
+};
+
+const fetchAppleMusicTracks = async (collectionId: number): Promise<string[]> => {
+  try {
+    if (typeof document !== 'undefined') {
+      const res = await axios.get(`${getProxyBaseUrl()}/api/external/apple-tracks`, {
+        params: { id: collectionId },
+      });
+      return Array.isArray(res.data?.tracks) ? res.data.tracks : [];
+    }
+    const res = await axios.get(`https://music.apple.com/kr/album/${collectionId}`, {
+      headers: {
+        // music.apple.com serves an empty body to clients without a real
+        // browser UA (verified live) — plain axios/fetch defaults get nothing.
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+      },
+    });
+    return parseAppleMusicTracks(String(res.data));
+  } catch {
+    return [];
+  }
+};
+
 export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,
@@ -699,6 +747,12 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
           if (songs.length > 0) {
             details.tracks = songs.map((s: ITunesResult) => s.trackName || '');
           }
+        }
+        if (details.tracks.length === 0 && hit.collectionId) {
+          // Streaming-only albums return no track entities from the lookup
+          // above — the public album page still lists them (see
+          // fetchAppleMusicTracks).
+          details.tracks = await fetchAppleMusicTracks(hit.collectionId);
         }
       }
     }
