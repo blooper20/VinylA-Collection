@@ -11,10 +11,13 @@ export interface UserStats {
   favoriteGenre: string;
   ownedGenres: Record<string, number>;
   wishGenres: Record<string, number>;
+  // DB-assigned (PROFILES.SIGNUP_NUMBER) — undefined until loaded, never
+  // client-computed. See founding_100 badge below.
+  signupNumber?: number;
 }
 
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
-export type BadgeCategory = 'collection' | 'wealth' | 'wishlist' | 'genre';
+export type BadgeCategory = 'collection' | 'wealth' | 'wishlist' | 'genre' | 'special';
 
 export interface Badge {
   id: string;
@@ -443,6 +446,21 @@ export const BADGES: Badge[] = [
     tier: 'diamond',
     category: 'genre',
     check: (stats) => Object.keys(stats.ownedGenres).length >= 20,
+  },
+
+  // --- 특별 ---
+  {
+    id: 'founding_100',
+    name: '창단 멤버',
+    description: 'VinylA Collection 서비스 초기 100번째 가입자 안에 들었습니다. (히든)',
+    icon: 'workspace_premium',
+    isHidden: true,
+    tier: 'diamond',
+    category: 'special',
+    // DB-assigned signup order (see PROFILES.SIGNUP_NUMBER migration) — the
+    // only badge that isn't derived from the user's own collection stats,
+    // since it has to be tamper-proof rather than self-reported.
+    check: (stats) => (stats.signupNumber ?? Infinity) <= 100,
   },
 
   ...genreBadges
