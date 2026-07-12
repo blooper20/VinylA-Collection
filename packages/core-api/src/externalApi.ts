@@ -290,19 +290,23 @@ export const createDiscogsSearchSession = (
           fetchPage({ ...discogsParams, page: page1 + 1 })
         );
       } else {
+        // Korean domestic releases (pre-order-only LPs especially) are often
+        // missing from Discogs entirely — see fetchAladinResults above.
+        // Fetched once per session, not per page (Aladin isn't paginated
+        // the same way Discogs batches are). Pushed *first* so its (usually
+        // small, highly relevant) results land early in `raw` — Step 2's
+        // dedup loop stops once it has collected 20 unique albums, and an
+        // artist with a deep Discogs catalog (reissues, singles, etc.) can
+        // fill that cap on its own, starving out whatever's appended later.
+        if (isKoreanQuery && batch === 0) {
+          promises.push(fetchAladinResults(query));
+        }
         // Original query text search
         const page1 = batch * 2 + 1;
         promises.push(fetchPage({ q: query, page: page1 }), fetchPage({ q: query, page: page1 + 1 }));
         // If we found an English alias, do an exact ARTIST search to avoid noise
         if (alias) {
           promises.push(fetchPage({ artist: alias, page: batch + 1 }));
-        }
-        // Korean domestic releases (pre-order-only LPs especially) are often
-        // missing from Discogs entirely — see fetchAladinResults above.
-        // Fetched once per session, not per page (Aladin isn't paginated
-        // the same way Discogs batches are).
-        if (isKoreanQuery && batch === 0) {
-          promises.push(fetchAladinResults(query));
         }
       }
 
