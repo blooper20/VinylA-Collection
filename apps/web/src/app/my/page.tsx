@@ -6,6 +6,7 @@ import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, eva
 import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
+import FoundingBadgeCelebrationModal from '../../components/Modal/FoundingBadgeCelebrationModal';
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { ImageCropModal } from '../../components/Modal/ImageCropModal';
 import { copyToClipboard } from '../../utils/shareUtils';
@@ -27,6 +28,7 @@ export default function MyProfilePage() {
   const [recentAdditions, setRecentAdditions] = useState<FrontendVinyl[]>([]);
   const [allAlbumsList, setAllAlbumsList] = useState<FrontendVinyl[]>([]);
   const [signupNumber, setSignupNumber] = useState<number | null>(null);
+  const [showFoundingCelebration, setShowFoundingCelebration] = useState(false);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = featuredAlbumId ? allAlbumsList.find(a => String(a.ALBUM_ID) === String(featuredAlbumId)) : undefined;
@@ -160,20 +162,28 @@ export default function MyProfilePage() {
 
         const newlyUnlocked = evaluateBadges(stats);
         const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
-        
+
         const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
         if (newBadges.length > 0) {
            const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
            updateUnlockedBadges(nextBadges);
-           const newBadgeNames = newBadges
-             .map(id => BADGES.find(b => b.id === id))
-             .filter((b): b is NonNullable<typeof b> => Boolean(b))
-             .map(b => getBadgeText(b, locale, t).name)
-             .join(', ');
 
-           // Notify user
-           const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.badgeUnlocked', { names: newBadgeNames }) } });
-           window.dispatchEvent(event);
+           // founding_100 gets its own grand celebration modal instead of the
+           // generic toast — everything else keeps the normal notification.
+           if (newBadges.includes('founding_100')) {
+             setShowFoundingCelebration(true);
+           }
+           const toastWorthyBadges = newBadges.filter(b => b !== 'founding_100');
+           if (toastWorthyBadges.length > 0) {
+             const newBadgeNames = toastWorthyBadges
+               .map(id => BADGES.find(b => b.id === id))
+               .filter((b): b is NonNullable<typeof b> => Boolean(b))
+               .map(b => getBadgeText(b, locale, t).name)
+               .join(', ');
+
+             const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.badgeUnlocked', { names: newBadgeNames }) } });
+             window.dispatchEvent(event);
+           }
         }
         // --- 끝 ---
       } else {
@@ -357,16 +367,16 @@ export default function MyProfilePage() {
                   </button>
                 </div>
                 <div
-                  className={styles.collectorBadge}
+                  className={`${styles.collectorBadge} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeHolo : ''}`}
                   onClick={() => setIsBadgeModalOpen(true)}
                   style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
                   onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                   onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
-                  <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>
+                  <span className={`material-symbols-outlined ${styles.collectorBadgeIcon} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeIconHolo : ''}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>
                     {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
                   </span>
-                  <span className={styles.collectorBadgeText}>
+                  <span className={`${styles.collectorBadgeText} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeTextHolo : ''}`}>
                     {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
                   </span>
                 </div>
@@ -480,7 +490,13 @@ export default function MyProfilePage() {
         }}
       />
 
-      <DeleteAccountModal 
+      <FoundingBadgeCelebrationModal
+        isOpen={showFoundingCelebration}
+        onClose={() => setShowFoundingCelebration(false)}
+        signupNumber={signupNumber}
+      />
+
+      <DeleteAccountModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={async () => {

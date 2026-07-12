@@ -164,11 +164,11 @@ function PublicDashboardContent() {
             <div className={styles.nameRow}>
               <h1 className={styles.profileName}>{displayName}</h1>
             </div>
-            <div className={styles.collectorBadge}>
-              <span className={`material-symbols-outlined ${styles.collectorBadgeIcon}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>
+            <div className={`${styles.collectorBadge} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeHolo : ''}`}>
+              <span className={`material-symbols-outlined ${styles.collectorBadgeIcon} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeIconHolo : ''}`} style={{ fontVariationSettings: "'FILL' 1", fontSize: '13px' }}>
                 {selectedBadgeObj ? selectedBadgeObj.icon : 'diamond'}
               </span>
-              <span className={styles.collectorBadgeText}>
+              <span className={`${styles.collectorBadgeText} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeTextHolo : ''}`}>
                 {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
               </span>
             </div>

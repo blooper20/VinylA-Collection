@@ -90,18 +90,19 @@ export default function BadgeSelectModal({
             }
 
             const { name, description } = getBadgeText(badge, locale, t, { number: signupNumber ?? '' });
+            const isHolographic = badge.id === 'founding_100';
 
             return (
               <div
                 key={badge.id}
-                className={`${styles.badgeItem} ${isUnlocked ? styles.unlocked : styles.locked} ${isSelected ? styles.selected : ''} ${tierClass}`}
+                className={`${styles.badgeItem} ${isUnlocked ? styles.unlocked : styles.locked} ${isSelected ? styles.selected : ''} ${tierClass} ${isSelected && isHolographic ? styles.holographicBorder : ''}`}
                 onClick={() => isUnlocked && onEquip(badge.id)}
               >
-                <div className={styles.iconWrapper}>
+                <div className={`${styles.iconWrapper} ${isHolographic ? styles.holographicIconWrapper : ''}`}>
                   <span className="material-symbols-outlined">{badge.icon}</span>
                 </div>
                 <div className={styles.badgeInfo}>
-                  <div className={styles.badgeName}>{name}</div>
+                  <div className={`${styles.badgeName} ${isHolographic ? styles.holographicText : ''}`}>{name}</div>
                   <div className={styles.badgeDesc}>{description}</div>
                 </div>
                 {isUnlocked && (

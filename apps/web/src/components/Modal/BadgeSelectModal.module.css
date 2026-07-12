@@ -165,6 +165,42 @@
 .badgeItem.selected.tierPlatinum { border-color: #e5e4e2; background: rgba(229, 228, 226, 0.05); }
 .badgeItem.selected.tierDiamond { border-color: #b9f2ff; background: rgba(185, 242, 255, 0.05); }
 
+/* Founding member: holographic/foil "card grading" look, distinct from
+   every other diamond-tier badge's flat color. */
+@keyframes holoShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.holographicIconWrapper {
+  background: linear-gradient(120deg, #ff6ec4, #ffd76e, #6effe0, #6e9fff, #d76eff, #ff6ec4) !important;
+  background-size: 400% 400% !important;
+  animation: holoShift 3s ease infinite;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
+}
+.holographicIconWrapper .material-symbols-outlined {
+  color: #fff !important;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.35));
+}
+
+.holographicText {
+  background: linear-gradient(120deg, #ff6ec4, #ffd76e, #6effe0, #6e9fff, #d76eff, #ff6ec4);
+  background-size: 400% 400%;
+  animation: holoShift 3s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.badgeItem.selected.holographicBorder {
+  border-color: #ffd76e;
+  background: linear-gradient(120deg, rgba(255,110,196,0.08), rgba(255,215,110,0.08), rgba(110,255,224,0.08), rgba(110,159,255,0.08), rgba(215,110,255,0.08));
+  background-size: 400% 400%;
+  animation: holoShift 3s ease infinite;
+}
+
 .badgeInfo {
   flex: 1;
 }

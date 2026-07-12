@@ -11,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
+import { FoundingBadgeCelebrationModal } from '../components/Modal/FoundingBadgeCelebrationModal';
 import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { shareToInstagramStory } from '../utils/nativeShare';
@@ -130,12 +131,14 @@ export const MyScreen = () => {
   const [recentAdditions, setRecentAdditions] = React.useState<any[]>([]);
   const [allAlbums, setAllAlbums] = React.useState<any[]>([]);
   const [signupNumber, setSignupNumber] = React.useState<number | null>(null);
+  const [showFoundingCelebration, setShowFoundingCelebration] = React.useState(false);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = allAlbums.find(a => Number(a.ALBUM_ID) === Number(featuredAlbumId));
 
   const spinAnim = React.useRef(new Animated.Value(0)).current;
   const shimmerAnim = React.useRef(new Animated.Value(0)).current;
+  const holoAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     if (featuredAlbum) {
@@ -147,7 +150,7 @@ export const MyScreen = () => {
           easing: Easing.linear
         })
       ).start();
-      
+
       Animated.loop(
         Animated.timing(shimmerAnim, {
           toValue: 1,
@@ -158,6 +161,19 @@ export const MyScreen = () => {
       ).start();
     }
   }, [featuredAlbum, spinAnim, shimmerAnim]);
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.timing(holoAnim, { toValue: 1, duration: 3000, useNativeDriver: true, easing: Easing.linear })
+    ).start();
+  }, [holoAnim]);
+
+  const HOLO_COLORS = ['#ff6ec4', '#ffd76e', '#6effe0', '#6e9fff', '#d76eff'] as const;
+  const holoShimmerTranslate = holoAnim.interpolate({ inputRange: [0, 1], outputRange: [-60, 60] });
+  const holoTextColor = holoAnim.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
+    outputRange: [...HOLO_COLORS, HOLO_COLORS[0]],
+  });
 
   const spinRotate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const shimmerTranslate = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-200, 200] });
@@ -246,14 +262,23 @@ export const MyScreen = () => {
         if (newBadges.length > 0) {
            const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
            await updateUnlockedBadges(nextBadges);
-           const newBadgeNames = newBadges
-             .map(id => BADGES.find(b => b.id === id))
-             .filter((b): b is Badge => Boolean(b))
-             .map(b => getBadgeText(b, locale, t).name)
-             .join(', ');
 
-           setToastMessage(t('my.badgeUnlocked', { names: newBadgeNames }));
-           setIsToastVisible(true);
+           // founding_100 gets its own grand celebration modal instead of the
+           // generic toast — everything else keeps the normal notification.
+           if (newBadges.includes('founding_100')) {
+             setShowFoundingCelebration(true);
+           }
+           const toastWorthyBadges = newBadges.filter(id => id !== 'founding_100');
+           if (toastWorthyBadges.length > 0) {
+             const newBadgeNames = toastWorthyBadges
+               .map(id => BADGES.find(b => b.id === id))
+               .filter((b): b is Badge => Boolean(b))
+               .map(b => getBadgeText(b, locale, t).name)
+               .join(', ');
+
+             setToastMessage(t('my.badgeUnlocked', { names: newBadgeNames }));
+             setIsToastVisible(true);
+           }
         }
 
       } else {
@@ -421,10 +446,34 @@ export const MyScreen = () => {
           </TouchableOpacity>
           <View style={styles.badgeRow}>
             <TouchableOpacity
-              style={[styles.badge, { backgroundColor: themeColors.accent }]}
+              style={[styles.badge, selectedBadgeObj.id === 'founding_100' ? styles.badgeHolo : { backgroundColor: themeColors.accent }]}
               onPress={() => setBadgeModalVisible(true)}
             >
-              <Text style={styles.badgeText}>{getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name}</Text>
+              {selectedBadgeObj.id === 'founding_100' && (
+                <>
+                  <LinearGradient
+                    colors={HOLO_COLORS}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <Animated.View style={[styles.badgeHoloShimmer, { transform: [{ translateX: holoShimmerTranslate }] }]}>
+                    <LinearGradient
+                      colors={['transparent', 'rgba(255,255,255,0.7)', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </Animated.View>
+                </>
+              )}
+              {selectedBadgeObj.id === 'founding_100' ? (
+                <Animated.Text style={[styles.badgeText, { color: holoTextColor }]}>
+                  {getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name}
+                </Animated.Text>
+              ) : (
+                <Text style={styles.badgeText}>{getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name}</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.shareIconBtn, { borderColor: themeColors.border }]}
@@ -677,6 +726,12 @@ export const MyScreen = () => {
         onSelect={handleBadgeSelect}
       />
 
+      <FoundingBadgeCelebrationModal
+        visible={showFoundingCelebration}
+        onClose={() => setShowFoundingCelebration(false)}
+        signupNumber={signupNumber}
+      />
+
       <FeaturedLPModal
         visible={isFeaturedModalVisible}
         onClose={() => setFeaturedModalVisible(false)}
@@ -779,6 +834,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     marginBottom: 0,
+  },
+  badgeHolo: {
+    overflow: 'hidden',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  badgeHoloShimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 24,
   },
   badgeText: {
     color: '#000',
