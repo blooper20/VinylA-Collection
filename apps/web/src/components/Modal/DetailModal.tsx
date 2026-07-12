@@ -437,7 +437,14 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
               autoFocus
             />
             <div className={styles.confirmActions}>
-              <button className={styles.btnCancel} onClick={() => setPricePromptOpen(false)} disabled={isSaving}>
+              <button
+                className={styles.btnCancel}
+                onClick={() => {
+                  handleSave('OWNED', 0);
+                  setPricePromptOpen(false);
+                }}
+                disabled={isSaving}
+              >
                 {t('detail.skip')}
               </button>
               <button
