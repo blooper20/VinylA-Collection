@@ -12,9 +12,13 @@ export default function SetupPage() {
   const router = useRouter();
   const { t } = useLocale();
   const { user, updateProfile, initializeAuth, isLoading } = useAuthStore();
-  const [name, setName] = useState('');
+  // null = 사용자가 아직 직접 수정하지 않음 → Google 계정 이름을 기본값으로 보여준다.
+  const [editedName, setEditedName] = useState<string | null>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const googleName = (user?.user_metadata?.full_name || user?.user_metadata?.name || '').slice(0, NICKNAME_MAX_LENGTH);
+  const name = editedName ?? googleName;
 
   useEffect(() => {
     initializeAuth();
@@ -92,7 +96,7 @@ export default function SetupPage() {
             placeholder={t('setup.nicknamePlaceholder')}
             value={name}
             maxLength={NICKNAME_MAX_LENGTH}
-            onChange={(e) => setName(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
+            onChange={(e) => setEditedName(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
           />
         </div>
 
