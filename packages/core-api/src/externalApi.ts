@@ -159,16 +159,40 @@ const isAladinLP = (title: string): boolean =>
 // field text, since that sometimes differs from the title's own prefix,
 // e.g. author "연정 (YEONJEONG)" vs title-prefix "연정"), then the bracketed
 // spec and anything after a second " - " (packaging notes).
+//
+// Caveat: not every bracket is a format spec. Some listings put the actual
+// album name in brackets after an ordinal — "2nd LP [집] [레드 마블 컬러 +
+// 일반 블랙 2LP]" — so blanket-stripping every bracket left "2nd LP" as the
+// title, which no music catalog can resolve. Brackets are collected while
+// stripping, and if nothing but numbering remains outside them, the first
+// bracket that doesn't look like a format spec is the title.
+const isFormatSpecBracket = (s: string): boolean =>
+  s.split(/[^A-Za-z0-9가-힣]+/).some(
+    (token) => /^\d*(LP|CD|EP|DVD)$/i.test(token) || /^\d+g$/i.test(token)
+  ) || /컬러|마블|한정|재발매|디스크|굿즈|Edition|Vinyl|Color|Colour/i.test(s);
+
+// Release numbering ("정규 3집", "EP 2집", "2nd LP") — noise, never part of
+// the actual title.
+const ALADIN_ORDINAL = /(정규|EP|싱글)?\s*\d+\s*집|\d+(st|nd|rd|th)\s*(LP|EP|앨범)/gi;
+
 const cleanAladinTitle = (rawTitle: string): string => {
   const raw = rawTitle || '';
   const idx = raw.indexOf(' - ');
   const rest = idx >= 0 ? raw.slice(idx + 3) : raw;
-  return rest
-    .replace(/\[[^\]]*\]/g, '') // bracketed format/edition spec, e.g. "[180g White 2LP]"
+
+  const brackets: string[] = [];
+  const base = rest
+    .replace(/\[([^\]]*)\]/g, (_m, inner: string) => {
+      brackets.push(inner.trim());
+      return ' ';
+    })
     .split(' - ')[0] // drop trailing packaging notes after a second " - "
-    .replace(/정규\s*\d+집/g, '') // "정규 3집" style numbering — noise, not part of the title
+    .replace(ALADIN_ORDINAL, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  if (base) return base;
+
+  return brackets.find((b) => b && !isFormatSpecBracket(b)) || '';
 };
 
 // Aladin's ItemSearch returns small covers (a /coversum/ or /cover200/ path
