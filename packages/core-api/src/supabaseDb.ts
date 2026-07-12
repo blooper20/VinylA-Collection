@@ -24,11 +24,16 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
   }
 
+  // maybeSingle, not single: a missing row is the routine state for every
+  // album nobody has saved yet — the first-ever save of ANY album passes
+  // through here before createAlbumMaster runs. With .single() that 0-row
+  // result surfaced as PGRST116 and the DB-002 throw below aborted the whole
+  // save (regression introduced in the error-handling refactor).
   const { data, error } = await supabase
     .from('ALBUM_MASTER')
     .select('*, VINYL_TAG(*)')
     .eq('ALBUM_ID', albumId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.warn('getAlbumMaster error or DB not connected:', error);
@@ -37,6 +42,7 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
     }
     throw new AppError('DB-002', '앨범 마스터 정보를 불러오는 데 실패했습니다.', error);
   }
+  if (!data) return null;
   const master = data as any; // Cast to any to access VINYL_TAG easily
   if (master.VINYL_TAG && master.VINYL_TAG.length > 0) {
     master.GENRES = master.VINYL_TAG.map((t: any) => t.TAG_NAME);
