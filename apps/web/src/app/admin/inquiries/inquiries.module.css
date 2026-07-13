@@ -282,3 +282,78 @@
   object-fit: cover;
   display: block;
 }
+
+/* ── 문의/답변 수정 ─────────────────────── */
+.replyEditBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.replyEditBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.readState {
+  font-style: normal;
+  color: var(--accent);
+  opacity: 0.8;
+  margin-left: 10px;
+}
+
+.replyEditActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.replyEditCancel,
+.replyEditSave {
+  padding: 8px 16px;
+  border-radius: 16px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.replyEditCancel {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.replyEditCancel:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.replyEditSave {
+  background: var(--accent);
+  color: #000;
+}
+
+.replyEditSave:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb, 255, 255, 255), 0.2);
+}
+
+.replyEditSave:disabled, .replyEditCancel:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
