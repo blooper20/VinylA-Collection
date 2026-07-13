@@ -152,7 +152,7 @@ export const ko = {
     coverScopeEveryoneShort: '전체 공개',
     coverScopeAppliedEveryone: '모든 사용자에게 이 커버가 적용되었습니다.',
     coverScopeRevertedMine: '이제 내 보관함에서만 이 커버가 보입니다.',
-    coverScopeCannotRevert: '이전 커버 정보가 없어 전체 공개를 해제할 수 없습니다.',
+    coverRestoreFailed: '기존 커버를 찾지 못했습니다. 잠시 후 다시 시도해주세요.',
     actualPrice: '실제 구입가:',
     notEntered: '미입력',
     editPriceTitle: '구입가 수정',

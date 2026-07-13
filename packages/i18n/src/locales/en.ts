@@ -153,7 +153,7 @@ export const en = {
     coverScopeEveryoneShort: 'Everyone',
     coverScopeAppliedEveryone: 'This cover now applies to all users.',
     coverScopeRevertedMine: 'This cover is now visible only in your collection.',
-    coverScopeCannotRevert: 'The previous cover is unknown, so public visibility cannot be reverted.',
+    coverRestoreFailed: 'Could not find the original cover. Please try again shortly.',
     actualPrice: 'Actual purchase price:',
     notEntered: 'Not entered',
     editPriceTitle: 'Edit purchase price',

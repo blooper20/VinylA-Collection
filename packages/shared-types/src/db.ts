@@ -10,8 +10,11 @@ export interface ALBUM_MASTER {
   ARTIST: string;
   /** 발매 연도 */
   RELEASE_YEAR: number;
-  /** 고해상도 재킷 커버 이미지 경로 */
+  /** 고해상도 재킷 커버 이미지 경로 (모두가 보는 현재 커버) */
   IMAGE_URL: string;
+  /** 마지막 카탈로그(검색 소스) 커버 — 유저 촬영본이 IMAGE_URL을 덮어쓸 때
+   *  서버가 자동 백업하며, '기존 커버로 되돌리기'의 복원 원본이 된다 */
+  ORIGINAL_IMAGE_URL?: string | null;
   /** 실물 LP 알맹이 누끼 이미지 경로 */
   VINYL_IMAGE_URL: string;
   /** 유저가 지정한 알맹이 HEX 색상 코드 */

@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -177,28 +177,37 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [cropFile, setCropFile] = React.useState<File | null>(null);
   // 내가 촬영해 올린 재킷 (null이면 기존 카탈로그 커버 사용 중)
   const [myPhoto, setMyPhoto] = React.useState<string | null>(album.CUSTOM_IMAGE_URL || null);
-  // 공유 마스터의 현재 커버 + '전체 공개' 되돌리기용 원본 (첫 조회 시 캡처)
+  // 공유 마스터의 현재 커버 (범위 토글의 현재값 판정 + 공유 이미지용)
   const [masterImage, setMasterImage] = React.useState<string | null>(null);
-  const originalMasterRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    // 내 사진을 쓰는 앨범만 마스터 커버를 조회 — 범위 토글의 현재값 판정과
-    // '전체 공개 → 나만 보기' 되돌리기에 필요하다.
+    // 내 사진을 쓰는 앨범만 마스터 커버를 조회
     if (!myPhoto || masterImage !== null) return;
     let alive = true;
     getAlbumMaster(Number(album.ALBUM_ID))
-      .then((m) => {
-        if (!alive) return;
-        const img = m?.IMAGE_URL || '';
-        setMasterImage(img);
-        if (originalMasterRef.current === null) originalMasterRef.current = img;
-      })
+      .then((m) => { if (alive) setMasterImage(m?.IMAGE_URL || ''); })
       .catch(() => {});
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myPhoto]);
 
   const coverScope: CoverScope = myPhoto && masterImage === myPhoto ? 'everyone' : 'mine';
+
+  // 마스터를 '기존(카탈로그) 커버'로 되돌리고 그 URL을 반환한다.
+  // 1차: 서버가 백업해둔 ORIGINAL_IMAGE_URL로 복원 (세션과 무관하게 동작)
+  // 2차: 백업이 없는(과거에 망가진) 행이면 검색 파이프라인에서 카탈로그
+  //      커버를 새로 받아와 치유. 둘 다 실패하면 '' — 호출부는 성공 토스트를
+  //      띄우지 않는다.
+  const restoreCatalogCover = async (numericAlbumId: number): Promise<string> => {
+    const reverted = await revertAlbumMasterCover(numericAlbumId);
+    if (reverted) return reverted;
+    const details = await getAlbumExtraDetails(numericAlbumId, album.ARTIST, album.TITLE).catch(() => null);
+    if (details?.highResCover) {
+      await updateAlbumMasterImage(numericAlbumId, details.highResCover);
+      return details.highResCover;
+    }
+    return '';
+  };
 
   const handleCoverPhoto = (file: File | null) => {
     if (!file || !user?.id || isUploadingCover) return;
@@ -232,34 +241,23 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     }
   };
 
-  // 마스터 커버가 아직 조회 전이면 그 자리에서 가져온다 — 프리페치(useEffect)가
-  // 끝나기 전에 버튼을 누르면 복원할 URL이 없어 화면이 안 바뀌던 레이스의 수정.
-  const ensureMasterImage = async (numericAlbumId: number): Promise<string> => {
-    if (masterImage !== null) return masterImage;
-    const img = (await getAlbumMaster(numericAlbumId))?.IMAGE_URL || '';
-    setMasterImage(img);
-    if (originalMasterRef.current === null) originalMasterRef.current = img;
-    return img;
-  };
-
-  // 기존(카탈로그) 커버로 복귀: 내 개인 커버를 지우고, 내 사진이 전체 공개돼
-  // 있었다면 캡처해둔 원본 마스터 커버까지 되돌린다.
+  // 기존(카탈로그) 커버로 복귀: 마스터가 내 사진으로 덮여 있으면 복원(또는
+  // 치유)하고, 내 개인 커버를 지운다. 실제로 복원된 경우에만 성공 토스트.
   const handleUseOriginalCover = async () => {
     if (!user?.id || !myPhoto || isUploadingCover) return;
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
-      let masterImg = await ensureMasterImage(numericAlbumId);
-      const original = originalMasterRef.current;
-      if (masterImg === myPhoto && original && original !== myPhoto) {
-        await updateAlbumMasterImage(numericAlbumId, original);
-        setMasterImage(original);
-        masterImg = original;
-      }
+      const restored = await restoreCatalogCover(numericAlbumId);
       await setUserVinylCover(user.id, numericAlbumId, null);
       setMyPhoto(null);
-      setCoverUrl(masterImg || album.IMAGE_URL || '');
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverUseOriginalDone') } }));
+      if (restored) {
+        setMasterImage(restored);
+        setCoverUrl(restored);
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverUseOriginalDone') } }));
+      } else {
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverRestoreFailed') } }));
+      }
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     } catch (e) {
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
@@ -273,21 +271,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
-      await ensureMasterImage(numericAlbumId);
       if (next === 'everyone') {
+        // 서버가 직전 카탈로그 커버를 ORIGINAL_IMAGE_URL로 자동 백업한다
         await updateAlbumMasterImage(numericAlbumId, myPhoto);
         setMasterImage(myPhoto);
         window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverScopeAppliedEveryone') } }));
       } else {
-        const original = originalMasterRef.current;
-        if (original && original !== myPhoto) {
-          await updateAlbumMasterImage(numericAlbumId, original);
-          setMasterImage(original);
+        const restored = await restoreCatalogCover(numericAlbumId);
+        if (restored) {
+          setMasterImage(restored);
+          setCoverUrl(myPhoto); // 내 화면은 계속 내 사진 (나만 보기)
           window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverScopeRevertedMine') } }));
         } else {
-          // 이전 세션에서 전체 공개된 경우 원본 커버 정보가 없어 마스터는
-          // 되돌릴 수 없다 — 내 화면 기준으로는 이미 '나만 보기'와 동일.
-          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverScopeCannotRevert') } }));
+          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverRestoreFailed') } }));
         }
       }
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
