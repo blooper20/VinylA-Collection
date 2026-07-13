@@ -232,6 +232,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     }
   };
 
+  // 마스터 커버가 아직 조회 전이면 그 자리에서 가져온다 — 프리페치(useEffect)가
+  // 끝나기 전에 버튼을 누르면 복원할 URL이 없어 화면이 안 바뀌던 레이스의 수정.
+  const ensureMasterImage = async (numericAlbumId: number): Promise<string> => {
+    if (masterImage !== null) return masterImage;
+    const img = (await getAlbumMaster(numericAlbumId))?.IMAGE_URL || '';
+    setMasterImage(img);
+    if (originalMasterRef.current === null) originalMasterRef.current = img;
+    return img;
+  };
+
   // 기존(카탈로그) 커버로 복귀: 내 개인 커버를 지우고, 내 사진이 전체 공개돼
   // 있었다면 캡처해둔 원본 마스터 커버까지 되돌린다.
   const handleUseOriginalCover = async () => {
@@ -239,17 +249,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
+      let masterImg = await ensureMasterImage(numericAlbumId);
       const original = originalMasterRef.current;
-      if (masterImage === myPhoto && original && original !== myPhoto) {
+      if (masterImg === myPhoto && original && original !== myPhoto) {
         await updateAlbumMasterImage(numericAlbumId, original);
         setMasterImage(original);
+        masterImg = original;
       }
       await setUserVinylCover(user.id, numericAlbumId, null);
       setMyPhoto(null);
-      const restored = (originalMasterRef.current && originalMasterRef.current !== myPhoto)
-        ? originalMasterRef.current
-        : masterImage || '';
-      if (restored) setCoverUrl(restored);
+      setCoverUrl(masterImg || album.IMAGE_URL || '');
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverUseOriginalDone') } }));
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     } catch (e) {
@@ -264,6 +273,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
+      await ensureMasterImage(numericAlbumId);
       if (next === 'everyone') {
         await updateAlbumMasterImage(numericAlbumId, myPhoto);
         setMasterImage(myPhoto);
@@ -794,7 +804,14 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         </div>
       )}
 
-      <StoryTemplate ref={storyTemplateRef} album={album} username={user?.user_metadata?.displayName || 'Collector'} overrideStatus={shareTag as any} />
+      {/* 공유 이미지는 밖으로 나가는 화면 — '나만 보기' 개인 커버 대신 공유
+          마스터 커버를 사용 ('전체 공개'면 masterImage가 곧 내 사진이라 함께 나감) */}
+      <StoryTemplate
+        ref={storyTemplateRef}
+        album={myPhoto ? { ...album, COVER_URL: masterImage || undefined, IMAGE_URL: masterImage || album.IMAGE_URL } : album}
+        username={user?.user_metadata?.displayName || 'Collector'}
+        overrideStatus={shareTag as any}
+      />
       <ShareBottomSheet
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}

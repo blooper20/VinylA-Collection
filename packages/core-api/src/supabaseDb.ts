@@ -352,6 +352,9 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     IMAGE_URL: userVinyl?.CUSTOM_IMAGE_URL || master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     // 개인 커버 사용 여부를 소비자(DetailModal 등)가 구분할 수 있게 원본도 노출
     CUSTOM_IMAGE_URL: userVinyl?.CUSTOM_IMAGE_URL || null,
+    // 밖으로 나가는 화면(공유 이미지 등)용: '나만 보기' 개인 커버를 배제한
+    // 공유 마스터의 커버
+    MASTER_IMAGE_URL: master?.IMAGE_URL || '',
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     VINYL_IMAGE_URL: master?.VINYL_IMAGE_URL || '',
