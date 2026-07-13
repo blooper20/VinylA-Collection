@@ -200,7 +200,12 @@ export const MyScreen = () => {
         const mapped = data.map(v => mapToFrontendModel(v, null));
         const mappedOwned = mapped.filter(v => v.STATUS === 'OWNED');
         const mappedWish = mapped.filter(v => v.STATUS === 'WISH');
-        setRecentAdditions(mappedOwned.slice(0, 3));
+        // 최근 수집 기록: 저장 시점 최신순 상위 3개 (웹 마이페이지와 동일 수정)
+        setRecentAdditions(
+          [...mappedOwned]
+            .sort((a, b) => new Date(b.PURCHASE_DATE || 0).getTime() - new Date(a.PURCHASE_DATE || 0).getTime())
+            .slice(0, 3)
+        );
         setAllAlbums(mapped.filter(v => v.STATUS !== 'NONE'));
 
         const genreCounts: Record<string, number> = {};

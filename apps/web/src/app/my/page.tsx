@@ -121,7 +121,13 @@ export default function MyProfilePage() {
         const mappedWish = mapped.filter(v => v.STATUS === 'WISH');
 
         setAllAlbumsList(mapped.filter(v => v.STATUS !== 'NONE'));
-        setRecentAdditions(mappedOwned.slice(0, 3));
+        // 최근 수집 기록: 저장 시점 최신순 상위 3개 (정렬 없이 자르면 DB 반환
+        // 순서 = 사실상 오래된 순이 그대로 나온다)
+        setRecentAdditions(
+          [...mappedOwned]
+            .sort((a, b) => new Date(b.PURCHASE_DATE || 0).getTime() - new Date(a.PURCHASE_DATE || 0).getTime())
+            .slice(0, 3)
+        );
 
         // --- 호칭 획득 로직 ---
         let highestMarketPrice = 0;
