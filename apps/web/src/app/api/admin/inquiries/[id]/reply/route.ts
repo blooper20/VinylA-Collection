@@ -40,3 +40,40 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 
   return NextResponse.json({ reply });
 }
+
+// 관리자 답변 수정 — 문의 작성자가 아직 열람(READ_AT)하지 않은 답변만.
+// 사용자가 이미 본 답변을 소리 없이 바꾸는 것을 막는 규칙의 서버 측 강제.
+export async function PATCH(request: NextRequest, ctx: Ctx) {
+  const auth = await requireAdmin(request);
+  if (auth.error) return auth.error;
+  const { admin } = auth;
+  const { id } = await ctx.params;
+
+  const body = await request.json().catch(() => null);
+  const replyId = Number(body?.replyId);
+  const content = typeof body?.content === 'string' ? body.content.trim() : '';
+  if (!Number.isSafeInteger(replyId) || !content) {
+    return NextResponse.json({ error: 'replyId and content are required' }, { status: 400 });
+  }
+
+  const inquiryId = Number(id);
+  const { data, error } = await admin
+    .from('INQUIRY_REPLY')
+    .update({ CONTENT: content })
+    .eq('REPLY_ID', replyId)
+    .eq('INQUIRY_ID', inquiryId)
+    .eq('IS_ADMIN', true)
+    .is('READ_AT', null)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.error('admin reply edit failed:', error.message);
+    return NextResponse.json({ error: 'update failed' }, { status: 500 });
+  }
+  if (!data) {
+    // 조건 불일치 = 이미 사용자가 확인한 답변이거나 대상 없음
+    return NextResponse.json({ error: 'already-read-or-missing' }, { status: 409 });
+  }
+  return NextResponse.json({ reply: data });
+}

@@ -75,6 +75,54 @@ export const fetchMyInquiries = async (): Promise<InquiryWithReplies[]> => {
 };
 
 /**
+ * 내 문의 수정 — 관리자가 아직 열람하지 않은(ADMIN_READ_AT null) 문의만.
+ * 서버 라우트가 소유권·미열람 조건을 강제한다. 이미 확인된 문의면
+ * 'already-read' 에러를 던진다.
+ */
+export const updateMyInquiry = async (
+  inquiryId: number,
+  category: InquiryCategory,
+  title: string,
+  content: string
+): Promise<void> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('로그인이 필요합니다.');
+
+  const res = await fetch(`${getProxyBaseUrl()}/api/support/inquiry-edit`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inquiryId, category, title, content }),
+  });
+  if (res.status === 409) throw new Error('관리자가 이미 확인한 문의는 수정할 수 없습니다.');
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || '문의 수정에 실패했습니다.');
+  }
+};
+
+/**
+ * 내 문의 스레드 열람 기록 — 관리자 답변에 READ_AT을 찍는다.
+ * 실패해도 UX를 막지 않는 부가 동작이라 조용히 무시한다.
+ */
+export const markInquiryRepliesRead = async (inquiryId: number): Promise<void> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    await fetch(`${getProxyBaseUrl()}/api/support/replies-read`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ inquiryId }),
+    });
+  } catch { /* ignore */ }
+};
+
+/**
  * 내 문의에 추가 답글 작성. RLS: 본인 문의 + IS_ADMIN=false만 허용.
  */
 export const addUserReply = async (inquiryId: number, content: string): Promise<INQUIRY_REPLY> => {

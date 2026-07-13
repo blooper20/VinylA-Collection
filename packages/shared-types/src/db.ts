@@ -83,6 +83,8 @@ export interface INQUIRY {
   STATUS: InquiryStatus;
   PLATFORM: ClientPlatform;
   ATTACHMENTS?: InquiryAttachment[] | null;
+  /** 관리자가 이 문의를 처음 열람한 시각 — null이면 작성자가 아직 수정 가능 */
+  ADMIN_READ_AT?: string | null;
   CREATED_AT: string;
   UPDATED_AT: string;
 }
@@ -96,6 +98,8 @@ export interface INQUIRY_REPLY {
   USER_ID: string | null;
   IS_ADMIN: boolean;
   CONTENT: string;
+  /** (관리자 답변) 문의 작성자가 처음 열람한 시각 — null이면 관리자가 아직 수정 가능 */
+  READ_AT?: string | null;
   CREATED_AT: string;
 }
 
