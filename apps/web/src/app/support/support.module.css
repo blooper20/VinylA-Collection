@@ -381,3 +381,55 @@
   object-fit: cover;
   display: block;
 }
+
+/* ── 문의 수정 (관리자 확인 전) ─────────────── */
+.editBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.editBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+.editHint {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.editActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.editCancelBtn,
+.editSaveBtn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.editSaveBtn {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+}
+
+.editSaveBtn:disabled, .editCancelBtn:disabled { opacity: 0.5; cursor: default; }

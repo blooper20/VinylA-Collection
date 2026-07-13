@@ -39,6 +39,9 @@ export default function AdminInquiriesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 답변 수정 모드 (사용자가 아직 확인하지 않은 답변만)
+  const [editingReplyId, setEditingReplyId] = useState<number | null>(null);
+  const [editReplyDraft, setEditReplyDraft] = useState('');
 
   const loadInquiries = useCallback(async (filter: InquiryStatus | 'ALL') => {
     setIsLoading(true);
@@ -62,6 +65,44 @@ export default function AdminInquiriesPage() {
   }, [statusFilter, loadInquiries]);
 
   const selected = inquiries.find((i) => i.INQUIRY_ID === selectedId) || null;
+
+  // 문의를 선택하는 순간 '관리자 확인'으로 기록 — 이때부터 작성자는 해당
+  // 문의를 수정할 수 없다.
+  const handleSelect = (inquiryId: number) => {
+    setSelectedId(inquiryId);
+    setEditingReplyId(null);
+    (async () => {
+      try {
+        await fetch(`/api/admin/inquiries/${inquiryId}/read`, {
+          method: 'POST',
+          headers: await authHeaders(),
+        });
+      } catch { /* 부가 기능 — 실패해도 무시 */ }
+    })();
+  };
+
+  const handleEditReply = async (replyId: number) => {
+    if (!selected || !editReplyDraft.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/inquiries/${selected.INQUIRY_ID}/reply`, {
+        method: 'PATCH',
+        headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replyId, content: editReplyDraft.trim() }),
+      });
+      if (res.status === 409) {
+        alert('사용자가 이미 확인한 답변은 수정할 수 없습니다.');
+      } else if (!res.ok) {
+        throw new Error(`답변 수정 실패 (${res.status})`);
+      }
+      setEditingReplyId(null);
+      await loadInquiries(statusFilter);
+    } catch (e) {
+      console.error('Failed to edit reply', e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleReply = async () => {
     if (!selected || !replyDraft.trim() || isSubmitting) return;
@@ -133,7 +174,7 @@ export default function AdminInquiriesPage() {
                     type="button"
                     className={`${styles.listItem} ${selectedId === inq.INQUIRY_ID ? styles.listItemActive : ''}`}
                     onClick={() => {
-                      setSelectedId(inq.INQUIRY_ID);
+                      handleSelect(inq.INQUIRY_ID);
                       setReplyDraft('');
                     }}
                   >
@@ -219,10 +260,50 @@ export default function AdminInquiriesPage() {
                     className={reply.IS_ADMIN ? styles.messageAdmin : styles.messageUser}
                   >
                     {reply.IS_ADMIN && <span className={styles.adminBadge}>관리자</span>}
-                    <p className={styles.messageContent}>{reply.CONTENT}</p>
-                    <span className={styles.messageTime}>
-                      {new Date(reply.CREATED_AT).toLocaleString('ko-KR')}
-                    </span>
+                    {editingReplyId === reply.REPLY_ID ? (
+                      <>
+                        <textarea
+                          className={styles.replyInput}
+                          value={editReplyDraft}
+                          rows={3}
+                          maxLength={2000}
+                          onChange={(e) => setEditReplyDraft(e.target.value)}
+                        />
+                        <div className={styles.replyEditActions}>
+                          <button type="button" className={styles.replyEditCancel} onClick={() => setEditingReplyId(null)} disabled={isSubmitting}>
+                            취소
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.replyEditSave}
+                            onClick={() => handleEditReply(reply.REPLY_ID)}
+                            disabled={isSubmitting || !editReplyDraft.trim()}
+                          >
+                            수정 저장
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className={styles.messageContent}>{reply.CONTENT}</p>
+                        <span className={styles.messageTime}>
+                          {new Date(reply.CREATED_AT).toLocaleString('ko-KR')}
+                          {reply.IS_ADMIN && (
+                            reply.READ_AT
+                              ? <em className={styles.readState}> · 사용자 확인함</em>
+                              : (
+                                <button
+                                  type="button"
+                                  className={styles.replyEditBtn}
+                                  onClick={() => { setEditingReplyId(reply.REPLY_ID); setEditReplyDraft(reply.CONTENT); }}
+                                >
+                                  ✎ 수정
+                                </button>
+                              )
+                          )}
+                        </span>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

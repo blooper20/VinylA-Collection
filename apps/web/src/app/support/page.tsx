@@ -8,6 +8,8 @@ import {
   fetchMyInquiries,
   addUserReply,
   uploadInquiryAttachment,
+  updateMyInquiry,
+  markInquiryRepliesRead,
   InquiryWithReplies,
 } from '@vinyla/core-api';
 import { InquiryCategory, InquiryStatus, InquiryAttachment } from '@vinyla/shared-types';
@@ -69,6 +71,10 @@ export default function SupportPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replySubmitting, setReplySubmitting] = useState<number | null>(null);
+  // 문의 수정 모드 (관리자 확인 전까지만 진입 가능)
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<{ category: InquiryCategory; title: string; content: string }>({ category: 'SUGGESTION', title: '', content: '' });
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const loadInquiries = useCallback(async () => {
     try {
@@ -130,6 +136,38 @@ export default function SupportPage() {
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '문의 접수에 실패했습니다. 잠시 후 다시 시도해주세요.' } }));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // 스레드를 펼치면 관리자 답변 열람으로 기록 — 이 순간부터 관리자는 그
+  // 답변을 수정할 수 없다.
+  const handleExpand = (inq: InquiryWithReplies) => {
+    const opening = expandedId !== inq.INQUIRY_ID;
+    setExpandedId(opening ? inq.INQUIRY_ID : null);
+    setEditingId(null);
+    if (opening && inq.INQUIRY_REPLY.some((r) => r.IS_ADMIN && !r.READ_AT)) {
+      markInquiryRepliesRead(inq.INQUIRY_ID);
+    }
+  };
+
+  const handleStartEdit = (inq: InquiryWithReplies) => {
+    setEditingId(inq.INQUIRY_ID);
+    setEditDraft({ category: inq.CATEGORY, title: inq.TITLE, content: inq.CONTENT });
+  };
+
+  const handleSaveEdit = async (inquiryId: number) => {
+    if (!editDraft.title.trim() || !editDraft.content.trim() || editSubmitting) return;
+    setEditSubmitting(true);
+    try {
+      await updateMyInquiry(inquiryId, editDraft.category, editDraft.title.trim(), editDraft.content.trim());
+      setEditingId(null);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '문의가 수정되었습니다.' } }));
+      await loadInquiries();
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: e instanceof Error ? e.message : '문의 수정에 실패했습니다.' } }));
+      await loadInquiries();
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -261,7 +299,7 @@ export default function SupportPage() {
                   <button
                     type="button"
                     className={styles.inquiryHead}
-                    onClick={() => setExpandedId(isExpanded ? null : inq.INQUIRY_ID)}
+                    onClick={() => handleExpand(inq)}
                   >
                     <span className={styles.categoryBadge}>{CATEGORY_LABEL[inq.CATEGORY]}</span>
                     <span className={styles.inquiryTitle}>{inq.TITLE}</span>
@@ -275,13 +313,63 @@ export default function SupportPage() {
 
                   {isExpanded && (
                     <div className={styles.thread}>
-                      <div className={styles.messageUser}>
-                        <p className={styles.messageContent}>{inq.CONTENT}</p>
-                        <AttachmentGrid attachments={inq.ATTACHMENTS} />
-                        <span className={styles.messageTime}>
-                          {new Date(inq.CREATED_AT).toLocaleString('ko-KR')}
-                        </span>
-                      </div>
+                      {editingId === inq.INQUIRY_ID ? (
+                        <div className={styles.messageUser}>
+                          <div className={styles.categoryRow} style={{ marginBottom: 10 }}>
+                            {CATEGORIES.map((c) => (
+                              <button
+                                key={c.value}
+                                type="button"
+                                className={`${styles.categoryBtn} ${editDraft.category === c.value ? styles.categorySelected : ''}`}
+                                onClick={() => setEditDraft((p) => ({ ...p, category: c.value }))}
+                              >
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="text"
+                            className={styles.input}
+                            value={editDraft.title}
+                            maxLength={100}
+                            onChange={(e) => setEditDraft((p) => ({ ...p, title: e.target.value }))}
+                          />
+                          <textarea
+                            className={styles.textarea}
+                            style={{ marginTop: 10 }}
+                            value={editDraft.content}
+                            maxLength={2000}
+                            rows={5}
+                            onChange={(e) => setEditDraft((p) => ({ ...p, content: e.target.value }))}
+                          />
+                          <div className={styles.editActions}>
+                            <button type="button" className={styles.editCancelBtn} onClick={() => setEditingId(null)} disabled={editSubmitting}>
+                              취소
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.editSaveBtn}
+                              onClick={() => handleSaveEdit(inq.INQUIRY_ID)}
+                              disabled={editSubmitting || !editDraft.title.trim() || !editDraft.content.trim()}
+                            >
+                              {editSubmitting ? '저장 중...' : '수정 저장'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={styles.messageUser}>
+                          <p className={styles.messageContent}>{inq.CONTENT}</p>
+                          <AttachmentGrid attachments={inq.ATTACHMENTS} />
+                          <span className={styles.messageTime}>
+                            {new Date(inq.CREATED_AT).toLocaleString('ko-KR')}
+                          </span>
+                          {!inq.ADMIN_READ_AT && (
+                            <button type="button" className={styles.editBtn} onClick={() => handleStartEdit(inq)}>
+                              ✎ 수정 <span className={styles.editHint}>(관리자 확인 전까지 가능)</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {inq.INQUIRY_REPLY.map((reply) => (
                         <div
