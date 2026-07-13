@@ -194,6 +194,20 @@ export default function AdminInquiriesPage() {
               <div className={styles.thread}>
                 <div className={styles.messageUser}>
                   <p className={styles.messageContent}>{selected.CONTENT}</p>
+                  {(selected.ATTACHMENTS?.length ?? 0) > 0 && (
+                    <div className={styles.attachmentGrid}>
+                      {selected.ATTACHMENTS!.map((a, i) =>
+                        a.type === 'video' ? (
+                          <video key={i} className={styles.attachmentMedia} src={a.url} controls preload="metadata" />
+                        ) : (
+                          <a key={i} href={a.url} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img className={styles.attachmentMedia} src={a.url} alt={a.name} loading="lazy" />
+                          </a>
+                        )
+                      )}
+                    </div>
+                  )}
                   <span className={styles.messageTime}>
                     {new Date(selected.CREATED_AT).toLocaleString('ko-KR')}
                   </span>

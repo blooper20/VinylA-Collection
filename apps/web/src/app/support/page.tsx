@@ -1,15 +1,39 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './support.module.css';
 import {
   useAuthStore,
   createInquiry,
   fetchMyInquiries,
   addUserReply,
+  uploadInquiryAttachment,
   InquiryWithReplies,
 } from '@vinyla/core-api';
-import { InquiryCategory, InquiryStatus } from '@vinyla/shared-types';
+import { InquiryCategory, InquiryStatus, InquiryAttachment } from '@vinyla/shared-types';
+
+const MAX_ATTACHMENTS = 3;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+
+// 첨부 썸네일 그리드 (문의 본문 하단) — 이미지·GIF는 새 탭 원본, 영상은 인라인 재생
+function AttachmentGrid({ attachments }: { attachments?: InquiryAttachment[] | null }) {
+  if (!attachments || attachments.length === 0) return null;
+  return (
+    <div className={styles.attachmentGrid}>
+      {attachments.map((a, i) =>
+        a.type === 'video' ? (
+          <video key={i} className={styles.attachmentMedia} src={a.url} controls preload="metadata" />
+        ) : (
+          <a key={i} href={a.url} target="_blank" rel="noopener noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={styles.attachmentMedia} src={a.url} alt={a.name} loading="lazy" />
+          </a>
+        )
+      )}
+    </div>
+  );
+}
 
 const CATEGORIES: { value: InquiryCategory; label: string }[] = [
   { value: 'COMPLAINT', label: '불만' },
@@ -37,6 +61,8 @@ export default function SupportPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [inquiries, setInquiries] = useState<InquiryWithReplies[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,13 +87,42 @@ export default function SupportPage() {
     if (user) loadInquiries();
   }, [user, loadInquiries]);
 
+  const handlePickFiles = (picked: FileList | null) => {
+    if (!picked) return;
+    const next = [...pendingFiles];
+    for (const f of Array.from(picked)) {
+      if (next.length >= MAX_ATTACHMENTS) {
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: `첨부는 최대 ${MAX_ATTACHMENTS}개까지 가능합니다.` } }));
+        break;
+      }
+      const isImage = f.type.startsWith('image/');
+      const isVideo = f.type.startsWith('video/');
+      if (!isImage && !isVideo) {
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '이미지·GIF·영상 파일만 첨부할 수 있습니다.' } }));
+        continue;
+      }
+      if (f.size > (isImage ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES)) {
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: `파일이 너무 큽니다 (이미지 10MB, 영상 50MB 이하).` } }));
+        continue;
+      }
+      next.push(f);
+    }
+    setPendingFiles(next);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = async () => {
     if (!title.trim() || !content.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await createInquiry(category, title.trim(), content.trim());
+      const attachments = [];
+      for (const f of pendingFiles) {
+        attachments.push(await uploadInquiryAttachment(f));
+      }
+      await createInquiry(category, title.trim(), content.trim(), 'WEB', attachments);
       setTitle('');
       setContent('');
+      setPendingFiles([]);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '문의가 접수되었습니다.' } }));
       await loadInquiries();
     } catch (e) {
@@ -143,6 +198,43 @@ export default function SupportPage() {
           />
         </div>
 
+        <div className={styles.formGroup}>
+          <label className={styles.label}>첨부 파일 <span className={styles.labelHint}>이미지 · GIF · 영상, 최대 {MAX_ATTACHMENTS}개</span></label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            hidden
+            onChange={(e) => handlePickFiles(e.target.files)}
+          />
+          <div className={styles.attachRow}>
+            {pendingFiles.map((f, i) => (
+              <div key={i} className={styles.previewItem}>
+                {f.type.startsWith('video/') ? (
+                  <video className={styles.previewMedia} src={URL.createObjectURL(f)} muted />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img className={styles.previewMedia} src={URL.createObjectURL(f)} alt={f.name} />
+                )}
+                <button
+                  type="button"
+                  className={styles.previewRemove}
+                  aria-label="첨부 제거"
+                  onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {pendingFiles.length < MAX_ATTACHMENTS && (
+              <button type="button" className={styles.attachBtn} onClick={() => fileInputRef.current?.click()}>
+                + 파일 추가
+              </button>
+            )}
+          </div>
+        </div>
+
         <button
           className={styles.submitBtn}
           onClick={handleSubmit}
@@ -185,6 +277,7 @@ export default function SupportPage() {
                     <div className={styles.thread}>
                       <div className={styles.messageUser}>
                         <p className={styles.messageContent}>{inq.CONTENT}</p>
+                        <AttachmentGrid attachments={inq.ATTACHMENTS} />
                         <span className={styles.messageTime}>
                           {new Date(inq.CREATED_AT).toLocaleString('ko-KR')}
                         </span>

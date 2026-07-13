@@ -58,6 +58,15 @@ export type EventType =
 export type ClientPlatform = 'WEB' | 'MOBILE';
 
 /**
+ * 문의 첨부 파일 (이미지·GIF·영상) — inquiry-attachments 버킷의 공개 URL
+ */
+export interface InquiryAttachment {
+  url: string;
+  type: 'image' | 'video';
+  name: string;
+}
+
+/**
  * 사용자 문의 (불만/건의/버그)
  */
 export interface INQUIRY {
@@ -68,6 +77,7 @@ export interface INQUIRY {
   CONTENT: string;
   STATUS: InquiryStatus;
   PLATFORM: ClientPlatform;
+  ATTACHMENTS?: InquiryAttachment[] | null;
   CREATED_AT: string;
   UPDATED_AT: string;
 }
