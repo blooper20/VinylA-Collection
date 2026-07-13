@@ -386,45 +386,59 @@
 .editBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
 }
 
-.editBtn:hover { border-color: var(--accent); color: var(--accent); }
+.editBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
 
 .editHint {
   font-size: 11px;
-  opacity: 0.6;
+  opacity: 0.5;
+  font-weight: 400;
 }
 
 .editActions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   justify-content: flex-end;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .editCancelBtn,
 .editSaveBtn {
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 20px;
   border: none;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .editCancelBtn {
   background: transparent;
-  border: 1px solid var(--border);
   color: var(--text-muted);
+}
+
+.editCancelBtn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .editSaveBtn {
@@ -432,4 +446,14 @@
   color: var(--bg-surface);
 }
 
-.editSaveBtn:disabled, .editCancelBtn:disabled { opacity: 0.5; cursor: default; }
+.editSaveBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
+}
+
+.editSaveBtn:disabled, .editCancelBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
