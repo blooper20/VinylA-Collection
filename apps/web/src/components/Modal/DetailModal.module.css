@@ -676,3 +676,127 @@
 
 .coverPhotoBtn:hover { opacity: 1; }
 .coverPhotoBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── 재킷 크롭 편집기 ─────────────────────── */
+.cropOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.cropModal {
+  background: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  width: min(400px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cropTitle {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  align-self: flex-start;
+}
+
+.cropHint {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  align-self: flex-start;
+}
+
+.cropViewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+  background: #000;
+  outline: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.cropViewport:active { cursor: grabbing; }
+
+.cropZoom {
+  width: 100%;
+  margin: 16px 0 4px;
+  accent-color: #e6b93c;
+}
+
+.cropScopeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 14px 0 18px;
+}
+
+.cropScopeOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.cropScopeOption:has(input:checked) {
+  border-color: #e6b93c;
+  background: rgba(230, 185, 60, 0.06);
+}
+
+.cropScopeOption input { margin-top: 3px; accent-color: #e6b93c; }
+
+.cropScopeOption strong {
+  display: block;
+  font-size: 13px;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.cropScopeOption small {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.5;
+}
+
+.cropActions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.cropCancelBtn,
+.cropConfirmBtn {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cropCancelBtn {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.cropConfirmBtn {
+  background: #fff;
+  color: #000;
+}
+
+.cropConfirmBtn:disabled,
+.cropCancelBtn:disabled { opacity: 0.5; cursor: default; }

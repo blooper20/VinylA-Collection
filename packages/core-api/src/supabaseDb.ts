@@ -350,6 +350,8 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     // 에디션마다 실물 재킷이 달라, 공유 마스터 커버가 내 판과 다를 수 있다.
     COVER_URL: userVinyl?.CUSTOM_IMAGE_URL || master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     IMAGE_URL: userVinyl?.CUSTOM_IMAGE_URL || master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
+    // 개인 커버 사용 여부를 소비자(DetailModal 등)가 구분할 수 있게 원본도 노출
+    CUSTOM_IMAGE_URL: userVinyl?.CUSTOM_IMAGE_URL || null,
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     VINYL_IMAGE_URL: master?.VINYL_IMAGE_URL || '',
@@ -399,5 +401,28 @@ export const setUserVinylCover = async (
     .eq('ALBUM_ID', albumId);
   if (error) {
     throw new AppError('DB-004', '커버 변경 사항을 저장하지 못했습니다.', error);
+  }
+};
+
+// ALBUM_MASTER는 RLS에서 클라이언트 UPDATE가 차단돼 있어(공유 데이터 보호)
+// 커버 교정은 인증·URL 화이트리스트를 검증하는 서버 라우트를 경유한다.
+// 쓰임새 둘: ① 검색 파이프라인이 실물 LP 커버를 주도록 개선된 뒤에도
+// 남아 있는 옛 마스터 커버의 갱신, ② 재킷 촬영 기능의 "모두에게 적용".
+export const updateAlbumMasterImage = async (albumId: number, imageUrl: string): Promise<void> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new AppError('DB-004', '로그인이 필요합니다.');
+
+  const proxyBase = (globalThis as any).__VINYLA_API_BASE__ || '';
+  const res = await fetch(`${proxyBase}/api/album-master/cover`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ albumId, imageUrl }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new AppError('DB-004', body.error || '커버 갱신에 실패했습니다.');
   }
 };

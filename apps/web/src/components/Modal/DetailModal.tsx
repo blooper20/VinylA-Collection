@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -13,6 +13,158 @@ interface DetailModalProps {
   album: MockVinylData;
   onClose: () => void;
 }
+
+type CoverScope = 'mine' | 'everyone';
+
+// 재킷 촬영본 크롭 편집기: 정사각 뷰포트 안에서 드래그(위치)·슬라이더(확대)로
+// 크롭 영역을 다듬고, 적용 전 결과를 그대로 미리 보여준다. 공개 범위(나만/
+// 모두)도 여기서 선택.
+const CoverCropModal: React.FC<{
+  file: File;
+  onCancel: () => void;
+  onConfirm: (square: Blob, scope: CoverScope) => void;
+  isBusy: boolean;
+  t: ReturnType<typeof useLocale>['t'];
+}> = ({ file, onCancel, onConfirm, isBusy, t }) => {
+  const VIEW = 320; // 뷰포트 한 변(px) — CSS와 일치해야 크롭 좌표가 맞는다
+  const [objectUrl] = React.useState(() => URL.createObjectURL(file));
+  const [natural, setNatural] = React.useState<{ w: number; h: number } | null>(null);
+  const [zoom, setZoom] = React.useState(1);
+  const [offset, setOffset] = React.useState({ x: 0, y: 0 });
+  const [scope, setScope] = React.useState<CoverScope>('mine');
+  const dragRef = React.useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+
+  React.useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl]);
+
+  const baseScale = natural ? VIEW / Math.min(natural.w, natural.h) : 1;
+  const scale = baseScale * zoom;
+  const dispW = natural ? natural.w * scale : VIEW;
+  const dispH = natural ? natural.h * scale : VIEW;
+
+  const clamp = React.useCallback((x: number, y: number, dw: number, dh: number) => ({
+    x: Math.min(0, Math.max(VIEW - dw, x)),
+    y: Math.min(0, Math.max(VIEW - dh, y)),
+  }), []);
+
+  const onImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const nat = { w: img.naturalWidth, h: img.naturalHeight };
+    setNatural(nat);
+    const bs = VIEW / Math.min(nat.w, nat.h);
+    setOffset({ x: (VIEW - nat.w * bs) / 2, y: (VIEW - nat.h * bs) / 2 });
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: offset.x, baseY: offset.y };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const { startX, startY, baseX, baseY } = dragRef.current;
+    setOffset(clamp(baseX + (e.clientX - startX), baseY + (e.clientY - startY), dispW, dispH));
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
+  const onZoom = (z: number) => {
+    if (!natural) return;
+    // 뷰포트 중앙 기준으로 확대/축소 (중앙이 튀지 않게 오프셋 보정)
+    const prevScale = baseScale * zoom;
+    const nextScale = baseScale * z;
+    const cx = (VIEW / 2 - offset.x) / prevScale;
+    const cy = (VIEW / 2 - offset.y) / prevScale;
+    const nx = VIEW / 2 - cx * nextScale;
+    const ny = VIEW / 2 - cy * nextScale;
+    setZoom(z);
+    setOffset(clamp(nx, ny, natural.w * nextScale, natural.h * nextScale));
+  };
+
+  const handleConfirm = () => {
+    if (!natural || isBusy) return;
+    const img = new window.Image();
+    img.onload = () => {
+      const sx = -offset.x / scale;
+      const sy = -offset.y / scale;
+      const sSide = VIEW / scale;
+      const out = Math.min(1200, Math.round(sSide));
+      const canvas = document.createElement('canvas');
+      canvas.width = out;
+      canvas.height = out;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, sx, sy, sSide, sSide, 0, 0, out, out);
+      canvas.toBlob((b) => { if (b) onConfirm(b, scope); }, 'image/jpeg', 0.92);
+    };
+    img.src = objectUrl;
+  };
+
+  return (
+    <div className={styles.cropOverlay} onClick={onCancel}>
+      <div className={styles.cropModal} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.cropTitle}>{t('detail.coverCropTitle')}</h3>
+        <p className={styles.cropHint}>{t('detail.coverCropHint')}</p>
+        <div
+          className={styles.cropViewport}
+          style={{ width: VIEW, height: VIEW }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={objectUrl}
+            alt=""
+            draggable={false}
+            onLoad={onImgLoad}
+            style={{
+              position: 'absolute',
+              left: offset.x,
+              top: offset.y,
+              width: dispW,
+              height: dispH,
+              maxWidth: 'none',
+              userSelect: 'none',
+              touchAction: 'none',
+            }}
+          />
+        </div>
+        <input
+          type="range"
+          className={styles.cropZoom}
+          min={1}
+          max={3}
+          step={0.01}
+          value={zoom}
+          onChange={(e) => onZoom(Number(e.target.value))}
+          aria-label={t('detail.coverCropZoom')}
+        />
+        <div className={styles.cropScopeRow}>
+          <label className={styles.cropScopeOption}>
+            <input type="radio" name="coverScope" checked={scope === 'mine'} onChange={() => setScope('mine')} />
+            <span>
+              <strong>{t('detail.coverScopeMine')}</strong>
+              <small>{t('detail.coverScopeMineDesc')}</small>
+            </span>
+          </label>
+          <label className={styles.cropScopeOption}>
+            <input type="radio" name="coverScope" checked={scope === 'everyone'} onChange={() => setScope('everyone')} />
+            <span>
+              <strong>{t('detail.coverScopeEveryone')}</strong>
+              <small>{t('detail.coverScopeEveryoneDesc')}</small>
+            </span>
+          </label>
+        </div>
+        <div className={styles.cropActions}>
+          <button type="button" className={styles.cropCancelBtn} onClick={onCancel} disabled={isBusy}>
+            {t('common.cancel')}
+          </button>
+          <button type="button" className={styles.cropConfirmBtn} onClick={handleConfirm} disabled={isBusy || !natural}>
+            {isBusy ? t('detail.coverPhotoUploading') : t('detail.coverCropApply')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const { user } = useAuthStore();
@@ -39,46 +191,36 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
   const coverFileRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
+  const [cropFile, setCropFile] = React.useState<File | null>(null);
 
-  // 촬영본을 중앙 정사각형으로 자동 크롭 (재킷은 정사각이므로 중앙 크롭이
-  // 기본값으로 가장 안전) 후 최대 1200px JPEG로 축소해 업로드 용량을 줄인다.
-  const cropToSquare = (file: File): Promise<Blob> =>
-    new Promise((resolve, reject) => {
-      const img = new window.Image();
-      const objectUrl = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        const side = Math.min(img.naturalWidth, img.naturalHeight);
-        const size = Math.min(side, 1200);
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('canvas unavailable'));
-        ctx.drawImage(
-          img,
-          (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side,
-          0, 0, size, size
-        );
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('crop failed'))), 'image/jpeg', 0.92);
-      };
-      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('image load failed')); };
-      img.src = objectUrl;
-    });
-
-  const handleCoverPhoto = async (file: File | null) => {
+  const handleCoverPhoto = (file: File | null) => {
     if (!file || !user?.id || isUploadingCover) return;
     if (!file.type.startsWith('image/')) {
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoInvalid') } }));
       return;
     }
+    // 바로 업로드하지 않고 크롭 편집기를 먼저 띄운다 — 적용 전 결과 확인 +
+    // 위치/확대 조절 + 공개 범위 선택은 CoverCropModal에서.
+    setCropFile(file);
+    if (coverFileRef.current) coverFileRef.current.value = '';
+  };
+
+  const handleCropConfirm = async (square: Blob, scope: CoverScope) => {
+    if (!user?.id || isUploadingCover) return;
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
-      const square = await cropToSquare(file);
       const url = await uploadUserCover(numericAlbumId, square);
-      await setUserVinylCover(user.id, numericAlbumId, url);
+      if (scope === 'everyone') {
+        // 모두에게 적용: 공유 마스터 커버를 교체하고, 내 개인 커버는 비워서
+        // 나도 마스터(=방금 올린 사진)를 보게 한다.
+        await updateAlbumMasterImage(numericAlbumId, url);
+        await setUserVinylCover(user.id, numericAlbumId, null);
+      } else {
+        await setUserVinylCover(user.id, numericAlbumId, url);
+      }
       setCoverUrl(url);
+      setCropFile(null);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     } catch (e) {
@@ -86,7 +228,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
     } finally {
       setIsUploadingCover(false);
-      if (coverFileRef.current) coverFileRef.current.value = '';
     }
   };
 
@@ -206,7 +347,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
       const numericAlbumId = Number(album.ALBUM_ID);
       const master = await getAlbumMaster(numericAlbumId);
-      
+
+      // 검색 파이프라인이 실물 LP 커버를 주도록 개선되기 전에 저장된 마스터에는
+      // 옛(디지털 스토어) 커버가 남아 있다 — 검색에서 새로 열어 저장하는 경우,
+      // 지금 카드에 보이는 커버(=검색 소스가 준 실물 재킷)로 마스터를 갱신한다.
+      // 개인 촬영 커버(CUSTOM_IMAGE_URL)나 플레이스홀더는 마스터에 쓰지 않는다.
+      const isCatalogCover = !!album.IMAGE_URL &&
+        !album.CUSTOM_IMAGE_URL &&
+        !album.IMAGE_URL.includes('supabase.co') &&
+        !album.IMAGE_URL.includes('unsplash.com');
+      if (master?.IMAGE_URL && isCatalogCover && album.IMAGE_URL !== master.IMAGE_URL) {
+        // 갱신 실패해도 저장 흐름은 계속 (커버는 부가 정보)
+        await updateAlbumMasterImage(numericAlbumId, album.IMAGE_URL).catch(() => {});
+      }
+
       // LP 재킷 고정 원칙: 마스터에 커버가 없을 때만 채워넣고,
       // 이미 있는 커버를 디지털 스토어 아트로 덮어쓰지 않는다.
       const isNewImageBetter = !!album.IMAGE_URL && !master?.IMAGE_URL;
@@ -593,12 +747,22 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         </div>
       </ShareBottomSheet>
 
-      <SharePreviewModal 
+      <SharePreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         blob={previewBlob}
         mode={previewMode}
       />
+
+      {cropFile && (
+        <CoverCropModal
+          file={cropFile}
+          isBusy={isUploadingCover}
+          onCancel={() => !isUploadingCover && setCropFile(null)}
+          onConfirm={handleCropConfirm}
+          t={t}
+        />
+      )}
     </div>
   );
 };

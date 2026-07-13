@@ -120,3 +120,84 @@
   color: var(--text-faint);
   font-size: 13px;
 }
+
+/* ── 공개 프로필 미리보기 ─────────────────── */
+.profileBtn {
+  padding: 6px 14px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.profileBtn:hover { border-color: var(--accent, #e6b93c); color: var(--accent, #e6b93c); }
+
+.profileOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.profileModal {
+  background: var(--bg-surface, #161616);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  width: min(1100px, 100%);
+  height: min(85vh, 900px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.profileModalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  font-size: 14px;
+}
+
+.profileModalEmail {
+  margin-left: 10px;
+  font-size: 12px;
+  opacity: 0.55;
+}
+
+.profileModalActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profileNewTab {
+  font-size: 12px;
+  color: var(--accent, #e6b93c);
+  text-decoration: none;
+}
+
+.profileClose {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.profileClose:hover { opacity: 1; }
+
+.profileFrame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #000;
+}
