@@ -97,7 +97,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       if (details.notes) setNotes(details.notes);
       if (details.copyright) setCopyright(details.copyright);
       if (details.releaseDate) setReleaseDate(details.releaseDate);
-      if (details.highResCover && album.IMAGE_URL !== details.highResCover) {
+      // 실물 LP 재킷(검색 소스가 준 커버)이 항상 우선 — 디지털 스토어 아트로
+      // 갈아끼우면 다른 에디션의 재킷이 표시될 수 있다. 커버가 아예 없을 때만 보강.
+      if (details.highResCover && (!album.IMAGE_URL || album.IMAGE_URL.includes('spacer.gif'))) {
         setCoverUrl(details.highResCover);
       }
       if (details.marketPrice) {
@@ -152,7 +154,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       const numericAlbumId = Number(album.ALBUM_ID);
       const master = await getAlbumMaster(numericAlbumId);
       
-      const isNewImageBetter = album.IMAGE_URL?.includes('mzstatic.com') || album.IMAGE_URL?.includes('apple.com') || (album.IMAGE_URL && !master?.IMAGE_URL);
+      // LP 재킷 고정 원칙: 마스터에 커버가 없을 때만 채워넣고,
+      // 이미 있는 커버를 디지털 스토어 아트로 덮어쓰지 않는다.
+      const isNewImageBetter = !!album.IMAGE_URL && !master?.IMAGE_URL;
       
       if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
         await createAlbumMaster({
