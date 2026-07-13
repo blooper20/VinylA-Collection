@@ -258,7 +258,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
   const syncAlbumMasterIfNeeded = async (numericAlbumId: number, finalGenres: string[]) => {
     let master = await getAlbumMaster(numericAlbumId);
-    const isNewImageBetter = album!.IMAGE_URL?.includes('mzstatic.com') || album!.IMAGE_URL?.includes('apple.com') || (album!.IMAGE_URL && !master?.IMAGE_URL);
+    // LP 재킷 고정 원칙(웹 DetailModal과 동일): 마스터에 커버가 없을 때만 채워넣는다.
+    const isNewImageBetter = !!album!.IMAGE_URL && !master?.IMAGE_URL;
     
     // Web앱과 동일한 조건: master가 없거나, 장르 태그가 누락되었거나(단순 'Vinyl'만 있는 경우 포함), 이미지가 더 좋은 경우 ALBUM_MASTER 업데이트
     if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {

@@ -617,12 +617,20 @@ export const createDiscogsSearchSession = (
     const enrich = async ({ r, isFeature }: { r: DiscogsRelease, isFeature: boolean }) => {
       const { artist, title } = parseDiscogsTitle(r.title || '');
 
-      // 1. Unconditionally try Apple Music for a pristine digital cover
-      let thumb = '';
+      // 1. The LP source's own image is the ground truth for what the
+      //    physical jacket looks like — Discogs images are photos of the
+      //    actual pressing, Aladin covers are the product shot of the LP
+      //    being sold. Digital storefront art (Apple/Deezer) can be a
+      //    different edition's artwork, and the card must show the real
+      //    LP jacket (user rule), so digital art is only a fallback for
+      //    items whose source has no usable image.
+      const rawSourceCover = r.cover_image || r.thumb || '';
+      const sourceCover = rawSourceCover.includes('spacer.gif') ? '' : rawSourceCover;
+      let thumb = sourceCover;
       let hit: ITunesResult | null = null;
       const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
       const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
-      try {
+      if (!thumb) try {
         const itRes = await axios.get('https://itunes.apple.com/search', {
           params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3, country: 'KR' }
         });
@@ -660,19 +668,14 @@ export const createDiscogsSearchSession = (
         }
       } catch (e) { /* ignore */ }
 
-      // 1b. Apple-Music-exclusive albums never appear in the free iTunes
-      // search index even with country=KR (e.g. 백예린 "Flash and Core") —
-      // try Deezer's keyless catalog before settling for the source's own
-      // cover, which for Aladin items is at best 500px.
-      if (!thumb || thumb.includes('spacer.gif')) {
+      // 1b. Second-line fallback for cover-less items: Apple-Music-exclusive
+      // albums never appear in the free iTunes search index even with
+      // country=KR (e.g. 백예린 "Flash and Core") — Deezer's keyless catalog
+      // often still has them.
+      if (!thumb) {
         const dz = await searchDeezerAlbum(cleanArtist, cleanTitle, alias);
         const dzCover = dz?.cover_xl || dz?.cover_big;
         if (dzCover) thumb = dzCover;
-      }
-
-      // 2. Fallback to Discogs cover image if Apple Music failed
-      if (!thumb || thumb.includes('spacer.gif')) {
-        thumb = r.cover_image || r.thumb || '';
       }
 
       // Discogs gives `genre` and `style` as arrays. We also add `country`.

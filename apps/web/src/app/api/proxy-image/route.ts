@@ -14,12 +14,17 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Invalid URL parameter', { status: 400 });
   }
 
+  // Must cover every host covers can come from (search enrichment sources) —
+  // a host missing here renders as a BLANK tile in shared collection images,
+  // since the share templates route all covers through this proxy.
   const allowedDomains = [
     'mzstatic.com',
     'apple.com',
     'discogs.com',
     'unsplash.com',
     'picsum.photos',
+    'aladin.co.kr',
+    'dzcdn.net',
   ];
 
   const isAllowed = allowedDomains.some(domain => 
