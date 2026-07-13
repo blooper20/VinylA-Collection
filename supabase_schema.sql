@@ -127,6 +127,11 @@ CREATE TABLE IF NOT EXISTS public."INQUIRY" (
 
 -- 2026-07-13: 문의 첨부(이미지/GIF/영상) — 기존 테이블에는 이 한 줄만 실행
 ALTER TABLE public."INQUIRY" ADD COLUMN IF NOT EXISTS "ATTACHMENTS" jsonb;
+
+-- 2026-07-13: 유저 촬영 재킷 커버 — 에디션별 실물 재킷이 마스터 커버와 다를 때
+-- 본인 보관함에서만 우선 표시되는 커버 URL (user-covers 버킷, 업로드는
+-- /api/user-cover/upload 서버 라우트가 인증 검증 후 service role로 수행)
+ALTER TABLE public."USER_VINYL" ADD COLUMN IF NOT EXISTS "CUSTOM_IMAGE_URL" text;
 -- 첨부 파일 저장소: inquiry-attachments 버킷은 서비스가 API로 생성/업로드
 -- (public read, 50MB 제한, 이미지/영상 MIME 화이트리스트; 업로드는
 -- /api/support/upload 서버 라우트가 인증 검증 후 service role로 수행)

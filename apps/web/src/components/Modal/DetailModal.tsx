@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -36,6 +36,59 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [previewBlob, setPreviewBlob] = React.useState<Blob | null>(null);
   const [previewMode, setPreviewMode] = React.useState<'save' | 'copy' | null>(null);
+
+  const coverFileRef = React.useRef<HTMLInputElement>(null);
+  const [isUploadingCover, setIsUploadingCover] = React.useState(false);
+
+  // 촬영본을 중앙 정사각형으로 자동 크롭 (재킷은 정사각이므로 중앙 크롭이
+  // 기본값으로 가장 안전) 후 최대 1200px JPEG로 축소해 업로드 용량을 줄인다.
+  const cropToSquare = (file: File): Promise<Blob> =>
+    new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const size = Math.min(side, 1200);
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('canvas unavailable'));
+        ctx.drawImage(
+          img,
+          (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side,
+          0, 0, size, size
+        );
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('crop failed'))), 'image/jpeg', 0.92);
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('image load failed')); };
+      img.src = objectUrl;
+    });
+
+  const handleCoverPhoto = async (file: File | null) => {
+    if (!file || !user?.id || isUploadingCover) return;
+    if (!file.type.startsWith('image/')) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoInvalid') } }));
+      return;
+    }
+    setIsUploadingCover(true);
+    try {
+      const numericAlbumId = Number(album.ALBUM_ID);
+      const square = await cropToSquare(file);
+      const url = await uploadUserCover(numericAlbumId, square);
+      await setUserVinylCover(user.id, numericAlbumId, url);
+      setCoverUrl(url);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
+      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+    } catch (e) {
+      console.error('cover photo update failed', e);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsUploadingCover(false);
+      if (coverFileRef.current) coverFileRef.current.value = '';
+    }
+  };
 
   const captureStoryImage = async (format: 'jpeg' | 'png' = 'jpeg') => {
     if (!storyTemplateRef.current || isCapturing) return null;
@@ -252,6 +305,30 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
             </div>
             <div className={styles.cover}>
               <Image src={coverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
+              {album.STATUS === 'OWNED' && (
+                <>
+                  <input
+                    ref={coverFileRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                    onChange={(e) => handleCoverPhoto(e.target.files?.[0] || null)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.coverPhotoBtn}
+                    onClick={() => coverFileRef.current?.click()}
+                    disabled={isUploadingCover}
+                    title={t('detail.coverPhotoTitle')}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                      {isUploadingCover ? 'hourglass_top' : 'photo_camera'}
+                    </span>
+                    {isUploadingCover ? t('detail.coverPhotoUploading') : t('detail.coverPhotoButton')}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

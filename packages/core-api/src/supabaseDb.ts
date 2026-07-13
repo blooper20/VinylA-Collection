@@ -346,8 +346,10 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     ALBUM_ID: master?.ALBUM_ID || userVinyl?.ALBUM_ID,
     TITLE: master?.TITLE || 'Unknown Title',
     ARTIST: master?.ARTIST || 'Unknown Artist',
-    COVER_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
-    IMAGE_URL: master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
+    // 유저가 직접 찍어 올린 재킷 사진이 있으면 그게 우선 — 같은 앨범이라도
+    // 에디션마다 실물 재킷이 달라, 공유 마스터 커버가 내 판과 다를 수 있다.
+    COVER_URL: userVinyl?.CUSTOM_IMAGE_URL || master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
+    IMAGE_URL: userVinyl?.CUSTOM_IMAGE_URL || master?.IMAGE_URL || 'https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=400',
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
     VINYL_IMAGE_URL: master?.VINYL_IMAGE_URL || '',
@@ -358,4 +360,44 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c',
     MARKET_PRICE: master?.MARKET_PRICE || 0
   };
+};
+
+// ── 사용자 촬영 재킷 커버 ─────────────────────────────────────────
+// 같은 앨범이라도 에디션마다 실물 재킷이 달라 공유 마스터 커버가 내 판과
+// 다를 수 있다. 촬영본을 user-covers 버킷에 올리고(서버 라우트가 인증 검증),
+// 그 URL을 내 USER_VINYL 행에만 기록한다 — 다른 유저의 커버는 그대로.
+
+export const uploadUserCover = async (albumId: number, file: Blob): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new AppError('DB-004', '로그인이 필요합니다.');
+
+  const proxyBase = (globalThis as any).__VINYLA_API_BASE__ || '';
+  const form = new FormData();
+  form.append('file', file);
+  form.append('albumId', String(albumId));
+  const res = await fetch(`${proxyBase}/api/user-cover/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new AppError('DB-004', body.error || '커버 업로드에 실패했습니다.');
+  }
+  return (await res.json()).url as string;
+};
+
+export const setUserVinylCover = async (
+  userId: string | number,
+  albumId: number,
+  coverUrl: string | null
+): Promise<void> => {
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .update({ CUSTOM_IMAGE_URL: coverUrl })
+    .eq('USER_ID', userId)
+    .eq('ALBUM_ID', albumId);
+  if (error) {
+    throw new AppError('DB-004', '커버 변경 사항을 저장하지 못했습니다.', error);
+  }
 };

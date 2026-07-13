@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     'picsum.photos',
     'aladin.co.kr',
     'dzcdn.net',
+    'supabase.co', // user-covers / 유저 촬영 재킷 (공유 이미지 렌더링용)
   ];
 
   const isAllowed = allowedDomains.some(domain => 

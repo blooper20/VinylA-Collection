@@ -42,6 +42,8 @@ export interface USER_VINYL {
   PURCHASE_DATE: Date | string;
   /** 구매가 */
   PURCHASE_PRICE: number;
+  /** 사용자가 직접 촬영해 올린 재킷 사진 (내 보관함에서만 이 커버가 우선 표시됨) */
+  CUSTOM_IMAGE_URL?: string | null;
 }
 
 export type InquiryCategory = 'COMPLAINT' | 'SUGGESTION' | 'BUG' | 'GENERAL';
