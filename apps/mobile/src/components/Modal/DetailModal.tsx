@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage } from '@vinyla/core-api';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
@@ -258,6 +258,16 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
   const syncAlbumMasterIfNeeded = async (numericAlbumId: number, finalGenres: string[]) => {
     let master = await getAlbumMaster(numericAlbumId);
+
+    // 검색 파이프라인 개선 전 저장된 마스터의 옛 커버 갱신 (웹 DetailModal과 동일):
+    // 검색에서 새로 열어 저장할 때 지금 보이는 실물 LP 커버로 마스터를 교체한다.
+    const isCatalogCover = !!album!.IMAGE_URL &&
+      !(album as any).CUSTOM_IMAGE_URL &&
+      !album!.IMAGE_URL.includes('supabase.co') &&
+      !album!.IMAGE_URL.includes('unsplash.com');
+    if (master?.IMAGE_URL && isCatalogCover && album!.IMAGE_URL !== master.IMAGE_URL) {
+      await updateAlbumMasterImage(numericAlbumId, album!.IMAGE_URL).catch(() => {});
+    }
     // LP 재킷 고정 원칙(웹 DetailModal과 동일): 마스터에 커버가 없을 때만 채워넣는다.
     const isNewImageBetter = !!album!.IMAGE_URL && !master?.IMAGE_URL;
     

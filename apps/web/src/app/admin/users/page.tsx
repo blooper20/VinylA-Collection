@@ -24,6 +24,10 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // 프로필 미리보기: 해당 사용자의 공개 프로필(/user/[id] — 마이페이지의
+  // '프로필 공유'로 열리는 화면)을 iframe으로 띄운다. 커버 등 사용자가
+  // 실제로 보는 상태를 관리자가 눈으로 확인하는 용도.
+  const [previewUser, setPreviewUser] = useState<AdminUserRow | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -84,16 +88,17 @@ export default function AdminUsersPage() {
               <th>위시</th>
               <th>최근 로그인</th>
               <th>상태</th>
+              <th>프로필</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className={styles.placeholder}>불러오는 중...</td>
+                <td colSpan={8} className={styles.placeholder}>불러오는 중...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className={styles.placeholder}>
+                <td colSpan={8} className={styles.placeholder}>
                   {query ? '검색 결과가 없습니다' : '사용자가 없습니다'}
                 </td>
               </tr>
@@ -116,12 +121,50 @@ export default function AdminUsersPage() {
                       {u.deleted ? '탈퇴' : '활성'}
                     </span>
                   </td>
+                  <td>
+                    {!u.deleted && (
+                      <button
+                        type="button"
+                        className={styles.profileBtn}
+                        onClick={() => setPreviewUser(u)}
+                        title="이 사용자의 공개 프로필(공유 화면)을 봅니다"
+                      >
+                        보기
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {previewUser && (
+        <div className={styles.profileOverlay} onClick={() => setPreviewUser(null)}>
+          <div className={styles.profileModal} onClick={(e) => e.stopPropagation()}>
+            <header className={styles.profileModalHead}>
+              <div>
+                <strong>{previewUser.displayName || '(이름 없음)'}</strong>
+                <span className={styles.profileModalEmail}>{previewUser.email}</span>
+              </div>
+              <div className={styles.profileModalActions}>
+                <a href={`/user/${previewUser.id}`} target="_blank" rel="noopener noreferrer" className={styles.profileNewTab}>
+                  새 탭에서 열기 ↗
+                </a>
+                <button type="button" className={styles.profileClose} onClick={() => setPreviewUser(null)}>
+                  ✕
+                </button>
+              </div>
+            </header>
+            <iframe
+              src={`/user/${previewUser.id}`}
+              className={styles.profileFrame}
+              title={`${previewUser.displayName} 공개 프로필`}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
