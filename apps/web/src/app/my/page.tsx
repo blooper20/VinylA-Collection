@@ -14,7 +14,13 @@ import { copyToClipboard } from '../../utils/shareUtils';
 type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
 
 const AVAILABLE_GENRES = [
-  'Pop', 'Rock', 'Jazz', 'Electronic', 'Hip Hop', 'R&B / Soul', 'Folk', 'Classical', 'Blues', 'Reggae', 'Cinematic', 'Ambient', 'World'
+  'Pop', 'Rock', 'Jazz', 'Electronic', 'Hip Hop', 'R&B / Soul', 'Folk', 
+  'Classical', 'Blues', 'Reggae', 'Cinematic', 'Ambient', 'World', 
+  'Latin', 'Funk', 'Disco', 'Punk', 'Alternative', 'Indie', 
+  'K-Pop', 'J-Pop', 'City Pop', 'New Age', 'Soundtrack', 'Vocal', 'Musical',
+  'Country', 'Heavy Metal', 'Hard Rock', 'Modern Rock', 'Brit Pop', 
+  'Synth Pop', 'Techno', 'Trance', 'Bossa Nova', 'Ska', 'Crossover', 
+  'Psychedelic', 'Chanson', 'Tango', 'Acid Jazz', 'Shoegazing'
 ];
 
 export default function MyProfilePage() {
@@ -335,7 +341,7 @@ export default function MyProfilePage() {
                   className={styles.editSelect}
                 >
                   {AVAILABLE_GENRES.map(g => (
-                    <option key={g} value={g}>{g}</option>
+                    <option key={g} value={g}>{t(`genres.${g}` as any)}</option>
                   ))}
                 </select>
               </div>

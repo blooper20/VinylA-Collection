@@ -15,7 +15,13 @@ interface GenreSelectModalProps {
 const { width, height } = Dimensions.get('window');
 
 const ALL_GENRES = [
-  'Jazz', 'Rock', 'Classical', 'Hip-Hop', 'Pop', 'Electronic', 'R&B', 'Folk', 'Blues', 'Soul', 'K-Pop', 'J-Pop'
+  'Pop', 'Rock', 'Jazz', 'Electronic', 'Hip Hop', 'R&B / Soul', 'Folk', 
+  'Classical', 'Blues', 'Reggae', 'Cinematic', 'Ambient', 'World', 
+  'Latin', 'Funk', 'Disco', 'Punk', 'Alternative', 'Indie', 
+  'K-Pop', 'J-Pop', 'City Pop', 'New Age', 'Soundtrack', 'Vocal', 'Musical',
+  'Country', 'Heavy Metal', 'Hard Rock', 'Modern Rock', 'Brit Pop', 
+  'Synth Pop', 'Techno', 'Trance', 'Bossa Nova', 'Ska', 'Crossover', 
+  'Psychedelic', 'Chanson', 'Tango', 'Acid Jazz', 'Shoegazing'
 ];
 
 export const GenreSelectModal = ({ visible, onClose, initialSelected, onSave }: GenreSelectModalProps) => {
@@ -69,11 +75,10 @@ export const GenreSelectModal = ({ visible, onClose, initialSelected, onSave }: 
                     ]}
                     onPress={() => toggleGenre(genre)}
                   >
-                    <Text style={{
-                      color: isSelected ? themeColors.accent : themeColors.textSecondary,
-                      fontWeight: isSelected ? 'bold' : 'normal'
-                    }}>
-                      {genre}
+                    <Text style={[
+                      { color: isSelected ? themeColors.background : themeColors.textSecondary, fontWeight: isSelected ? 'bold' : 'normal' }
+                    ]}>
+                      {t(`genres.${genre}` as any)}
                     </Text>
                   </TouchableOpacity>
                 );
