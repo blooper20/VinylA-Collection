@@ -265,3 +265,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── 문의 첨부 파일 ─────────────────────── */
+.attachmentGrid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.attachmentMedia {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  display: block;
+}
