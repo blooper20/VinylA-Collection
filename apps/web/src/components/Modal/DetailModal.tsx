@@ -17,12 +17,12 @@ interface DetailModalProps {
 type CoverScope = 'mine' | 'everyone';
 
 // 재킷 촬영본 크롭 편집기: 정사각 뷰포트 안에서 드래그(위치)·슬라이더(확대)로
-// 크롭 영역을 다듬고, 적용 전 결과를 그대로 미리 보여준다. 공개 범위(나만/
-// 모두)도 여기서 선택.
+// 크롭 영역을 다듬고, 적용 전 결과를 그대로 미리 보여준다. 공개 범위 설정은
+// 커버 아래의 토글이 담당(적용 직후 기본값은 '나만 보기').
 const CoverCropModal: React.FC<{
   file: File;
   onCancel: () => void;
-  onConfirm: (square: Blob, scope: CoverScope) => void;
+  onConfirm: (square: Blob) => void;
   isBusy: boolean;
   t: ReturnType<typeof useLocale>['t'];
 }> = ({ file, onCancel, onConfirm, isBusy, t }) => {
@@ -31,7 +31,6 @@ const CoverCropModal: React.FC<{
   const [natural, setNatural] = React.useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
-  const [scope, setScope] = React.useState<CoverScope>('mine');
   const dragRef = React.useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
   React.useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl]);
@@ -92,7 +91,7 @@ const CoverCropModal: React.FC<{
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(img, sx, sy, sSide, sSide, 0, 0, out, out);
-      canvas.toBlob((b) => { if (b) onConfirm(b, scope); }, 'image/jpeg', 0.92);
+      canvas.toBlob((b) => { if (b) onConfirm(b); }, 'image/jpeg', 0.92);
     };
     img.src = objectUrl;
   };
@@ -137,22 +136,6 @@ const CoverCropModal: React.FC<{
           onChange={(e) => onZoom(Number(e.target.value))}
           aria-label={t('detail.coverCropZoom')}
         />
-        <div className={styles.cropScopeRow}>
-          <label className={styles.cropScopeOption}>
-            <input type="radio" name="coverScope" checked={scope === 'mine'} onChange={() => setScope('mine')} />
-            <span>
-              <strong>{t('detail.coverScopeMine')}</strong>
-              <small>{t('detail.coverScopeMineDesc')}</small>
-            </span>
-          </label>
-          <label className={styles.cropScopeOption}>
-            <input type="radio" name="coverScope" checked={scope === 'everyone'} onChange={() => setScope('everyone')} />
-            <span>
-              <strong>{t('detail.coverScopeEveryone')}</strong>
-              <small>{t('detail.coverScopeEveryoneDesc')}</small>
-            </span>
-          </label>
-        </div>
         <div className={styles.cropActions}>
           <button type="button" className={styles.cropCancelBtn} onClick={onCancel} disabled={isBusy}>
             {t('common.cancel')}
@@ -192,6 +175,30 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const coverFileRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
   const [cropFile, setCropFile] = React.useState<File | null>(null);
+  // 내가 촬영해 올린 재킷 (null이면 기존 카탈로그 커버 사용 중)
+  const [myPhoto, setMyPhoto] = React.useState<string | null>(album.CUSTOM_IMAGE_URL || null);
+  // 공유 마스터의 현재 커버 + '전체 공개' 되돌리기용 원본 (첫 조회 시 캡처)
+  const [masterImage, setMasterImage] = React.useState<string | null>(null);
+  const originalMasterRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    // 내 사진을 쓰는 앨범만 마스터 커버를 조회 — 범위 토글의 현재값 판정과
+    // '전체 공개 → 나만 보기' 되돌리기에 필요하다.
+    if (!myPhoto || masterImage !== null) return;
+    let alive = true;
+    getAlbumMaster(Number(album.ALBUM_ID))
+      .then((m) => {
+        if (!alive) return;
+        const img = m?.IMAGE_URL || '';
+        setMasterImage(img);
+        if (originalMasterRef.current === null) originalMasterRef.current = img;
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myPhoto]);
+
+  const coverScope: CoverScope = myPhoto && masterImage === myPhoto ? 'everyone' : 'mine';
 
   const handleCoverPhoto = (file: File | null) => {
     if (!file || !user?.id || isUploadingCover) return;
@@ -199,32 +206,82 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoInvalid') } }));
       return;
     }
-    // 바로 업로드하지 않고 크롭 편집기를 먼저 띄운다 — 적용 전 결과 확인 +
-    // 위치/확대 조절 + 공개 범위 선택은 CoverCropModal에서.
+    // 바로 업로드하지 않고 크롭 편집기를 먼저 띄운다.
     setCropFile(file);
     if (coverFileRef.current) coverFileRef.current.value = '';
   };
 
-  const handleCropConfirm = async (square: Blob, scope: CoverScope) => {
+  const handleCropConfirm = async (square: Blob) => {
     if (!user?.id || isUploadingCover) return;
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
       const url = await uploadUserCover(numericAlbumId, square);
-      if (scope === 'everyone') {
-        // 모두에게 적용: 공유 마스터 커버를 교체하고, 내 개인 커버는 비워서
-        // 나도 마스터(=방금 올린 사진)를 보게 한다.
-        await updateAlbumMasterImage(numericAlbumId, url);
-        await setUserVinylCover(user.id, numericAlbumId, null);
-      } else {
-        await setUserVinylCover(user.id, numericAlbumId, url);
-      }
+      // 항상 '나만 보기'로 먼저 적용 — 전체 공개는 아래 토글에서 명시적으로.
+      await setUserVinylCover(user.id, numericAlbumId, url);
+      setMyPhoto(url);
       setCoverUrl(url);
       setCropFile(null);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
       window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
     } catch (e) {
       console.error('cover photo update failed', e);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  // 기존(카탈로그) 커버로 복귀: 내 개인 커버를 지우고, 내 사진이 전체 공개돼
+  // 있었다면 캡처해둔 원본 마스터 커버까지 되돌린다.
+  const handleUseOriginalCover = async () => {
+    if (!user?.id || !myPhoto || isUploadingCover) return;
+    setIsUploadingCover(true);
+    try {
+      const numericAlbumId = Number(album.ALBUM_ID);
+      const original = originalMasterRef.current;
+      if (masterImage === myPhoto && original && original !== myPhoto) {
+        await updateAlbumMasterImage(numericAlbumId, original);
+        setMasterImage(original);
+      }
+      await setUserVinylCover(user.id, numericAlbumId, null);
+      setMyPhoto(null);
+      const restored = (originalMasterRef.current && originalMasterRef.current !== myPhoto)
+        ? originalMasterRef.current
+        : masterImage || '';
+      if (restored) setCoverUrl(restored);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverUseOriginalDone') } }));
+      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const handleScopeChange = async (next: CoverScope) => {
+    if (!user?.id || !myPhoto || isUploadingCover || next === coverScope) return;
+    setIsUploadingCover(true);
+    try {
+      const numericAlbumId = Number(album.ALBUM_ID);
+      if (next === 'everyone') {
+        await updateAlbumMasterImage(numericAlbumId, myPhoto);
+        setMasterImage(myPhoto);
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverScopeAppliedEveryone') } }));
+      } else {
+        const original = originalMasterRef.current;
+        if (original && original !== myPhoto) {
+          await updateAlbumMasterImage(numericAlbumId, original);
+          setMasterImage(original);
+          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverScopeRevertedMine') } }));
+        } else {
+          // 이전 세션에서 전체 공개된 경우 원본 커버 정보가 없어 마스터는
+          // 되돌릴 수 없다 — 내 화면 기준으로는 이미 '나만 보기'와 동일.
+          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverScopeCannotRevert') } }));
+        }
+      }
+      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+    } catch (e) {
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
     } finally {
       setIsUploadingCover(false);
@@ -450,40 +507,76 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         </button>
 
         <div className={styles.leftPanel}>
-          <div className={styles.coverContainer}>
-            <div className={styles.vinyl}>
-              <div 
-                className={styles.vinylLabel} 
-                style={{ backgroundImage: `url(${coverUrl})` }} 
-              />
+          <div className={styles.coverStack}>
+            <div className={styles.coverContainer}>
+              <div className={styles.vinyl}>
+                <div
+                  className={styles.vinylLabel}
+                  style={{ backgroundImage: `url(${coverUrl})` }}
+                />
+              </div>
+              <div className={styles.cover}>
+                <Image src={coverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
+              </div>
             </div>
-            <div className={styles.cover}>
-              <Image src={coverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
-              {album.STATUS === 'OWNED' && (
-                <>
-                  <input
-                    ref={coverFileRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    hidden
-                    onChange={(e) => handleCoverPhoto(e.target.files?.[0] || null)}
-                  />
+
+            {album.STATUS === 'OWNED' && (
+              <div className={styles.coverControls}>
+                <input
+                  ref={coverFileRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={(e) => handleCoverPhoto(e.target.files?.[0] || null)}
+                />
+                <div className={styles.coverBtnRow}>
+                  {myPhoto && (
+                    <button
+                      type="button"
+                      className={styles.coverActionBtn}
+                      onClick={handleUseOriginalCover}
+                      disabled={isUploadingCover}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>undo</span>
+                      {t('detail.coverUseOriginal')}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className={styles.coverPhotoBtn}
+                    className={styles.coverActionBtn}
                     onClick={() => coverFileRef.current?.click()}
                     disabled={isUploadingCover}
                     title={t('detail.coverPhotoTitle')}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                       {isUploadingCover ? 'hourglass_top' : 'photo_camera'}
                     </span>
                     {isUploadingCover ? t('detail.coverPhotoUploading') : t('detail.coverPhotoButton')}
                   </button>
-                </>
-              )}
-            </div>
+                </div>
+                {myPhoto && (
+                  <div className={styles.coverScopeToggle} role="radiogroup" aria-label={t('detail.coverScopeLabel')}>
+                    <button
+                      type="button"
+                      className={`${styles.coverScopeBtn} ${coverScope === 'mine' ? styles.coverScopeActive : ''}`}
+                      onClick={() => handleScopeChange('mine')}
+                      disabled={isUploadingCover}
+                    >
+                      {t('detail.coverScopeMineShort')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.coverScopeBtn} ${coverScope === 'everyone' ? styles.coverScopeActive : ''}`}
+                      onClick={() => handleScopeChange('everyone')}
+                      disabled={isUploadingCover}
+                    >
+                      {t('detail.coverScopeEveryoneShort')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         
