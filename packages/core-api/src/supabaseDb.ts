@@ -429,3 +429,28 @@ export const updateAlbumMasterImage = async (albumId: number, imageUrl: string):
     throw new AppError('DB-004', body.error || '커버 갱신에 실패했습니다.');
   }
 };
+
+// 마스터 커버를 서버가 백업해둔 '기존(카탈로그) 커버'로 복원한다.
+// 복원된 URL을 반환하고, 백업이 없어 복원 불가면 null (호출부가 카탈로그
+// 커버를 새로 구해 updateAlbumMasterImage로 치유하는 폴백을 밟는다).
+export const revertAlbumMasterCover = async (albumId: number): Promise<string | null> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new AppError('DB-004', '로그인이 필요합니다.');
+
+  const proxyBase = (globalThis as any).__VINYLA_API_BASE__ || '';
+  const res = await fetch(`${proxyBase}/api/album-master/cover`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ albumId, action: 'revert' }),
+  });
+  if (res.status === 409) return null;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new AppError('DB-004', body.error || '커버 복원에 실패했습니다.');
+  }
+  const body = await res.json().catch(() => ({}));
+  return typeof body.imageUrl === 'string' && body.imageUrl ? body.imageUrl : null;
+};

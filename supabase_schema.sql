@@ -132,6 +132,12 @@ ALTER TABLE public."INQUIRY" ADD COLUMN IF NOT EXISTS "ATTACHMENTS" jsonb;
 -- 본인 보관함에서만 우선 표시되는 커버 URL (user-covers 버킷, 업로드는
 -- /api/user-cover/upload 서버 라우트가 인증 검증 후 service role로 수행)
 ALTER TABLE public."USER_VINYL" ADD COLUMN IF NOT EXISTS "CUSTOM_IMAGE_URL" text;
+
+-- 2026-07-13: '기존 커버' 영구 백업 — 유저 촬영본이 IMAGE_URL을 덮어쓸 때
+-- (/api/album-master/cover) 서버가 직전 카탈로그 커버를 여기 백업하고,
+-- '기존 커버로 되돌리기'가 이 값으로 복원한다. 세션 메모리에만 원본을 들고
+-- 있다가 전체 공개 후 복원이 불가능해지던 결함의 수정.
+ALTER TABLE public."ALBUM_MASTER" ADD COLUMN IF NOT EXISTS "ORIGINAL_IMAGE_URL" text;
 -- 첨부 파일 저장소: inquiry-attachments 버킷은 서비스가 API로 생성/업로드
 -- (public read, 50MB 제한, 이미지/영상 MIME 화이트리스트; 업로드는
 -- /api/support/upload 서버 라우트가 인증 검증 후 service role로 수행)
