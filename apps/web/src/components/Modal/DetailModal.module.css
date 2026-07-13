@@ -652,30 +652,6 @@
   }
 }
 
-/* ── 내 재킷 사진으로 커버 변경 ─────────────── */
-.coverPhotoBtn {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  opacity: 0.85;
-  transition: opacity 0.15s;
-  z-index: 2;
-}
-
-.coverPhotoBtn:hover { opacity: 1; }
-.coverPhotoBtn:disabled { opacity: 0.5; cursor: default; }
 
 /* ── 재킷 크롭 편집기 ─────────────────────── */
 .cropOverlay {
@@ -800,3 +776,65 @@
 
 .cropConfirmBtn:disabled,
 .cropCancelBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── 커버 아래 컨트롤 (재킷 촬영 / 기존 커버 / 공개 범위) ── */
+.coverStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.coverControls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.coverBtnRow {
+  display: flex;
+  gap: 8px;
+}
+
+.coverActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.coverActionBtn:hover { border-color: rgba(255, 255, 255, 0.45); color: #fff; }
+.coverActionBtn:disabled { opacity: 0.45; cursor: default; }
+
+.coverScopeToggle {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.coverScopeBtn {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coverScopeBtn:disabled { opacity: 0.45; cursor: default; }
+
+.coverScopeActive {
+  background: rgba(230, 185, 60, 0.14);
+  color: #e6b93c;
+}
