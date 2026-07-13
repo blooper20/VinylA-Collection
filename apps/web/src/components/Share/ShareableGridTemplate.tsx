@@ -3,7 +3,7 @@ import styles from './ShareableGridTemplate.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
 
 interface ShareableGridTemplateProps {
-  albums: (MockVinylData & { COVER_URL?: string })[];
+  albums: (MockVinylData & { COVER_URL?: string; MASTER_IMAGE_URL?: string })[];
   username: string;
   title: string;
 }
@@ -37,7 +37,10 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
 
         <div className={styles.gridContainer} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {albums.map((album) => {
-            const rawImageUrl = album.COVER_URL || album.IMAGE_URL;
+            // 공유 이미지는 밖으로 나가는 화면 — '나만 보기' 개인 커버 대신
+            // 공유 마스터 커버를 쓴다 ('전체 공개'된 사진은 마스터에 이미
+            // 반영돼 있으므로 자연히 함께 나간다).
+            const rawImageUrl = album.MASTER_IMAGE_URL || album.COVER_URL || album.IMAGE_URL;
             const imageSrc = rawImageUrl ? `/api/proxy-image?url=${encodeURIComponent(rawImageUrl)}` : '/logo.png';
             return (
             <div key={album.ALBUM_ID} className={styles.gridItem}>
