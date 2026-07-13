@@ -651,3 +651,28 @@
     flex-wrap: wrap;
   }
 }
+
+/* ── 내 재킷 사진으로 커버 변경 ─────────────── */
+.coverPhotoBtn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.coverPhotoBtn:hover { opacity: 1; }
+.coverPhotoBtn:disabled { opacity: 0.5; cursor: default; }
