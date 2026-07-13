@@ -632,11 +632,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   {/* Tags Section */}
                   {(genreTags.length > 0) && (
                     <div className={styles.tagsContainer}>
-                      {genreTags.map((tag, i) => (
-                        <div key={`g-${i}`} className={styles.tagLabel}>
-                          {tag}
-                        </div>
-                      ))}
+                      {genreTags.map((tag, i) => {
+                        const tTag = t(`genres.${tag}` as any);
+                        const displayTag = tTag && !tTag.startsWith('genres.') ? tTag : tag;
+                        return (
+                          <div key={`g-${i}`} className={styles.tagLabel}>
+                            {displayTag}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>

@@ -135,6 +135,7 @@ interface AladinItem {
   author: string;
   pubDate?: string;
   cover?: string;
+  categoryName?: string;
   stockStatus?: string;
 }
 
@@ -207,7 +208,7 @@ const cleanAladinTitle = (rawTitle: string): string => {
 // the path segment is the only way to get it, since no API parameter goes
 // above 200px. Verified live against image.aladin.co.kr before relying on it.
 const upgradeAladinCover = (url?: string): string =>
-  (url || '').replace(/\/cover\w*\//, '/cover500/');
+  (url || '').replace(/\/cover\w*\//, '/cover500/').replace(/^http:\/\//i, 'https://');
 
 // Compilation listings put every participating artist in `author`
 // ("강승원, 선우정아, 아이유 (IU), … 여러 아티스트 (Various Artists)") —
@@ -251,6 +252,7 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
                   pubDate: it.pubDate,
                   cover: it.cover,
                   stockStatus: it.stockStatus,
+                  categoryName: it.categoryName,
                 }))
               : []
           )
@@ -263,6 +265,22 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
       .map((it): DiscogsRelease => {
         const cleanTitle = cleanAladinTitle(it.title) || it.title;
         const cover = upgradeAladinCover(it.cover);
+        
+        const ALADIN_GENRE_MAP: Record<string, string> = {
+          '가요': 'K-Pop', '록': 'Rock', '팝': 'Pop', '발라드/R&B': 'R&B / Soul', '인디음악': 'Indie', '힙합': 'Hip Hop',
+          'O.S.T.': 'Soundtrack', '애니메이션': 'Soundtrack', '포크음악': 'Folk', '영화음악': 'Soundtrack', '재즈/블루스': 'Jazz',
+          '해외구매': '', 'J-POP': 'J-Pop', '클래식': 'Classical', '뉴에이지': 'New Age', '국악': 'World', '동요/태교': '',
+          '종교/명상': 'Ambient', '팝/포크': 'Pop', '팝페라': 'Crossover', '크로스오버': 'Crossover', '랩/힙합': 'Hip Hop',
+          '재즈': 'Jazz', '블루스': 'Blues', '일렉트로니카': 'Electronic', '헤비메탈': 'Heavy Metal', '하드록': 'Hard Rock',
+          '모던록': 'Modern Rock', '펑크': 'Punk', '소울': 'R&B / Soul', 'R&B': 'R&B / Soul', '월드뮤직': 'World', '라틴': 'Latin',
+          '레게': 'Reggae', '보사노바': 'Bossa Nova', '샹송': 'Chanson', '칸초네': 'World', '뮤지컬': 'Musical', '사운드트랙': 'Soundtrack'
+        };
+
+        const rawGenres = (it.categoryName as string || '').split('>').map(s => {
+          const trimmed = s.trim();
+          return ALADIN_GENRE_MAP[trimmed] !== undefined ? ALADIN_GENRE_MAP[trimmed] : trimmed;
+        }).filter(s => s && s !== '음반' && s !== '국내도서');
+        
         return {
           id: ALADIN_ID_OFFSET + it.itemId,
           master_id: ALADIN_ID_OFFSET + it.itemId,
@@ -271,6 +289,7 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
           format: ['LP'],
           thumb: cover,
           cover_image: cover,
+          genre: rawGenres.length > 0 ? rawGenres : ['K-Pop'],
         };
       });
   } catch {

@@ -455,20 +455,20 @@ export const MyScreen = () => {
           </TouchableOpacity>
           <View style={styles.badgeRow}>
             <TouchableOpacity
-              style={[styles.badge, selectedBadgeObj.id === 'founding_100' ? styles.badgeHolo : { backgroundColor: themeColors.accent }]}
+              style={[styles.badge, selectedBadgeObj.id === 'founding_100' ? styles.badgePremium : { backgroundColor: themeColors.accent }]}
               onPress={() => setBadgeModalVisible(true)}
             >
               {selectedBadgeObj.id === 'founding_100' && (
                 <>
                   <LinearGradient
-                    colors={HOLO_COLORS}
+                    colors={['#1c1910', '#3b3117', '#1c1910']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
                   />
                   <Animated.View style={[styles.badgeHoloShimmer, { transform: [{ translateX: holoShimmerTranslate }] }]}>
                     <LinearGradient
-                      colors={['transparent', 'rgba(255,255,255,0.7)', 'transparent']}
+                      colors={['transparent', 'rgba(233,195,73,0.4)', 'transparent']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={StyleSheet.absoluteFill}
@@ -477,9 +477,9 @@ export const MyScreen = () => {
                 </>
               )}
               {selectedBadgeObj.id === 'founding_100' ? (
-                <Animated.Text style={[styles.badgeText, { color: holoTextColor }]}>
+                <Text style={[styles.badgeText, { color: '#FFE599' }]}>
                   {getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name}
-                </Animated.Text>
+                </Text>
               ) : (
                 <Text style={styles.badgeText}>{getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name}</Text>
               )}
@@ -850,6 +850,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 8,
+    elevation: 6,
+  },
+  badgePremium: {
+    overflow: 'hidden',
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#e9c349',
+    shadowColor: '#e9c349',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
     elevation: 6,
   },
   badgeHoloShimmer: {

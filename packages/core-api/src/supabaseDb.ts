@@ -378,7 +378,7 @@ export const uploadUserCover = async (albumId: number, file: Blob): Promise<stri
 
   const proxyBase = (globalThis as any).__VINYLA_API_BASE__ || '';
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', file, 'cover.jpg');
   form.append('albumId', String(albumId));
   const res = await fetch(`${proxyBase}/api/user-cover/upload`, {
     method: 'POST',

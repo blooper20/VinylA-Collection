@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share, KeyboardAvoidingView, Platform } from 'react-native';
+import { Alert, View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { MockVinylData } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
-import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage } from '@vinyla/core-api';
+import * as ImagePicker from 'expo-image-picker';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
@@ -102,6 +103,12 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [copyright, setCopyright] = React.useState<string>('');
   const [notes, setNotes] = React.useState<string>('');
 
+  // Cover photo state
+  const [isUploadingCover, setIsUploadingCover] = React.useState(false);
+  const [myPhoto, setMyPhoto] = React.useState<string | null>(null);
+  const [masterImage, setMasterImage] = React.useState<string | null>(null);
+
+
   const { user } = useAuthStore();
 
   const [isShareSheetVisible, setShareSheetVisible] = React.useState(false);
@@ -116,6 +123,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       setReleaseDate('');
       setCopyright('');
       setNotes('');
+      setMyPhoto((album as any).CUSTOM_IMAGE_URL || null);
+      setMasterImage(album.IMAGE_URL || null);
 
       setAlertVisible(false);
       setAlertTitle('');
@@ -133,6 +142,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           if (found) {
             setRealStatus(found.STATUS);
             setPurchasePrice(found.PURCHASE_PRICE || null);
+            setMyPhoto(found.CUSTOM_IMAGE_URL || null);
           }
         }).catch(() => {});
       }
@@ -182,6 +192,140 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       });
     }
   }, [visible, album]);
+
+  React.useEffect(() => {
+    if (!myPhoto || masterImage !== null) return;
+    let alive = true;
+    getAlbumMaster(Number(album?.ALBUM_ID))
+      .then((m) => { if (alive) setMasterImage(m?.IMAGE_URL || ''); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [myPhoto, masterImage, album]);
+
+  const coverScope = myPhoto && masterImage === myPhoto ? 'everyone' : 'mine';
+
+  const restoreCatalogCover = async (numericAlbumId: number): Promise<string> => {
+    const reverted = await revertAlbumMasterCover(numericAlbumId);
+    if (reverted) return reverted;
+    const details = await getAlbumExtraDetails(numericAlbumId, album!.ARTIST, album!.TITLE).catch(() => null);
+    if (details?.highResCover) {
+      await updateAlbumMasterImage(numericAlbumId, details.highResCover);
+      return details.highResCover;
+    }
+    return '';
+  };
+
+  const handleCropConfirm = async (uri: string) => {
+    if (!user?.id || isUploadingCover || !album) return;
+    setIsUploadingCover(true);
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const numericAlbumId = Number(album.ALBUM_ID);
+      const url = await uploadUserCover(numericAlbumId, blob);
+      await setUserVinylCover(user.id, numericAlbumId, url);
+      setMyPhoto(url);
+      showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverPhotoSaved') || '커버 사진이 저장되었습니다.');
+    } catch (e) {
+      console.error('cover photo update failed', e);
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const handleCoverPhoto = async () => {
+    if (!user?.id || isUploadingCover || !album) return;
+    Alert.alert(
+      t('mobile.detail.coverPhotoTitle') || '커버 사진 촬영',
+      t('mobile.detail.coverPhotoDesc') || '사진을 어떻게 가져올까요?',
+      [
+        {
+          text: t('mobile.detail.camera') || '카메라',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              showAlert(t('common.error'), '카메라 권한이 필요합니다.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              handleCropConfirm(result.assets[0].uri);
+            }
+          }
+        },
+        {
+          text: t('mobile.detail.gallery') || '갤러리',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              showAlert(t('common.error'), '갤러리 접근 권한이 필요합니다.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              handleCropConfirm(result.assets[0].uri);
+            }
+          }
+        },
+        { text: t('common.cancel'), style: 'cancel' }
+      ]
+    );
+  };
+
+  const handleUseOriginalCover = async () => {
+    if (!user?.id || !myPhoto || isUploadingCover || !album) return;
+    setIsUploadingCover(true);
+    try {
+      const numericAlbumId = Number(album.ALBUM_ID);
+      const restored = await restoreCatalogCover(numericAlbumId);
+      await setUserVinylCover(user.id, numericAlbumId, null);
+      setMyPhoto(null);
+      if (restored) {
+        setMasterImage(restored);
+        showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverUseOriginalDone') || '기존 커버로 복원되었습니다.');
+      } else {
+        showAlert(t('common.error'), t('detail.coverRestoreFailed') || '카탈로그 커버 복원에 실패했습니다.');
+      }
+    } catch (e) {
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const handleScopeChange = async (next: 'mine' | 'everyone') => {
+    if (!user?.id || !myPhoto || isUploadingCover || next === coverScope || !album) return;
+    setIsUploadingCover(true);
+    try {
+      const numericAlbumId = Number(album.ALBUM_ID);
+      if (next === 'everyone') {
+        await updateAlbumMasterImage(numericAlbumId, myPhoto);
+        setMasterImage(myPhoto);
+        showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverScopeAppliedEveryone') || '마스터 커버로 적용되었습니다.');
+      } else {
+        const restored = await restoreCatalogCover(numericAlbumId);
+        if (restored) {
+          setMasterImage(restored);
+          showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverScopeRevertedMine') || '내 사진으로만 남도록 변경되었습니다.');
+        } else {
+          showAlert(t('common.error'), t('detail.coverRestoreFailed') || '카탈로그 커버 복원에 실패했습니다.');
+        }
+      }
+    } catch (e) {
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -477,18 +621,51 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 <View style={styles.vinylGrooves2} />
                 <View style={[styles.vinylLabel, { backgroundColor: album.CUSTOM_COLOR_HEX || '#222' }]}>
                   <Image 
-                    source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
+                    source={(myPhoto || album.IMAGE_URL) ? { uri: myPhoto || album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
                     style={StyleSheet.absoluteFill} 
-                    resizeMode={album.IMAGE_URL ? "cover" : "contain"}
+                    resizeMode={(myPhoto || album.IMAGE_URL) ? "cover" : "contain"}
                   />
                   <View style={styles.vinylHole} />
                 </View>
               </Animated.View>
               <Image 
-                source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
-                style={[styles.cover, !album.IMAGE_URL && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]} 
-                resizeMode={album.IMAGE_URL ? "cover" : "contain"}
+                source={(myPhoto || album.IMAGE_URL) ? { uri: myPhoto || album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
+                style={[styles.cover, !(myPhoto || album.IMAGE_URL) && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]} 
+                resizeMode={(myPhoto || album.IMAGE_URL) ? "cover" : "contain"}
               />
+              
+              {realStatus === 'OWNED' && (
+                <View style={styles.coverControls}>
+                  <View style={styles.coverBtnRow}>
+                    {myPhoto && (
+                      <TouchableOpacity style={styles.coverUndoBtn} onPress={handleUseOriginalCover} disabled={isUploadingCover}>
+                        <FontAwesome5 name="undo" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.coverCameraBtn} onPress={handleCoverPhoto} disabled={isUploadingCover}>
+                      {isUploadingCover ? <ActivityIndicator color="#000" size="small" /> : <FontAwesome5 name="camera" size={16} color="#000" />}
+                    </TouchableOpacity>
+                  </View>
+                  {myPhoto && (
+                    <View style={styles.coverScopeToggle}>
+                      <TouchableOpacity 
+                        style={[styles.coverScopeBtn, coverScope === 'mine' && styles.coverScopeActive]} 
+                        onPress={() => handleScopeChange('mine')}
+                        disabled={isUploadingCover}
+                      >
+                        <Text style={[styles.coverScopeText, coverScope === 'mine' && styles.coverScopeTextActive]}>{t('detail.coverScopeMineShort') || '나만 보기'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.coverScopeBtn, coverScope === 'everyone' && styles.coverScopeActive]} 
+                        onPress={() => handleScopeChange('everyone')}
+                        disabled={isUploadingCover}
+                      >
+                        <Text style={[styles.coverScopeText, coverScope === 'everyone' && styles.coverScopeTextActive]}>{t('detail.coverScopeEveryoneShort') || '전체 공개'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
             </Animated.View>
 
             <View style={styles.info}>
@@ -515,11 +692,15 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               {/* Tags Section */}
               {(genreTags.length > 0) && (
                 <View style={styles.tagsContainer}>
-                  {genreTags.map((tag, i) => (
-                    <View key={`g-${i}`} style={styles.tagBadge}>
-                      <Text style={styles.tagText}>{tag}</Text>
-                    </View>
-                  ))}
+                  {genreTags.map((tag, i) => {
+                    const tTag = t(`genres.${tag}` as any);
+                    const displayTag = tTag && !tTag.startsWith('genres.') ? tTag : tag;
+                    return (
+                      <View key={`g-${i}`} style={styles.tagBadge}>
+                        <Text style={styles.tagText}>{displayTag}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 
@@ -619,7 +800,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         <View style={styles.offscreenShare} pointerEvents="none">
           <ShareableStoryView
             ref={shareViewRef}
-            album={album}
+            album={myPhoto ? { ...album, IMAGE_URL: masterImage || album.IMAGE_URL, CUSTOM_IMAGE_URL: myPhoto } as any : album}
             username={user?.user_metadata?.displayName || t('common.defaultCollectorName')}
           />
         </View>
@@ -737,6 +918,61 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     borderRadius: shape.sm,
     zIndex: 2,
     ...shadows.medium,
+  },
+  coverControls: {
+    position: 'absolute',
+    bottom: -15,
+    right: -15,
+    zIndex: 10,
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  coverBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  coverUndoBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(20,20,20,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  coverCameraBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#e9c349',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
+  },
+  coverScopeToggle: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(20,20,20,0.85)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+  },
+  coverScopeBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  coverScopeActive: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  coverScopeText: {
+    color: '#aaa',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  coverScopeTextActive: {
+    color: '#fff',
   },
   vinyl: {
     position: 'absolute',
