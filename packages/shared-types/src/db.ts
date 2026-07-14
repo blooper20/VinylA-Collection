@@ -47,6 +47,30 @@ export interface USER_VINYL {
   PURCHASE_PRICE: number;
   /** 사용자가 직접 촬영해 올린 재킷 사진 (내 보관함에서만 이 커버가 우선 표시됨) */
   CUSTOM_IMAGE_URL?: string | null;
+  /** 보관함에 담은 시각 (디스커버리 피드 정렬 기준) */
+  ADDED_AT?: string;
+  /** 공개 여부 */
+  IS_PUBLIC?: boolean;
+}
+
+/**
+ * 유저 팔로우 관계 — FOLLOWER_ID가 FOLLOWING_ID를 팔로우한다
+ */
+export interface USER_FOLLOW {
+  FOLLOW_ID: number;
+  FOLLOWER_ID: string;
+  FOLLOWING_ID: string;
+  CREATED_AT: string;
+}
+
+/**
+ * 팔로우 요청 (비공개 프로필 대상) — TARGET_ID가 수락해야 USER_FOLLOW가 된다
+ */
+export interface FOLLOW_REQUEST {
+  REQUEST_ID: number;
+  REQUESTER_ID: string;
+  TARGET_ID: string;
+  CREATED_AT: string;
 }
 
 export type InquiryCategory = 'COMPLAINT' | 'SUGGESTION' | 'BUG' | 'GENERAL';
@@ -61,7 +85,8 @@ export type EventType =
   | 'WISH_ADD'
   | 'SHARE'
   | 'SPIN_LOG'      // 스피닝 다이어리에 재생 기록 추가
-  | 'RANDOM_PICK';  // "오늘 뭐 듣지?" 랜덤 픽 사용
+  | 'RANDOM_PICK'   // "오늘 뭐 듣지?" 랜덤 픽 사용
+  | 'FOLLOW';       // 다른 수집가 팔로우
 export type ClientPlatform = 'WEB' | 'MOBILE';
 
 /**
@@ -135,6 +160,20 @@ export interface LISTENING_LOG {
   IS_PUBLIC: boolean;
   /** 실제로 들은 시각 (기본은 기록 시각과 동일, 추후 수정 가능) */
   LISTENED_AT: string;
+  CREATED_AT: string;
+}
+
+/**
+ * 오늘의 바이닐 스토리 — 매일 명반 하나의 숨겨진 이야기를 소개하는 매거진 콘텐츠
+ */
+export interface VINYL_STORY {
+  STORY_ID: number;
+  STORY_DATE: string;
+  ALBUM_TITLE: string;
+  ALBUM_ARTIST: string;
+  COVER_IMAGE_URL?: string | null;
+  HEADLINE: string;
+  BODY: string;
   CREATED_AT: string;
 }
 

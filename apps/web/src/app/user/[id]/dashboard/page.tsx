@@ -3,13 +3,16 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES, getBadgeText, getSignupNumber } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, useAuthStore, BADGES, getBadgeText, getSignupNumber, followUser, unfollowUser, getMyFollowingIds, getFollowCounts, getProfileInfo, requestFollow, cancelFollowRequest, getMyOutgoingRequestIds, getPublicListeningLog, ListeningLogWithAlbum, getSpinSocialSummary, SpinSocialSummary } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { DetailModal } from '../../../../components/Modal/DetailModal';
+import { FollowListModal } from '../../../../components/Modal/FollowListModal';
+import { SpinSocialModal } from '../../../../components/Modal/SpinSocialModal';
+import { SpinSocialActions } from '../../../../components/SpinSocialActions';
 import styles from '../../../my/page.module.css';
 import dashStyles from './dashboard.module.css';
 
-type TabType = 'timeline' | 'collection' | 'wishlist';
+type TabType = 'timeline' | 'collection' | 'wishlist' | 'diary';
 type VinylItem = ReturnType<typeof mapToFrontendModel>;
 
 function PublicDashboardContent() {
@@ -33,15 +36,76 @@ function PublicDashboardContent() {
   const [ownedAlbums, setOwnedAlbums] = useState<VinylItem[]>([]);
   const [wishAlbums, setWishAlbums] = useState<VinylItem[]>([]);
   const [featuredAlbum, setFeaturedAlbum] = useState<VinylItem | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('timeline');
+  // 공유 링크(?tab=diary)로 들어오면 다이어리 탭을 바로 연다
+  const [activeTab, setActiveTab] = useState<TabType>(
+    searchParams?.get('tab') === 'diary' ? 'diary' : 'timeline'
+  );
+  // null = 아직 안 불러옴 — 다이어리 탭을 처음 열 때 지연 로딩
+  const [diaryEntries, setDiaryEntries] = useState<ListeningLogWithAlbum[] | null>(null);
+  const [diarySocialMap, setDiarySocialMap] = useState<Record<number, SpinSocialSummary>>({});
+  const [socialEntry, setSocialEntry] = useState<ListeningLogWithAlbum | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<VinylItem | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [viewerStatusMap, setViewerStatusMap] = useState<Record<string, 'OWNED' | 'WISH'>>({});
   const [signupNumber, setSignupNumber] = useState<number | null>(null);
+  // none → (공개) 바로 팔로우 / (비공개) 요청 → requested → 상대 수락 시 following
+  const [followStatus, setFollowStatus] = useState<'none' | 'requested' | 'following'>('none');
+  const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
+  const [followListTab, setFollowListTab] = useState<'followers' | 'following' | null>(null);
+  // null = 아직 모름(로딩 중) — 잠금 화면 깜빡임 방지
+  const [ownerIsPublic, setOwnerIsPublic] = useState<boolean | null>(null);
 
   const { user, initializeAuth } = useAuthStore();
   const { locale, t } = useLocale();
+
+  useEffect(() => {
+    if (!id) return;
+    getFollowCounts(id).then(setFollowCounts).catch(() => setFollowCounts(null));
+    // 조회 실패 시 비공개 취급 (privacy-first) — 실제 차단은 어차피 RLS가 한다
+    getProfileInfo(id).then((p) => setOwnerIsPublic(p.IS_PUBLIC)).catch(() => setOwnerIsPublic(false));
+  }, [id]);
+
+  useEffect(() => {
+    if (!user?.id || user.id === id) return;
+    Promise.all([getMyFollowingIds(), getMyOutgoingRequestIds()]).then(([following, requested]) => {
+      setFollowStatus(following.has(id) ? 'following' : requested.has(id) ? 'requested' : 'none');
+    });
+  }, [user?.id, id]);
+
+  // 공개: 팔로우 ↔ 팔로잉 토글. 비공개: 요청 ↔ 요청 취소 (수락돼야 팔로잉).
+  const toggleFollow = async () => {
+    const prev = followStatus;
+    try {
+      if (prev === 'following') {
+        setFollowStatus('none');
+        setFollowCounts((c) => (c ? { ...c, followers: Math.max(0, c.followers - 1) } : c));
+        await unfollowUser(id);
+      } else if (prev === 'requested') {
+        setFollowStatus('none');
+        await cancelFollowRequest(id);
+      } else if (ownerIsPublic === false) {
+        setFollowStatus('requested');
+        await requestFollow(id);
+      } else {
+        setFollowStatus('following');
+        setFollowCounts((c) => (c ? { ...c, followers: c.followers + 1 } : c));
+        await followUser(id);
+      }
+    } catch {
+      setFollowStatus(prev); // 실패 시 원복
+      getFollowCounts(id).then(setFollowCounts).catch(() => {});
+    }
+  };
+
+  const followBtnLabel =
+    followStatus === 'following'
+      ? t('feed.following')
+      : followStatus === 'requested'
+        ? t('feed.requested')
+        : ownerIsPublic === false
+          ? t('feed.requestFollow')
+          : t('feed.follow');
 
   useEffect(() => {
     if (id && selectedBadgeId === 'founding_100') {
@@ -50,6 +114,18 @@ function PublicDashboardContent() {
   }, [id, selectedBadgeId]);
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
+
+  useEffect(() => {
+    if (activeTab !== 'diary' || diaryEntries !== null || !id) return;
+    getPublicListeningLog(id, { limit: 30 }).then((rows) => {
+      setDiaryEntries(rows);
+      if (rows.length > 0) {
+        getSpinSocialSummary(rows.map((r) => r.LOG_ID)).then((map) =>
+          setDiarySocialMap((prev) => ({ ...prev, ...map }))
+        );
+      }
+    });
+  }, [activeTab, diaryEntries, id]);
 
   // DetailModal's add/delete actions mutate the logged-in VIEWER's own
   // collection, not the profile owner's — so when browsing someone else's
@@ -134,6 +210,65 @@ function PublicDashboardContent() {
 
   if (!id) return null;
 
+  // 비공개 프로필 잠금 — 실제 차단은 RLS(데이터 미반환), 이 화면은 안내 UX.
+  // 본인·관리자는 통과.
+  const viewerIsAdmin = user?.app_metadata?.role === 'admin';
+  // 수락된 팔로워는 비공개 프로필도 열람 가능 (RLS의 can_view_profile과 동일 규칙)
+  if (ownerIsPublic === false && user?.id !== id && !viewerIsAdmin && followStatus !== 'following') {
+    return (
+      <div className={styles.page}>
+        <header className={styles.hero}>
+          <div className={styles.heroBg} />
+          <div className={styles.heroInner}>
+            <div className={styles.avatarRing}>
+              <img src={avatarUrl} alt="Profile" className={styles.avatarImage} />
+            </div>
+            <div className={styles.profileInfo}>
+              <div className={styles.nameRow}>
+                <h1 className={styles.profileName}>{t('publicGrid.privateTitle')}</h1>
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.5)', margin: '8px 0 12px' }}>{t('publicGrid.privateDesc')}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', margin: '0 0 12px' }}>
+                {followCounts && (
+                  <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.55)' }}>
+                    <span onClick={() => setFollowListTab('followers')} style={{ cursor: 'pointer' }}>
+                      <strong style={{ color: '#fff', fontWeight: 700 }}>{followCounts.followers}</strong> {t('publicGrid.followers')}
+                    </span>
+                    {' · '}
+                    <span onClick={() => setFollowListTab('following')} style={{ cursor: 'pointer' }}>
+                      <strong style={{ color: '#fff', fontWeight: 700 }}>{followCounts.following}</strong> {t('publicGrid.following')}
+                    </span>
+                  </span>
+                )}
+                {user && (
+                  <button
+                    onClick={toggleFollow}
+                    style={{
+                      padding: '7px 20px',
+                      borderRadius: '999px',
+                      border: '1px solid #d4af37',
+                      background: followStatus !== 'none' ? 'transparent' : 'linear-gradient(135deg, #d4af37, #f3e5ab)',
+                      color: followStatus !== 'none' ? '#d4af37' : '#111',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {followBtnLabel}
+                  </button>
+                )}
+              </div>
+              <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#d4af37', fontVariationSettings: "'FILL' 1" }}>lock</span>
+            </div>
+          </div>
+        </header>
+        {followListTab && (
+          <FollowListModal userId={id} initialTab={followListTab} onClose={() => setFollowListTab(null)} listsHidden />
+        )}
+      </div>
+    );
+  }
+
   const handleAlbumClick = (album: VinylItem) => {
     if (!user) {
       setShowLoginPrompt(true);
@@ -171,6 +306,37 @@ function PublicDashboardContent() {
               <span className={`${styles.collectorBadgeText} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeTextHolo : ''}`}>
                 {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
               </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
+              {followCounts && (
+                <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.55)' }}>
+                  <span onClick={() => setFollowListTab('followers')} style={{ cursor: 'pointer' }}>
+                    <strong style={{ color: '#fff', fontWeight: 700 }}>{followCounts.followers}</strong> {t('publicGrid.followers')}
+                  </span>
+                  {' · '}
+                  <span onClick={() => setFollowListTab('following')} style={{ cursor: 'pointer' }}>
+                    <strong style={{ color: '#fff', fontWeight: 700 }}>{followCounts.following}</strong> {t('publicGrid.following')}
+                  </span>
+                </span>
+              )}
+              {user && user.id !== id && (
+                <button
+                  onClick={toggleFollow}
+                  style={{
+                    padding: '7px 20px',
+                    borderRadius: '999px',
+                    border: '1px solid #d4af37',
+                    background: followStatus !== 'none' ? 'transparent' : 'linear-gradient(135deg, #d4af37, #f3e5ab)',
+                    color: followStatus !== 'none' ? '#d4af37' : '#111',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'opacity 0.15s ease'
+                  }}
+                >
+                  {followBtnLabel}
+                </button>
+              )}
             </div>
           </div>
 
@@ -226,6 +392,9 @@ function PublicDashboardContent() {
           <button className={`${dashStyles.tab} ${activeTab === 'wishlist' ? dashStyles.tabActive : ''}`} onClick={() => setActiveTab('wishlist')}>
             {t('publicDashboard.tabWishlist')} <span className={dashStyles.tabCount}>{wishAlbums.length}</span>
           </button>
+          <button className={`${dashStyles.tab} ${activeTab === 'diary' ? dashStyles.tabActive : ''}`} onClick={() => setActiveTab('diary')}>
+            {t('publicDashboard.tabDiary')}
+          </button>
         </div>
 
         {/* Timeline Tab */}
@@ -258,6 +427,59 @@ function PublicDashboardContent() {
               </div>
             )) : (
               <p style={{ color: 'rgba(255,255,255,0.5)', padding: '24px' }}>{t('publicDashboard.noOwnedLp')}</p>
+            )}
+          </div>
+        )}
+
+        {/* Diary Tab — 공개(IS_PUBLIC) 재생 기록만, 비공개 프로필은 RLS가 팔로워 외 차단 */}
+        {activeTab === 'diary' && (
+          <div className={styles.timeline} style={{ padding: '0 40px' }}>
+            {diaryEntries === null ? (
+              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('log.loading')}</p>
+            ) : diaryEntries.length === 0 ? (
+              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('publicDashboard.noDiary')}</p>
+            ) : (
+              diaryEntries.map((entry) => (
+                <div
+                  key={entry.LOG_ID}
+                  className={styles.timelineItem}
+                  onClick={() => setSocialEntry(entry)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className={styles.timelineDot} />
+                  {entry.ALBUM_MASTER && (
+                    <img src={entry.ALBUM_MASTER.IMAGE_URL} alt={entry.ALBUM_MASTER.TITLE} className={styles.timelineImage} />
+                  )}
+                  <div className={styles.timelineText}>
+                    <span className={styles.timelineDate}>
+                      {new Date(entry.LISTENED_AT).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      {entry.MOOD ? ` · ${entry.MOOD}` : ''}
+                    </span>
+                    <div className={styles.timelineTitle}>{entry.ALBUM_MASTER?.TITLE}</div>
+                    <div className={styles.timelineDesc}>{entry.ALBUM_MASTER?.ARTIST}</div>
+                    {entry.NOTE && (
+                      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
+                        {entry.NOTE}
+                      </p>
+                    )}
+                    {entry.MEDIA_URL && (
+                      entry.MEDIA_TYPE === 'video' ? (
+                        <video src={entry.MEDIA_URL} controls playsInline loop muted style={{ maxWidth: '240px', borderRadius: '10px', marginTop: '8px', display: 'block' }} onClick={(e) => e.stopPropagation()} />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={entry.MEDIA_URL} alt="" style={{ maxWidth: '240px', borderRadius: '10px', marginTop: '8px', display: 'block' }} />
+                      )
+                    )}
+                    <SpinSocialActions
+                      entry={entry}
+                      ownerName={displayName !== 'Collector' ? displayName : null}
+                      summary={diarySocialMap[entry.LOG_ID]}
+                      onOpenComments={() => setSocialEntry(entry)}
+                      onSummaryChange={(logId, s) => setDiarySocialMap((prev) => ({ ...prev, [logId]: s }))}
+                    />
+                  </div>
+                </div>
+              ))
             )}
           </div>
         )}
@@ -298,6 +520,24 @@ function PublicDashboardContent() {
       </div>
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
+
+      {socialEntry && (
+        <SpinSocialModal
+          entry={socialEntry}
+          ownerName={displayName !== 'Collector' ? displayName : null}
+          onClose={() => setSocialEntry(null)}
+          onSummaryChange={(logId, s) => setDiarySocialMap((prev) => ({ ...prev, [logId]: s }))}
+        />
+      )}
+
+      {followListTab && (
+        <FollowListModal
+          userId={id}
+          initialTab={followListTab}
+          onClose={() => setFollowListTab(null)}
+          isOwner={user?.id === id}
+        />
+      )}
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (

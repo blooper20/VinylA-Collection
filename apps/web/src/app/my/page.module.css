@@ -415,6 +415,33 @@
   flex-shrink: 0;
 }
 
+.timelineTabs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.tabButton {
+  background: none;
+  border: none;
+  font-family: var(--font-headline);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px 0;
+  transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tabButtonActive {
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--accent);
+}
+
 /* Timeline */
 .timeline {
   position: relative;

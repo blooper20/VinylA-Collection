@@ -498,6 +498,13 @@ export function getBadgeText(
       description: t(`badge.genreSuffix.${tierKey}.description` as TranslationKey, { genre: genreName, genreId }),
     };
   }
+  // 넘버가 아직 없으면(로딩 중/조회 실패) "#/100" 대신 숫자 없는 이름으로
+  if (badge.id === 'founding_100' && !extraParams?.number) {
+    return {
+      name: t('badge.founding_100.nameNoNumber' as TranslationKey),
+      description: t(`badge.${badge.id}.description` as TranslationKey),
+    };
+  }
   return {
     name: t(`badge.${badge.id}.name` as TranslationKey, extraParams),
     description: t(`badge.${badge.id}.description` as TranslationKey, extraParams),

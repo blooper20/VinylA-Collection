@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { useAuthStore, NICKNAME_MAX_LENGTH, setMyProfileVisibility } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import styles from './setup.module.css';
 
@@ -15,6 +15,8 @@ export default function SetupPage() {
   // null = 사용자가 아직 직접 수정하지 않음 → Google 계정 이름을 기본값으로 보여준다.
   const [editedName, setEditedName] = useState<string | null>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  // 프로필은 기본 비공개(opt-in 공개) — 원치 않은 공개를 막기 위한 정책
+  const [isPublicProfile, setIsPublicProfile] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const googleName = (user?.user_metadata?.full_name || user?.user_metadata?.name || '').slice(0, NICKNAME_MAX_LENGTH);
@@ -47,6 +49,10 @@ export default function SetupPage() {
     try {
       setIsSubmitting(true);
       await updateProfile(name, selectedInterests);
+      // DB 기본값이 비공개라 공개를 선택한 경우에만 반영하면 된다
+      if (isPublicProfile) {
+        await setMyProfileVisibility(true);
+      }
       router.replace('/search');
     } catch (error) {
       console.error('Failed to update profile:', error);
@@ -118,8 +124,29 @@ export default function SetupPage() {
           </div>
         </div>
 
-        <button 
-          className={styles.submitBtn} 
+        <div className={styles.formGroup}>
+          <label className={styles.label}>{t('setup.visibilityLabel')}</label>
+          <div className={styles.tagsContainer}>
+            <button
+              className={`${styles.tag} ${!isPublicProfile ? styles.tagSelected : ''}`}
+              onClick={() => setIsPublicProfile(false)}
+            >
+              {t('setup.visibilityPrivateChip')}
+            </button>
+            <button
+              className={`${styles.tag} ${isPublicProfile ? styles.tagSelected : ''}`}
+              onClick={() => setIsPublicProfile(true)}
+            >
+              {t('setup.visibilityPublicChip')}
+            </button>
+          </div>
+          <p style={{ fontSize: '12px', opacity: 0.6, lineHeight: 1.6, margin: '8px 0 0' }}>
+            {t('setup.visibilityNotice')}
+          </p>
+        </div>
+
+        <button
+          className={styles.submitBtn}
           onClick={handleSave}
           disabled={isSubmitting}
         >

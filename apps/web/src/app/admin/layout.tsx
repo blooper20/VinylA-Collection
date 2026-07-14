@@ -15,6 +15,7 @@ const tabs = [
   { name: '컬렉션', path: '/admin/collection' },
   { name: '사용자', path: '/admin/users' },
   { name: '문의 관리', path: '/admin/inquiries' },
+  { name: '신고 관리', path: '/admin/reports' },
 ];
 
 // 기간 필터·새로고침은 stats 기반 탭에서만 의미가 있다 (사용자/문의는 자체 조회)

@@ -363,7 +363,8 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE || 0,
     PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c',
-    MARKET_PRICE: master?.MARKET_PRICE || 0
+    MARKET_PRICE: master?.MARKET_PRICE || 0,
+    IS_PUBLIC: userVinyl?.IS_PUBLIC !== false
   };
 };
 

@@ -1,0 +1,136 @@
+/* 알림함 */
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 64px 24px 120px;
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.emptyText {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.item:hover {
+  border-color: var(--accent);
+}
+
+.itemUnread {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-surface));
+}
+
+.iconWrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.message {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.message strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.unreadDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
+.loadMoreBtn {
+  margin: 24px auto 0;
+  display: block;
+  padding: 10px 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.loadMoreBtn:hover {
+  border-color: var(--accent);
+}

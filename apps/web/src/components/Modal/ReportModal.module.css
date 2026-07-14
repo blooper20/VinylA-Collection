@@ -1,0 +1,150 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  color: var(--textPrimary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--textSecondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  color: var(--textPrimary);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.reasonSelect {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--textPrimary);
+  font-size: 0.95rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+.reasonSelect option {
+  background: var(--background);
+  color: var(--textPrimary);
+}
+
+.detailsInput {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--textPrimary);
+  font-size: 0.95rem;
+  resize: vertical;
+  outline: none;
+}
+
+.detailsInput:focus, .reasonSelect:focus {
+  border-color: var(--accent);
+}
+
+.footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancelButton, .submitButton {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--textSecondary);
+  border: 1px solid var(--border);
+}
+
+.cancelButton:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.submitButton {
+  background: #ff4b4b;
+  color: white;
+  border: none;
+}
+
+.submitButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

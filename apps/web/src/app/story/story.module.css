@@ -1,0 +1,151 @@
+/* 오늘의 바이닐 스토리 (매거진) */
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 24px 120px;
+}
+
+.header {
+  margin-bottom: 40px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.loadingText {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+/* ── 오늘의 스토리 카드 ─────────────────────── */
+.todayCard {
+  display: flex;
+  gap: 24px;
+  padding: 28px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 48px;
+}
+
+.todayCover {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.todayText {
+  flex: 1;
+  min-width: 0;
+}
+
+.todayAlbum {
+  font-size: 12px;
+  color: var(--accent);
+  margin: 0 0 8px;
+  letter-spacing: 0.02em;
+}
+
+.todayHeadline {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+  line-height: 1.3;
+}
+
+.todayBody {
+  font-size: 14px;
+  color: var(--text-secondary, var(--text-muted));
+  line-height: 1.7;
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+}
+
+.disclaimer {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin: 0;
+}
+
+/* ── 지난 이야기 ─────────────────────────── */
+.archiveSection {
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+}
+
+.archiveTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+}
+
+.archiveList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.archiveItem {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.archiveCover {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.archiveItemText {
+  min-width: 0;
+}
+
+.archiveDate {
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.archiveAlbum {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 2px 0;
+}
+
+.archiveHeadline {
+  font-size: 12px;
+  color: var(--text-muted);
+}

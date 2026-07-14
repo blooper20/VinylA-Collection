@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './log.module.css';
-import { useAuthStore, getMyListeningLog, updateSpinLog, deleteSpinLog, uploadSpinLogMedia, getErrorMessage, ListeningLogWithAlbum } from '@vinyla/core-api';
+import { useAuthStore, getMyListeningLog, updateSpinLog, deleteSpinLog, uploadSpinLogMedia, getErrorMessage, ListeningLogWithAlbum, getSpinSocialSummary, SpinSocialSummary } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MediaAttachPicker, EditMediaState } from '../../components/Modal/MediaAttachPicker';
 import { VisibilityToggle } from '../../components/Modal/VisibilityToggle';
+import { SpinSocialModal } from '../../components/Modal/SpinSocialModal';
+import { SpinSocialActions } from '../../components/SpinSocialActions';
 
 const PAGE_SIZE = 20;
 const MOOD_PRESETS = ['🤩', '🙂', '😌', '😐', '😢'] as const;
@@ -24,10 +26,24 @@ const groupByDate = (entries: ListeningLogWithAlbum[]): [string, ListeningLogWit
   return Array.from(groups.entries());
 };
 
+// 앨범별 히스토리 — 같은 앨범의 재생 기록을 모아 재생 횟수와 함께 보여준다.
+// entries가 이미 최신순이라 그룹 순서 = 가장 최근에 들은 앨범 순.
+const groupByAlbum = (entries: ListeningLogWithAlbum[]): { albumId: number; album: ListeningLogWithAlbum['ALBUM_MASTER']; logs: ListeningLogWithAlbum[] }[] => {
+  const groups = new Map<number, { albumId: number; album: ListeningLogWithAlbum['ALBUM_MASTER']; logs: ListeningLogWithAlbum[] }>();
+  for (const entry of entries) {
+    if (!groups.has(entry.ALBUM_ID)) {
+      groups.set(entry.ALBUM_ID, { albumId: entry.ALBUM_ID, album: entry.ALBUM_MASTER, logs: [] });
+    }
+    groups.get(entry.ALBUM_ID)!.logs.push(entry);
+  }
+  return Array.from(groups.values());
+};
+
 export default function ListeningLogPage() {
   const { user } = useAuthStore();
   const { t } = useLocale();
   const [entries, setEntries] = useState<ListeningLogWithAlbum[]>([]);
+  const [viewMode, setViewMode] = useState<'date' | 'album'>('date');
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -45,6 +61,16 @@ export default function ListeningLogPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
+  // 좋아요/댓글 카운트 맵 + 소셜 상세 모달로 연 기록
+  const [socialMap, setSocialMap] = useState<Record<number, SpinSocialSummary>>({});
+  const [socialEntry, setSocialEntry] = useState<ListeningLogWithAlbum | null>(null);
+
+  const loadSocialSummary = useCallback(async (list: ListeningLogWithAlbum[]) => {
+    if (list.length === 0) return;
+    const map = await getSpinSocialSummary(list.map((e) => e.LOG_ID));
+    setSocialMap((prev) => ({ ...prev, ...map }));
+  }, []);
+
   const loadFirstPage = useCallback(async () => {
     if (!user?.id) return;
     setIsLoading(true);
@@ -52,6 +78,7 @@ export default function ListeningLogPage() {
       const data = await getMyListeningLog(user.id, { limit: PAGE_SIZE });
       setEntries(data);
       setHasMore(data.length === PAGE_SIZE);
+      loadSocialSummary(data);
     } catch (e) {
       console.error('Failed to load listening log', e);
     } finally {
@@ -73,6 +100,7 @@ export default function ListeningLogPage() {
       const more = await getMyListeningLog(user.id, { limit: PAGE_SIZE, beforeLogId: last.LOG_ID });
       setEntries((prev) => [...prev, ...more]);
       setHasMore(more.length === PAGE_SIZE);
+      loadSocialSummary(more);
     } catch (e) {
       console.error('Failed to load more listening log entries', e);
     } finally {
@@ -149,6 +177,7 @@ export default function ListeningLogPage() {
   };
 
   const grouped = groupByDate(entries);
+  const albumGroups = groupByAlbum(entries);
 
   return (
     <div className={styles.container}>
@@ -158,10 +187,81 @@ export default function ListeningLogPage() {
         <p className={styles.subtitle}>{t('log.subtitle')}</p>
       </header>
 
+      <div className={styles.viewSwitch}>
+        <button
+          type="button"
+          className={`${styles.viewChip} ${viewMode === 'date' ? styles.viewChipActive : ''}`}
+          onClick={() => setViewMode('date')}
+        >
+          {t('log.viewByDate')}
+        </button>
+        <button
+          type="button"
+          className={`${styles.viewChip} ${viewMode === 'album' ? styles.viewChipActive : ''}`}
+          onClick={() => setViewMode('album')}
+        >
+          {t('log.viewByAlbum')}
+        </button>
+      </div>
+
       {isLoading ? (
         <p className={styles.emptyText}>{t('log.loading')}</p>
       ) : entries.length === 0 ? (
         <p className={styles.emptyText}>{t('log.empty')}</p>
+      ) : viewMode === 'album' ? (
+        <>
+          {albumGroups.map((g) => (
+            <section key={g.albumId} className={styles.albumGroup}>
+              <div className={styles.albumGroupHeader}>
+                {g.album && (
+                  <img src={g.album.IMAGE_URL} alt={g.album.TITLE} className={styles.albumGroupCover} />
+                )}
+                <div className={styles.albumGroupInfo}>
+                  <div className={styles.timelineTitle}>{g.album?.TITLE || '(삭제된 앨범)'}</div>
+                  <div className={styles.timelineArtist}>{g.album?.ARTIST}</div>
+                </div>
+                <span className={styles.albumPlayCount}>{t('log.playCount', { count: g.logs.length })}</span>
+              </div>
+              <div className={styles.albumEntryList}>
+                {g.logs.map((entry) => (
+                  <div
+                    key={entry.LOG_ID}
+                    className={styles.albumEntryRow}
+                    onClick={() => setSocialEntry(entry)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className={styles.albumEntryDate}>
+                      {new Date(entry.LISTENED_AT).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      {' · '}
+                      {new Date(entry.LISTENED_AT).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      {entry.MOOD ? ` · ${entry.MOOD}` : ''}
+                      {!entry.IS_PUBLIC && (
+                        <span className={styles.privateBadge}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>lock</span>
+                          {t('detail.spinLogPrivate')}
+                        </span>
+                      )}
+                    </span>
+                    {entry.NOTE && <p className={styles.albumEntryNote}>{entry.NOTE}</p>}
+                    <SpinSocialActions
+                      entry={entry}
+                      ownerName={user?.user_metadata?.displayName || null}
+                      summary={socialMap[entry.LOG_ID]}
+                      onOpenComments={() => setSocialEntry(entry)}
+                      onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {hasMore && (
+            <button type="button" className={styles.loadMoreBtn} onClick={handleLoadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? t('log.loading') : t('log.loadMore')}
+            </button>
+          )}
+        </>
       ) : (
         <>
           {grouped.map(([date, dayEntries]) => (
@@ -170,8 +270,14 @@ export default function ListeningLogPage() {
               <div className={styles.timeline}>
                 {dayEntries.map((entry) => {
                   const album = entry.ALBUM_MASTER;
+                  const isBusy = editingId === entry.LOG_ID || deletingId === entry.LOG_ID;
                   return (
-                    <div key={entry.LOG_ID} className={styles.timelineItem}>
+                    <div
+                      key={entry.LOG_ID}
+                      className={styles.timelineItem}
+                      onClick={() => { if (!isBusy) setSocialEntry(entry); }}
+                      style={{ cursor: isBusy ? 'default' : 'pointer' }}
+                    >
                       <div className={styles.timelineDot} />
                       {album && (
                         <img
@@ -195,7 +301,7 @@ export default function ListeningLogPage() {
                         <div className={styles.timelineArtist}>{album?.ARTIST}</div>
 
                         {editingId === entry.LOG_ID ? (
-                          <div className={styles.editBox}>
+                          <div className={styles.editBox} onClick={(e) => e.stopPropagation()}>
                             <div className={styles.editMoodRow}>
                               {MOOD_PRESETS.map((m) => (
                                 <button
@@ -239,14 +345,14 @@ export default function ListeningLogPage() {
                             {entry.NOTE && <p className={styles.timelineNote}>{entry.NOTE}</p>}
                             {entry.MEDIA_URL && (
                               entry.MEDIA_TYPE === 'video' ? (
-                                <video className={styles.timelineMedia} src={entry.MEDIA_URL} controls playsInline loop muted />
+                                <video className={styles.timelineMedia} src={entry.MEDIA_URL} controls playsInline loop muted onClick={(e) => e.stopPropagation()} />
                               ) : (
                                 <img className={styles.timelineMedia} src={entry.MEDIA_URL} alt="" />
                               )
                             )}
 
                             {deletingId === entry.LOG_ID ? (
-                              <div className={styles.deleteConfirmRow}>
+                              <div className={styles.deleteConfirmRow} onClick={(e) => e.stopPropagation()}>
                                 <span>{t('log.deleteConfirm')}</span>
                                 <button type="button" className={styles.deleteConfirmYes} onClick={() => handleConfirmDelete(entry.LOG_ID)} disabled={deleteSubmitting}>
                                   {deleteSubmitting ? t('log.editSaving') : t('log.deleteConfirmYes')}
@@ -256,14 +362,23 @@ export default function ListeningLogPage() {
                                 </button>
                               </div>
                             ) : (
-                              <div className={styles.timelineActions}>
-                                <button type="button" className={styles.timelineActionBtn} onClick={() => handleStartEdit(entry)}>
-                                  {t('log.edit')}
-                                </button>
-                                <button type="button" className={styles.timelineActionBtn} onClick={() => handleDeleteClick(entry.LOG_ID)}>
-                                  {t('log.delete')}
-                                </button>
-                              </div>
+                              <>
+                                <SpinSocialActions
+                                  entry={entry}
+                                  ownerName={user?.user_metadata?.displayName || null}
+                                  summary={socialMap[entry.LOG_ID]}
+                                  onOpenComments={() => setSocialEntry(entry)}
+                                  onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
+                                />
+                                <div className={styles.timelineActions}>
+                                  <button type="button" className={styles.timelineActionBtn} onClick={(e) => { e.stopPropagation(); handleStartEdit(entry); }}>
+                                    {t('log.edit')}
+                                  </button>
+                                  <button type="button" className={styles.timelineActionBtn} onClick={(e) => { e.stopPropagation(); handleDeleteClick(entry.LOG_ID); }}>
+                                    {t('log.delete')}
+                                  </button>
+                                </div>
+                              </>
                             )}
                           </>
                         )}
@@ -281,6 +396,15 @@ export default function ListeningLogPage() {
             </button>
           )}
         </>
+      )}
+
+      {socialEntry && (
+        <SpinSocialModal
+          entry={socialEntry}
+          ownerName={user?.user_metadata?.displayName || null}
+          onClose={() => setSocialEntry(null)}
+          onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
+        />
       )}
     </div>
   );
