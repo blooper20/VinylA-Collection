@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
+import { RandomPickModal } from '../Modal/RandomPickModal';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { ShareableGridTemplate } from '../Share/ShareableGridTemplate';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
@@ -31,6 +32,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const [sortMode, setSortMode] = useState<SortMode>('latest');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isRandomPickOpen, setIsRandomPickOpen] = useState(false);
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
@@ -139,6 +141,11 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
             </button>
           </div>
           <p className={styles.pageSubtitle}>{displayedAlbums.length} Records</p>
+          {statusFilter === 'OWNED' && dataToUse.length > 0 && (
+            <button className={styles.randomPickBtn} onClick={() => setIsRandomPickOpen(true)}>
+              {t('randomPick.triggerButton')}
+            </button>
+          )}
         </div>
         <div className={styles.headerRight}>
           <div className={styles.controlsRow}>
@@ -238,6 +245,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       )}
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
+      {isRandomPickOpen && (
+        <RandomPickModal
+          albums={dataToUse}
+          onClose={() => setIsRandomPickOpen(false)}
+          onOpenAlbum={setSelectedAlbum}
+        />
+      )}
 
       {toastMessage && (
         <div className={styles.toast}>

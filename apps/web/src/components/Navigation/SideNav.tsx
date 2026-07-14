@@ -20,6 +20,7 @@ export const SideNav: React.FC = () => {
     { name: t('nav.collection'), path: '/collection', icon: 'shelves' },
     { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
     { name: t('nav.wishlist'), path: '/wishlist', icon: 'bookmark' },
+    { name: t('nav.log'), path: '/log', icon: 'graphic_eq' },
     { name: t('nav.my'), path: '/my', icon: 'person' },
     { name: t('nav.support'), path: '/support', icon: 'support_agent' },
   ];
