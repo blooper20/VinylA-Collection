@@ -1,0 +1,211 @@
+/* 미디어 첨부 피커 + 영상 트리머 — DetailModal의 SpinLogModal과 /log 페이지의
+   인라인 수정 폼 양쪽에서 재사용된다. */
+
+.wrap {
+  width: 100%;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addBtn:hover { border-color: rgba(230, 185, 60, 0.5); color: #e6b93c; }
+.addBtn:disabled { opacity: 0.5; cursor: default; }
+
+.hint {
+  width: 100%;
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.previewWrap {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+
+.preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.removeBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.error {
+  width: 100%;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #e6746b;
+}
+
+/* ── 트림 단계 제목/안내/버튼 (CoverCropModal의 crop*와 동일 톤) ── */
+.stepTitle {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  align-self: flex-start;
+}
+
+.stepHint {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  align-self: flex-start;
+}
+
+.stepActions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.stepCancelBtn,
+.stepConfirmBtn {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stepCancelBtn {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.stepConfirmBtn {
+  background: #fff;
+  color: #000;
+}
+
+.stepConfirmBtn:disabled,
+.stepCancelBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── 영상 트리머 (iOS 스타일 구간 선택) ─────── */
+.trimVideoWrap {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+
+.trimPreviewVideo {
+  width: 100%;
+  max-height: 220px;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.trimPlayBtn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.trimPlayBtn:disabled { opacity: 0.5; cursor: default; }
+
+.trimBar {
+  position: relative;
+  height: 40px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  touch-action: none;
+  margin-bottom: 10px;
+}
+
+.trimBarDim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.trimBarSelection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(230, 185, 60, 0.22);
+  border-top: 2px solid #e6b93c;
+  border-bottom: 2px solid #e6b93c;
+  pointer-events: none;
+}
+
+.trimHandle {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 12px;
+  border-radius: 4px;
+  background: #e6b93c;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+/* 현재 재생/스크럽 위치를 보여주는 재생 헤드 — 핸들 위에 겹쳐 그려진다 */
+.trimPlayhead {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.trimTimeLabel {
+  width: 100%;
+  text-align: center;
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}

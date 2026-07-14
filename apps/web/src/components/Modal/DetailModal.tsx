@@ -1,12 +1,14 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
 import { SharePreviewModal } from '../Modal/SharePreviewModal';
 import { captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
+import { MediaAttachPicker, EditMediaState } from './MediaAttachPicker';
+import { VisibilityToggle } from './VisibilityToggle';
 import Image from 'next/image';
 
 interface DetailModalProps {
@@ -27,13 +29,24 @@ const CoverCropModal: React.FC<{
   t: ReturnType<typeof useLocale>['t'];
 }> = ({ file, onCancel, onConfirm, isBusy, t }) => {
   const VIEW = 320; // 뷰포트 한 변(px) — CSS와 일치해야 크롭 좌표가 맞는다
-  const [objectUrl] = React.useState(() => URL.createObjectURL(file));
+  // objectUrl은 이펙트 "안에서" 새로 만들고 그 클로저가 캡처한 URL만 정리한다.
+  // 개발 모드 Strict Mode는 마운트 시 이펙트를 정리→재실행으로 두 번 태우는데,
+  // URL을 렌더 단계(useMemo/useState 초기화)에서 한 번만 만들고 별도 정리
+  // 이펙트로 revoke하면, 그 첫 정리 실행이 아직 살아있어야 할 URL을 즉시
+  // 폐기해버려 <video>가 "지원하지 않는 소스"로 실패한다(이미지는 로드가
+  // 빨라 우연히 안 걸릴 뿐 같은 결함). 매 setup마다 새 URL을 만들면 두 번째
+  // setup이 살아있는 새 URL로 교체하므로 이 경합을 피한다.
+  const [objectUrl, setObjectUrl] = React.useState<string | null>(null);
   const [natural, setNatural] = React.useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
   const dragRef = React.useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
-  React.useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl]);
+  React.useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   const baseScale = natural ? VIEW / Math.min(natural.w, natural.h) : 1;
   const scale = baseScale * zoom;
@@ -78,7 +91,7 @@ const CoverCropModal: React.FC<{
   };
 
   const handleConfirm = () => {
-    if (!natural || isBusy) return;
+    if (!natural || isBusy || !objectUrl) return;
     const img = new window.Image();
     img.onload = () => {
       const sx = -offset.x / scale;
@@ -108,23 +121,25 @@ const CoverCropModal: React.FC<{
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={objectUrl}
-            alt=""
-            draggable={false}
-            onLoad={onImgLoad}
-            style={{
-              position: 'absolute',
-              left: offset.x,
-              top: offset.y,
-              width: dispW,
-              height: dispH,
-              maxWidth: 'none',
-              userSelect: 'none',
-              touchAction: 'none',
-            }}
-          />
+          {objectUrl && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={objectUrl}
+              alt=""
+              draggable={false}
+              onLoad={onImgLoad}
+              style={{
+                position: 'absolute',
+                left: offset.x,
+                top: offset.y,
+                width: dispW,
+                height: dispH,
+                maxWidth: 'none',
+                userSelect: 'none',
+                touchAction: 'none',
+              }}
+            />
+          )}
         </div>
         <input
           type="range"
@@ -142,6 +157,80 @@ const CoverCropModal: React.FC<{
           </button>
           <button type="button" className={styles.cropConfirmBtn} onClick={handleConfirm} disabled={isBusy || !natural}>
             {isBusy ? t('detail.coverPhotoUploading') : t('detail.coverCropApply')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SPIN_MOODS = ['🤩', '🙂', '😌', '😐', '😢'] as const;
+const SPIN_NOTE_MAX_LENGTH = 500;
+
+// 스피닝 다이어리 기록 시트: 무드 프리셋(선택) + 짧은 메모(선택) + 사진/15초
+// 내외 영상 1개(선택)를 받는다 — "오늘 이거 들었어" 인증이 핵심이라 입력
+// 마찰을 최소화. CoverCropModal과 같은 오버레이/모달 셸을 재사용. 미디어
+// 선택·트리밍은 MediaAttachPicker로 위임(생성/수정 화면에서 공유).
+const SpinLogModal: React.FC<{
+  onCancel: () => void;
+  onConfirm: (
+    mood: string | undefined,
+    note: string,
+    media: { file: Blob; type: 'image' | 'video' } | null,
+    isPublic: boolean
+  ) => void;
+  isBusy: boolean;
+  t: ReturnType<typeof useLocale>['t'];
+}> = ({ onCancel, onConfirm, isBusy, t }) => {
+  const [mood, setMood] = React.useState<string | undefined>(undefined);
+  const [note, setNote] = React.useState('');
+  const [media, setMedia] = React.useState<EditMediaState>({ kind: 'none' });
+  const [isPublic, setIsPublic] = React.useState(true);
+
+  return (
+    <div className={styles.cropOverlay} onClick={onCancel}>
+      <div className={styles.cropModal} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.cropTitle}>{t('detail.spinLogTitle')}</h3>
+        <p className={styles.cropHint}>{t('detail.spinLogHint')}</p>
+        <div className={styles.spinMoodRow}>
+          {SPIN_MOODS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`${styles.spinMoodBtn} ${mood === m ? styles.spinMoodActive : ''}`}
+              onClick={() => setMood(mood === m ? undefined : m)}
+              disabled={isBusy}
+              aria-pressed={mood === m}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <textarea
+          className={styles.spinNoteInput}
+          placeholder={t('detail.spinLogNotePlaceholder')}
+          value={note}
+          maxLength={SPIN_NOTE_MAX_LENGTH}
+          rows={3}
+          onChange={(e) => setNote(e.target.value)}
+          disabled={isBusy}
+        />
+        <div className={styles.noteCounter}>{note.length}/{SPIN_NOTE_MAX_LENGTH}</div>
+        <MediaAttachPicker value={media} onChange={setMedia} disabled={isBusy} t={t} />
+        <div className={styles.spinVisibilityRow}>
+          <VisibilityToggle value={isPublic} onChange={setIsPublic} disabled={isBusy} t={t} />
+        </div>
+        <div className={styles.cropActions}>
+          <button type="button" className={styles.cropCancelBtn} onClick={onCancel} disabled={isBusy}>
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            className={styles.cropConfirmBtn}
+            onClick={() => onConfirm(mood, note, media.kind === 'new' ? { file: media.file, type: media.type } : null, isPublic)}
+            disabled={isBusy}
+          >
+            {isBusy ? t('detail.spinLogSaving') : t('detail.spinLogSave')}
           </button>
         </div>
       </div>
@@ -171,6 +260,29 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [previewBlob, setPreviewBlob] = React.useState<Blob | null>(null);
   const [previewMode, setPreviewMode] = React.useState<'save' | 'copy' | null>(null);
+
+  const [isSpinModalOpen, setIsSpinModalOpen] = React.useState(false);
+  const [isSubmittingSpin, setIsSubmittingSpin] = React.useState(false);
+
+  const handleSpinLog = async (
+    mood: string | undefined,
+    note: string,
+    mediaFile: { file: Blob; type: 'image' | 'video' } | null,
+    isPublic: boolean
+  ) => {
+    if (!user?.id || isSubmittingSpin) return;
+    setIsSubmittingSpin(true);
+    try {
+      const media = mediaFile ? await uploadSpinLogMedia(mediaFile.file) : null;
+      await logSpin(user.id, Number(album.ALBUM_ID), mood, note, media, isPublic);
+      setIsSpinModalOpen(false);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.spinLogSaved') } }));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsSubmittingSpin(false);
+    }
+  };
 
   const coverFileRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
@@ -581,11 +693,28 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                     </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  className={styles.spinLogTriggerBtn}
+                  onClick={() => setIsSpinModalOpen(true)}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>graphic_eq</span>
+                  {t('detail.spinLogButton')}
+                </button>
               </div>
             )}
           </div>
         </div>
-        
+
+        {isSpinModalOpen && (
+          <SpinLogModal
+            onCancel={() => !isSubmittingSpin && setIsSpinModalOpen(false)}
+            onConfirm={handleSpinLog}
+            isBusy={isSubmittingSpin}
+            t={t}
+          />
+        )}
+
         <div className={styles.rightPanel}>
           <div className={styles.headerInfo}>
             <div className={styles.eyebrow}>{album.RELEASE_YEAR || 'Unknown Year'} • LP</div>

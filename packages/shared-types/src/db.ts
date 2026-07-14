@@ -59,7 +59,9 @@ export type EventType =
   | 'SCAN'
   | 'ALBUM_ADD'
   | 'WISH_ADD'
-  | 'SHARE';
+  | 'SHARE'
+  | 'SPIN_LOG'      // 스피닝 다이어리에 재생 기록 추가
+  | 'RANDOM_PICK';  // "오늘 뭐 듣지?" 랜덤 픽 사용
 export type ClientPlatform = 'WEB' | 'MOBILE';
 
 /**
@@ -112,6 +114,27 @@ export interface EVENT_LOG {
   USER_ID: string | null;
   PLATFORM: ClientPlatform;
   META: Record<string, unknown> | null;
+  CREATED_AT: string;
+}
+
+/**
+ * 스피닝 다이어리 — 오늘 턴테이블에 올린 LP + 소감 기록 (Letterboxd 다이어리 방식)
+ */
+export interface LISTENING_LOG {
+  LOG_ID: number;
+  USER_ID: string;
+  ALBUM_ID: number;
+  /** 소감 프리셋 (자유 텍스트, 프론트에서 이모지 프리셋 제공) */
+  MOOD?: string | null;
+  /** 짧은 감상 메모 (최대 500자) */
+  NOTE?: string | null;
+  /** 첨부 사진 또는 15초 내외 짧은 영상 1개 (spin-log-media 버킷 공개 URL) */
+  MEDIA_URL?: string | null;
+  MEDIA_TYPE?: 'image' | 'video' | null;
+  /** 공개 여부 — false면 작성자 본인만 조회 가능 (기본값 true) */
+  IS_PUBLIC: boolean;
+  /** 실제로 들은 시각 (기본은 기록 시각과 동일, 추후 수정 가능) */
+  LISTENED_AT: string;
   CREATED_AT: string;
 }
 

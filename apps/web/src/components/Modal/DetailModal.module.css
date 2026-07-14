@@ -838,3 +838,92 @@
   background: rgba(230, 185, 60, 0.14);
   color: #e6b93c;
 }
+
+/* ── 스피닝 다이어리 기록 버튼/시트 ─────────── */
+.spinLogTriggerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border: 1px solid rgba(230, 185, 60, 0.35);
+  border-radius: 20px;
+  background: rgba(230, 185, 60, 0.08);
+  color: #e6b93c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.spinLogTriggerBtn:hover {
+  background: rgba(230, 185, 60, 0.16);
+  border-color: rgba(230, 185, 60, 0.55);
+}
+
+.spinMoodRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 14px;
+}
+
+.spinMoodBtn {
+  flex: 1;
+  padding: 10px 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.spinMoodBtn:hover { transform: translateY(-1px); }
+.spinMoodBtn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+.spinMoodActive {
+  border-color: #e6b93c;
+  background: rgba(230, 185, 60, 0.12);
+}
+
+.spinNoteInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  margin-bottom: 16px;
+}
+
+.spinNoteInput:focus {
+  outline: none;
+  border-color: rgba(230, 185, 60, 0.4);
+}
+
+.spinNoteInput::placeholder { color: rgba(255, 255, 255, 0.35); }
+
+/* ── 메모 글자수 카운터 ─────────────────────── */
+.noteCounter {
+  width: 100%;
+  text-align: right;
+  margin: -10px 0 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* 미디어 첨부/트리밍 스타일은 MediaAttachPicker.module.css로 이동
+   (SpinLogModal과 /log 페이지 인라인 수정 양쪽에서 재사용). */
+
+/* ── 스피닝 다이어리 공개 범위 ───────────────── */
+.spinVisibilityRow {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  margin: 4px 0 16px;
+}
