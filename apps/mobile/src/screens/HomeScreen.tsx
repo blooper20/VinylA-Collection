@@ -22,7 +22,7 @@ import { useTabBarHeight } from '../constants/layout';
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
 
-export const HomeScreen = () => {
+export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection' | 'wishlist') => void } = {}) => {
   const { themeColors, glassIntensity } = useTheme();
   const { t } = useLocale();
   const tabBarHeight = useTabBarHeight();
@@ -155,6 +155,7 @@ export const HomeScreen = () => {
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <AppHeader
         mode="collection"
+        onModeChange={onModeChange}
         onSharePress={() => setShareSheetVisible(true)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}

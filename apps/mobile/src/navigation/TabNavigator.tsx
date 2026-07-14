@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingScanButton } from '../components/TabBar/FloatingScanButton';
 import { TAB_BAR_BASE_HEIGHT } from '../constants/layout';
 
-import { HomeScreen } from '../screens/HomeScreen';
-import { WishScreen } from '../screens/WishScreen';
+import { CollectionTabsScreen } from '../screens/CollectionTabsScreen';
+import { SocialScreen } from '../screens/SocialScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { MyScreen } from '../screens/MyScreen';
@@ -41,20 +41,20 @@ export const TabNavigator = () => {
         tabBarShowLabel: true,
       }}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
+      <Tab.Screen
+        name="Home"
+        component={CollectionTabsScreen}
         options={{
           tabBarLabel: t('mobile.tab.home'),
           tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size} />
         }}
       />
       <Tab.Screen
-        name="Wish"
-        component={WishScreen}
+        name="Social"
+        component={SocialScreen}
         options={{
-          tabBarLabel: t('mobile.tab.wish'),
-          tabBarIcon: ({ color, size }) => <Feather name="heart" color={color} size={size} />
+          tabBarLabel: t('nav.social'),
+          tabBarIcon: ({ color, size }) => <Feather name="rss" color={color} size={size} />
         }}
       />
       <Tab.Screen

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { reportSpinLog, reportSpinComment } from '@vinyla/core-api';
+import { reportSpinLog, reportSpinComment, reportVinyl, reportVinylComment } from '@vinyla/core-api';
 import { useTheme } from '@vinyla/ui';
 
 interface ReportModalProps {
   isVisible: boolean;
   onClose: () => void;
   targetId: number;
-  targetType: 'log' | 'comment';
+  // log/comment = 스피닝 다이어리, vinyl/vinylComment = 수집 게시물
+  targetType: 'log' | 'comment' | 'vinyl' | 'vinylComment';
   onReportSuccess?: () => void;
 }
 
@@ -32,8 +33,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
       setIsSubmitting(true);
       if (targetType === 'log') {
         await reportSpinLog(targetId, reason, details);
-      } else {
+      } else if (targetType === 'comment') {
         await reportSpinComment(targetId, reason, details);
+      } else if (targetType === 'vinyl') {
+        await reportVinyl(targetId, reason, details);
+      } else {
+        await reportVinylComment(targetId, reason, details);
       }
       Alert.alert('알림', '신고가 정상적으로 접수되었습니다. 검토 후 조치하겠습니다.');
       if (onReportSuccess) onReportSuccess();

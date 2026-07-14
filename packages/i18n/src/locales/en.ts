@@ -372,6 +372,7 @@ export const en = {
     subtitle: "Log the LPs you spin today, and how they made you feel.",
     viewByDate: 'By date',
     viewByAlbum: 'By album',
+    private: 'Private',
     playCount: 'Played {{count}} times',
     empty: 'No entries yet. Open an album in your collection and tap "I spun this today."',
     loadMore: 'Load more',

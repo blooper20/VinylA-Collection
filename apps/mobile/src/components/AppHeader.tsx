@@ -11,9 +11,11 @@ interface AppHeaderProps {
   onSharePress?: () => void;
   viewMode?: VinylViewMode;
   onViewModeChange?: (mode: VinylViewMode) => void;
+  // 컬렉션 탭 통합: 전달되면 두 모드 배지를 탭으로 렌더해 서로 전환할 수 있다
+  onModeChange?: (mode: 'collection' | 'wishlist') => void;
 }
 
-export const AppHeader = ({ mode, onSharePress, viewMode, onViewModeChange }: AppHeaderProps) => {
+export const AppHeader = ({ mode, onSharePress, viewMode, onViewModeChange, onModeChange }: AppHeaderProps) => {
   const insets = useSafeAreaInsets();
   const { themeColors } = useTheme();
   const isWishlist = mode === 'wishlist';
@@ -32,12 +34,27 @@ export const AppHeader = ({ mode, onSharePress, viewMode, onViewModeChange }: Ap
       {mode && (
         <View style={styles.bottomRow}>
           <View style={styles.leftGroup}>
-            <View style={[styles.modeBadge, { borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.06)' }]}>
-              <Feather name={isWishlist ? 'heart' : 'disc'} size={11} color={themeColors.accent} />
-              <Text style={[styles.modeText, { color: themeColors.accent }]}>
-                {isWishlist ? 'WISHLIST' : 'MY COLLECTION'}
-              </Text>
-            </View>
+            {(onModeChange ? (['collection', 'wishlist'] as const) : ([mode!] as const)).map((m) => {
+              const active = m === mode;
+              return (
+                <TouchableOpacity
+                  key={m}
+                  disabled={!onModeChange || active}
+                  onPress={() => onModeChange?.(m)}
+                  style={[
+                    styles.modeBadge,
+                    active
+                      ? { borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.06)' }
+                      : { borderColor: themeColors.border, backgroundColor: 'transparent' },
+                  ]}
+                >
+                  <Feather name={m === 'wishlist' ? 'heart' : 'disc'} size={11} color={active ? themeColors.accent : themeColors.textSecondary} />
+                  <Text style={[styles.modeText, { color: active ? themeColors.accent : themeColors.textSecondary }]}>
+                    {m === 'wishlist' ? 'WISHLIST' : 'MY COLLECTION'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
 
             {onSharePress && (
               <TouchableOpacity

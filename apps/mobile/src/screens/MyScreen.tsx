@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Animated, Easing, RefreshControl, Share, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests } from '@vinyla/core-api';
 import * as ImagePicker from 'expo-image-picker';
 // v19 (SDK 54) moved readAsStringAsync to the legacy entry point
 import * as FileSystem from 'expo-file-system/legacy';
@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeSelectModal } from '../components/Modal/BadgeSelectModal';
 import { FoundingBadgeCelebrationModal } from '../components/Modal/FoundingBadgeCelebrationModal';
 import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
+import { FollowListModal } from '../components/Modal/FollowListModal';
 import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { shareToInstagramStory } from '../utils/nativeShare';
@@ -108,6 +109,7 @@ export const MyScreen = () => {
   const { locale, setLocale, t } = useLocale();
   const { user, updateSelectedBadge, updateFeaturedAlbum, updateUnlockedBadges, updateProfile, markFoundingCelebrationSeen, deleteAccount } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp<any>>();
 
   const [isBadgeModalVisible, setBadgeModalVisible] = React.useState(false);
   const [isFeaturedModalVisible, setFeaturedModalVisible] = React.useState(false);
@@ -136,6 +138,12 @@ export const MyScreen = () => {
   const [savedLogs, setSavedLogs] = React.useState<SavedSpinLog[]>([]);
   const [timelineTab, setTimelineTab] = React.useState<'journey' | 'saved'>('journey');
   const [selectedSavedLog, setSelectedSavedLog] = React.useState<{ log: ListeningLogWithAlbum, ownerName: string | null } | null>(null);
+  // 프로필 공개/비공개 + 팔로워/팔로잉 (웹 /my 파리티)
+  const [isProfilePublic, setIsProfilePublic] = React.useState<boolean | null>(null);
+  const [followCounts, setFollowCounts] = React.useState<{ followers: number; following: number } | null>(null);
+  const [requestCount, setRequestCount] = React.useState(0);
+  const [followListTab, setFollowListTab] = React.useState<'followers' | 'following' | 'requests' | null>(null);
+  const [visibilitySaving, setVisibilitySaving] = React.useState(false);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = allAlbums.find(a => Number(a.ALBUM_ID) === Number(featuredAlbumId));
@@ -191,6 +199,15 @@ export const MyScreen = () => {
       }
 
       getMySavedSpinLogs(5).then(setSavedLogs).catch(console.error);
+      // 프로필 공개 여부 + 팔로워/팔로잉 카운트 + 수신 요청 수
+      getProfileInfo(user.id).then((p) => setIsProfilePublic(p.IS_PUBLIC)).catch(() => setIsProfilePublic(false));
+      getFollowCounts(user.id).then(setFollowCounts).catch(() => {});
+      getIncomingFollowRequests().then((rs) => setRequestCount(rs.length)).catch(() => {});
+
+      // 컬렉션 유무와 무관하게 조회 — 아래 if 블록 안에 있으면 0장인
+      // 창단 멤버의 배지가 "#/100"으로 영영 남는다 (웹 /my와 동일 수정)
+      const fetchedSignupNumber = await getSignupNumber(user.id);
+      setSignupNumber(fetchedSignupNumber);
 
       const data = await getUserVinyls(user.id);
       if (data && data.length > 0) {
@@ -248,9 +265,6 @@ export const MyScreen = () => {
             });
           }
         });
-
-        const fetchedSignupNumber = await getSignupNumber(user.id);
-        setSignupNumber(fetchedSignupNumber);
 
         const stats: UserStats = {
           ownedCount: mappedOwned.length,
@@ -582,6 +596,47 @@ export const MyScreen = () => {
         </View>
       </View>
 
+      {/* 팔로워/팔로잉 + 프로필 공개 토글 (웹 /my 파리티) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 20, padding: 14, borderWidth: 1, borderColor: themeColors.border, borderRadius: 14 }}>
+        <TouchableOpacity onPress={() => setFollowListTab('followers')} style={{ marginRight: 16 }}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
+            <Text style={{ color: themeColors.textPrimary, fontWeight: '700' }}>{followCounts?.followers ?? 0}</Text> {t('publicGrid.followers')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setFollowListTab('following')}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
+            <Text style={{ color: themeColors.textPrimary, fontWeight: '700' }}>{followCounts?.following ?? 0}</Text> {t('publicGrid.following')}
+          </Text>
+        </TouchableOpacity>
+        {requestCount > 0 && (
+          <TouchableOpacity onPress={() => setFollowListTab('requests')} style={{ marginLeft: 12, backgroundColor: 'rgba(255,77,109,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
+            <Text style={{ color: '#ff4d6d', fontSize: 12, fontWeight: '700' }}>{t('publicGrid.requestsTab')} {requestCount}</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          disabled={isProfilePublic === null || visibilitySaving}
+          onPress={async () => {
+            if (isProfilePublic === null || visibilitySaving) return;
+            const next = !isProfilePublic;
+            setVisibilitySaving(true);
+            setIsProfilePublic(next);
+            try {
+              await setMyProfileVisibility(next);
+            } catch {
+              setIsProfilePublic(!next);
+            } finally {
+              setVisibilitySaving(false);
+            }
+          }}
+          style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: isProfilePublic ? 'rgba(212,175,55,0.4)' : themeColors.border, backgroundColor: isProfilePublic ? 'rgba(212,175,55,0.08)' : 'transparent', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 }}
+        >
+          <Feather name={isProfilePublic ? 'globe' : 'lock'} size={12} color={isProfilePublic ? themeColors.accent : themeColors.textSecondary} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: isProfilePublic ? themeColors.accent : themeColors.textSecondary }}>
+            {isProfilePublic ? t('my.profilePublic') : t('my.profilePrivate')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>{t('mobile.my.analysisTitle')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
@@ -793,6 +848,20 @@ export const MyScreen = () => {
           ownerName={selectedSavedLog.ownerName}
           isVisible={!!selectedSavedLog}
           onClose={() => setSelectedSavedLog(null)}
+        />
+      )}
+
+      {user?.id && followListTab && (
+        <FollowListModal
+          isVisible={!!followListTab}
+          onClose={() => setFollowListTab(null)}
+          userId={user.id}
+          initialTab={followListTab}
+          onChanged={() => {
+            getFollowCounts(user.id).then(setFollowCounts).catch(() => {});
+            getIncomingFollowRequests().then((rs) => setRequestCount(rs.length)).catch(() => {});
+          }}
+          onPressUser={(userId, name) => navigation.navigate('UserProfile', { userId, name })}
         />
       )}
 

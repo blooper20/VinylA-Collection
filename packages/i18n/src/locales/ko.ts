@@ -371,6 +371,7 @@ export const ko = {
     subtitle: '오늘 턴테이블에 올린 LP와 그날의 소감을 기록해보세요.',
     viewByDate: '날짜별',
     viewByAlbum: '앨범별',
+    private: '비공개',
     playCount: '{{count}}회 재생',
     empty: '아직 기록이 없습니다. 보관함의 앨범 상세에서 "오늘 들었어요"를 눌러보세요.',
     loadMore: '더 보기',
