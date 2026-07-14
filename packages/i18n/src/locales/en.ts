@@ -187,6 +187,7 @@ export const en = {
     spinLogMediaTooLarge: 'File is too large (10MB for images, 25MB for video).',
     spinLogMediaTooLong: 'Videos must be 15 seconds or shorter.',
     spinLogMediaLimits: 'Images up to 10MB · Videos up to 15s (25MB max)',
+    spinLogVideoAttached: 'Video attached',
     spinLogTrimTitle: 'Trim video',
     spinLogTrimHint: 'Trim up to {{seconds}}s. Drag either handle to pick the range.',
     spinLogTrimSecondsUnit: 's',
@@ -553,6 +554,8 @@ export const en = {
       coverPhotoDesc: 'How would you like to get the photo?',
       camera: 'Camera',
       gallery: 'Gallery',
+      cameraPermission: 'Camera permission is required.',
+      galleryPermission: 'Photo library access is required.',
     },
     badgeSelect: {
       categoryWealth: 'Wealth/Spending',

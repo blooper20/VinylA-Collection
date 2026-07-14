@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -16,14 +16,18 @@ import {
   followUser,
   unfollowUser,
   getMyListeningLog,
+  updateSpinLog,
+  deleteSpinLog,
   ListeningLogWithAlbum,
   getSpinSocialSummary,
   SpinSocialSummary,
   getUnreadNotificationCount,
   subscribeToNotifications,
+  getErrorMessage,
 } from '@vinyla/core-api';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
+import { SpinLogEditorModal } from '../components/Modal/SpinLogEditorModal';
 import { useTabBarHeight } from '../constants/layout';
 
 const PAGE_SIZE = 30;
@@ -57,6 +61,7 @@ export const SocialScreen = () => {
   const [diaryLoadingMore, setDiaryLoadingMore] = useState(false);
   const [socialMap, setSocialMap] = useState<Record<number, SpinSocialSummary>>({});
   const [socialEntry, setSocialEntry] = useState<ListeningLogWithAlbum | null>(null);
+  const [editingEntry, setEditingEntry] = useState<ListeningLogWithAlbum | null>(null);
 
   // 알림 미읽음 배지 — 포커스 시 갱신 + Realtime
   useFocusEffect(
@@ -187,6 +192,34 @@ export const SocialScreen = () => {
     navigation.navigate('UserProfile', { userId, name });
   };
 
+  // 다이어리 수정/삭제 — 이 탭은 getMyListeningLog(본인 것만)라 소유권 체크가
+  // 필요 없다(웹 /log 페이지와 동일한 전제, RLS도 본인만 update/delete 허용).
+  const confirmDeleteEntry = (entry: ListeningLogWithAlbum) => {
+    Alert.alert('', t('log.deleteConfirm'), [
+      { text: t('log.deleteConfirmNo'), style: 'cancel' },
+      {
+        text: t('log.deleteConfirmYes'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteSpinLog(entry.LOG_ID);
+            setEntries((prev) => (prev || []).filter((e) => e.LOG_ID !== entry.LOG_ID));
+          } catch (e) {
+            Alert.alert('', getErrorMessage(e, t));
+          }
+        },
+      },
+    ]);
+  };
+
+  const openEntryActions = (entry: ListeningLogWithAlbum) => {
+    Alert.alert(entry.ALBUM_MASTER?.TITLE || '', undefined, [
+      { text: t('log.edit'), onPress: () => setEditingEntry(entry) },
+      { text: t('log.delete'), style: 'destructive', onPress: () => confirmDeleteEntry(entry) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
   const styles = getStyles(themeColors);
 
   const renderFeedHeader = () => (
@@ -277,6 +310,13 @@ export const SocialScreen = () => {
           <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>♥ {s?.likeCount ?? 0}</Text>
           <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>💬 {s?.commentCount ?? 0}</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => openEntryActions(item)}
+          style={{ paddingLeft: 10, paddingVertical: 6 }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+        >
+          <Feather name="more-vertical" size={16} color={themeColors.textSecondary} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -351,6 +391,34 @@ export const SocialScreen = () => {
           isVisible={!!socialEntry}
           onClose={() => setSocialEntry(null)}
           onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
+        />
+      )}
+      {editingEntry && (
+        <SpinLogEditorModal
+          visible={!!editingEntry}
+          title={t('detail.spinLogTitle')}
+          hint={editingEntry.ALBUM_MASTER ? `${editingEntry.ALBUM_MASTER.TITLE} · ${editingEntry.ALBUM_MASTER.ARTIST}` : undefined}
+          submitLabel={t('log.editSave')}
+          submittingLabel={t('log.editSaving')}
+          initial={{
+            mood: editingEntry.MOOD,
+            note: editingEntry.NOTE,
+            isPublic: editingEntry.IS_PUBLIC,
+            mediaUrl: editingEntry.MEDIA_URL,
+            mediaType: editingEntry.MEDIA_TYPE,
+          }}
+          onClose={() => setEditingEntry(null)}
+          onSubmit={async (values) => {
+            const updated = await updateSpinLog(editingEntry.LOG_ID, {
+              mood: values.mood,
+              note: values.note,
+              mediaUrl: values.media?.url ?? null,
+              mediaType: values.media?.type ?? null,
+              isPublic: values.isPublic,
+            });
+            setEntries((prev) => (prev || []).map((e) => (e.LOG_ID === editingEntry.LOG_ID ? { ...e, ...updated } : e)));
+            setEditingEntry(null);
+          }}
         />
       )}
     </View>

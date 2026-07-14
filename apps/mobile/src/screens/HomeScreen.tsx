@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text, Share } from 'react-native';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
+import { RandomPickModal } from '../components/Modal/RandomPickModal';
 import { EmptyState } from '../components/EmptyState';
 import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
@@ -36,6 +37,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
   const [isToastVisible, setIsToastVisible] = useState(false);
   const [viewMode, setViewMode] = useState<VinylViewMode>('grid');
   const [sortMode, setSortMode] = useState<SortMode>('latest');
+  const [isRandomPickOpen, setIsRandomPickOpen] = useState(false);
   const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user, initializeAuth } = useAuthStore();
@@ -166,6 +168,10 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
         />
       ) : (
         <>
+          {/* 오늘의 LP 추천 (랜덤 픽) 진입점 — 웹 VinylGrid의 트리거 버튼 파리티 */}
+          <TouchableOpacity style={styles.randomPickBanner} onPress={() => setIsRandomPickOpen(true)}>
+            <Text style={styles.randomPickBannerText}>{t('randomPick.triggerButton')}</Text>
+          </TouchableOpacity>
           <SortChipRow value={sortMode} onChange={setSortMode} />
           {viewMode === 'grid' ? (
             <FlatList
@@ -205,6 +211,13 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
         onClose={() => setSelectedAlbum(null)}
       />
 
+      <RandomPickModal
+        visible={isRandomPickOpen}
+        albums={ownedAlbums}
+        onClose={() => setIsRandomPickOpen(false)}
+        onOpenAlbum={(album) => setSelectedAlbum(album)}
+      />
+
       <View style={styles.offscreen} pointerEvents="none">
         <ShareableGridView
           ref={shareViewRef}
@@ -241,6 +254,21 @@ const getStyles = (themeColors: any, shadows: any, shape: any, tabBarHeight: num
   list: {
     padding: 16,
     paddingBottom: tabBarHeight + 20,
+  },
+  randomPickBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(233,195,73,0.4)',
+    backgroundColor: 'rgba(233,195,73,0.08)',
+    alignItems: 'center',
+  },
+  randomPickBannerText: {
+    color: '#e9c349',
+    fontSize: 14,
+    fontWeight: '700',
   },
   tableList: {
     paddingBottom: tabBarHeight + 20,

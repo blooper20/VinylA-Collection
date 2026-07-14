@@ -186,6 +186,7 @@ export const ko = {
     spinLogMediaTooLarge: '파일이 너무 큽니다 (이미지 10MB, 영상 25MB 이하).',
     spinLogMediaTooLong: '영상은 15초 이내로 올려주세요.',
     spinLogMediaLimits: '이미지 최대 10MB · 영상 최대 15초 (최대 25MB)',
+    spinLogVideoAttached: '영상 첨부됨',
     spinLogTrimTitle: '영상 길이 조절',
     spinLogTrimHint: '최대 {{seconds}}초까지 자를 수 있어요. 양쪽 핸들을 드래그해 구간을 골라보세요.',
     spinLogTrimSecondsUnit: '초',
@@ -552,6 +553,8 @@ export const ko = {
       coverPhotoDesc: '어떻게 사진을 가져올까요?',
       camera: '카메라',
       gallery: '갤러리',
+      cameraPermission: '카메라 권한이 필요합니다.',
+      galleryPermission: '갤러리 접근 권한이 필요합니다.',
     },
     badgeSelect: {
       categoryWealth: '자산/지출',

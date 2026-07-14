@@ -12,6 +12,7 @@ import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
 import { ShareableStoryView } from '../Share/ShareableStoryView';
 import { ShareOptionsSheet } from './ShareOptionsSheet';
+import { SpinLogEditorModal } from './SpinLogEditorModal';
 import { shareToInstagramStory } from '../../utils/nativeShare';
 
 interface DetailModalProps {
@@ -71,12 +72,8 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [tracks, setTracks] = React.useState<string[]>([]);
   const [isTracksLoading, setIsTracksLoading] = React.useState<boolean>(false);
   const [realStatus, setRealStatus] = React.useState<string | null>(null);
-  // 스피닝 다이어리 작성 (웹 SpinLogModal 파리티 — v1은 기분+메모+공개여부)
+  // 스피닝 다이어리 작성 (웹 SpinLogModal 파리티 — 기분+메모+미디어+공개여부)
   const [isSpinModalOpen, setIsSpinModalOpen] = React.useState(false);
-  const [spinMood, setSpinMood] = React.useState<string | undefined>(undefined);
-  const [spinNote, setSpinNote] = React.useState('');
-  const [spinIsPublic, setSpinIsPublic] = React.useState(true);
-  const [isSubmittingSpin, setIsSubmittingSpin] = React.useState(false);
 
   const { themeColors, glassIntensity } = useTheme();
   const { t } = useLocale();
@@ -698,7 +695,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
               {/* 스피닝 다이어리 기록 (보유 앨범만) */}
               {realStatus === 'OWNED' && (
                 <TouchableOpacity
-                  onPress={() => { setSpinMood(undefined); setSpinNote(''); setSpinIsPublic(true); setIsSpinModalOpen(true); }}
+                  onPress={() => setIsSpinModalOpen(true)}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(233,195,73,0.4)', backgroundColor: 'rgba(233,195,73,0.08)' }}
                 >
                   <Feather name="music" size={14} color="#e9c349" />
@@ -879,84 +876,21 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           </KeyboardAvoidingView>
         )}
 
-        {/* 스피닝 다이어리 작성 모달 */}
-        {isSpinModalOpen && (
-          <Modal visible transparent animationType="fade" onRequestClose={() => !isSubmittingSpin && setIsSpinModalOpen(false)}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 24 }}>
-              <View style={{ backgroundColor: '#1a1814', borderRadius: 18, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{t('detail.spinLogTitle')}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4 }}>{t('detail.spinLogHint')}</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-                  {['🤩', '🙂', '😌', '😐', '😢'].map((m) => (
-                    <TouchableOpacity
-                      key={m}
-                      disabled={isSubmittingSpin}
-                      onPress={() => setSpinMood(spinMood === m ? undefined : m)}
-                      style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: spinMood === m ? '#e9c349' : 'rgba(255,255,255,0.12)', backgroundColor: spinMood === m ? 'rgba(233,195,73,0.15)' : 'transparent' }}
-                    >
-                      <Text style={{ fontSize: 20 }}>{m}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TextInput
-                  value={spinNote}
-                  onChangeText={setSpinNote}
-                  placeholder={t('detail.spinLogNotePlaceholder')}
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                  editable={!isSubmittingSpin}
-                  multiline
-                  maxLength={500}
-                  style={{ marginTop: 14, minHeight: 80, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 12, color: '#fff', fontSize: 14, textAlignVertical: 'top' }}
-                />
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{t('detail.spinLogVisibilityLabel')}</Text>
-                  {([true, false] as const).map((v) => (
-                    <TouchableOpacity
-                      key={String(v)}
-                      disabled={isSubmittingSpin}
-                      onPress={() => setSpinIsPublic(v)}
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: spinIsPublic === v ? '#e9c349' : 'rgba(255,255,255,0.12)', backgroundColor: spinIsPublic === v ? 'rgba(233,195,73,0.15)' : 'transparent' }}
-                    >
-                      <Text style={{ color: spinIsPublic === v ? '#e9c349' : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '700' }}>
-                        {v ? t('detail.spinLogPublic') : t('detail.spinLogPrivate')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-                  <TouchableOpacity
-                    disabled={isSubmittingSpin}
-                    onPress={() => setIsSpinModalOpen(false)}
-                    style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center' }}
-                  >
-                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700' }}>{t('common.cancel')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    disabled={isSubmittingSpin}
-                    onPress={async () => {
-                      if (!user?.id || !album) return;
-                      setIsSubmittingSpin(true);
-                      try {
-                        await logSpin(user.id, Number(album.ALBUM_ID), spinMood, spinNote, null, spinIsPublic);
-                        setIsSpinModalOpen(false);
-                        Alert.alert('', t('detail.spinLogSaved'));
-                      } catch (e) {
-                        Alert.alert('', getErrorMessage(e, t));
-                      } finally {
-                        setIsSubmittingSpin(false);
-                      }
-                    }}
-                    style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#e9c349', alignItems: 'center', opacity: isSubmittingSpin ? 0.6 : 1 }}
-                  >
-                    <Text style={{ color: '#1a1814', fontWeight: '800' }}>
-                      {isSubmittingSpin ? t('detail.spinLogSaving') : t('detail.spinLogSave')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </Modal>
-        )}
+        {/* 스피닝 다이어리 작성 모달 — 공용 에디터(미디어 첨부 포함) */}
+        <SpinLogEditorModal
+          visible={isSpinModalOpen}
+          title={t('detail.spinLogTitle')}
+          hint={t('detail.spinLogHint')}
+          submitLabel={t('detail.spinLogSave')}
+          submittingLabel={t('detail.spinLogSaving')}
+          onClose={() => setIsSpinModalOpen(false)}
+          onSubmit={async (values) => {
+            if (!user?.id || !album) return;
+            await logSpin(user.id, Number(album.ALBUM_ID), values.mood, values.note, values.media, values.isPublic);
+            setIsSpinModalOpen(false);
+            Alert.alert('', t('detail.spinLogSaved'));
+          }}
+        />
       </Animated.View>
     </Modal>
   );

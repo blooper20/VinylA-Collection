@@ -46,6 +46,7 @@ export const UserProfileScreen = () => {
   const [albums, setAlbums] = useState<any[] | null>(null);
   const [diary, setDiary] = useState<ListeningLogWithAlbum[] | null>(null);
   const [socialEntry, setSocialEntry] = useState<ListeningLogWithAlbum | null>(null);
+  const [matchPercent, setMatchPercent] = useState<number | null>(null);
 
   const isMe = user?.id === userId;
   const isAdmin = user?.app_metadata?.role === 'admin';
@@ -85,6 +86,28 @@ export const UserProfileScreen = () => {
         })
         .catch(() => setAlbums([]));
     }, [userId, canView, albums])
+  );
+
+  // 취향 일치율 배지 — 웹 PublicGrid와 동일한 정의:
+  // 겹치는 OWNED 앨범 수 ÷ min(내 수집 수, 상대 수집 수) × 100 (겹침 0이면 미표시).
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id || isMe || albums === null || albums.length === 0 || matchPercent !== null) return;
+      let cancelled = false;
+      getUserVinyls(user.id)
+        .then((mine) => {
+          if (cancelled) return;
+          const myOwned = new Set(
+            (mine || []).filter((v: any) => v.STATUS !== 'WISH').map((v: any) => String(v.ALBUM_ID))
+          );
+          const overlap = albums.filter((a: any) => myOwned.has(String(a.ALBUM_ID))).length;
+          if (overlap > 0) {
+            setMatchPercent(Math.round((100 * overlap) / Math.max(Math.min(myOwned.size, albums.length), 1)));
+          }
+        })
+        .catch(() => {});
+      return () => { cancelled = true; };
+    }, [user?.id, isMe, albums, matchPercent])
   );
 
   const loadDiary = useCallback(() => {
@@ -146,6 +169,13 @@ export const UserProfileScreen = () => {
             <Text style={{ color: themeColors.textPrimary, fontWeight: '700' }}>{counts?.following ?? 0}</Text> {t('publicGrid.following')}
           </Text>
         </View>
+        {!isMe && matchPercent !== null && (
+          <View style={{ marginTop: 8, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(233,195,73,0.4)', backgroundColor: 'rgba(233,195,73,0.1)' }}>
+            <Text style={{ color: themeColors.accent, fontSize: 12, fontWeight: '700' }}>
+              {t('feed.matchPercent', { percent: matchPercent })}
+            </Text>
+          </View>
+        )}
         {!isMe && user?.id && (
           <TouchableOpacity
             onPress={toggleFollow}
