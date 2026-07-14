@@ -13,6 +13,7 @@ import { useAuthStore, createAlbumMaster, getUserVinyls, mapToFrontendModel, sup
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
 import styles from './VinylGrid.module.css';
+import { PageTabs } from '../Navigation/PageTabs';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 type ViewMode = 'grid4' | 'grid6' | 'table';
@@ -131,6 +132,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
   return (
     <div className={styles.pageWrapper}>
+      <PageTabs group="collection" />
       <header className={styles.pageHeader}>
         <div className={styles.headerLeft}>
           <span className={styles.pageEyebrow}>My Collection</span>

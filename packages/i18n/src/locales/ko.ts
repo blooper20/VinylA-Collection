@@ -37,6 +37,7 @@ export const ko = {
     log: '다이어리',
     story: '스토리',
     feed: '피드',
+    social: '소셜',
     notifications: '알림',
     support: '문의하기',
     admin: '관리자',

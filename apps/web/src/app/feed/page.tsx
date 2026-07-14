@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import styles from './feed.module.css';
+import { PageTabs } from '../../components/Navigation/PageTabs';
 import {
   getDiscoveryFeed,
   subscribeToDiscoveryFeed,
@@ -121,6 +122,7 @@ export default function DiscoveryFeedPage() {
 
   return (
     <div className={styles.container}>
+      <PageTabs group="social" />
       <header className={styles.header}>
         <p className={styles.eyebrow}>{t('feed.eyebrow')}</p>
         <h1 className={styles.title}>

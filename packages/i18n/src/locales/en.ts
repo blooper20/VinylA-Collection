@@ -38,6 +38,7 @@ export const en = {
     log: 'Diary',
     story: 'Story',
     feed: 'Feed',
+    social: 'Social',
     notifications: 'Alerts',
     support: 'Support',
     admin: 'Admin',

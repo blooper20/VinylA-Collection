@@ -10,6 +10,7 @@ import { captureElementAsBlob } from '../../utils/shareUtils';
 import { useAuthStore, getUserVinyls, mapToFrontendModel, supabase } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import styles from './page.module.css';
+import { PageTabs } from '../../components/Navigation/PageTabs';
 
 type ViewMode = 'grid4' | 'grid6' | 'table';
 type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
@@ -80,6 +81,7 @@ export default function WishlistPage() {
 
   return (
     <div className={styles.page}>
+      <PageTabs group="collection" />
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div className={styles.headerLeft}>

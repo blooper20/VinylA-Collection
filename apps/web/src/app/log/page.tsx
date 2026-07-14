@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './log.module.css';
+import { PageTabs } from '../../components/Navigation/PageTabs';
 import { useAuthStore, getMyListeningLog, updateSpinLog, deleteSpinLog, uploadSpinLogMedia, getErrorMessage, ListeningLogWithAlbum, getSpinSocialSummary, SpinSocialSummary } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MediaAttachPicker, EditMediaState } from '../../components/Modal/MediaAttachPicker';
@@ -181,6 +182,7 @@ export default function ListeningLogPage() {
 
   return (
     <div className={styles.container}>
+      <PageTabs group="social" />
       <header className={styles.header}>
         <p className={styles.eyebrow}>{t('log.eyebrow')}</p>
         <h1 className={styles.title}>{t('log.title')}</h1>

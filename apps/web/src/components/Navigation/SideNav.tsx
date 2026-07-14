@@ -32,13 +32,13 @@ export const SideNav: React.FC = () => {
     };
   }, [user?.id]);
 
-  type NavItem = { name: string; path: string; icon: string; badge?: number };
+  // 컬렉션(+위시리스트)과 소셜(피드+다이어리)은 페이지 내 탭으로 통합 —
+  // match는 그룹의 다른 탭 경로에서도 메뉴가 활성으로 보이게 한다
+  type NavItem = { name: string; path: string; icon: string; badge?: number; match?: string[] };
   const navItems: NavItem[] = [
-    { name: t('nav.collection'), path: '/collection', icon: 'shelves' },
+    { name: t('nav.collection'), path: '/collection', icon: 'shelves', match: ['/collection', '/wishlist'] },
     { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
-    { name: t('nav.wishlist'), path: '/wishlist', icon: 'bookmark' },
-    { name: t('nav.log'), path: '/log', icon: 'graphic_eq' },
-    { name: t('nav.feed'), path: '/feed', icon: 'rss_feed' },
+    { name: t('nav.social'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log'] },
     { name: t('nav.story'), path: '/story', icon: 'auto_stories' },
     { name: t('nav.notifications'), path: '/notifications', icon: 'notifications', badge: unreadCount },
     { name: t('nav.my'), path: '/my', icon: 'person' },
@@ -66,7 +66,11 @@ export const SideNav: React.FC = () => {
         {/* Main Nav — admin item only for accounts with app_metadata.role === 'admin' */}
         <div className={styles.nav}>
           {[...navItems, ...(user?.app_metadata?.role === 'admin' ? [adminNavItem] : [])].map((item) => {
-            const isActive = item.path === '/admin' ? pathname.startsWith('/admin') : pathname === item.path;
+            const isActive = item.path === '/admin'
+              ? pathname.startsWith('/admin')
+              : item.match
+                ? item.match.includes(pathname)
+                : pathname === item.path;
             return (
               <Link
                 key={item.name}
