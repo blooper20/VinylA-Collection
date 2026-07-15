@@ -16,6 +16,7 @@ interface ShareOptionsSheetProps {
   // height on screens where it overlays the content (Home/Wishlist).
   // DetailModal is a full-screen <Modal> with no tab bar, so it doesn't need this.
   bottomInset?: number;
+  children?: React.ReactNode;
 }
 
 // Deliberately not wrapped in RN's <Modal> — this can be nested inside other
@@ -29,6 +30,7 @@ export const ShareOptionsSheet = ({
   onShareLink,
   onImageShare,
   bottomInset = 0,
+  children,
 }: ShareOptionsSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
   const { t } = useLocale();
@@ -71,6 +73,8 @@ export const ShareOptionsSheet = ({
         >
           <View style={[styles.handle, { backgroundColor: themeColors.border }]} />
           <Text style={[styles.title, { color: themeColors.textPrimary }]}>{title}</Text>
+
+          {children}
 
           {options.map((opt) => (
             <TouchableOpacity

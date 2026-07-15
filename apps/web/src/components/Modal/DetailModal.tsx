@@ -251,6 +251,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
   const [marketPrice, setMarketPrice] = React.useState<number | null>(album.MARKET_PRICE || null);
+  const [isPublic, setIsPublic] = React.useState<boolean>(album.IS_PUBLIC !== false);
   
   const storyTemplateRef = React.useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
@@ -560,7 +561,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
         STATUS: status,
-        PURCHASE_PRICE: price
+        PURCHASE_PRICE: price,
+        IS_PUBLIC: isPublic
       };
 
       if (status === 'OWNED' && album.STATUS !== 'OWNED') {
@@ -581,11 +583,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
         }
 
         // Dispatch custom event for Toast
-        window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
-          detail: { message }
-        }));
+        const event = new CustomEvent('SHOW_TOAST', { detail: { message } });
+        window.dispatchEvent(event);
         window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
-      }, 600);
+      }, 500);
     } catch (error) {
       console.error('Failed to save album:', error);
       const msg = getErrorMessage(error, t);
@@ -840,6 +841,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   {t('detail.addToWishlist')}
                 </button>
               </>
+            )}
+            
+            {(album.STATUS === 'OWNED' || album.STATUS === 'WISH') && (
+              <div style={{ marginTop: '16px' }}>
+                <VisibilityToggle value={isPublic} onChange={(val) => {
+                  setIsPublic(val);
+                  handleSave(album.STATUS as 'OWNED'|'WISH', album.PURCHASE_PRICE || 0);
+                }} disabled={isSaving} t={t} />
+              </div>
             )}
           </div>
 

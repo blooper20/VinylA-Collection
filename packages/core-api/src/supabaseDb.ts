@@ -284,6 +284,19 @@ export const deleteUserVinyl = async (userVinylId: number): Promise<boolean> => 
   return true;
 };
 
+export const updateUserVinylIsPublic = async (userVinylId: number, isPublic: boolean): Promise<boolean> => {
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .update({ IS_PUBLIC: isPublic })
+    .eq('USER_VINYL_ID', userVinylId);
+
+  if (error) {
+    console.error('updateUserVinylIsPublic error:', error);
+    throw new AppError('DB-003', '공개 설정 변경 중 오류가 발생했습니다.', error);
+  }
+  return true;
+};
+
 export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
   if (isOffline()) {
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
@@ -363,7 +376,8 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     PURCHASE_PRICE: userVinyl?.PURCHASE_PRICE || 0,
     PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c',
-    MARKET_PRICE: master?.MARKET_PRICE || 0
+    MARKET_PRICE: master?.MARKET_PRICE || 0,
+    IS_PUBLIC: userVinyl?.IS_PUBLIC !== false
   };
 };
 

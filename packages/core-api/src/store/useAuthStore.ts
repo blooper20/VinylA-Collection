@@ -11,6 +11,19 @@ let loginLoggedForUserId: string | null = null;
 // unsubscribed, so auth events ran the wipe/set logic N times.
 let authInitialized = false;
 
+// 아바타는 auth 메타데이터에만 있으면 다른 유저 화면(피드·댓글·모달)에서 못
+// 읽는다 — public read인 PROFILES.PROFILE_IMAGE_URL에 함께 동기화한다.
+// '/logo.png'는 "사진 없음" 기본값이라 null로 저장. 프로필 저장 자체가 이
+// 동기화 때문에 실패하면 안 되므로(컬럼 미적용 DB 등) 실패는 경고만 남긴다.
+const syncProfileImage = async (userId: string, avatarUrl: string) => {
+  const imageUrl = !avatarUrl || avatarUrl === '/logo.png' ? null : avatarUrl;
+  const { error } = await supabase
+    .from('PROFILES')
+    .update({ PROFILE_IMAGE_URL: imageUrl })
+    .eq('USER_ID', userId);
+  if (error) console.warn('PROFILES.PROFILE_IMAGE_URL sync failed:', error.message);
+};
+
 // 신규 가입(created_at이 방금)이면 first-touch 유입 정보를 붙여 SIGNUP 기록.
 // localStorage 플래그로 평생 1회만.
 const logSignupIfNew = (user: any) => {
@@ -156,6 +169,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const updateData: any = { displayName, interests };
       if (avatarUrl !== undefined) {
         updateData.avatar_url = avatarUrl;
+        await syncProfileImage(user.id, avatarUrl);
       }
       const { data, error } = await supabase.auth.updateUser({
         data: updateData
@@ -235,12 +249,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const updateData: any = { displayName, interests };
       if (avatarUrl) {
         updateData.avatar_url = avatarUrl;
+        await syncProfileImage(user.id, avatarUrl);
       }
-      
+
       const { data, error } = await supabase.auth.updateUser({
         data: updateData
       });
-      
+
       if (error) throw error;
       if (data.user) {
         set({ user: data.user });
@@ -258,6 +273,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
       if (data.user) {
         set({ user: data.user });
+        
+        // Sync to PROFILES table for public viewing (best effort)
+        const { error: syncError } = await supabase
+          .from('PROFILES')
+          .update({ FEATURED_ALBUM_ID: albumId })
+          .eq('USER_ID', data.user.id);
+        if (syncError) console.warn('PROFILES.FEATURED_ALBUM_ID sync failed:', syncError.message);
       }
     } catch (error) {
       console.error('Failed to update featured album', error);

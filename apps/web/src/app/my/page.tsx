@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
 import FoundingBadgeCelebrationModal from '../../components/Modal/FoundingBadgeCelebrationModal';
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { ImageCropModal } from '../../components/Modal/ImageCropModal';
+import { FollowListModal } from '../../components/Modal/FollowListModal';
 import { copyToClipboard } from '../../utils/shareUtils';
+import { SpinSocialModal } from '../../components/Modal/SpinSocialModal';
 
 type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
 
@@ -35,6 +37,9 @@ export default function MyProfilePage() {
   const [allAlbumsList, setAllAlbumsList] = useState<FrontendVinyl[]>([]);
   const [signupNumber, setSignupNumber] = useState<number | null>(null);
   const [showFoundingCelebration, setShowFoundingCelebration] = useState(false);
+  const [savedLogs, setSavedLogs] = useState<SavedSpinLog[]>([]);
+  const [timelineTab, setTimelineTab] = useState<'journey' | 'saved'>('journey');
+  const [selectedSavedLog, setSelectedSavedLog] = useState<{ log: ListeningLogWithAlbum, ownerName: string | null } | null>(null);
 
   const featuredAlbumId = user?.user_metadata?.featured_album_id || null;
   const featuredAlbum = featuredAlbumId ? allAlbumsList.find(a => String(a.ALBUM_ID) === String(featuredAlbumId)) : undefined;
@@ -58,6 +63,29 @@ export default function MyProfilePage() {
   const [editGenre, setEditGenre] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSpentPublic, setIsSpentPublic] = useState(false);
+  const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
+  // 기본 비공개 (opt-in 공개) — 실제 값은 getProfileInfo가 채운다
+  const [isProfilePublic, setIsProfilePublic] = useState<boolean>(false);
+  const [followListTab, setFollowListTab] = useState<'followers' | 'following' | 'requests' | null>(null);
+  const [incomingRequestCount, setIncomingRequestCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getFollowCounts(user.id).then(setFollowCounts).catch(() => {});
+    getProfileInfo(user.id).then((p) => setIsProfilePublic(p.IS_PUBLIC)).catch(() => {});
+    getIncomingFollowRequests().then((r) => setIncomingRequestCount(r.length)).catch(() => {});
+  }, [user?.id]);
+
+  const toggleProfileVisibility = async () => {
+    const next = !isProfilePublic;
+    setIsProfilePublic(next); // 낙관적 토글 — 실패 시 원복
+    try {
+      await setMyProfileVisibility(next);
+    } catch {
+      setIsProfilePublic(!next);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('error.DB-001' as any) || 'Failed' } }));
+    }
+  };
 
   useEffect(() => {
     initializeAuth();
@@ -87,6 +115,13 @@ export default function MyProfilePage() {
       setEditName(currentName);
       setPreviewAvatarUrl(currentAvatar);
       setEditGenre(currentGenre !== '-' ? currentGenre : 'Pop');
+
+      getMySavedSpinLogs(5).then(setSavedLogs).catch(console.error);
+
+      // 컬렉션 유무와 무관하게 조회 — 아래 if 블록 안에 있으면 0장인
+      // 창단 멤버의 배지가 "#/100"으로 영영 남는다
+      const fetchedSignupNumber = await getSignupNumber(user.id);
+      setSignupNumber(fetchedSignupNumber);
 
       const data = await getUserVinyls(user.id);
       if (data && data.length > 0) {
@@ -154,9 +189,6 @@ export default function MyProfilePage() {
             });
           }
         });
-
-        const fetchedSignupNumber = await getSignupNumber(user.id);
-        setSignupNumber(fetchedSignupNumber);
 
         const stats: UserStats = {
           ownedCount: mappedOwned.length,
@@ -259,7 +291,9 @@ export default function MyProfilePage() {
       const link = `${window.location.origin}/user/${user.id}/dashboard?n=${name}&a=${avatar}&b=${badge}&g=${genre}&f=${featured}&sp=${sp}`;
       await copyToClipboard(link);
 
-      const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.profileLinkCopied') } });
+      // 비공개 상태의 공유 링크는 받은 사람에게 잠금 화면만 보인다 — 명확히 경고
+      const message = isProfilePublic ? t('my.profileLinkCopied') : t('my.sharePrivateWarning');
+      const event = new CustomEvent('SHOW_TOAST', { detail: { message } });
       window.dispatchEvent(event);
     }
   };
@@ -396,6 +430,61 @@ export default function MyProfilePage() {
                     {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
                   </span>
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.55)' }}>
+                    <span onClick={() => setFollowListTab('followers')} style={{ cursor: 'pointer' }}>
+                      <strong style={{ color: '#fff', fontWeight: 700 }}>{followCounts?.followers ?? 0}</strong> {t('publicGrid.followers')}
+                    </span>
+                    {' · '}
+                    <span onClick={() => setFollowListTab('following')} style={{ cursor: 'pointer' }}>
+                      <strong style={{ color: '#fff', fontWeight: 700 }}>{followCounts?.following ?? 0}</strong> {t('publicGrid.following')}
+                    </span>
+                  </span>
+                  {incomingRequestCount > 0 && (
+                    <button
+                      onClick={() => setFollowListTab('requests')}
+                      style={{
+                        background: 'rgba(212,175,55,0.15)',
+                        border: '1px solid rgba(212,175,55,0.5)',
+                        borderRadius: '20px',
+                        color: '#d4af37',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        padding: '4px 12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {t('publicGrid.requestsTab')} {incomingRequestCount}
+                    </button>
+                  )}
+                  <button
+                    onClick={toggleProfileVisibility}
+                    title={t('my.profileVisibilityDesc')}
+                    style={{
+                      background: 'none',
+                      border: `1px solid ${isProfilePublic ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.25)'}`,
+                      borderRadius: '20px',
+                      color: isProfilePublic ? '#d4af37' : 'rgba(255,255,255,0.55)',
+                      fontSize: '12px',
+                      padding: '4px 12px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>
+                      {isProfilePublic ? 'public' : 'lock'}
+                    </span>
+                    {isProfilePublic ? t('my.profilePublic') : t('my.profilePrivate')}
+                  </button>
+                </div>
+                {!isProfilePublic && (
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: '8px 0 0' }}>
+                    {t('my.profileVisibilityDesc')}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -466,28 +555,68 @@ export default function MyProfilePage() {
       </section>
 
       <section className={styles.journey}>
-        <div className={styles.journeySectionHeader}>
-          <div className={styles.journeyAccentLine} />
-          <h2 className={styles.journeySectionTitle}>{t('my.journeyTitle')}</h2>
+        <div className={styles.timelineTabs}>
+          <button 
+            className={`${styles.tabButton} ${timelineTab === 'journey' ? styles.tabButtonActive : ''}`}
+            onClick={() => setTimelineTab('journey')}
+          >
+            {t('my.journeyTitle')}
+          </button>
+          <button 
+            className={`${styles.tabButton} ${timelineTab === 'saved' ? styles.tabButtonActive : ''}`}
+            onClick={() => setTimelineTab('saved')}
+          >
+            저장된 콘텐츠
+          </button>
         </div>
+
         <div className={styles.timeline}>
-          {recentAdditions.length > 0 ? recentAdditions.map((item, i) => (
-            <div key={i} className={styles.timelineItem}>
-              <div className={styles.timelineDot} />
-              <img src={item.COVER_URL || item.IMAGE_URL} alt={item.TITLE} className={styles.timelineImage} />
-              <div className={styles.timelineText}>
-                <span className={styles.timelineDate}>Recently Added</span>
-                <div className={styles.timelineTitle}>{item.TITLE}</div>
-                <div className={styles.timelineDesc}>{item.ARTIST}</div>
+          {timelineTab === 'journey' ? (
+            recentAdditions.length > 0 ? recentAdditions.map((item, i) => (
+              <div key={i} className={styles.timelineItem}>
+                <div className={styles.timelineDot} />
+                <img src={item.COVER_URL || item.IMAGE_URL} alt={item.TITLE} className={styles.timelineImage} />
+                <div className={styles.timelineText}>
+                  <span className={styles.timelineDate}>Recently Added</span>
+                  <div className={styles.timelineTitle}>{item.TITLE}</div>
+                  <div className={styles.timelineDesc}>{item.ARTIST}</div>
+                </div>
               </div>
-            </div>
-          )) : (
-            <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('my.noRecentLp')}</p>
+            )) : (
+              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('my.noRecentLp')}</p>
+            )
+          ) : (
+            savedLogs.length > 0 ? savedLogs.map((item, i) => (
+              <div key={i} className={styles.timelineItem} onClick={() => setSelectedSavedLog({ log: item.log as any, ownerName: item.OWNER_NAME })} style={{ cursor: 'pointer' }}>
+                <div className={styles.timelineDot} />
+                <img src={item.log.ALBUM_MASTER?.IMAGE_URL} alt={item.log.ALBUM_MASTER?.TITLE} className={styles.timelineImage} />
+                <div className={styles.timelineText}>
+                  <span className={styles.timelineDate}>{new Date(item.SAVED_AT).toLocaleDateString()}</span>
+                  <div className={styles.timelineTitle}>{item.log.ALBUM_MASTER?.TITLE}</div>
+                  <div className={styles.timelineDesc}>{item.OWNER_NAME}님의 다이어리</div>
+                </div>
+              </div>
+            )) : (
+              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>저장된 다이어리가 없습니다.</p>
+            )
           )}
         </div>
       </section>
 
-      <FeaturedLPModal 
+      {followListTab && user?.id && (
+        <FollowListModal
+          userId={user.id}
+          initialTab={followListTab}
+          onClose={() => setFollowListTab(null)}
+          isOwner
+          onFollowerAccepted={() => {
+            setIncomingRequestCount((c) => Math.max(0, c - 1));
+            setFollowCounts((c) => (c ? { ...c, followers: c.followers + 1 } : c));
+          }}
+        />
+      )}
+
+      <FeaturedLPModal
         isOpen={isFeaturedModalOpen}
         onClose={() => setIsFeaturedModalOpen(false)}
         albums={allAlbumsList}
@@ -531,6 +660,13 @@ export default function MyProfilePage() {
       />
 
       {/* Toast notification */}
+      {selectedSavedLog && (
+        <SpinSocialModal
+          entry={selectedSavedLog.log as any}
+          ownerName={selectedSavedLog.ownerName}
+          onClose={() => setSelectedSavedLog(null)}
+        />
+      )}
       {toastMessage && (
         <div style={{
           position: 'fixed',

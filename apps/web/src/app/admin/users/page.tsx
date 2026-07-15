@@ -16,8 +16,17 @@ interface AdminUserRow {
   wish: number;
 }
 
+// 가입일/최근 로그인 — 초 단위까지 표시. auth.users.created_at과
+// last_sign_in_at은 Supabase Auth가 로그인마다 자동으로 갱신하는 timestamptz라
+// 원본 데이터는 이미 초 단위 정밀도를 갖고 있었다(표시만 날짜로 잘려 있었음).
 const formatDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' }) : '—';
+  iso
+    ? new Date(iso).toLocaleString('ko-KR', {
+        year: '2-digit', month: 'numeric', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      })
+    : '—';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUserRow[]>([]);

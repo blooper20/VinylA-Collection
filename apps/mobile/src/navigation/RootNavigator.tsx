@@ -2,6 +2,11 @@ import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { SetupScreen } from '../screens/SetupScreen';
+import { StoryScreen } from '../screens/StoryScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { UserProfileScreen } from '../screens/UserProfileScreen';
+import { NoticeListScreen } from '../screens/NoticeListScreen';
+import { NoticeDetailScreen } from '../screens/NoticeDetailScreen';
 import { TabNavigator } from './TabNavigator';
 import { tabLinkingConfig } from './TabNavigator';
 import { useAuthStore } from '@vinyla/core-api';
@@ -36,7 +41,14 @@ export const RootNavigator = () => {
       ) : !user.user_metadata?.displayName ? (
         <Stack.Screen name="Setup" component={SetupScreen} />
       ) : (
-        <Stack.Screen name="Main" component={TabNavigator} />
+        <>
+          <Stack.Screen name="Main" component={TabNavigator} />
+          <Stack.Screen name="Story" component={StoryScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+          <Stack.Screen name="NoticeList" component={NoticeListScreen} />
+          <Stack.Screen name="NoticeDetail" component={NoticeDetailScreen} />
+        </>
       )}
     </Stack.Navigator>
   );

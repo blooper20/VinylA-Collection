@@ -9,7 +9,11 @@ import { getProxyBaseUrl } from './externalApi';
 // 동일 패턴) — 컬렉션 자체가 이미 전체 공개이므로 재생 기록 공개도 새로운
 // 노출이 아니며, 디스커버리 피드의 데이터 소스로도 재사용된다.
 
-export type ListeningLogWithAlbum = LISTENING_LOG & { ALBUM_MASTER: ALBUM_MASTER | null };
+export type ListeningLogWithAlbum = LISTENING_LOG & {
+  ALBUM_MASTER: ALBUM_MASTER | null;
+  /** 일부 화면(프로필 대시보드 등)에서 기록 주인의 닉네임을 붙여서 넘긴다 */
+  DISPLAY_NAME?: string | null;
+};
 
 const isNetworkError = (error: any) =>
   error?.message === 'Failed to fetch' || error?.message?.includes('NetworkError');
@@ -155,6 +159,27 @@ export const getMyListeningLog = async (
   if (error) {
     throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-002', '다이어리를 불러오는 데 실패했습니다.', error);
   }
+  return (data as ListeningLogWithAlbum[]) || [];
+};
+
+// 공개 프로필 대시보드용 다이어리 히스토리 — 공개(IS_PUBLIC=true) 기록만.
+// 프로필이 비공개인 유저는 RLS(can_view_profile)가 본인·관리자·수락된
+// 팔로워 외의 조회를 행 단위로 차단하므로 여기서 접근 제어를 할 필요 없다.
+export const getPublicListeningLog = async (
+  userId: string,
+  { limit = 30, beforeListenedAt }: { limit?: number; beforeListenedAt?: string } = {}
+): Promise<ListeningLogWithAlbum[]> => {
+  let query = supabase
+    .from('LISTENING_LOG')
+    .select('*, ALBUM_MASTER(*)')
+    .eq('USER_ID', userId)
+    .eq('IS_PUBLIC', true)
+    .order('LISTENED_AT', { ascending: false })
+    .limit(limit);
+  if (beforeListenedAt) query = query.lt('LISTENED_AT', beforeListenedAt);
+
+  const { data, error } = await query;
+  if (error) return [];
   return (data as ListeningLogWithAlbum[]) || [];
 };
 

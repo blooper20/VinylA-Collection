@@ -21,7 +21,7 @@ import { useTabBarHeight } from '../constants/layout';
 const { width } = Dimensions.get('window');
 const itemSize = width / 2 - 24;
 
-export const WishScreen = () => {
+export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection' | 'wishlist') => void } = {}) => {
   const { themeColors } = useTheme();
   const { t } = useLocale();
   const tabBarHeight = useTabBarHeight();
@@ -147,6 +147,7 @@ export const WishScreen = () => {
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <AppHeader
         mode="wishlist"
+        onModeChange={onModeChange}
         onSharePress={() => setShareSheetVisible(true)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -243,10 +244,10 @@ const getStyles = (themeColors: any, tabBarHeight: number) => StyleSheet.create(
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: tabBarHeight + 20,
+    paddingBottom: tabBarHeight + 48,
   },
   tableList: {
-    paddingBottom: tabBarHeight + 20,
+    paddingBottom: tabBarHeight + 48,
   },
   card: {
     width: itemSize,

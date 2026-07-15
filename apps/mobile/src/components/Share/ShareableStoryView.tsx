@@ -6,6 +6,7 @@ import { MockVinylData } from '@vinyla/shared-types';
 interface ShareableStoryViewProps {
   album: MockVinylData;
   username: string;
+  overrideStatus?: string;
 }
 
 const CANVAS_WIDTH = 1080;
@@ -15,13 +16,15 @@ const COVER_SIZE = 720;
 const STATUS_NEON: Record<string, { label: string; color: string }> = {
   OWNED: { label: 'COLLECTED', color: '#ffd76a' },
   NONE: { label: 'JUST DROPPED', color: '#ff8bdc' },
+  NEW: { label: 'NEW', color: '#6eff8b' },
 };
 
 export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
-  ({ album, username }, ref) => {
+  ({ album, username, overrideStatus }, ref) => {
     const bgColor = album.CUSTOM_COLOR_HEX || '#2a2a2a';
-    const isWanted = album.STATUS === 'WISH';
-    const neon = STATUS_NEON[album.STATUS as string] || STATUS_NEON.NONE;
+    const status = overrideStatus || album.STATUS;
+    const isWanted = status === 'WISH';
+    const neon = STATUS_NEON[status as string] || STATUS_NEON.NONE;
 
     return (
       <View ref={ref} collapsable={false} style={styles.canvas}>

@@ -18,6 +18,12 @@ export const SPIN_MEDIA_MAX_SECONDS = 15;
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 25 * 1024 * 1024;
 
+// 앱(iOS AVPlayer)에서 재생 가능한 형식만 허용 — webm은 웹에서만 재생돼
+// 모바일 다이어리에서 깨지므로 업로드 자체를 막는다(서버 화이트리스트와 일치).
+const APP_PLAYABLE_VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
+const isAppPlayableVideo = (mimeType: string): boolean =>
+  APP_PLAYABLE_VIDEO_TYPES.includes(mimeType.split(';')[0].trim().toLowerCase());
+
 const formatClockTime = (seconds: number): string => {
   const s = Math.max(0, seconds);
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -223,6 +229,11 @@ export const MediaAttachPicker: React.FC<{
         if (inputRef.current) inputRef.current.value = '';
         return;
       }
+      // 트림 없이 원본이 그대로 올라가는 경로 — 앱 재생 가능 형식만 통과
+      if (!isAppPlayableVideo(file.type)) {
+        setError(t('detail.spinLogVideoFormatUnsupported'));
+        return;
+      }
       try {
         const duration = await getVideoDuration(file);
         if (duration > SPIN_MEDIA_MAX_SECONDS + 0.5) {
@@ -252,6 +263,12 @@ export const MediaAttachPicker: React.FC<{
         onCancel={() => setTrimmingFile(null)}
         onDone={(blob) => {
           setTrimmingFile(null);
+          // 이 브라우저의 MediaRecorder가 webm만 지원하면 트림 결과물이 앱에서
+          // 재생 불가 — 업로드 대신 안내하고 버린다.
+          if (!isAppPlayableVideo(blob.type)) {
+            setError(t('detail.spinLogVideoFormatUnsupported'));
+            return;
+          }
           if (value.kind === 'new') URL.revokeObjectURL(value.previewUrl);
           onChange({ kind: 'new', file: blob, type: 'video', previewUrl: URL.createObjectURL(blob) });
         }}

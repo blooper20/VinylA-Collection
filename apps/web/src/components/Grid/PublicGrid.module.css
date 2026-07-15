@@ -35,6 +35,55 @@
   margin: 0;
 }
 
+/* 팔로워/팔로잉 카운트 + 팔로우 버튼 + 취향 일치율 배지 */
+.socialRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.followCounts {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.followCounts strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.matchBadge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+
+.followBtn {
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: 1px solid #d4af37;
+  background: linear-gradient(135deg, #d4af37, #f3e5ab);
+  color: #111;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.followBtn:hover {
+  opacity: 0.85;
+}
+
+.followBtnActive {
+  background: transparent;
+  color: #d4af37;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
