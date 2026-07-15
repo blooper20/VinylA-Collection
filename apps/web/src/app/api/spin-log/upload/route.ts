@@ -7,9 +7,11 @@ import { requireUser } from '@/lib/apiAuth';
 // /api/support/upload — auth lives here, path is namespaced under the
 // caller's own user id.
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+// webm 제외 — iOS 앱(AVPlayer)이 재생하지 못해 모바일 다이어리에서 깨진다.
+// 클라이언트(MediaAttachPicker)도 같은 기준으로 선차단하고, 여기는 2차 방어선.
+const VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
-const MAX_VIDEO_BYTES = 25 * 1024 * 1024; // 25MB — plenty for a ~15s clip; bucket-level cap matches
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB — plenty for a ~15s clip; bucket-level cap matches
 
 export async function POST(request: NextRequest) {
   const auth = await requireUser(request);
@@ -25,8 +27,19 @@ export async function POST(request: NextRequest) {
   // 브라우저의 MediaRecorder(트리밍 결과물)가 만드는 MIME 타입은
   // "video/webm;codecs=vp8,opus"처럼 코덱 파라미터가 붙어 나온다 — 화이트
   // 리스트와 완전 일치 비교하면 이런 값이 전부 415로 튕겨나가므로, 세미콜론
-  // 앞부분만 비교한다.
-  const baseType = file.type.split(';')[0].trim().toLowerCase();
+  // 앞부분만 비교한다. React Native의 경우 application/octet-stream으로
+  // 넘어오는 경우가 잦아 확장자를 통한 Fallback이 필수다.
+  let baseType = file.type.split(';')[0].trim().toLowerCase();
+  if (baseType === 'application/octet-stream' || !baseType) {
+    const extMatch = file.name.split('.').pop()?.toLowerCase();
+    if (extMatch === 'mp4') baseType = 'video/mp4';
+    else if (extMatch === 'mov') baseType = 'video/quicktime';
+    else if (extMatch === 'jpg' || extMatch === 'jpeg') baseType = 'image/jpeg';
+    else if (extMatch === 'png') baseType = 'image/png';
+    else if (extMatch === 'gif') baseType = 'image/gif';
+    else if (extMatch === 'webp') baseType = 'image/webp';
+  }
+  
   const isImage = IMAGE_TYPES.includes(baseType);
   const isVideo = VIDEO_TYPES.includes(baseType);
   if (!isImage && !isVideo) {
@@ -42,7 +55,6 @@ export async function POST(request: NextRequest) {
   const ext = baseType === 'image/png' ? 'png'
     : baseType === 'image/gif' ? 'gif'
     : baseType === 'image/webp' ? 'webp'
-    : baseType === 'video/webm' ? 'webm'
     : baseType === 'video/quicktime' ? 'mov'
     : isVideo ? 'mp4' : 'jpg';
   const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;

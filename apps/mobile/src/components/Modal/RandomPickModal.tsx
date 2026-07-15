@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, Image, Animated, Easing, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore, getLastPlayedMap, pickWeightedRandomAlbum } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -34,10 +35,12 @@ export const RandomPickModal = ({ visible, albums, onClose, onOpenAlbum }: Rando
     if (albums.length === 0) return;
     setPicked(null);
     setIsRevealing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     revealAnim.setValue(0);
     spinAnim.setValue(0);
+    // 턴테이블이 도는 듯한 등속 회전 — 빠른 팽이 회전 대신 33RPM 느낌으로 느긋하게
     const loop = Animated.loop(
-      Animated.timing(spinAnim, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true })
+      Animated.timing(spinAnim, { toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true })
     );
     loop.start();
     try {
@@ -46,7 +49,9 @@ export const RandomPickModal = ({ visible, albums, onClose, onOpenAlbum }: Rando
         wait(MIN_REVEAL_MS),
       ]);
       setPicked(pickWeightedRandomAlbum(albums, lastPlayedMap));
-      Animated.timing(revealAnim, { toValue: 1, duration: 350, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // 디스크가 잦아들며 커버가 스프링으로 떠오르는 크로스페이드
+      Animated.spring(revealAnim, { toValue: 1, friction: 8, tension: 50, useNativeDriver: true }).start();
     } finally {
       loop.stop();
       setIsRevealing(false);
@@ -77,19 +82,52 @@ export const RandomPickModal = ({ visible, albums, onClose, onOpenAlbum }: Rando
           ) : (
             <>
               <View style={styles.stage}>
-                {showResult ? (
-                  <Animated.View style={{ opacity: revealAnim, transform: [{ scale: revealAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }}>
-                    {picked!.IMAGE_URL ? (
-                      <Image source={{ uri: picked!.IMAGE_URL }} style={styles.cover} />
+                {/* 뽑는 동안: LP 디스크가 턴테이블처럼 회전 */}
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: revealAnim.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0], extrapolate: 'clamp' }),
+                      transform: [{ scale: revealAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] }) }],
+                    },
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Animated.View style={[styles.vinylDisc, { transform: [{ rotate }] }]}>
+                    <View style={[styles.vinylGroove, { width: '86%', height: '86%' }]} />
+                    <View style={[styles.vinylGroove, { width: '72%', height: '72%' }]} />
+                    <View style={[styles.vinylGroove, { width: '58%', height: '58%' }]} />
+                    <View style={styles.vinylSheen} />
+                    <View style={styles.vinylLabel}>
+                      <Text style={styles.vinylLabelText}>VINYLA</Text>
+                      <View style={styles.vinylHole} />
+                    </View>
+                  </Animated.View>
+                </Animated.View>
+
+                {/* 결과: 커버가 은은한 금빛 글로우와 함께 스프링으로 떠오른다 */}
+                {picked && (
+                  <Animated.View
+                    style={[
+                      styles.coverGlow,
+                      {
+                        opacity: revealAnim,
+                        transform: [
+                          { scale: revealAnim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) },
+                          { translateY: revealAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) },
+                        ],
+                      },
+                    ]}
+                  >
+                    {picked.IMAGE_URL ? (
+                      <Image source={{ uri: picked.IMAGE_URL }} style={styles.cover} />
                     ) : (
                       <View style={[styles.cover, styles.coverFallback]}>
                         <Feather name="disc" size={64} color="rgba(233,195,73,0.5)" />
                       </View>
                     )}
-                  </Animated.View>
-                ) : (
-                  <Animated.View style={[styles.cover, styles.coverFallback, { transform: [{ rotate }] }]}>
-                    <Feather name="disc" size={64} color="rgba(233,195,73,0.5)" />
                   </Animated.View>
                 )}
               </View>
@@ -168,6 +206,69 @@ const styles = StyleSheet.create({
     height: 180,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  vinylDisc: {
+    width: 172,
+    height: 172,
+    borderRadius: 86,
+    backgroundColor: '#0d0c0a',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  vinylGroove: {
+    position: 'absolute',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  vinylSheen: {
+    position: 'absolute',
+    top: 10,
+    left: 24,
+    width: 44,
+    height: 20,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    transform: [{ rotate: '-32deg' }],
+  },
+  vinylLabel: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: 'rgba(233,195,73,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.6)',
+  },
+  vinylLabelText: {
+    color: '#1a1814',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 3,
+  },
+  vinylHole: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0d0c0a',
+  },
+  coverGlow: {
+    borderRadius: 14,
+    shadowColor: '#e9c349',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 22,
+    elevation: 10,
+    backgroundColor: '#1a1814',
   },
   cover: {
     width: 180,

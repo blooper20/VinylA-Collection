@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { AppError } from './errors';
 import { logEvent } from './events';
+import { getProfilesLite } from './profile';
 
 // 유저 팔로우 + 취향 매칭. USER_FOLLOW는 public read / 본인(FOLLOWER_ID)만
 // 쓰기 — 컬렉션·프로필이 이미 전체 공개라 팔로우 관계 공개도 새 노출이
@@ -10,6 +11,7 @@ import { logEvent } from './events';
 export interface TasteMatch {
   USER_ID: string;
   DISPLAY_NAME: string | null;
+  PROFILE_IMAGE_URL: string | null;
   /** 나와 겹치는 OWNED 앨범 수 */
   OVERLAP_COUNT: number;
   /** 상대의 전체 OWNED 앨범 수 */
@@ -222,9 +224,13 @@ export const getTasteMatches = async (limit: number = 10): Promise<TasteMatch[]>
     console.warn('getTasteMatches failed:', error.message);
     return [];
   }
-  return ((data as any[]) || []).map((r) => ({
+  const rows = (data as any[]) || [];
+  // RPC는 닉네임만 반환하므로 프로필 사진은 별도 맵으로 붙인다
+  const profileMap = await getProfilesLite(rows.map((r) => r.user_id));
+  return rows.map((r) => ({
     USER_ID: r.user_id,
     DISPLAY_NAME: r.display_name || null,
+    PROFILE_IMAGE_URL: profileMap[r.user_id]?.img || null,
     OVERLAP_COUNT: Number(r.overlap_count),
     THEIR_COUNT: Number(r.their_count),
     MATCH_PERCENT: Number(r.match_percent),

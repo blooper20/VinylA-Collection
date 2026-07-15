@@ -244,10 +244,10 @@ const getStyles = (themeColors: any, tabBarHeight: number) => StyleSheet.create(
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: tabBarHeight + 20,
+    paddingBottom: tabBarHeight + 48,
   },
   tableList: {
-    paddingBottom: tabBarHeight + 20,
+    paddingBottom: tabBarHeight + 48,
   },
   card: {
     width: itemSize,

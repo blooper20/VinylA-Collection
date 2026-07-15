@@ -253,11 +253,14 @@ const getStyles = (themeColors: any, shadows: any, shape: any, tabBarHeight: num
   },
   list: {
     padding: 16,
-    paddingBottom: tabBarHeight + 20,
+    paddingTop: 4,
+    // 플로팅 스캔 로고(탭바 위로 ~25px 돌출)에 마지막 줄이 가리지 않도록 여유를 둔다
+    paddingBottom: tabBarHeight + 48,
   },
   randomPickBanner: {
     marginHorizontal: 16,
-    marginTop: 10,
+    marginTop: 2,
+    marginBottom: 14,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -271,7 +274,7 @@ const getStyles = (themeColors: any, shadows: any, shape: any, tabBarHeight: num
     fontWeight: '700',
   },
   tableList: {
-    paddingBottom: tabBarHeight + 20,
+    paddingBottom: tabBarHeight + 48,
   },
   card: {
     width: itemSize,

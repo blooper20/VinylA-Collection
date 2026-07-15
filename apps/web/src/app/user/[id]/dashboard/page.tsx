@@ -55,6 +55,8 @@ function PublicDashboardContent() {
   const [followListTab, setFollowListTab] = useState<'followers' | 'following' | null>(null);
   // null = 아직 모름(로딩 중) — 잠금 화면 깜빡임 방지
   const [ownerIsPublic, setOwnerIsPublic] = useState<boolean | null>(null);
+  // PROFILES.PROFILE_IMAGE_URL — 쿼리 파라미터(공유 링크)보다 DB 값을 우선한다
+  const [ownerAvatar, setOwnerAvatar] = useState<string | null>(null);
 
   const { user, initializeAuth } = useAuthStore();
   const { locale, t } = useLocale();
@@ -63,7 +65,10 @@ function PublicDashboardContent() {
     if (!id) return;
     getFollowCounts(id).then(setFollowCounts).catch(() => setFollowCounts(null));
     // 조회 실패 시 비공개 취급 (privacy-first) — 실제 차단은 어차피 RLS가 한다
-    getProfileInfo(id).then((p) => setOwnerIsPublic(p.IS_PUBLIC)).catch(() => setOwnerIsPublic(false));
+    getProfileInfo(id).then((p) => {
+      setOwnerIsPublic(p.IS_PUBLIC);
+      setOwnerAvatar(p.PROFILE_IMAGE_URL);
+    }).catch(() => setOwnerIsPublic(false));
   }, [id]);
 
   useEffect(() => {
@@ -221,7 +226,7 @@ function PublicDashboardContent() {
           <div className={styles.heroBg} />
           <div className={styles.heroInner}>
             <div className={styles.avatarRing}>
-              <img src={avatarUrl} alt="Profile" className={styles.avatarImage} />
+              <img src={ownerAvatar || avatarUrl} alt="Profile" className={styles.avatarImage} />
             </div>
             <div className={styles.profileInfo}>
               <div className={styles.nameRow}>
@@ -291,7 +296,7 @@ function PublicDashboardContent() {
         <div className={styles.heroBg} />
         <div className={styles.heroInner}>
           <div className={styles.avatarRing}>
-            <img src={avatarUrl} alt="Profile" className={styles.avatarImage} />
+            <img src={ownerAvatar || avatarUrl} alt="Profile" className={styles.avatarImage} />
           </div>
 
           <div className={styles.profileInfo}>

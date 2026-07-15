@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { AppError } from './errors';
 import { ListeningLogWithAlbum } from './listeningLog';
+import { getProfilesLite } from './profile';
 
 // 스피닝 다이어리 소셜 — 좋아요/댓글(답글)/저장/신고.
 // 접근 제어는 전부 RLS: 각 테이블 정책의 EXISTS 서브쿼리가 LISTENING_LOG의
@@ -126,19 +127,26 @@ export const getMySavedSpinLogs = async (limit: number = 50): Promise<SavedSpinL
   const rows = (data as any[]).filter((r) => r.LISTENING_LOG);
   const ownerIds = [...new Set(rows.map((r) => r.LISTENING_LOG.USER_ID as string))];
   const nameMap: Record<string, string> = {};
+  const imageMap: Record<string, string | null> = {};
   if (ownerIds.length > 0) {
     const { data: profiles } = await supabase
-      .from('PROFILES').select('USER_ID, DISPLAY_NAME').in('USER_ID', ownerIds);
-    for (const p of (profiles as { USER_ID: string; DISPLAY_NAME: string | null }[]) || []) {
+      .from('PROFILES').select('USER_ID, DISPLAY_NAME, PROFILE_IMAGE_URL').in('USER_ID', ownerIds);
+    for (const p of (profiles as { USER_ID: string; DISPLAY_NAME: string | null; PROFILE_IMAGE_URL: string | null }[]) || []) {
       if (p.DISPLAY_NAME) nameMap[p.USER_ID] = p.DISPLAY_NAME;
+      if (p.PROFILE_IMAGE_URL) imageMap[p.USER_ID] = p.PROFILE_IMAGE_URL;
     }
   }
-  return rows.map((r) => ({
-    SAVE_ID: r.SAVE_ID,
-    SAVED_AT: r.CREATED_AT,
-    log: r.LISTENING_LOG as ListeningLogWithAlbum,
-    OWNER_NAME: nameMap[r.LISTENING_LOG.USER_ID] || null,
-  }));
+  return rows.map((r) => {
+    r.LISTENING_LOG.DISPLAY_NAME = nameMap[r.LISTENING_LOG.USER_ID] || '이름 없는 수집가';
+    r.LISTENING_LOG.PROFILE_IMAGE_URL = imageMap[r.LISTENING_LOG.USER_ID] || null;
+    return {
+      SAVE_ID: r.SAVE_ID,
+      SAVED_AT: r.CREATED_AT,
+      log: r.LISTENING_LOG as ListeningLogWithAlbum,
+      OWNER_NAME: r.LISTENING_LOG.DISPLAY_NAME,
+      TYPE: 'diary'
+    };
+  });
 };
 
 /** 신고 접수 — 같은 기록 중복 신고(23505)는 이미 접수된 것으로 성공 취급 */
@@ -170,6 +178,7 @@ export interface SpinComment {
   CONTENT: string;
   CREATED_AT: string;
   DISPLAY_NAME: string | null;
+  PROFILE_IMAGE_URL: string | null;
   IS_HIDDEN?: boolean;
   /** 이 댓글에 달린 답글들 (1단계 스레딩) */
   replies: SpinComment[];
@@ -184,20 +193,17 @@ export const getSpinLogComments = async (logId: number): Promise<SpinComment[]> 
   if (error || !data) return [];
 
   const rows = data as any[];
-  const ids = [...new Set(rows.map((r) => r.USER_ID as string))];
-  const nameMap: Record<string, string> = {};
-  if (ids.length > 0) {
-    const { data: profiles } = await supabase
-      .from('PROFILES').select('USER_ID, DISPLAY_NAME').in('USER_ID', ids);
-    for (const p of (profiles as { USER_ID: string; DISPLAY_NAME: string | null }[]) || []) {
-      if (p.DISPLAY_NAME) nameMap[p.USER_ID] = p.DISPLAY_NAME;
-    }
-  }
+  const profileMap = await getProfilesLite(rows.map((r) => r.USER_ID as string));
 
   const byId: Record<number, SpinComment> = {};
   const top: SpinComment[] = [];
   for (const r of rows) {
-    byId[r.COMMENT_ID] = { ...r, DISPLAY_NAME: nameMap[r.USER_ID] || null, replies: [] };
+    byId[r.COMMENT_ID] = {
+      ...r,
+      DISPLAY_NAME: profileMap[r.USER_ID]?.name || null,
+      PROFILE_IMAGE_URL: profileMap[r.USER_ID]?.img || null,
+      replies: [],
+    };
   }
   for (const r of rows) {
     const c = byId[r.COMMENT_ID];

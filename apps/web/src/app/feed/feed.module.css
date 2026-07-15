@@ -68,6 +68,36 @@
   text-align: center;
 }
 
+/* ── 오늘의 바이닐 스토리 배너 ───────────────── */
+.storyBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  margin-bottom: 32px;
+  border-radius: 14px;
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.storyBanner:hover {
+  border-color: var(--accent);
+}
+
+.storyBannerText {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.storyBannerArrow {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
 /* ── 취향 매칭 추천 레일 ─────────────────────── */
 .matchesSection {
   margin-bottom: 40px;

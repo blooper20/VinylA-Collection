@@ -1,0 +1,360 @@
+.container {
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.newBtn {
+  padding: 10px 18px;
+  background: #d4af37;
+  color: #111;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.newBtn:hover {
+  background: #f3e5ab;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 12px;
+}
+
+.itemThumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.itemThumbEmpty {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.itemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTitle {
+  color: #eee;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemMeta {
+  color: #888;
+  font-size: 12px;
+}
+
+.pinBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(212, 175, 55, 0.15);
+  color: #d4af37;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.commentsOffBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(235, 87, 87, 0.12);
+  color: #eb5757;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.itemActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 브라우저 기본 confirm() 대신 목록 행 안에서 바로 묻는 삭제 확인 (공지 상세 댓글과 동일 패턴) */
+.itemDeleteConfirmRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.itemDeleteConfirmYes,
+.itemDeleteConfirmNo {
+  padding: 6px 14px;
+  border-radius: 14px;
+  border: 1px solid #333;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.itemDeleteConfirmYes {
+  border-color: #eb5757;
+  color: #eb5757;
+}
+
+.itemDeleteConfirmNo {
+  color: #999;
+}
+
+.itemDeleteConfirmYes:disabled,
+.itemDeleteConfirmNo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.iconBtn {
+  padding: 8px 14px;
+  background: #1a1a1a;
+  color: #ccc;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #333;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: #222;
+}
+
+.deleteBtn {
+  composes: iconBtn;
+  color: #eb5757;
+  border-color: rgba(235, 87, 87, 0.3);
+}
+
+.emptyText {
+  color: #888;
+  font-size: 14px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+/* ── 작성/수정 폼 오버레이 ───────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 24px;
+}
+
+.formCard {
+  width: 560px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #151515;
+  border: 1px solid #333;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.formTitle {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 18px;
+}
+
+.label {
+  display: block;
+  color: #999;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0d0d0d;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #eee;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.textarea {
+  composes: input;
+  min-height: 140px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.mediaGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mediaThumbWrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+
+.mediaThumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #0d0d0d;
+  border: 1px solid #333;
+}
+
+.mediaVideoBadge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  padding: 1px 5px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.mediaRemoveBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.addMediaBtn {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  border: 1px dashed #444;
+  background: none;
+  color: #888;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.addMediaBtn:hover {
+  border-color: #666;
+  color: #ccc;
+}
+
+.pinRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.pinLabel {
+  color: #ccc;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pinHint {
+  color: #777;
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.errorText {
+  color: #eb5757;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  padding: 10px 18px;
+  background: none;
+  color: #999;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.submitBtn {
+  padding: 10px 20px;
+  background: #d4af37;
+  color: #111;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

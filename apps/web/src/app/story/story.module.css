@@ -114,9 +114,53 @@
 }
 
 .archiveItem {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.archiveItem:hover {
+  background: var(--bg-surface);
+}
+
+.archiveItemExpanded {
+  border-color: var(--border);
+  background: var(--bg-surface);
+}
+
+.archiveItemHead {
   display: flex;
   gap: 14px;
   align-items: center;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.archiveChevron {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.archiveBody {
+  padding: 0 12px 14px 12px;
+  border-top: 1px solid var(--border);
+  margin: 0 10px;
+}
+
+.archiveBodyText {
+  font-size: 13.5px;
+  color: var(--text-secondary, var(--text-muted));
+  line-height: 1.7;
+  margin: 12px 0 10px;
+  white-space: pre-wrap;
 }
 
 .archiveCover {

@@ -197,7 +197,15 @@ export const VinylSocialModal: React.FC<VinylSocialModalProps> = ({ entry, owner
 
   const renderComment = (c: VinylComment, isReply = false) => (
     <div key={c.COMMENT_ID} style={{ marginLeft: isReply ? '34px' : 0, padding: '8px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {c.PROFILE_IMAGE_URL ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={c.PROFILE_IMAGE_URL} alt="" style={{ width: '20px', height: '20px', borderRadius: '10px', objectFit: 'cover', background: 'rgba(255,255,255,0.08)' }} />
+        ) : (
+          <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>person</span>
+          </div>
+        )}
         <span style={{ fontSize: '13px', fontWeight: 700, color: '#d4af37' }}>
           {c.DISPLAY_NAME || t('feed.anonymous')}
         </span>
@@ -265,9 +273,14 @@ export const VinylSocialModal: React.FC<VinylSocialModalProps> = ({ entry, owner
         {/* 유저 프로필 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '18px 18px 12px' }}>
           <Link href={profileHref(entry.USER_ID, entry.DISPLAY_NAME || ownerName, user)} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', flex: 1 }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '16px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>person</span>
-            </div>
+            {entry.PROFILE_IMAGE_URL ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={entry.PROFILE_IMAGE_URL} alt="" style={{ width: '32px', height: '32px', borderRadius: '16px', objectFit: 'cover', background: 'rgba(255,255,255,0.08)' }} />
+            ) : (
+              <div style={{ width: '32px', height: '32px', borderRadius: '16px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>person</span>
+              </div>
+            )}
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
               {entry.DISPLAY_NAME || ownerName || t('feed.anonymous')}
             </span>

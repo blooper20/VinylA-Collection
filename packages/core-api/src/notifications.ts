@@ -7,7 +7,8 @@ import { supabase } from './supabase';
 export type NotificationType =
   | 'SPIN_LIKE' | 'SPIN_COMMENT' | 'SPIN_REPLY'
   | 'VINYL_LIKE' | 'VINYL_COMMENT' | 'VINYL_REPLY'
-  | 'FOLLOW_REQUEST' | 'FOLLOW_ACCEPTED' | 'NEW_FOLLOWER';
+  | 'FOLLOW_REQUEST' | 'FOLLOW_ACCEPTED' | 'NEW_FOLLOWER'
+  | 'NOTICE';
 
 export interface NotificationItem {
   NOTIFICATION_ID: number;
@@ -17,6 +18,9 @@ export interface NotificationItem {
   LOG_ID: number | null;
   USER_VINYL_ID: number | null;
   COMMENT_PREVIEW: string | null;
+  /** TYPE === 'NOTICE'일 때만 채워짐 — 상세 화면 이동/제목 표시용 */
+  NOTICE_ID: number | null;
+  NOTICE_TITLE: string | null;
   READ_AT: string | null;
   CREATED_AT: string;
 }
@@ -29,7 +33,7 @@ export const getNotifications = async (
 
   let query = supabase
     .from('NOTIFICATION')
-    .select('NOTIFICATION_ID, TYPE, ACTOR_ID, LOG_ID, USER_VINYL_ID, COMMENT_PREVIEW, READ_AT, CREATED_AT')
+    .select('NOTIFICATION_ID, TYPE, ACTOR_ID, LOG_ID, USER_VINYL_ID, COMMENT_PREVIEW, NOTICE_ID, READ_AT, CREATED_AT')
     .order('CREATED_AT', { ascending: false })
     .limit(limit);
   if (before) query = query.lt('CREATED_AT', before);
@@ -39,15 +43,28 @@ export const getNotifications = async (
 
   const rows = data as any[];
   const actorIds = [...new Set(rows.map((r) => r.ACTOR_ID).filter(Boolean))] as string[];
+  const noticeIds = [...new Set(rows.map((r) => r.NOTICE_ID).filter(Boolean))] as number[];
   const nameMap: Record<string, string> = {};
-  if (actorIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('PROFILES').select('USER_ID, DISPLAY_NAME').in('USER_ID', actorIds);
-    for (const p of (profiles as { USER_ID: string; DISPLAY_NAME: string | null }[]) || []) {
-      if (p.DISPLAY_NAME) nameMap[p.USER_ID] = p.DISPLAY_NAME;
-    }
+  const noticeTitleMap: Record<number, string> = {};
+  const [profilesRes, noticesRes] = await Promise.all([
+    actorIds.length > 0
+      ? supabase.from('PROFILES').select('USER_ID, DISPLAY_NAME').in('USER_ID', actorIds)
+      : Promise.resolve({ data: null }),
+    noticeIds.length > 0
+      ? supabase.from('NOTICE').select('NOTICE_ID, TITLE').in('NOTICE_ID', noticeIds)
+      : Promise.resolve({ data: null }),
+  ]);
+  for (const p of (profilesRes.data as { USER_ID: string; DISPLAY_NAME: string | null }[]) || []) {
+    if (p.DISPLAY_NAME) nameMap[p.USER_ID] = p.DISPLAY_NAME;
   }
-  return rows.map((r) => ({ ...r, ACTOR_NAME: r.ACTOR_ID ? nameMap[r.ACTOR_ID] || null : null }));
+  for (const n of (noticesRes.data as { NOTICE_ID: number; TITLE: string }[]) || []) {
+    noticeTitleMap[n.NOTICE_ID] = n.TITLE;
+  }
+  return rows.map((r) => ({
+    ...r,
+    ACTOR_NAME: r.ACTOR_ID ? nameMap[r.ACTOR_ID] || null : null,
+    NOTICE_TITLE: r.NOTICE_ID ? noticeTitleMap[r.NOTICE_ID] || null : null,
+  }));
 };
 
 export const getUnreadNotificationCount = async (): Promise<number> => {

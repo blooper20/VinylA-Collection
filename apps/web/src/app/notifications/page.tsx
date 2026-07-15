@@ -24,6 +24,7 @@ const TYPE_ICON: Record<NotificationType, string> = {
   FOLLOW_REQUEST: 'person_add',
   FOLLOW_ACCEPTED: 'how_to_reg',
   NEW_FOLLOWER: 'person',
+  NOTICE: 'campaign',
 };
 
 export default function NotificationsPage() {
@@ -78,6 +79,7 @@ export default function NotificationsPage() {
 
   // 알림 클릭 시 이동할 곳 — 관련 콘텐츠가 있는 화면으로
   const notifHref = (n: NotificationItem): string => {
+    if (n.TYPE === 'NOTICE') return n.NOTICE_ID ? `/notices/${n.NOTICE_ID}` : '/notices';
     if (n.TYPE === 'FOLLOW_REQUEST') return '/my';
     if (n.TYPE === 'FOLLOW_ACCEPTED' || n.TYPE === 'NEW_FOLLOWER') {
       return n.ACTOR_ID
@@ -89,7 +91,8 @@ export default function NotificationsPage() {
   };
 
   const message = (n: NotificationItem) => {
-    const name = n.ACTOR_NAME || t('notif.anonymous');
+    // 공지 알림은 "행위자"가 아니라 공지 제목을 강조한다
+    const name = n.TYPE === 'NOTICE' ? (n.NOTICE_TITLE || t('notif.noticeFallbackTitle')) : (n.ACTOR_NAME || t('notif.anonymous'));
     // {{name}} 자리에 유니크 토큰을 넣어 문장을 앞뒤로 나누고, 이름만 강조한다
     const TOKEN = '__NAME__';
     const [before = '', after = ''] = t(`notif.${n.TYPE}` as any, { name: TOKEN }).split(TOKEN);

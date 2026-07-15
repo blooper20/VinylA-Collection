@@ -115,6 +115,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const { user } = useAuthStore();
 
   const [isShareSheetVisible, setShareSheetVisible] = React.useState(false);
+  const [shareTag, setShareTag] = React.useState<string>(album?.STATUS || 'NONE');
   const [isSharingProcessing, setIsSharingProcessing] = React.useState(false);
   const shareViewRef = useRef<View>(null);
 
@@ -128,6 +129,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       setNotes('');
       setMyPhoto((album as any).CUSTOM_IMAGE_URL || null);
       setMasterImage(album.IMAGE_URL || null);
+      setShareTag(album.STATUS || 'NONE');
 
       setAlertVisible(false);
       setAlertTitle('');
@@ -144,6 +146,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           const found = vinyls.find((v: any) => v.ALBUM_ID === album.ALBUM_ID);
           if (found) {
             setRealStatus(found.STATUS);
+            setShareTag(found.STATUS);
             setPurchasePrice(found.PURCHASE_PRICE || null);
             setMyPhoto(found.CUSTOM_IMAGE_URL || null);
           }
@@ -457,6 +460,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
       setPurchasePrice(finalPrice);
       setRealStatus('OWNED');
+      setShareTag('OWNED');
       showAlert(
         t('mobile.detail.successTitle'),
         result?.isFirstEverSave ? t('detail.firstSaveCelebration') : t('mobile.detail.savedToCollection'),
@@ -528,6 +532,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           PURCHASE_PRICE: 0
         });
         setRealStatus('WISH');
+        setShareTag('WISH');
         showAlert(
           t('mobile.detail.successTitle'),
           result?.isFirstEverSave ? t('detail.firstSaveCelebration') : t('mobile.detail.savedToWish'),
@@ -550,6 +555,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
     try {
       await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
       setRealStatus('NONE');
+      setShareTag('NONE');
       showAlert(t('mobile.detail.successTitle'), t('mobile.detail.deletedFromCollection'), () => {
         handleClose();
       });
@@ -692,15 +698,24 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 )}
               </View>
 
-              {/* 스피닝 다이어리 기록 (보유 앨범만) */}
+              {/* 스피닝 다이어리 기록 (보유 앨범만) — 앱의 다크 럭스 톤에 맞춘 절제된 CTA */}
               {realStatus === 'OWNED' && (
-                <TouchableOpacity
+                <AnimatedButton
                   onPress={() => setIsSpinModalOpen(true)}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(233,195,73,0.4)', backgroundColor: 'rgba(233,195,73,0.08)' }}
+                  style={{
+                    width: '100%',
+                    marginTop: 14,
+                    borderRadius: shape.md,
+                    backgroundColor: 'rgba(240,230,210,0.06)',
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: 'rgba(212,175,55,0.45)',
+                  }}
                 >
-                  <Feather name="music" size={14} color="#e9c349" />
-                  <Text style={{ color: '#e9c349', fontSize: 14, fontWeight: '700' }}>{t('detail.spinLogButton')}</Text>
-                </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: BUTTON_HEIGHT }}>
+                    <Feather name="music" size={15} color="#d4af37" />
+                    <Text style={{ color: '#F0E6D2', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 }}>{t('detail.spinLogButton')}</Text>
+                  </View>
+                </AnimatedButton>
               )}
 
               {/* Tags Section */}
@@ -816,6 +831,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
             ref={shareViewRef}
             album={myPhoto ? { ...album, IMAGE_URL: masterImage || album.IMAGE_URL, CUSTOM_IMAGE_URL: myPhoto } as any : album}
             username={user?.user_metadata?.displayName || t('common.defaultCollectorName')}
+            overrideStatus={shareTag}
           />
         </View>
 
@@ -826,7 +842,43 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           isProcessing={isSharingProcessing}
           onShareLink={handleShareLink}
           onImageShare={handleImageShare}
-        />
+        >
+          <View style={{ marginBottom: 24, gap: 8 }}>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+              {t('detail.tagSelectPrompt')}
+            </Text>
+            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 4 }}>
+              {[
+                { value: 'OWNED', label: 'COLLECTED' },
+                { value: 'WISH', label: 'WANTED' },
+                { value: 'NONE', label: 'JUST DROPPED' },
+                { value: 'NEW', label: 'NEW' }
+              ].map(tag => (
+                <TouchableOpacity
+                  key={tag.value}
+                  onPress={() => setShareTag(tag.value)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    backgroundColor: shareTag === tag.value ? 'rgba(255,255,255,0.15)' : 'transparent',
+                    borderRadius: 8,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{
+                    color: shareTag === tag.value ? '#fff' : 'rgba(255,255,255,0.5)',
+                    fontSize: 10,
+                    fontWeight: shareTag === tag.value ? '700' : '500',
+                    textAlign: 'center'
+                  }}>
+                    {tag.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ShareOptionsSheet>
 
         <CustomAlert
           visible={alertVisible}

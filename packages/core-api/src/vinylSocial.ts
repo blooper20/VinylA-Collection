@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { AppError } from './errors';
 import { FeedItem } from './feed';
+import { getProfilesLite } from './profile';
 
 export interface VinylComment {
   COMMENT_ID: number;
@@ -22,16 +23,9 @@ export interface VinylSocialSummary {
   savedByMe: boolean;
 }
 
-const getDisplayNameMap = async (userIds: string[]) => {
-  const unique = [...new Set(userIds)];
-  if (unique.length === 0) return {};
-  const { data } = await supabase.from('PROFILES').select('USER_ID, DISPLAY_NAME, PROFILE_IMAGE_URL').in('USER_ID', unique);
-  const map: Record<string, { name: string | null; img: string | null }> = {};
-  for (const r of (data as any[]) || []) {
-    map[r.USER_ID] = { name: r.DISPLAY_NAME, img: r.PROFILE_IMAGE_URL };
-  }
-  return map;
-};
+// 공용 헬퍼 사용 — PROFILE_IMAGE_URL 컬럼 미적용 DB에서도 닉네임 폴백이 된다
+// (기존의 직접 select는 42703으로 통째로 실패해 댓글 닉네임이 전부 익명이 됐다).
+const getDisplayNameMap = getProfilesLite;
 
 export const getVinylComments = async (userVinylId: number): Promise<VinylComment[]> => {
   const { data, error } = await supabase
@@ -64,15 +58,23 @@ export const getVinylComments = async (userVinylId: number): Promise<VinylCommen
   return parents;
 };
 
+const requireUserId = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user?.id) throw new AppError('AUTH-001', '로그인이 필요합니다.');
+  return session.user.id;
+};
+
 export const addVinylComment = async (
   userVinylId: number,
   content: string,
   parentId?: number
 ) => {
+  const userId = await requireUserId();
   const { data, error } = await supabase
     .from('VINYL_COMMENT')
     .insert({
       USER_VINYL_ID: userVinylId,
+      USER_ID: userId,
       CONTENT: content,
       PARENT_COMMENT_ID: parentId || null,
     })
@@ -84,16 +86,18 @@ export const addVinylComment = async (
 };
 
 export const deleteVinylComment = async (commentId: number) => {
-  const { error } = await supabase.from('VINYL_COMMENT').delete().eq('COMMENT_ID', commentId);
+  const userId = await requireUserId();
+  const { error } = await supabase.from('VINYL_COMMENT').delete().eq('COMMENT_ID', commentId).eq('USER_ID', userId);
   if (error) throw new AppError('DB-003', '댓글 삭제에 실패했습니다.', error);
 };
 
 export const toggleVinylLike = async (userVinylId: number, isLiked: boolean) => {
+  const userId = await requireUserId();
   if (isLiked) {
-    const { error } = await supabase.from('VINYL_LIKE').delete().eq('USER_VINYL_ID', userVinylId);
+    const { error } = await supabase.from('VINYL_LIKE').delete().eq('USER_VINYL_ID', userVinylId).eq('USER_ID', userId);
     if (error) throw new AppError('DB-003', '좋아요 취소에 실패했습니다.', error);
   } else {
-    const { error } = await supabase.from('VINYL_LIKE').insert({ USER_VINYL_ID: userVinylId });
+    const { error } = await supabase.from('VINYL_LIKE').insert({ USER_VINYL_ID: userVinylId, USER_ID: userId });
     if (error) throw new AppError('DB-003', '좋아요에 실패했습니다.', error);
   }
 };
@@ -122,13 +126,59 @@ export const getVinylLikeCount = async (userVinylId: number): Promise<{ count: n
 };
 
 export const toggleVinylSave = async (userVinylId: number, isSaved: boolean) => {
+  const userId = await requireUserId();
   if (isSaved) {
-    const { error } = await supabase.from('SAVED_VINYL_POST').delete().eq('USER_VINYL_ID', userVinylId);
+    const { error } = await supabase.from('SAVED_VINYL_POST').delete().eq('USER_VINYL_ID', userVinylId).eq('USER_ID', userId);
     if (error) throw new AppError('DB-003', '저장 취소에 실패했습니다.', error);
   } else {
-    const { error } = await supabase.from('SAVED_VINYL_POST').insert({ USER_VINYL_ID: userVinylId });
+    const { error } = await supabase.from('SAVED_VINYL_POST').insert({ USER_VINYL_ID: userVinylId, USER_ID: userId });
     if (error) throw new AppError('DB-003', '저장에 실패했습니다.', error);
   }
+};
+
+export const getMySavedVinyls = async (limit: number = 50): Promise<any[]> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from('SAVED_VINYL_POST')
+    .select('USER_VINYL_ID, CREATED_AT, USER_VINYL(*, ALBUM_MASTER(*))')
+    .eq('USER_ID', userId)
+    .order('CREATED_AT', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+
+  const rows = (data as any[]).filter((r) => r.USER_VINYL);
+  const ownerIds = [...new Set(rows.map((r) => r.USER_VINYL.USER_ID as string))];
+  const nameMap: Record<string, string> = {};
+  const imageMap: Record<string, string | null> = {};
+  if (ownerIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('PROFILES').select('USER_ID, DISPLAY_NAME, PROFILE_IMAGE_URL').in('USER_ID', ownerIds);
+    for (const p of (profiles as { USER_ID: string; DISPLAY_NAME: string | null; PROFILE_IMAGE_URL: string | null }[]) || []) {
+      if (p.DISPLAY_NAME) nameMap[p.USER_ID] = p.DISPLAY_NAME;
+      if (p.PROFILE_IMAGE_URL) imageMap[p.USER_ID] = p.PROFILE_IMAGE_URL;
+    }
+  }
+  return rows.map((r) => {
+    // Inject profile info and ALBUM into the inner vinyl object so VinylSocialModal can display it
+    r.USER_VINYL.DISPLAY_NAME = nameMap[r.USER_VINYL.USER_ID] || 'Collector';
+    r.USER_VINYL.PROFILE_IMAGE_URL = imageMap[r.USER_VINYL.USER_ID] || null;
+    
+    // Map ALBUM_MASTER to ALBUM for compatibility with FeedItem
+    if (r.USER_VINYL.ALBUM_MASTER) {
+      r.USER_VINYL.ALBUM = r.USER_VINYL.ALBUM_MASTER;
+    }
+
+    return {
+      SAVE_ID: r.USER_VINYL_ID,
+      SAVED_AT: r.CREATED_AT,
+      vinyl: r.USER_VINYL,
+      OWNER_NAME: r.USER_VINYL.DISPLAY_NAME,
+      TYPE: 'vinyl'
+    };
+  });
 };
 
 export const checkIsVinylSaved = async (userVinylId: number): Promise<boolean> => {

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, RefreshControl, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { View, Text, FlatList, SectionList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -24,6 +24,7 @@ import {
   getUnreadNotificationCount,
   subscribeToNotifications,
   getErrorMessage,
+  deleteUserVinyl,
 } from '@vinyla/core-api';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
@@ -33,16 +34,40 @@ import { useTabBarHeight } from '../constants/layout';
 const PAGE_SIZE = 30;
 const DIARY_PAGE_SIZE = 20;
 
+const groupByDate = (entries: ListeningLogWithAlbum[]) => {
+  const groups = new Map<string, ListeningLogWithAlbum[]>();
+  for (const entry of entries) {
+    const key = new Date(entry.LISTENED_AT).toLocaleDateString('ko-KR', {
+      year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
+    });
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(entry);
+  }
+  return Array.from(groups.entries()).map(([title, data]) => ({ title, data }));
+};
+
+const groupByAlbum = (entries: ListeningLogWithAlbum[]) => {
+  const groups = new Map<number, { album: ListeningLogWithAlbum['ALBUM_MASTER']; data: ListeningLogWithAlbum[] }>();
+  for (const entry of entries) {
+    if (!groups.has(entry.ALBUM_ID)) {
+      groups.set(entry.ALBUM_ID, { album: entry.ALBUM_MASTER, data: [] });
+    }
+    groups.get(entry.ALBUM_ID)!.data.push(entry);
+  }
+  return Array.from(groups.values()).map(g => ({ ...g, title: g.album?.TITLE || '' }));
+};
+
 // 웹의 '소셜' 메뉴(피드+다이어리 탭)와 동일한 구성의 모바일 화면.
 export const SocialScreen = () => {
   const { themeColors } = useTheme();
   const { t } = useLocale();
+  const navigation = useNavigation<NavigationProp<any>>();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
-  const navigation = useNavigation<NavigationProp<any>>();
   const { user } = useAuthStore();
 
   const [tab, setTab] = useState<'feed' | 'diary'>('feed');
+  const [viewMode, setViewMode] = useState<'date' | 'album'>('date');
   const [unread, setUnread] = useState(0);
 
   // ── 피드 상태 ──
@@ -194,30 +219,9 @@ export const SocialScreen = () => {
 
   // 다이어리 수정/삭제 — 이 탭은 getMyListeningLog(본인 것만)라 소유권 체크가
   // 필요 없다(웹 /log 페이지와 동일한 전제, RLS도 본인만 update/delete 허용).
-  const confirmDeleteEntry = (entry: ListeningLogWithAlbum) => {
-    Alert.alert('', t('log.deleteConfirm'), [
-      { text: t('log.deleteConfirmNo'), style: 'cancel' },
-      {
-        text: t('log.deleteConfirmYes'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteSpinLog(entry.LOG_ID);
-            setEntries((prev) => (prev || []).filter((e) => e.LOG_ID !== entry.LOG_ID));
-          } catch (e) {
-            Alert.alert('', getErrorMessage(e, t));
-          }
-        },
-      },
-    ]);
-  };
-
-  const openEntryActions = (entry: ListeningLogWithAlbum) => {
-    Alert.alert(entry.ALBUM_MASTER?.TITLE || '', undefined, [
-      { text: t('log.edit'), onPress: () => setEditingEntry(entry) },
-      { text: t('log.delete'), style: 'destructive', onPress: () => confirmDeleteEntry(entry) },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+  // 기존 리스트 내부에 있던 액션(openEntryActions) 대신 상세 모달 내부에서 수정/삭제를 처리하도록 변경됨.
+  const handleEditEntry = (entry: ListeningLogWithAlbum) => {
+    setEditingEntry(entry);
   };
 
   const styles = getStyles(themeColors);
@@ -241,9 +245,13 @@ export const SocialScreen = () => {
               return (
                 <View key={m.USER_ID} style={[styles.matchCard, { borderColor: themeColors.border }]}>
                   <TouchableOpacity onPress={() => openProfile(m.USER_ID, m.DISPLAY_NAME)} style={{ alignItems: 'center' }}>
-                    <View style={[styles.matchAvatar, { backgroundColor: 'rgba(212,175,55,0.15)' }]}>
-                      <Text style={{ color: themeColors.accent, fontWeight: '700' }}>{name.slice(0, 1).toUpperCase()}</Text>
-                    </View>
+                    {m.PROFILE_IMAGE_URL ? (
+                      <Image source={{ uri: m.PROFILE_IMAGE_URL }} style={[styles.matchAvatar, { backgroundColor: 'rgba(255,255,255,0.06)' }]} />
+                    ) : (
+                      <View style={[styles.matchAvatar, { backgroundColor: 'rgba(212,175,55,0.15)' }]}>
+                        <Text style={{ color: themeColors.accent, fontWeight: '700' }}>{name.slice(0, 1).toUpperCase()}</Text>
+                      </View>
+                    )}
                     <Text style={{ color: themeColors.textPrimary, fontSize: 13, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{name}</Text>
                   </TouchableOpacity>
                   <Text style={{ color: themeColors.accent, fontSize: 12, marginTop: 2 }}>{t('feed.matchPercent', { percent: m.MATCH_PERCENT })}</Text>
@@ -283,7 +291,14 @@ export const SocialScreen = () => {
           <Text style={{ color: themeColors.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 3 }} numberOfLines={1}>{item.ALBUM?.TITLE}</Text>
           <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{item.ALBUM?.ARTIST}</Text>
         </View>
-        <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{relativeTime(item.ADDED_AT)}</Text>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{relativeTime(item.ADDED_AT)}</Text>
+          {item.IS_PUBLIC ? (
+            <Feather name="globe" size={12} color={themeColors.textSecondary} style={{ opacity: 0.6 }} />
+          ) : (
+            <Feather name="lock" size={12} color={themeColors.textSecondary} style={{ opacity: 0.6 }} />
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -299,27 +314,109 @@ export const SocialScreen = () => {
         )}
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={{ color: themeColors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{item.ALBUM_MASTER?.TITLE}</Text>
-          <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 1 }} numberOfLines={1}>
-            {new Date(item.LISTENED_AT).toLocaleDateString()} {item.MOOD ? `· ${item.MOOD}` : ''} {!item.IS_PUBLIC ? `· ${t('log.private')}` : ''}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1, gap: 4 }}>
+            <Text style={{ color: themeColors.textSecondary, fontSize: 12 }} numberOfLines={1}>
+              {new Date(item.LISTENED_AT).toLocaleDateString()} {item.MOOD ? `· ${item.MOOD}` : ''} {!item.IS_PUBLIC ? `· ${t('log.private')}` : ''}
+            </Text>
+            {item.IS_PUBLIC ? (
+              <Feather name="globe" size={10} color={themeColors.textSecondary} />
+            ) : (
+              <Feather name="lock" size={10} color={themeColors.textSecondary} />
+            )}
+          </View>
           {!!item.NOTE && (
             <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.NOTE}</Text>
           )}
+          {!!item.MEDIA_URL && (
+            item.MEDIA_TYPE === 'video' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <Feather name="film" size={11} color={themeColors.accent} />
+                <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{t('detail.spinLogVideoAttached')}</Text>
+              </View>
+            ) : (
+              <Image source={{ uri: item.MEDIA_URL }} style={{ width: 64, height: 64, borderRadius: 8, marginTop: 6, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+            )
+          )}
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        <View style={{ alignItems: 'flex-end', gap: 4, paddingLeft: 10, paddingVertical: 6 }}>
           <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>♥ {s?.likeCount ?? 0}</Text>
-          <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>💬 {s?.commentCount ?? 0}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Feather name="message-circle" size={12} color={themeColors.textSecondary} />
+            <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>{s?.commentCount ?? 0}</Text>
+          </View>
         </View>
-        <TouchableOpacity
-          onPress={() => openEntryActions(item)}
-          style={{ paddingLeft: 10, paddingVertical: 6 }}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-        >
-          <Feather name="more-vertical" size={16} color={themeColors.textSecondary} />
-        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
+
+  const renderAlbumDiaryItem = ({ item }: { item: ListeningLogWithAlbum }) => {
+    const s = socialMap[item.LOG_ID];
+    return (
+      <TouchableOpacity style={[styles.feedItem, { borderColor: themeColors.border, marginVertical: 4, paddingVertical: 10 }]} onPress={() => setSocialEntry(item)}>
+        <View style={{ flex: 1, marginLeft: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>
+              {new Date(item.LISTENED_AT).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+              {item.MOOD ? ` · ${item.MOOD}` : ''}
+            </Text>
+            {item.IS_PUBLIC ? (
+              <Feather name="globe" size={10} color={themeColors.textSecondary} style={{ opacity: 0.6 }} />
+            ) : (
+              <Feather name="lock" size={10} color={themeColors.textSecondary} style={{ opacity: 0.6 }} />
+            )}
+          </View>
+          {!!item.NOTE && (
+            <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 4 }} numberOfLines={2}>{item.NOTE}</Text>
+          )}
+          {!!item.MEDIA_URL && (
+            item.MEDIA_TYPE === 'video' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <Feather name="film" size={11} color={themeColors.accent} />
+                <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{t('detail.spinLogVideoAttached')}</Text>
+              </View>
+            ) : (
+              <Image source={{ uri: item.MEDIA_URL }} style={{ width: 64, height: 64, borderRadius: 8, marginTop: 6, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+            )
+          )}
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 4, paddingLeft: 10, paddingVertical: 6 }}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>♥ {s?.likeCount ?? 0}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Feather name="message-circle" size={12} color={themeColors.textSecondary} />
+            <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>{s?.commentCount ?? 0}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderDateHeader = ({ section }: any) => (
+    <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, backgroundColor: themeColors.background }}>
+      <Text style={{ color: themeColors.textPrimary, fontSize: 16, fontWeight: '800' }}>{section.title}</Text>
+    </View>
+  );
+
+  const renderAlbumHeader = ({ section }: any) => (
+    <View style={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: themeColors.background }}>
+      {section.album?.IMAGE_URL ? (
+        <Image source={{ uri: section.album.IMAGE_URL }} style={{ width: 44, height: 44, borderRadius: 6 }} />
+      ) : (
+        <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+          <Feather name="disc" size={20} color={themeColors.textSecondary} />
+        </View>
+      )}
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={{ color: themeColors.textPrimary, fontSize: 16, fontWeight: '800' }} numberOfLines={1}>{section.album?.TITLE}</Text>
+        <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 2 }}>{section.album?.ARTIST}</Text>
+      </View>
+      <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+        <Text style={{ color: themeColors.textPrimary, fontSize: 11, fontWeight: '700' }}>{t('log.playCount', { count: section.data.length })}</Text>
+      </View>
+    </View>
+  );
+
+  const dateSections = useMemo(() => entries ? groupByDate(entries) : [], [entries]);
+  const albumSections = useMemo(() => entries ? groupByAlbum(entries) : [], [entries]);
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background }}>
@@ -357,7 +454,7 @@ export const SocialScreen = () => {
             renderItem={renderFeedItem}
             ListHeaderComponent={renderFeedHeader}
             ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('feed.empty')}</Text>}
-            contentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
+            contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
             onEndReached={loadMoreFeed}
             onEndReachedThreshold={0.4}
             ListFooterComponent={loadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
@@ -366,16 +463,28 @@ export const SocialScreen = () => {
       ) : entries === null ? (
         <ActivityIndicator color={themeColors.accent} style={{ marginTop: 40 }} />
       ) : (
-        <FlatList
-          data={entries}
-          keyExtractor={(i) => String(i.LOG_ID)}
-          renderItem={renderDiaryItem}
-          ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('log.empty')}</Text>}
-          contentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
-          onEndReached={loadMoreDiary}
-          onEndReachedThreshold={0.4}
-          ListFooterComponent={diaryLoadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
-        />
+        <>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 }}>
+            <TouchableOpacity onPress={() => setViewMode('date')} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: viewMode === 'date' ? themeColors.accent : 'rgba(255,255,255,0.06)' }}>
+              <Text style={{ color: viewMode === 'date' ? '#000' : themeColors.textSecondary, fontSize: 13, fontWeight: '600' }}>{t('log.viewByDate')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setViewMode('album')} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: viewMode === 'album' ? themeColors.accent : 'rgba(255,255,255,0.06)' }}>
+              <Text style={{ color: viewMode === 'album' ? '#000' : themeColors.textSecondary, fontSize: 13, fontWeight: '600' }}>{t('log.viewByAlbum')}</Text>
+            </TouchableOpacity>
+          </View>
+          <SectionList
+            sections={viewMode === 'date' ? dateSections : albumSections}
+            keyExtractor={(i) => String(i.LOG_ID)}
+            renderItem={viewMode === 'date' ? renderDiaryItem : renderAlbumDiaryItem}
+            renderSectionHeader={viewMode === 'date' ? renderDateHeader : renderAlbumHeader}
+            ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('log.empty')}</Text>}
+            contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
+            onEndReached={loadMoreDiary}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={diaryLoadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
+            stickySectionHeadersEnabled={false}
+          />
+        </>
       )}
 
       {selectedFeedItem && (
@@ -383,14 +492,35 @@ export const SocialScreen = () => {
           entry={selectedFeedItem}
           isVisible={!!selectedFeedItem}
           onClose={() => setSelectedFeedItem(null)}
+          onUpdate={(updated) => {
+            setItems((prev) => prev.map((e) => e.USER_VINYL_ID === updated.USER_VINYL_ID ? updated : e));
+            setSelectedFeedItem(updated);
+          }}
         />
       )}
       {socialEntry && (
         <SpinSocialModal
           entry={socialEntry}
-          isVisible={!!socialEntry}
+          ownerName={user?.user_metadata?.displayName}
+          isVisible={true}
           onClose={() => setSocialEntry(null)}
-          onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
+          onEdit={handleEditEntry}
+          onUpdate={(updated) => {
+            setEntries((prev) => prev ? prev.map((e) => e.LOG_ID === updated.LOG_ID ? updated : e) : []);
+            setSocialEntry(updated);
+          }}
+          onDelete={async (logId) => {
+            try {
+              await deleteSpinLog(logId);
+              setEntries((prev) => prev ? prev.filter((e) => e.LOG_ID !== logId) : []);
+              setSocialEntry(null);
+            } catch (e) {
+              Alert.alert('', getErrorMessage(e, t));
+            }
+          }}
+          onSummaryChange={(logId, newSummary) => {
+            setSocialMap((prev) => ({ ...prev, [logId]: newSummary }));
+          }}
         />
       )}
       {editingEntry && (

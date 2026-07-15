@@ -15,7 +15,7 @@ const MOOD_PRESETS = ['🤩', '🙂', '😌', '😐', '😢'] as const;
 const NOTE_MAX_LENGTH = 500;
 const MAX_VIDEO_SECONDS = 15;
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-const VIDEO_MAX_BYTES = 25 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50MB
 
 type MediaState =
   | { kind: 'none' }
@@ -72,10 +72,6 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
 
   const validateAndSetAsset = (asset: ImagePicker.ImagePickerAsset) => {
     const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
-    if (type === 'video' && asset.duration && asset.duration > (MAX_VIDEO_SECONDS + 0.5) * 1000) {
-      Alert.alert('', t('detail.spinLogMediaTooLong'));
-      return;
-    }
     if (asset.fileSize && asset.fileSize > (type === 'image' ? IMAGE_MAX_BYTES : VIDEO_MAX_BYTES)) {
       Alert.alert('', t('detail.spinLogMediaTooLarge'));
       return;
@@ -83,19 +79,26 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
     setMedia({ kind: 'new', uri: asset.uri, type });
   };
 
-  const pickFromLibrary = async () => {
+  // 사진/영상을 따로 고르게 한다. 영상의 경우 OS 기본 에디터를 우회하여 VideoTrimModal에서 처리한다.
+  const pickFromLibrary = async (kind: 'image' | 'video') => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('', t('mobile.detail.galleryPermission') || '갤러리 접근 권한이 필요합니다.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsEditing: false,
-      quality: 0.8,
-      videoMaxDuration: MAX_VIDEO_SECONDS,
-    });
-    if (!result.canceled && result.assets.length > 0) validateAndSetAsset(result.assets[0]);
+    const result = await ImagePicker.launchImageLibraryAsync(
+      kind === 'video'
+        ? { 
+            mediaTypes: ['videos'], 
+            allowsEditing: true, 
+            videoMaxDuration: MAX_VIDEO_SECONDS,
+            videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720 
+          }
+        : { mediaTypes: ['images'], allowsEditing: false, quality: 0.8 }
+    );
+    if (!result.canceled && result.assets.length > 0) {
+      validateAndSetAsset(result.assets[0]);
+    }
   };
 
   const takePhoto = async () => {
@@ -104,14 +107,24 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
       Alert.alert('', t('mobile.detail.cameraPermission') || '카메라 권한이 필요합니다.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!result.canceled && result.assets.length > 0) validateAndSetAsset(result.assets[0]);
+    const result = await ImagePicker.launchCameraAsync({ 
+      quality: 0.8, 
+      mediaTypes: ['images', 'videos'], 
+      allowsEditing: true, 
+      videoMaxDuration: MAX_VIDEO_SECONDS,
+      videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      validateAndSetAsset(result.assets[0]);
+    }
   };
 
   const handleAddMedia = () => {
     Alert.alert(t('detail.spinLogMediaAdd'), t('detail.spinLogMediaLimits'), [
       { text: t('mobile.detail.camera') || '카메라', onPress: takePhoto },
-      { text: t('mobile.detail.gallery') || '갤러리', onPress: pickFromLibrary },
+      { text: t('mobile.detail.galleryPhoto') || '갤러리에서 사진 선택', onPress: () => pickFromLibrary('image') },
+      { text: t('mobile.detail.galleryVideo') || '갤러리에서 영상 선택', onPress: () => pickFromLibrary('video') },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
@@ -131,7 +144,9 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
       uploadUri = manipulated.uri;
     }
     const blob = await (await fetch(uploadUri)).blob();
-    return uploadSpinLogMedia(blob);
+    const ext = uploadUri.split('.').pop() || (media.type === 'video' ? 'mp4' : 'jpg');
+    const file = Object.assign(blob, { name: `media.${ext}` });
+    return uploadSpinLogMedia(file);
   };
 
   const handleSubmit = async () => {

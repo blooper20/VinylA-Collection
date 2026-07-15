@@ -16,6 +16,7 @@ import {
   addSpinLogComment,
   deleteSpinLogComment,
   getAlbumMaster,
+  getProfilesLite,
 } from '@vinyla/core-api';
 import { MockVinylData } from '@vinyla/shared-types';
 import { useLocale } from '@vinyla/i18n';
@@ -57,6 +58,7 @@ export const SpinSocialModal: React.FC<SpinSocialModalProps> = ({ entry, ownerNa
   const [replyTo, setReplyTo] = useState<{ id: number; name: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<{ id: number, type: 'log' | 'comment' } | null>(null);
   const [fullAlbum, setFullAlbum] = useState<MockVinylData | null>(null);
+  const [ownerImg, setOwnerImg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,6 +97,7 @@ export const SpinSocialModal: React.FC<SpinSocialModalProps> = ({ entry, ownerNa
       if (map[logId]) applySummary(map[logId]);
     });
     loadComments();
+    getProfilesLite([entry.USER_ID]).then((map) => setOwnerImg(map[entry.USER_ID]?.img || null));
     return () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logId]);
@@ -203,7 +206,15 @@ export const SpinSocialModal: React.FC<SpinSocialModalProps> = ({ entry, ownerNa
 
   const renderComment = (c: SpinComment, isReply = false) => (
     <div key={c.COMMENT_ID} style={{ marginLeft: isReply ? '34px' : 0, padding: '8px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {c.PROFILE_IMAGE_URL ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={c.PROFILE_IMAGE_URL} alt="" style={{ width: '20px', height: '20px', borderRadius: '10px', objectFit: 'cover', background: 'rgba(255,255,255,0.08)' }} />
+        ) : (
+          <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>person</span>
+          </div>
+        )}
         <span style={{ fontSize: '13px', fontWeight: 700, color: '#d4af37' }}>
           {c.DISPLAY_NAME || t('feed.anonymous')}
         </span>
@@ -271,9 +282,14 @@ export const SpinSocialModal: React.FC<SpinSocialModalProps> = ({ entry, ownerNa
         {/* 유저 프로필 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <Link href={profileHref(entry.USER_ID, entry.DISPLAY_NAME || ownerName, user)} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', flex: 1 }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '14px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>person</span>
-            </div>
+            {ownerImg ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={ownerImg} alt="" style={{ width: '28px', height: '28px', borderRadius: '14px', objectFit: 'cover', background: 'rgba(255,255,255,0.1)' }} />
+            ) : (
+              <div style={{ width: '28px', height: '28px', borderRadius: '14px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>person</span>
+              </div>
+            )}
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
               {entry.DISPLAY_NAME || ownerName || t('feed.anonymous')}
             </span>

@@ -39,7 +39,7 @@ export const SideNav: React.FC = () => {
     { name: t('nav.collection'), path: '/collection', icon: 'shelves', match: ['/collection', '/wishlist'] },
     { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
     { name: t('nav.social'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log'] },
-    { name: t('nav.story'), path: '/story', icon: 'auto_stories' },
+    { name: t('nav.notice'), path: '/notices', icon: 'campaign' },
     { name: t('nav.notifications'), path: '/notifications', icon: 'notifications', badge: unreadCount },
     { name: t('nav.my'), path: '/my', icon: 'person' },
     { name: t('nav.support'), path: '/support', icon: 'support_agent' },

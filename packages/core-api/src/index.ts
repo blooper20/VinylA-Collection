@@ -17,3 +17,4 @@ export * from './profile';
 export * from './spinSocial';
 export * from './vinylSocial';
 export * from './notifications';
+export * from './notice';

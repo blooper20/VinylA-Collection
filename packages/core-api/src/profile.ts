@@ -10,18 +10,64 @@ export interface ProfileInfo {
   DISPLAY_NAME: string | null;
   /** 명시적으로 공개(IS_PUBLIC=true)한 경우만 true — 행이 없으면 비공개 (opt-in, RLS의 is_profile_public()과 동일 규칙) */
   IS_PUBLIC: boolean;
+  /** PROFILES.PROFILE_IMAGE_URL — 프로필 사진 없는 유저는 null */
+  PROFILE_IMAGE_URL: string | null;
+  /** 대표 LP ID (선택 사항) */
+  FEATURED_ALBUM_ID?: number | null;
 }
 
 export const getProfileInfo = async (userId: string): Promise<ProfileInfo> => {
-  const { data } = await supabase
+  let { data, error }: { data: any; error: any } = await supabase
     .from('PROFILES')
-    .select('DISPLAY_NAME, IS_PUBLIC')
+    .select('DISPLAY_NAME, IS_PUBLIC, PROFILE_IMAGE_URL, FEATURED_ALBUM_ID')
     .eq('USER_ID', userId)
     .maybeSingle();
+  if (error?.code === '42703') {
+    // PROFILE_IMAGE_URL 마이그레이션 전 DB — 닉네임/공개 여부만으로 폴백
+    const fallback = await supabase
+      .from('PROFILES')
+      .select('DISPLAY_NAME, IS_PUBLIC')
+      .eq('USER_ID', userId)
+      .maybeSingle();
+    data = fallback.data;
+  }
   return {
     DISPLAY_NAME: (data as any)?.DISPLAY_NAME ?? null,
     IS_PUBLIC: (data as any)?.IS_PUBLIC === true,
+    PROFILE_IMAGE_URL: (data as any)?.PROFILE_IMAGE_URL ?? null,
+    FEATURED_ALBUM_ID: (data as any)?.FEATURED_ALBUM_ID ?? null,
   };
+};
+
+export interface ProfileLite {
+  name: string | null;
+  img: string | null;
+}
+
+/**
+ * 유저 id 목록 → { 닉네임, 프로필 사진 } 맵. PROFILES는 public read라 피드·
+ * 댓글·팔로우 목록 등 닉네임 옆에 아바타를 붙이는 모든 곳이 공유한다.
+ * PROFILE_IMAGE_URL 컬럼 미적용 DB(42703)에서는 닉네임만으로 폴백한다.
+ */
+export const getProfilesLite = async (userIds: string[]): Promise<Record<string, ProfileLite>> => {
+  const unique = [...new Set(userIds)].filter(Boolean);
+  if (unique.length === 0) return {};
+  let { data, error }: { data: any[] | null; error: any } = await supabase
+    .from('PROFILES')
+    .select('USER_ID, DISPLAY_NAME, PROFILE_IMAGE_URL')
+    .in('USER_ID', unique);
+  if (error?.code === '42703') {
+    const fallback = await supabase
+      .from('PROFILES')
+      .select('USER_ID, DISPLAY_NAME')
+      .in('USER_ID', unique);
+    data = fallback.data;
+  }
+  const map: Record<string, ProfileLite> = {};
+  for (const r of (data as any[]) || []) {
+    map[r.USER_ID] = { name: r.DISPLAY_NAME ?? null, img: r.PROFILE_IMAGE_URL ?? null };
+  }
+  return map;
 };
 
 export const setMyProfileVisibility = async (isPublic: boolean): Promise<void> => {

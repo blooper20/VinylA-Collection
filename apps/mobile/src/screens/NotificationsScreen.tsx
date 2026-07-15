@@ -25,6 +25,7 @@ const TYPE_ICON: Record<NotificationType, keyof typeof Feather.glyphMap> = {
   FOLLOW_REQUEST: 'user-plus',
   FOLLOW_ACCEPTED: 'user-check',
   NEW_FOLLOWER: 'user',
+  NOTICE: 'radio',
 };
 
 // 알림함 — 웹 /notifications의 모바일 버전. 열람 시 전체 읽음 처리.
@@ -72,6 +73,10 @@ export const NotificationsScreen = () => {
   };
 
   const handlePress = (n: NotificationItem) => {
+    if (n.TYPE === 'NOTICE') {
+      if (n.NOTICE_ID) navigation.navigate('NoticeDetail', { noticeId: n.NOTICE_ID });
+      return;
+    }
     if (n.TYPE === 'FOLLOW_ACCEPTED' || n.TYPE === 'NEW_FOLLOWER') {
       if (n.ACTOR_ID) navigation.navigate('UserProfile', { userId: n.ACTOR_ID, name: n.ACTOR_NAME });
       return;
@@ -109,7 +114,7 @@ export const NotificationsScreen = () => {
           onEndReachedThreshold={0.4}
           ListFooterComponent={loadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
           renderItem={({ item: n }) => {
-            const name = n.ACTOR_NAME || t('notif.anonymous');
+            const name = n.TYPE === 'NOTICE' ? (n.NOTICE_TITLE || t('notif.noticeFallbackTitle')) : (n.ACTOR_NAME || t('notif.anonymous'));
             const TOKEN = '__NAME__';
             const [before = '', after = ''] = t(`notif.${n.TYPE}` as any, { name: TOKEN }).split(TOKEN);
             return (

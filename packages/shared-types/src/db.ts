@@ -178,6 +178,31 @@ export interface VINYL_STORY {
 }
 
 /**
+ * 공지사항 첨부 미디어 1건 — 게시글 하나에 이미지/영상을 여러 개 섞어 올릴 수 있다
+ */
+export interface NoticeMediaItem {
+  url: string;
+  type: 'image' | 'video';
+}
+
+/**
+ * 공지사항 — 관리자만 작성/수정/삭제 가능, 댓글 없음, 최대 5개까지 상단 고정 가능
+ */
+export interface NOTICE {
+  NOTICE_ID: number;
+  TITLE: string;
+  CONTENT: string;
+  MEDIA_ITEMS: NoticeMediaItem[];
+  IS_PINNED: boolean;
+  PINNED_AT: string | null;
+  /** 관리자가 글별로 댓글 작성을 열고 닫을 수 있다 — 꺼져 있으면 서버(RLS)도 새 댓글 INSERT를 거부한다 */
+  IS_COMMENTS_ENABLED: boolean;
+  AUTHOR_ID: string | null;
+  CREATED_AT: string;
+  UPDATED_AT: string;
+}
+
+/**
  * 태그 정보
  */
 export interface VINYL_TAG {

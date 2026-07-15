@@ -1,39 +1,34 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useTheme } from '@vinyla/ui';
-import { useLocale } from '@vinyla/i18n';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 
-interface ShareOptionsSheetProps {
+export interface ActionMenuItem {
+  id: string;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  color?: string; // Optional custom color (e.g., for destructive actions like delete)
+  isProcessing?: boolean;
+  onPress: () => void;
+}
+
+interface ActionMenuSheetProps {
   visible: boolean;
   onClose: () => void;
-  title: string;
-  isProcessing?: boolean;
-  onShareLink: () => void;
-  onImageShare: () => void;
-  // Extra space to leave below the sheet — e.g. the floating tab bar's
-  // height on screens where it overlays the content (Home/Wishlist).
-  // DetailModal is a full-screen <Modal> with no tab bar, so it doesn't need this.
+  options: ActionMenuItem[];
   bottomInset?: number;
-  children?: React.ReactNode;
 }
 
 // Deliberately not wrapped in RN's <Modal> — this can be nested inside other
-// full-screen <Modal> screens (e.g. DetailModal), and stacking native Modals
-// on iOS has previously caused freezes in this app.
-export const ShareOptionsSheet = ({
+// full-screen <Modal> screens (e.g. DetailModal/SpinSocialModal)
+export const ActionMenuSheet = ({
   visible,
   onClose,
-  title,
-  isProcessing,
-  onShareLink,
-  onImageShare,
+  options,
   bottomInset = 0,
-  children,
-}: ShareOptionsSheetProps) => {
+}: ActionMenuSheetProps) => {
   const { themeColors, glassIntensity } = useTheme();
-  const { t } = useLocale();
   const translateY = useRef(new Animated.Value(300)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = React.useState(visible);
@@ -55,15 +50,10 @@ export const ShareOptionsSheet = ({
 
   if (!rendered) return null;
 
-  const options: { id: string; label: string; icon: 'share-2' | 'image'; onPress: () => void }[] = [
-    { id: 'image', label: t('mobile.shareOptions.imageShare'), icon: 'image', onPress: onImageShare },
-    { id: 'link', label: t('mobile.shareOptions.linkShare'), icon: 'share-2', onPress: onShareLink },
-  ];
-
   return (
     <View style={[StyleSheet.absoluteFill, styles.container]} pointerEvents="box-none">
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: backdropOpacity }]}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} disabled={isProcessing} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       </Animated.View>
       <Animated.View style={{ transform: [{ translateY }], marginBottom: bottomInset }}>
         <BlurView
@@ -72,29 +62,30 @@ export const ShareOptionsSheet = ({
           style={[styles.content, { backgroundColor: 'rgba(20,20,20,0.7)', borderColor: themeColors.border }]}
         >
           <View style={[styles.handle, { backgroundColor: themeColors.border }]} />
-          <Text style={[styles.title, { color: themeColors.textPrimary }]}>{title}</Text>
 
-          {children}
-
-          {options.map((opt) => (
-            <TouchableOpacity
-              key={opt.id}
-              style={styles.row}
-              onPress={opt.onPress}
-              disabled={isProcessing}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconWrapper, { backgroundColor: 'rgba(212,175,55,0.1)' }]}>
-                <Feather name={opt.icon} size={18} color={themeColors.accent} />
-              </View>
-              <Text style={[styles.rowLabel, { color: themeColors.textPrimary }]}>{opt.label}</Text>
-              {isProcessing ? (
-                <ActivityIndicator size="small" color={themeColors.textSecondary} />
-              ) : (
-                <Feather name="chevron-right" size={18} color={themeColors.textSecondary} />
-              )}
-            </TouchableOpacity>
-          ))}
+          {options.map((opt) => {
+            const itemColor = opt.color || themeColors.textPrimary;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                style={styles.row}
+                onPress={() => {
+                  opt.onPress();
+                  onClose();
+                }}
+                disabled={opt.isProcessing}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconWrapper, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                  <Feather name={opt.icon} size={18} color={itemColor} />
+                </View>
+                <Text style={[styles.rowLabel, { color: itemColor }]}>{opt.label}</Text>
+                {opt.isProcessing ? (
+                  <ActivityIndicator size="small" color={themeColors.textSecondary} />
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
         </BlurView>
       </Animated.View>
     </View>
@@ -122,11 +113,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
     opacity: 0.6,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',

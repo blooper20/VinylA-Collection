@@ -19,6 +19,8 @@ export const StoryScreen = () => {
   const [archive, setArchive] = useState<VINYL_STORY[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  // 지난 이야기 아코디언 — 탭하면 본문까지 펼쳐 읽을 수 있다 (웹 /story 파리티)
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -75,22 +77,39 @@ export const StoryScreen = () => {
         {archive.length > 0 && (
           <View style={{ marginTop: 28 }}>
             <Text style={{ color: themeColors.textPrimary, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>{t('story.archiveTitle')}</Text>
-            {archive.map((s) => (
-              <View key={s.STORY_ID} style={[styles.archiveItem, { borderColor: themeColors.border }]}>
-                {s.COVER_IMAGE_URL ? (
-                  <Image source={{ uri: s.COVER_IMAGE_URL }} style={styles.archiveCover} />
-                ) : (
-                  <View style={[styles.archiveCover, { backgroundColor: 'rgba(255,255,255,0.06)' }]} />
-                )}
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{new Date(s.STORY_DATE).toLocaleDateString()}</Text>
-                  <Text style={{ color: themeColors.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{s.HEADLINE}</Text>
-                  <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                    {s.ALBUM_TITLE} · {s.ALBUM_ARTIST}
-                  </Text>
-                </View>
-              </View>
-            ))}
+            {archive.map((s) => {
+              const expanded = expandedId === s.STORY_ID;
+              return (
+                <TouchableOpacity
+                  key={s.STORY_ID}
+                  activeOpacity={0.75}
+                  onPress={() => setExpandedId(expanded ? null : s.STORY_ID)}
+                  style={[styles.archiveItem, { borderColor: expanded ? 'rgba(212,175,55,0.35)' : themeColors.border }]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {s.COVER_IMAGE_URL ? (
+                      <Image source={{ uri: s.COVER_IMAGE_URL }} style={styles.archiveCover} />
+                    ) : (
+                      <View style={[styles.archiveCover, { backgroundColor: 'rgba(255,255,255,0.06)' }]} />
+                    )}
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{new Date(s.STORY_DATE).toLocaleDateString()}</Text>
+                      <Text style={{ color: themeColors.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 2 }} numberOfLines={expanded ? undefined : 2}>{s.HEADLINE}</Text>
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                        {s.ALBUM_TITLE} · {s.ALBUM_ARTIST}
+                      </Text>
+                    </View>
+                    <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={themeColors.textSecondary} style={{ marginLeft: 8 }} />
+                  </View>
+                  {expanded && (
+                    <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: themeColors.border }}>
+                      <Text style={{ color: themeColors.textPrimary, fontSize: 13.5, lineHeight: 22 }}>{s.BODY}</Text>
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 11, marginTop: 10 }}>{t('story.disclaimer')}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -106,8 +125,8 @@ const getStyles = (themeColors: any) => StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700' },
   card: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
   cover: { width: '100%', height: 260 },
+  // 헤더 행은 내부 View가 row로 처리 — 카드 자체는 세로(헤더 위, 본문 아래)
   archiveItem: {
-    flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 10,
   },
   archiveCover: { width: 56, height: 56, borderRadius: 8 },

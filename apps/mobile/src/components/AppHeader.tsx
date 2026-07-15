@@ -49,8 +49,8 @@ export const AppHeader = ({ mode, onSharePress, viewMode, onViewModeChange, onMo
                   ]}
                 >
                   <Feather name={m === 'wishlist' ? 'heart' : 'disc'} size={11} color={active ? themeColors.accent : themeColors.textSecondary} />
-                  <Text style={[styles.modeText, { color: active ? themeColors.accent : themeColors.textSecondary }]}>
-                    {m === 'wishlist' ? 'WISHLIST' : 'MY COLLECTION'}
+                  <Text numberOfLines={1} style={[styles.modeText, { color: active ? themeColors.accent : themeColors.textSecondary }]}>
+                    {m === 'wishlist' ? 'WISH' : 'COLLECTION'}
                   </Text>
                 </TouchableOpacity>
               );
@@ -112,13 +112,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
-    marginLeft: 58,
+    gap: 10,
+    marginTop: 14,
   },
   leftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
   },
   modeBadge: {
     flexDirection: 'row',
@@ -127,7 +129,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
+    flexShrink: 1,
   },
   modeText: {
     fontSize: 11,
@@ -135,24 +138,26 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   iconBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   viewToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 26,
-    borderRadius: 13,
+    height: 28,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    flexShrink: 0,
   },
   viewToggleBtn: {
-    width: 28,
-    height: 26,
+    width: 30,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },

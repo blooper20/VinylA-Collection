@@ -135,6 +135,13 @@ export default function DiscoveryFeedPage() {
         <p className={styles.subtitle}>{t('feed.subtitle')}</p>
       </header>
 
+      {/* 오늘의 바이닐 스토리 — 사이드바 메뉴 대신 피드 최상단에서 진입 (앱 파리티) */}
+      <Link href="/story" className={styles.storyBanner}>
+        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)' }}>auto_stories</span>
+        <span className={styles.storyBannerText}>{t('story.title')}</span>
+        <span className={`material-symbols-outlined ${styles.storyBannerArrow}`}>chevron_right</span>
+      </Link>
+
       {matches.length > 0 && (
         <section className={styles.matchesSection}>
           <h2 className={styles.matchesTitle}>{t('feed.matchesTitle')}</h2>
@@ -145,7 +152,12 @@ export default function DiscoveryFeedPage() {
               const isFollowing = followingIds.has(m.USER_ID);
               return (
                 <div key={m.USER_ID} className={styles.matchCard}>
-                  <div className={styles.matchAvatar}>{name.slice(0, 1).toUpperCase()}</div>
+                  {m.PROFILE_IMAGE_URL ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={m.PROFILE_IMAGE_URL} alt="" className={styles.matchAvatar} style={{ objectFit: 'cover' }} />
+                  ) : (
+                    <div className={styles.matchAvatar}>{name.slice(0, 1).toUpperCase()}</div>
+                  )}
                   <Link href={profileHref(m.USER_ID, m.DISPLAY_NAME)} className={styles.matchName}>
                     {name}
                   </Link>

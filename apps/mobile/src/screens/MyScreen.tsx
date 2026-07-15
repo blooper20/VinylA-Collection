@@ -5,7 +5,8 @@ import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, getMySavedVinyls, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests } from '@vinyla/core-api';
+import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import * as ImagePicker from 'expo-image-picker';
 // v19 (SDK 54) moved readAsStringAsync to the legacy entry point
 import * as FileSystem from 'expo-file-system/legacy';
@@ -135,9 +136,9 @@ export const MyScreen = () => {
   const [allAlbums, setAllAlbums] = React.useState<any[]>([]);
   const [signupNumber, setSignupNumber] = React.useState<number | null>(null);
   const [showFoundingCelebration, setShowFoundingCelebration] = React.useState(false);
-  const [savedLogs, setSavedLogs] = React.useState<SavedSpinLog[]>([]);
+  const [savedItems, setSavedItems] = React.useState<any[]>([]);
   const [timelineTab, setTimelineTab] = React.useState<'journey' | 'saved'>('journey');
-  const [selectedSavedLog, setSelectedSavedLog] = React.useState<{ log: ListeningLogWithAlbum, ownerName: string | null } | null>(null);
+  const [selectedSavedLog, setSelectedSavedLog] = React.useState<{ type: 'diary' | 'vinyl', data: any, ownerName: string | null } | null>(null);
   // 프로필 공개/비공개 + 팔로워/팔로잉 (웹 /my 파리티)
   const [isProfilePublic, setIsProfilePublic] = React.useState<boolean | null>(null);
   const [followCounts, setFollowCounts] = React.useState<{ followers: number; following: number } | null>(null);
@@ -198,7 +199,15 @@ export const MyScreen = () => {
         currentGenre = user.user_metadata.interests[0];
       }
 
-      getMySavedSpinLogs(5).then(setSavedLogs).catch(console.error);
+      Promise.all([getMySavedSpinLogs(20), getMySavedVinyls(20)])
+        .then(([logs, vinyls]) => {
+          const merged = [
+            ...logs.map(l => ({ ...l, TYPE: 'diary' })),
+            ...vinyls
+          ];
+          merged.sort((a, b) => new Date(b.SAVED_AT).getTime() - new Date(a.SAVED_AT).getTime());
+          setSavedItems(merged);
+        }).catch(console.error);
       // 프로필 공개 여부 + 팔로워/팔로잉 카운트 + 수신 요청 수
       getProfileInfo(user.id).then((p) => setIsProfilePublic(p.IS_PUBLIC)).catch(() => setIsProfilePublic(false));
       getFollowCounts(user.id).then(setFollowCounts).catch(() => {});
@@ -711,25 +720,44 @@ export const MyScreen = () => {
               <Text style={{ color: themeColors.textSecondary, marginLeft: 20 }}>{t('my.noRecentLp')}</Text>
             )
           ) : (
-            savedLogs.length > 0 ? savedLogs.map((item, index) => (
-              <TouchableOpacity key={item.SAVE_ID + '-' + index} style={styles.timelineItem} onPress={() => setSelectedSavedLog({ log: item.log as any, ownerName: item.OWNER_NAME })}>
-                <View style={[styles.timelineLine, { backgroundColor: themeColors.border }]} />
-                <View style={[styles.timelineDot, { backgroundColor: themeColors.accent }]} />
-                <Image
-                  source={item.log.ALBUM_MASTER?.IMAGE_URL ? { uri: item.log.ALBUM_MASTER.IMAGE_URL } : require('../../assets/logo_real_transparent.png')}
-                  style={styles.timelineImage}
-                  resizeMode={item.log.ALBUM_MASTER?.IMAGE_URL ? "cover" : "contain"}
-                />
-                <View style={styles.timelineContent}>
-                  <Text style={[styles.timelineTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{item.log.ALBUM_MASTER?.TITLE}</Text>
-                  <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>{item.OWNER_NAME}님의 다이어리 · {new Date(item.SAVED_AT).toLocaleDateString()}</Text>
-                </View>
-              </TouchableOpacity>
-            )) : (
-              <Text style={{ color: themeColors.textSecondary, marginLeft: 20 }}>저장된 다이어리가 없습니다.</Text>
+            savedItems.length > 0 ? savedItems.map((item, index) => {
+              const isDiary = item.TYPE === 'diary';
+              const albumMaster = isDiary ? item.log.ALBUM_MASTER : item.vinyl.ALBUM_MASTER;
+              const title = albumMaster?.TITLE;
+              const imageUrl = albumMaster?.IMAGE_URL;
+              const label = isDiary ? `${item.OWNER_NAME}님의 다이어리` : `${item.OWNER_NAME}님의 앨범`;
+              
+              return (
+                <TouchableOpacity key={item.SAVE_ID + '-' + item.TYPE + '-' + index} style={styles.timelineItem} onPress={() => setSelectedSavedLog({ type: item.TYPE, data: isDiary ? item.log : item.vinyl, ownerName: item.OWNER_NAME })}>
+                  <View style={[styles.timelineLine, { backgroundColor: themeColors.border }]} />
+                  <View style={[styles.timelineDot, { backgroundColor: themeColors.accent }]} />
+                  <Image
+                    source={imageUrl ? { uri: imageUrl } : require('../../assets/logo_real_transparent.png')}
+                    style={styles.timelineImage}
+                    resizeMode={imageUrl ? "cover" : "contain"}
+                  />
+                  <View style={styles.timelineContent}>
+                    <Text style={[styles.timelineTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{title}</Text>
+                    <Text style={[styles.timelineDate, { color: themeColors.textSecondary }]}>{label} · {new Date(item.SAVED_AT).toLocaleDateString()}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }) : (
+              <Text style={{ color: themeColors.textSecondary, marginLeft: 20 }}>저장된 콘텐츠가 없습니다.</Text>
             )
           )}
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={[styles.settingsToggleBtn, { marginBottom: 4 }]}
+          onPress={() => navigation.navigate('NoticeList')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.settingsToggleText, { color: themeColors.textPrimary }]}>{t('notice.title')}</Text>
+          <Feather name="chevron-right" size={20} color={themeColors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -842,11 +870,19 @@ export const MyScreen = () => {
         signupNumber={signupNumber}
       />
 
-      {selectedSavedLog && (
+      {selectedSavedLog && selectedSavedLog.type === 'diary' && (
         <SpinSocialModal
-          entry={selectedSavedLog.log}
+          entry={selectedSavedLog.data}
           ownerName={selectedSavedLog.ownerName}
-          isVisible={!!selectedSavedLog}
+          isVisible={true}
+          onClose={() => setSelectedSavedLog(null)}
+        />
+      )}
+
+      {selectedSavedLog && selectedSavedLog.type === 'vinyl' && (
+        <VinylSocialModal
+          entry={selectedSavedLog.data}
+          isVisible={true}
           onClose={() => setSelectedSavedLog(null)}
         />
       )}

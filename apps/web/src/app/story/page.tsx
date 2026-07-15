@@ -17,6 +17,8 @@ export default function VinylStoryPage() {
   const [archive, setArchive] = useState<VINYL_STORY[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  // 지난 이야기 아코디언 — 클릭하면 본문까지 펼쳐 읽을 수 있다
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -74,19 +76,38 @@ export default function VinylStoryPage() {
         <section className={styles.archiveSection}>
           <h2 className={styles.archiveTitle}>{t('story.archiveTitle')}</h2>
           <div className={styles.archiveList}>
-            {archive.map((s) => (
-              <div key={s.STORY_ID} className={styles.archiveItem}>
-                {s.COVER_IMAGE_URL && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img className={styles.archiveCover} src={s.COVER_IMAGE_URL} alt={s.ALBUM_TITLE} />
-                )}
-                <div className={styles.archiveItemText}>
-                  <span className={styles.archiveDate}>{formatDate(s.STORY_DATE)}</span>
-                  <div className={styles.archiveAlbum}>{s.ALBUM_ARTIST} · {s.ALBUM_TITLE}</div>
-                  <div className={styles.archiveHeadline}>{s.HEADLINE}</div>
+            {archive.map((s) => {
+              const expanded = expandedId === s.STORY_ID;
+              return (
+                <div key={s.STORY_ID} className={`${styles.archiveItem} ${expanded ? styles.archiveItemExpanded : ''}`}>
+                  <button
+                    type="button"
+                    className={styles.archiveItemHead}
+                    onClick={() => setExpandedId(expanded ? null : s.STORY_ID)}
+                    aria-expanded={expanded}
+                  >
+                    {s.COVER_IMAGE_URL && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img className={styles.archiveCover} src={s.COVER_IMAGE_URL} alt={s.ALBUM_TITLE} />
+                    )}
+                    <div className={styles.archiveItemText}>
+                      <span className={styles.archiveDate}>{formatDate(s.STORY_DATE)}</span>
+                      <div className={styles.archiveAlbum}>{s.ALBUM_ARTIST} · {s.ALBUM_TITLE}</div>
+                      <div className={styles.archiveHeadline}>{s.HEADLINE}</div>
+                    </div>
+                    <span className={`material-symbols-outlined ${styles.archiveChevron}`}>
+                      {expanded ? 'expand_less' : 'expand_more'}
+                    </span>
+                  </button>
+                  {expanded && (
+                    <div className={styles.archiveBody}>
+                      <p className={styles.archiveBodyText}>{s.BODY}</p>
+                      <p className={styles.disclaimer}>{t('story.disclaimer')}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
