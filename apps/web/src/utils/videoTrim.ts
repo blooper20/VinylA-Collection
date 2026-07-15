@@ -71,5 +71,7 @@ export const trimVideo = async (
   await ffmpeg.deleteFile(outputName);
   ffmpeg.off('progress', () => {});
 
-  return new Blob([data], { type: 'video/mp4' });
+  const bytes = data as Uint8Array;
+  const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  return new Blob([arrayBuffer], { type: 'video/mp4' });
 };
