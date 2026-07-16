@@ -38,8 +38,7 @@
       ],
       "expo-web-browser",
       "expo-localization",
-      "expo-video",
-      "react-native-video-trim"
+      "expo-video"
     ]
   }
 }
