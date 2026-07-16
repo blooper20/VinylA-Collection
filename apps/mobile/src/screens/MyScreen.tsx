@@ -751,17 +751,6 @@ export const MyScreen = () => {
 
       <View style={styles.section}>
         <TouchableOpacity
-          style={[styles.settingsToggleBtn, { marginBottom: 4 }]}
-          onPress={() => navigation.navigate('NoticeList')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.settingsToggleText, { color: themeColors.textPrimary }]}>{t('notice.title')}</Text>
-          <Feather name="chevron-right" size={20} color={themeColors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <TouchableOpacity
           style={styles.settingsToggleBtn}
           onPress={() => setIsSettingsExpanded(v => !v)}
           activeOpacity={0.7}

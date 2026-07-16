@@ -25,7 +25,10 @@ import {
   subscribeToNotifications,
   getErrorMessage,
   deleteUserVinyl,
+  getPinnedNotices,
+  getNotices,
 } from '@vinyla/core-api';
+import type { NOTICE } from '@vinyla/shared-types';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
 import { SpinLogEditorModal } from '../components/Modal/SpinLogEditorModal';
@@ -33,6 +36,7 @@ import { useTabBarHeight } from '../constants/layout';
 
 const PAGE_SIZE = 30;
 const DIARY_PAGE_SIZE = 20;
+const NOTICE_PAGE_SIZE = 20;
 
 const groupByDate = (entries: ListeningLogWithAlbum[]) => {
   const groups = new Map<string, ListeningLogWithAlbum[]>();
@@ -66,7 +70,7 @@ export const SocialScreen = () => {
   const tabBarHeight = useTabBarHeight();
   const { user } = useAuthStore();
 
-  const [tab, setTab] = useState<'feed' | 'diary'>('feed');
+  const [tab, setTab] = useState<'feed' | 'diary' | 'notice'>('feed');
   const [viewMode, setViewMode] = useState<'date' | 'album'>('date');
   const [unread, setUnread] = useState(0);
 
@@ -87,6 +91,12 @@ export const SocialScreen = () => {
   const [socialMap, setSocialMap] = useState<Record<number, SpinSocialSummary>>({});
   const [socialEntry, setSocialEntry] = useState<ListeningLogWithAlbum | null>(null);
   const [editingEntry, setEditingEntry] = useState<ListeningLogWithAlbum | null>(null);
+
+  // ── 공지사항 상태 ──
+  const [pinnedNotices, setPinnedNotices] = useState<NOTICE[]>([]);
+  const [noticeItems, setNoticeItems] = useState<NOTICE[] | null>(null);
+  const [noticeHasMore, setNoticeHasMore] = useState(false);
+  const [noticeLoadingMore, setNoticeLoadingMore] = useState(false);
 
   // 알림 미읽음 배지 — 포커스 시 갱신 + Realtime
   useFocusEffect(
@@ -203,6 +213,33 @@ export const SocialScreen = () => {
     }
   };
 
+  // 공지사항 로드 (탭 첫 진입 시)
+  useEffect(() => {
+    if (tab !== 'notice' || noticeItems !== null) return;
+    (async () => {
+      const [pinnedRows, rows] = await Promise.all([
+        getPinnedNotices().catch(() => []),
+        getNotices({ limit: NOTICE_PAGE_SIZE }).catch(() => []),
+      ]);
+      setPinnedNotices(pinnedRows);
+      setNoticeItems(rows);
+      setNoticeHasMore(rows.length === NOTICE_PAGE_SIZE);
+    })();
+  }, [tab, noticeItems]);
+
+  const loadMoreNotices = async () => {
+    if (!noticeItems || noticeItems.length === 0 || noticeLoadingMore || !noticeHasMore) return;
+    setNoticeLoadingMore(true);
+    try {
+      const last = noticeItems[noticeItems.length - 1];
+      const more = await getNotices({ limit: NOTICE_PAGE_SIZE, beforeCreatedAt: last.CREATED_AT });
+      setNoticeItems((prev) => [...(prev || []), ...more]);
+      setNoticeHasMore(more.length === NOTICE_PAGE_SIZE);
+    } finally {
+      setNoticeLoadingMore(false);
+    }
+  };
+
   const relativeTime = (iso: string): string => {
     const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
     if (m < 1) return t('feed.justNow');
@@ -225,6 +262,36 @@ export const SocialScreen = () => {
   };
 
   const styles = getStyles(themeColors);
+
+  const renderNoticeItem = (n: NOTICE, isPinned: boolean) => {
+    const thumb = n.MEDIA_ITEMS?.find((m) => m.type === 'image');
+    return (
+      <TouchableOpacity
+        key={n.NOTICE_ID}
+        style={[styles.noticeItem, { borderColor: isPinned ? 'rgba(212,175,55,0.35)' : themeColors.border }]}
+        onPress={() => navigation.navigate('NoticeDetail', { noticeId: n.NOTICE_ID })}
+      >
+        {thumb ? (
+          <Image source={{ uri: thumb.url }} style={styles.noticeThumb} />
+        ) : (
+          <View style={[styles.noticeThumb, { backgroundColor: 'rgba(255,255,255,0.06)' }]} />
+        )}
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+            {isPinned && (
+              <View style={styles.noticePinBadge}>
+                <Text style={{ color: themeColors.accent, fontSize: 10, fontWeight: '700' }}>{t('notice.pinned')}</Text>
+              </View>
+            )}
+            <Text style={{ color: themeColors.textPrimary, fontSize: 14, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>{n.TITLE}</Text>
+          </View>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 4 }}>
+            {new Date(n.CREATED_AT).toLocaleDateString()} · {t('notice.views', { count: n.VIEW_COUNT })}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderFeedHeader = () => (
     <View>
@@ -433,12 +500,12 @@ export const SocialScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* 피드 | 다이어리 탭 */}
+      {/* 피드 | 다이어리 | 공지사항 탭 */}
       <View style={[styles.tabRow, { borderBottomColor: themeColors.border }]}>
-        {(['feed', 'diary'] as const).map((key) => (
+        {(['feed', 'diary', 'notice'] as const).map((key) => (
           <TouchableOpacity key={key} onPress={() => setTab(key)} style={[styles.tabBtn, tab === key && { borderBottomColor: themeColors.accent, borderBottomWidth: 2 }]}>
             <Text style={{ color: tab === key ? themeColors.textPrimary : themeColors.textSecondary, fontWeight: '600', fontSize: 15 }}>
-              {key === 'feed' ? t('nav.feed') : t('nav.log')}
+              {key === 'feed' ? t('nav.feed') : key === 'diary' ? t('nav.log') : t('notice.title')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -460,31 +527,56 @@ export const SocialScreen = () => {
             ListFooterComponent={loadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
           />
         )
-      ) : entries === null ? (
+      ) : tab === 'diary' ? (
+        entries === null ? (
+          <ActivityIndicator color={themeColors.accent} style={{ marginTop: 40 }} />
+        ) : (
+          <>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 }}>
+              <TouchableOpacity onPress={() => setViewMode('date')} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: viewMode === 'date' ? themeColors.accent : 'rgba(255,255,255,0.06)' }}>
+                <Text style={{ color: viewMode === 'date' ? '#000' : themeColors.textSecondary, fontSize: 13, fontWeight: '600' }}>{t('log.viewByDate')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setViewMode('album')} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: viewMode === 'album' ? themeColors.accent : 'rgba(255,255,255,0.06)' }}>
+                <Text style={{ color: viewMode === 'album' ? '#000' : themeColors.textSecondary, fontSize: 13, fontWeight: '600' }}>{t('log.viewByAlbum')}</Text>
+              </TouchableOpacity>
+            </View>
+            <SectionList
+              sections={viewMode === 'date' ? dateSections : albumSections}
+              keyExtractor={(i) => String(i.LOG_ID)}
+              renderItem={viewMode === 'date' ? renderDiaryItem : renderAlbumDiaryItem}
+              renderSectionHeader={viewMode === 'date' ? renderDateHeader : renderAlbumHeader}
+              ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('log.empty')}</Text>}
+              contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
+              onEndReached={loadMoreDiary}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={diaryLoadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
+              stickySectionHeadersEnabled={false}
+            />
+          </>
+        )
+      ) : noticeItems === null ? (
         <ActivityIndicator color={themeColors.accent} style={{ marginTop: 40 }} />
       ) : (
-        <>
-          <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 }}>
-            <TouchableOpacity onPress={() => setViewMode('date')} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: viewMode === 'date' ? themeColors.accent : 'rgba(255,255,255,0.06)' }}>
-              <Text style={{ color: viewMode === 'date' ? '#000' : themeColors.textSecondary, fontSize: 13, fontWeight: '600' }}>{t('log.viewByDate')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setViewMode('album')} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: viewMode === 'album' ? themeColors.accent : 'rgba(255,255,255,0.06)' }}>
-              <Text style={{ color: viewMode === 'album' ? '#000' : themeColors.textSecondary, fontSize: 13, fontWeight: '600' }}>{t('log.viewByAlbum')}</Text>
-            </TouchableOpacity>
-          </View>
-          <SectionList
-            sections={viewMode === 'date' ? dateSections : albumSections}
-            keyExtractor={(i) => String(i.LOG_ID)}
-            renderItem={viewMode === 'date' ? renderDiaryItem : renderAlbumDiaryItem}
-            renderSectionHeader={viewMode === 'date' ? renderDateHeader : renderAlbumHeader}
-            ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('log.empty')}</Text>}
-            contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
-            onEndReached={loadMoreDiary}
-            onEndReachedThreshold={0.4}
-            ListFooterComponent={diaryLoadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
-            stickySectionHeadersEnabled={false}
-          />
-        </>
+        <FlatList
+          data={noticeItems}
+          keyExtractor={(n) => String(n.NOTICE_ID)}
+          contentContainerStyle={{ padding: 16, paddingBottom: tabBarHeight + 48 }}
+          onEndReached={loadMoreNotices}
+          onEndReachedThreshold={0.4}
+          ListHeaderComponent={
+            pinnedNotices.length > 0 ? (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ color: themeColors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 10 }}>{t('notice.pinnedSection')}</Text>
+                {pinnedNotices.map((n) => renderNoticeItem(n, true))}
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            pinnedNotices.length === 0 ? <Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('notice.empty')}</Text> : null
+          }
+          renderItem={({ item }) => renderNoticeItem(item, false)}
+          ListFooterComponent={noticeLoadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
+        />
       )}
 
       {selectedFeedItem && (
@@ -592,4 +684,10 @@ const getStyles = (themeColors: any) => StyleSheet.create({
     borderWidth: 1, borderRadius: 14,
   },
   feedCover: { width: 52, height: 52, borderRadius: 8 },
+  noticeItem: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 10,
+  },
+  noticeThumb: { width: 52, height: 52, borderRadius: 8 },
+  noticePinBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, marginRight: 6, backgroundColor: 'rgba(212,175,55,0.15)' },
 });

@@ -197,6 +197,7 @@ export interface NOTICE {
   PINNED_AT: string | null;
   /** 관리자가 글별로 댓글 작성을 열고 닫을 수 있다 — 꺼져 있으면 서버(RLS)도 새 댓글 INSERT를 거부한다 */
   IS_COMMENTS_ENABLED: boolean;
+  VIEW_COUNT: number;
   AUTHOR_ID: string | null;
   CREATED_AT: string;
   UPDATED_AT: string;

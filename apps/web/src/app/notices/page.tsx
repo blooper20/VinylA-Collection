@@ -58,7 +58,9 @@ export default function NoticesPage() {
             {pinnedItem && <span className={styles.pinBadge}>{t('notice.pinned')}</span>}
             {n.TITLE}
           </p>
-          <span className={styles.itemDate}>{new Date(n.CREATED_AT).toLocaleDateString()}</span>
+          <span className={styles.itemDate}>
+            {new Date(n.CREATED_AT).toLocaleDateString()} · {t('notice.views', { count: n.VIEW_COUNT })}
+          </span>
         </div>
       </Link>
     );

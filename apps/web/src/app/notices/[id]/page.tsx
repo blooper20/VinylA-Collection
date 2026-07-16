@@ -11,6 +11,7 @@ import {
   deleteNoticeComment,
   likeNoticeComment,
   unlikeNoticeComment,
+  incrementNoticeViewCount,
   useAuthStore,
   NoticeComment,
 } from '@vinyla/core-api';
@@ -35,7 +36,10 @@ export default function NoticeDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    getNotice(id).then(setNotice).catch(() => setNotice(null));
+    getNotice(id).then((n) => {
+      setNotice(n);
+      if (n) incrementNoticeViewCount(id);
+    }).catch(() => setNotice(null));
   }, [id]);
 
   const loadComments = useCallback(() => {
@@ -108,7 +112,9 @@ export default function NoticeDetailPage() {
               {notice.IS_PINNED && <span className={styles.pinBadge}>{t('notice.pinned')}</span>}
               {notice.TITLE}
             </h1>
-            <span className={styles.detailDate}>{new Date(notice.CREATED_AT).toLocaleString()}</span>
+            <span className={styles.detailDate}>
+              {new Date(notice.CREATED_AT).toLocaleString()} · {t('notice.views', { count: notice.VIEW_COUNT })}
+            </span>
           </header>
 
           <p className={styles.detailContent}>{notice.CONTENT}</p>

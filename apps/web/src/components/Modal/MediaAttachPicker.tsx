@@ -16,7 +16,7 @@ export type EditMediaState =
 
 export const SPIN_MEDIA_MAX_SECONDS = 15;
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-const VIDEO_MAX_BYTES = 25 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 서버(/api/spin-log/upload)·버킷 한도와 일치
 
 // 앱(iOS AVPlayer)에서 재생 가능한 형식만 허용 — webm은 웹에서만 재생돼
 // 모바일 다이어리에서 깨지므로 업로드 자체를 막는다(서버 화이트리스트와 일치).

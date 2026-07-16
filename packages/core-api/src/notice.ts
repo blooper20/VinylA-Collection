@@ -72,6 +72,17 @@ export const getNotice = async (noticeId: number): Promise<NOTICE | null> => {
   return (data as NOTICE) || null;
 };
 
+// 조회수 증가 — NOTICE는 클라이언트 UPDATE 정책이 없어 SECURITY DEFINER RPC로
+// VIEW_COUNT만 건드린다. 화면 표시에 영향을 주지 않는 부가 기록이라 실패해도
+// 조용히 무시한다(사용자가 공지를 못 읽는 것보다 카운트 누락이 훨씬 낫다).
+export const incrementNoticeViewCount = async (noticeId: number): Promise<void> => {
+  try {
+    await supabase.rpc('increment_notice_view_count', { p_notice_id: noticeId });
+  } catch {
+    // 조회수 기록 실패는 무시 — 화면 표시에는 영향 없다.
+  }
+};
+
 const guessExtension = (mimeType: string): string => {
   const map: Record<string, string> = {
     'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/jpeg': 'jpg',

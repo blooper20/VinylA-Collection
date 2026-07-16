@@ -3,6 +3,8 @@ import { View, Text, Modal, TouchableOpacity, TextInput, Image, Alert, KeyboardA
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { File } from 'expo-file-system';
+import VideoTrim, { showEditor } from 'react-native-video-trim';
 import { uploadSpinLogMedia, SpinMedia, getErrorMessage } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 
@@ -70,16 +72,41 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const validateAndSetAsset = (asset: ImagePicker.ImagePickerAsset) => {
-    const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
-    if (asset.fileSize && asset.fileSize > (type === 'image' ? IMAGE_MAX_BYTES : VIDEO_MAX_BYTES)) {
-      Alert.alert('', t('detail.spinLogMediaTooLarge'));
+  // asset.duration/asset.fileSize는 iOS의 allowsEditing 트림 UI를 거치면
+  // 트림 전 원본 값을 그대로 반환해 신뢰할 수 없었다(피커가 넘겨주는 메타데이터가
+  // PHAsset 기준이라 실제 잘라낸 결과 파일과 무관). 그래서 asset이 아니라
+  // 최종적으로 확정된 uri를 expo-file-system으로 직접 재서 검사한다 — 영상은
+  // react-native-video-trim의 트림 결과 파일, 사진은 픽커가 준 uri.
+  const validateAndSetAsset = (uri: string, type: 'image' | 'video') => {
+    const realSize = new File(uri).size;
+    if (realSize > (type === 'image' ? IMAGE_MAX_BYTES : VIDEO_MAX_BYTES)) {
+      const sizeMB = (realSize / (1024 * 1024)).toFixed(1);
+      Alert.alert('', t('detail.spinLogMediaTooLargeWithSize', { size: sizeMB }));
       return;
     }
-    setMedia({ kind: 'new', uri: asset.uri, type });
+    setMedia({ kind: 'new', uri, type });
   };
 
-  // 사진/영상을 따로 고르게 한다. 영상의 경우 OS 기본 에디터를 우회하여 VideoTrimModal에서 처리한다.
+  // expo-image-picker의 allowsEditing 기반 OS 트림은 이 프로젝트에서 두 가지로
+  // 실패했다: videoExportPreset을 안 주면(Passthrough) 트림이 실제로는 반영
+  // 안 되고 원본이 그대로 나오고, H264_1280x720처럼 재인코딩을 강제하면 고해상도
+  // 원본에서 변환이 멈춘 것처럼 오래 걸렸다. 그래서 갤러리에서는 원본을 편집 없이
+  // 받아온 뒤, react-native-video-trim의 자체 트리밍 화면(showEditor)에서
+  // 실제로 잘라낸 결과 파일을 받는다 — 이벤트 리스너는 아래 useEffect에서 등록.
+  React.useEffect(() => {
+    const finishSub = VideoTrim.onFinishTrimming(({ outputPath }: { outputPath: string }) => {
+      validateAndSetAsset(outputPath, 'video');
+    });
+    const errorSub = VideoTrim.onError(({ message }: { message: string }) => {
+      Alert.alert('', message || t('detail.spinLogMediaInvalid'));
+    });
+    return () => {
+      finishSub.remove();
+      errorSub.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pickFromLibrary = async (kind: 'image' | 'video') => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -88,16 +115,20 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
     }
     const result = await ImagePicker.launchImageLibraryAsync(
       kind === 'video'
-        ? { 
-            mediaTypes: ['videos'], 
-            allowsEditing: true, 
-            videoMaxDuration: MAX_VIDEO_SECONDS,
-            videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720 
-          }
+        ? { mediaTypes: ['videos'] }
         : { mediaTypes: ['images'], allowsEditing: false, quality: 0.8 }
     );
-    if (!result.canceled && result.assets.length > 0) {
-      validateAndSetAsset(result.assets[0]);
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    if (kind === 'video') {
+      showEditor(asset.uri, {
+        maxDuration: MAX_VIDEO_SECONDS * 1000,
+        outputExt: 'mp4',
+        enablePreciseTrimming: true,
+        trimmingText: t('detail.spinLogTrimming'),
+      });
+    } else {
+      validateAndSetAsset(asset.uri, 'image');
     }
   };
 
@@ -107,17 +138,17 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
       Alert.alert('', t('mobile.detail.cameraPermission') || '카메라 권한이 필요합니다.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ 
-      quality: 0.8, 
-      mediaTypes: ['images', 'videos'], 
-      allowsEditing: true, 
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      mediaTypes: ['images', 'videos'],
+      allowsEditing: true,
       videoMaxDuration: MAX_VIDEO_SECONDS,
       videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
       videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium
     });
-    if (!result.canceled && result.assets.length > 0) {
-      validateAndSetAsset(result.assets[0]);
-    }
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    validateAndSetAsset(asset.uri, asset.type === 'video' ? 'video' : 'image');
   };
 
   const handleAddMedia = () => {
@@ -129,9 +160,19 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
     ]);
   };
 
+  const MIME_BY_EXT: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+    mp4: 'video/mp4', mov: 'video/quicktime',
+  };
+
   // 새로 고른 미디어를 업로드해 SpinMedia로 변환. 이미지는 JPEG으로 재인코딩
   // 한다 — iOS 갤러리의 HEIC 원본은 서버 화이트리스트(jpeg/png/gif/webp)에
   // 걸려 415가 나기 때문. 영상은 mp4/mov 그대로 올린다.
+  //
+  // fetch(uri).blob()으로 파일 전체를 JS Blob으로 변환하지 않는다 — 사진은
+  // 작아서 괜찮았지만 수십 MB 영상에서는 이 변환이 멈추거나 조용히 실패해
+  // "업로드도 안 되고 에러도 안 뜨는" 증상으로 나타난다. 대신 { uri, name,
+  // type }만 넘겨 네이티브 네트워킹 모듈이 디스크에서 직접 스트리밍하게 한다.
   const resolveMedia = async (): Promise<SpinMedia | null> => {
     if (media.kind === 'none') return null;
     if (media.kind === 'existing') return { url: media.url, type: media.type };
@@ -143,10 +184,9 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
       });
       uploadUri = manipulated.uri;
     }
-    const blob = await (await fetch(uploadUri)).blob();
-    const ext = uploadUri.split('.').pop() || (media.type === 'video' ? 'mp4' : 'jpg');
-    const file = Object.assign(blob, { name: `media.${ext}` });
-    return uploadSpinLogMedia(file);
+    const ext = (uploadUri.split('.').pop() || (media.type === 'video' ? 'mp4' : 'jpg')).toLowerCase();
+    const mimeType = MIME_BY_EXT[ext] || (media.type === 'video' ? 'video/mp4' : 'image/jpeg');
+    return uploadSpinLogMedia({ uri: uploadUri, name: `media.${ext}`, type: mimeType });
   };
 
   const handleSubmit = async () => {

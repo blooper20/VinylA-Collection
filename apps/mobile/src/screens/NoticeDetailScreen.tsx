@@ -14,6 +14,7 @@ import {
   deleteNoticeComment,
   likeNoticeComment,
   unlikeNoticeComment,
+  incrementNoticeViewCount,
   NoticeComment,
 } from '@vinyla/core-api';
 import type { NOTICE, NoticeMediaItem } from '@vinyla/shared-types';
@@ -51,7 +52,10 @@ export const NoticeDetailScreen = () => {
 
   useEffect(() => {
     if (!noticeId) return;
-    getNotice(noticeId).then(setNotice).catch(() => setNotice(null));
+    getNotice(noticeId).then((n) => {
+      setNotice(n);
+      if (n) incrementNoticeViewCount(noticeId);
+    }).catch(() => setNotice(null));
   }, [noticeId]);
 
   const loadComments = useCallback(() => {
@@ -136,7 +140,7 @@ export const NoticeDetailScreen = () => {
               <Text style={{ color: themeColors.textPrimary, fontSize: 20, fontWeight: '800', lineHeight: 28, flexShrink: 1 }}>{notice.TITLE}</Text>
             </View>
             <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginBottom: 18 }}>
-              {new Date(notice.CREATED_AT).toLocaleString()}
+              {new Date(notice.CREATED_AT).toLocaleString()} · {t('notice.views', { count: notice.VIEW_COUNT })}
             </Text>
 
             <Text style={{ color: themeColors.textPrimary, fontSize: 15, lineHeight: 24, marginBottom: 20 }}>{notice.CONTENT}</Text>

@@ -937,7 +937,12 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           submittingLabel={t('detail.spinLogSaving')}
           onClose={() => setIsSpinModalOpen(false)}
           onSubmit={async (values) => {
-            if (!user?.id || !album) return;
+            if (!user?.id || !album) {
+              // album/user가 비어 있으면 업로드까지 끝낸 미디어가 그대로 버려지고
+              // 아무 피드백도 없이 저장이 무산된다 — 조용히 삼키지 않고 알린다.
+              Alert.alert('', '앨범 정보를 확인하지 못해 저장하지 못했습니다. 다시 시도해주세요.');
+              return;
+            }
             await logSpin(user.id, Number(album.ALBUM_ID), values.mood, values.note, values.media, values.isPublic);
             setIsSpinModalOpen(false);
             Alert.alert('', t('detail.spinLogSaved'));

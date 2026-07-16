@@ -31,18 +31,39 @@ const guessExtension = (mimeType: string): string => {
   return map[mimeType] || (mimeType.startsWith('video/') ? 'mp4' : 'jpg');
 };
 
+/** React Native의 로컬 파일 URI를 그대로 넘기는 형태 — 웹의 Blob과 달리
+ * 파일 전체를 JS 메모리에 올리지 않고 네이티브 네트워킹 모듈이 디스크에서
+ * 바로 스트리밍하므로, 수십 MB짜리 영상에서도 안전하다(RNFetchBlob 관례). */
+export interface RNFilePart {
+  uri: string;
+  name: string;
+  type: string;
+}
+
 // 스피닝 다이어리 미디어(사진 또는 15초 내외 영상) 업로드. 서버 라우트가
 // 인증을 검증하고 spin-log-media 버킷의 본인 경로에 저장한 공개 URL을
 // 돌려준다 — /api/support/upload와 동일한 패턴. 트리밍 결과물은 파일명이
 // 없는 순수 Blob이라, 항상 MIME 타입 기반으로 파일명을 만들어 붙인다
 // (그래야 서버가 확장자를 정확히 판단한다).
-export const uploadSpinLogMedia = async (file: Blob & { name?: string }): Promise<SpinMedia> => {
+//
+// 모바일은 Blob이 아니라 RNFilePart({ uri, name, type })를 넘긴다 — RN의
+// fetch(uri).blob()으로 영상 전체를 읽어 JS Blob으로 변환하면 수십 MB
+// 파일에서 JS 스레드가 멈추거나 응답 없이 조용히 실패할 수 있어(사진은 이미
+// 압축되어 작아 문제가 드러나지 않았다), 네이티브가 파일을 직접 스트리밍하는
+// 이 방식으로 우회한다.
+export const uploadSpinLogMedia = async (file: (Blob & { name?: string }) | RNFilePart): Promise<SpinMedia> => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new AppError('DB-001', '로그인이 필요합니다.');
 
   const form = new FormData();
-  const filename = (file as File).name || `media.${guessExtension(file.type)}`;
-  form.append('file', file, filename);
+  if ('uri' in file) {
+    // RN FormData는 (name, { uri, name, type }) 형태만 받는다 — 세 번째
+    // filename 인자가 없다(웹 Blob 경로와 시그니처가 다르다).
+    form.append('file', file as any);
+  } else {
+    const filename = (file as File).name || `media.${guessExtension(file.type)}`;
+    form.append('file', file, filename);
+  }
   const res = await fetch(`${getProxyBaseUrl()}/api/spin-log/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${session.access_token}` },

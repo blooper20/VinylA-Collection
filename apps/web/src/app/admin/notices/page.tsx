@@ -149,7 +149,7 @@ export default function AdminNoticesPage() {
                     {!n.IS_COMMENTS_ENABLED && <span className={styles.commentsOffBadge}>댓글 닫힘</span>}
                     {n.TITLE}
                   </p>
-                  <span className={styles.itemMeta}>{new Date(n.CREATED_AT).toLocaleString()}</span>
+                  <span className={styles.itemMeta}>{new Date(n.CREATED_AT).toLocaleString()} · 조회 {n.VIEW_COUNT}</span>
                 </div>
                 {deletingId === n.NOTICE_ID ? (
                   <div className={styles.itemDeleteConfirmRow}>
