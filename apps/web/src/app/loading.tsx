@@ -15,11 +15,12 @@ export default function Loading() {
       minHeight: '50vh',
       color: 'var(--text-primary)'
     }}>
-      <Image 
-        src="/logo.png" 
-        alt="Loading..." 
-        width={80} 
-        height={80} 
+      <Image
+        src="/logo.png"
+        alt="Loading..."
+        width={80}
+        height={80}
+        priority
         style={{
           animation: 'spin 2s linear infinite',
           objectFit: 'contain',

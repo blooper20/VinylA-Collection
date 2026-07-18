@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // 모노레포에서 Turbopack이 워크스페이스 루트를 잘못 추론해 next 패키지를
+  // 못 찾는 문제 방지 — 루트를 명시적으로 지정한다.
+  turbopack: {
+    root: path.join(__dirname, "../.."),
+  },
   images: {
     remotePatterns: [
       {
