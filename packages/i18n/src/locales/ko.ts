@@ -156,6 +156,8 @@ export const ko = {
   detail: {
     marketPrice: '시장 추정가:',
     marketPriceUnknown: '정보 없음',
+    tracklistLoading: '트랙리스트를 불러오는 중입니다...',
+    noTracklist: '트랙리스트 정보가 없습니다',
     discogsLowestNote: '* Discogs 기준 최저가',
     coverPhotoButton: '내 재킷 촬영',
     coverPhotoTitle: '실물 LP 재킷을 촬영해 이 앨범의 커버로 사용합니다',

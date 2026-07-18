@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, saveAlbumTracks } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -242,6 +242,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const { user } = useAuthStore();
   const { t } = useLocale();
   const [tracks, setTracks] = React.useState<string[]>(album.TRACKS || []);
+  // 마스터에 백필된 트랙이 없어 외부 API 조회가 필요한 동안만 로딩 문구 표시
+  const [isLoadingTracks, setIsLoadingTracks] = React.useState<boolean>(
+    !album.TRACKS || album.TRACKS.length === 0
+  );
   const [notes, setNotes] = React.useState<string>('');
   const [copyright, setCopyright] = React.useState<string>('');
   const [releaseDate, setReleaseDate] = React.useState<string>('');
@@ -463,6 +467,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
       if (details.tracks.length > 0 && (!album.TRACKS || album.TRACKS.length === 0)) {
         setTracks(details.tracks);
+        // 다음 열람부터 외부 API 없이 바로 뜨도록 마스터에 백필 (실패해도 무시)
+        saveAlbumTracks(Number(album.ALBUM_ID), details.tracks).catch(() => {});
       }
       if (details.notes) setNotes(details.notes);
       if (details.copyright) setCopyright(details.copyright);
@@ -477,7 +483,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       } else if (!marketPrice) {
         setMarketPrice(-1);
       }
-    });
+    }).catch(() => {
+      // 외부 조회 실패 — finally가 로딩 문구를 '정보 없음'으로 바꾼다
+    }).finally(() => setIsLoadingTracks(false));
     // marketPrice를 deps에 넣으면 setMarketPrice로 인해 상세정보 재조회 루프가 발생하므로 제외
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
@@ -787,7 +795,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   <span className={styles.trackName}>{track}</span>
                 </li>
               )) : (
-                <li className={styles.emptyTrack}>No tracklist available</li>
+                <li className={styles.emptyTrack}>
+                  {isLoadingTracks ? t('detail.tracklistLoading') : t('detail.noTracklist')}
+                </li>
               )}
             </ul>
             {(releaseDate || copyright || notes) && (

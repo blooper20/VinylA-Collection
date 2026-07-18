@@ -56,6 +56,9 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
         if (masters[albumId]) {
           if (masters[albumId].GENRES) master.GENRES = masters[albumId].GENRES;
           if (masters[albumId].MARKET_PRICE) master.MARKET_PRICE = masters[albumId].MARKET_PRICE;
+          if (masters[albumId].TRACKS?.length && (!master.TRACKS || master.TRACKS.length === 0)) {
+            master.TRACKS = masters[albumId].TRACKS;
+          }
         }
       } catch(e) {}
     }
@@ -66,7 +69,9 @@ export const getAlbumMaster = async (albumId: number): Promise<ALBUM_MASTER | nu
 export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<ALBUM_MASTER | null> => {
   const payload = { ...album };
   const genresToSave = payload.GENRES;
-  delete (payload as any).TRACKS;
+  // TRACKS는 jsonb 컬럼에 그대로 저장한다. 빈 배열은 "아직 못 구했다"는
+  // 뜻이므로 null로 남겨 이후 set_album_tracks 백필이 채울 수 있게 한다.
+  if (!payload.TRACKS || payload.TRACKS.length === 0) delete (payload as any).TRACKS;
   delete (payload as any).PURCHASE_PRICE;
   delete (payload as any).GENRES;
   
@@ -104,6 +109,25 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
   }
 
   return error || !data ? (album as ALBUM_MASTER) : (data as ALBUM_MASTER);
+};
+
+// 상세 모달이 외부 API에서 성공적으로 가져온 트랙리스트를 마스터에 백필한다.
+// ALBUM_MASTER는 클라이언트 UPDATE가 금지돼 있어(공유 데이터 보호) "비어
+// 있을 때만 채우는" SECURITY DEFINER RPC(set_album_tracks)를 거친다 —
+// supabase_schema_migration_album_tracks.sql 참고. RPC가 없거나 실패해도
+// localStorage 미러 덕에 이 기기에서는 다음 열람부터 바로 뜬다.
+export const saveAlbumTracks = async (albumId: number, tracks: string[]): Promise<void> => {
+  if (!albumId || !tracks || tracks.length === 0) return;
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    try {
+      const masters = JSON.parse(localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}');
+      masters[albumId] = { ...(masters[albumId] || {}), TRACKS: tracks };
+      localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
+    } catch { /* ignore */ }
+  }
+  if (isOffline()) return;
+  const { error } = await supabase.rpc('set_album_tracks', { p_album_id: albumId, p_tracks: tracks });
+  if (error) console.warn('saveAlbumTracks: 마스터 백필 실패(마이그레이션 미실행?):', error.message);
 };
 
 // =======================
@@ -162,6 +186,9 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
               }
               if (masters[d.ALBUM_ID].GENRES && (!d.ALBUM_MASTER.GENRES || d.ALBUM_MASTER.GENRES.length === 0)) {
                 d.ALBUM_MASTER.GENRES = masters[d.ALBUM_ID].GENRES;
+              }
+              if (masters[d.ALBUM_ID].TRACKS?.length && (!d.ALBUM_MASTER.TRACKS || d.ALBUM_MASTER.TRACKS.length === 0)) {
+                d.ALBUM_MASTER.TRACKS = masters[d.ALBUM_ID].TRACKS;
               }
             }
           });
@@ -370,6 +397,9 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     MASTER_IMAGE_URL: master?.IMAGE_URL || '',
     RELEASE_YEAR: master?.RELEASE_YEAR || 2024,
     GENRES: master?.GENRES && master.GENRES.length > 0 ? master.GENRES : ['Vinyl'],
+    // DB(또는 localStorage 미러)에 백필된 트랙리스트 — 상세 모달이 이걸로
+    // 시드해서 외부 API 라이브 조회 없이 즉시 표시한다.
+    TRACKS: master?.TRACKS || [],
     VINYL_IMAGE_URL: master?.VINYL_IMAGE_URL || '',
     CUSTOM_STYLE_TYPE: (master?.CUSTOM_STYLE_TYPE || 'SOLID') as 'SOLID' | 'TRANSLUCENT' | 'SPLATTER',
     STATUS: userVinyl?.STATUS || 'WISH',

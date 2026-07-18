@@ -157,6 +157,8 @@ export const en = {
   detail: {
     marketPrice: 'Market estimate:',
     marketPriceUnknown: 'Not available',
+    tracklistLoading: 'Loading tracklist...',
+    noTracklist: 'No tracklist available',
     discogsLowestNote: '* Based on the lowest Discogs price',
     coverPhotoButton: 'Shoot my jacket',
     coverPhotoTitle: 'Photograph your physical LP jacket to use as this album\'s cover',

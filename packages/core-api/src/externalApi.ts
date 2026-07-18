@@ -865,13 +865,20 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
           details.tracks = pageAlbum.tracks;
         }
         if (details.tracks.length === 0) {
-          // Fallback to iTunes tracks if Discogs failed
-          const trackRes = await axios.get('https://itunes.apple.com/lookup', {
-            params: { id: hit.collectionId, entity: 'song', country: 'KR' }
-          });
-          const songs = trackRes.data.results?.filter((r: ITunesResult) => r.wrapperType === 'track') || [];
-          if (songs.length > 0) {
-            details.tracks = songs.map((s: ITunesResult) => s.trackName || '');
+          // Fallback to iTunes tracks if Discogs failed.
+          // lookup은 스트리밍 전용 앨범에서 503을 자주 뱉는다(라이브 재현) —
+          // 여기서 throw가 바깥 catch로 새면 아래 앨범 페이지 폴백(실제로
+          // 트랙을 들고 있는 경로)까지 건너뛰게 되므로 이 단계에서 삼킨다.
+          try {
+            const trackRes = await axios.get('https://itunes.apple.com/lookup', {
+              params: { id: hit.collectionId, entity: 'song', country: 'KR' }
+            });
+            const songs = trackRes.data.results?.filter((r: ITunesResult) => r.wrapperType === 'track') || [];
+            if (songs.length > 0) {
+              details.tracks = songs.map((s: ITunesResult) => s.trackName || '');
+            }
+          } catch {
+            // 앨범 페이지 폴백이 이어서 처리한다
           }
         }
         if (details.tracks.length === 0 && hit.collectionId) {
