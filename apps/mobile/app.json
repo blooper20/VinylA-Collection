@@ -24,7 +24,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.vinyla.app",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,6 +43,11 @@
       "expo-web-browser",
       "expo-localization",
       "expo-video"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fd2767ed-4920-4cad-a360-f65fb399263c"
+      }
+    }
   }
 }
