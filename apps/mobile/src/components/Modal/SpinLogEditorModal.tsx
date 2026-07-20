@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
-import VideoTrim, { showEditor } from 'react-native-video-trim';
+import VideoTrim, { showEditor, compress } from 'react-native-video-trim';
 import { uploadSpinLogMedia, SpinMedia, getErrorMessage } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 
@@ -18,6 +18,11 @@ const NOTE_MAX_LENGTH = 500;
 const MAX_VIDEO_SECONDS = 15;
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50MB
+// 트림 결과물 후압축 기준 — 웹 videoTrim.ts의 스트림 카피 가드/출력 상한과 동일
+const MAX_PLAYABLE_KBPS = 8000;
+const COMPRESS_BITRATE = 4_000_000; // 4Mbps
+const COMPRESS_FPS = 60;
+const COMPRESS_BOX = 1280; // 긴 변 상한
 
 type MediaState =
   | { kind: 'none' }
@@ -56,6 +61,10 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
   const [isPublic, setIsPublic] = React.useState(true);
   const [media, setMedia] = React.useState<MediaState>({ kind: 'none' });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  // 트림 결과물이 무거워 후압축이 도는 동안 첨부 영역에 스피너를 보여준다
+  const [isProcessingMedia, setIsProcessingMedia] = React.useState(false);
+  // 갤러리에서 고른 영상의 원본 크기 — 트림 후 후압축 목표 해상도 계산용
+  const pendingVideoSizeRef = React.useRef<{ width: number; height: number } | null>(null);
 
   React.useEffect(() => {
     if (!visible) return;
@@ -94,9 +103,45 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
   // 받아온 뒤, react-native-video-trim의 자체 트리밍 화면(showEditor)에서
   // 실제로 잘라낸 결과 파일을 받는다 — 이벤트 리스너는 아래 useEffect에서 등록.
   React.useEffect(() => {
-    const finishSub = VideoTrim.onFinishTrimming(({ outputPath }: { outputPath: string }) => {
-      validateAndSetAsset(outputPath, 'video');
-    });
+    const finishSub = VideoTrim.onFinishTrimming(
+      async ({ outputPath, startTime, endTime }: { outputPath: string; startTime: number; endTime: number }) => {
+        // 트림 라이브러리는 원본 비트레이트·해상도·fps를 그대로 유지한다 —
+        // 4K/120fps 슬로모 원본은 트림 후에도 25Mbps급이라(15초≈46MB) 50MB
+        // 검사를 통과해 업로드되지만, 대부분 기기의 H.264 디코더 한계(통상
+        // 4K60)를 넘어 재생이 끊긴다. 재생 가능한 비트레이트를 넘는 결과물만
+        // 웹(videoTrim.ts)과 같은 상한(긴 변 1280px·60fps·4Mbps)으로 후압축한다.
+        try {
+          const durationSec = Math.max(0.5, (endTime - startTime) / 1000);
+          const kbps = (new File(outputPath).size * 8) / 1000 / durationSec;
+          if (kbps > MAX_PLAYABLE_KBPS) {
+            setIsProcessingMedia(true);
+            // compress()는 scale=width:-2(높이 자동)만 지원하므로, 픽커가 준
+            // 원본 크기로 "긴 변이 1280이 되는 목표 가로"를 계산한다. 트림
+            // 에디터에서 회전한 드문 경우엔 축이 뒤집히지만 비율 유지 축소라는
+            // 사실은 변하지 않아 결과물은 여전히 재생 가능한 크기다.
+            const dims = pendingVideoSizeRef.current;
+            let targetWidth = COMPRESS_BOX;
+            if (dims && dims.width > 0 && dims.height > 0) {
+              const scale = Math.min(1, COMPRESS_BOX / Math.max(dims.width, dims.height));
+              targetWidth = Math.round((dims.width * scale) / 2) * 2;
+            }
+            const { outputPath: compressedPath } = await compress(outputPath, {
+              width: targetWidth,
+              frameRate: COMPRESS_FPS,
+              bitrate: COMPRESS_BITRATE,
+              outputExt: 'mp4',
+            });
+            validateAndSetAsset(compressedPath, 'video');
+            return;
+          }
+        } catch {
+          // 후압축 실패 — 트림 결과물이라도 그대로 검사/업로드한다(기존 동작)
+        } finally {
+          setIsProcessingMedia(false);
+        }
+        validateAndSetAsset(outputPath, 'video');
+      }
+    );
     const errorSub = VideoTrim.onError(({ message }: { message: string }) => {
       Alert.alert('', message || t('detail.spinLogMediaInvalid'));
     });
@@ -121,6 +166,9 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
     if (result.canceled || result.assets.length === 0) return;
     const asset = result.assets[0];
     if (kind === 'video') {
+      // 후압축 목표 해상도 계산용 원본 크기(위 onFinishTrimming 참고)
+      pendingVideoSizeRef.current =
+        asset.width && asset.height ? { width: asset.width, height: asset.height } : null;
       showEditor(asset.uri, {
         maxDuration: MAX_VIDEO_SECONDS * 1000,
         outputExt: 'mp4',
@@ -235,6 +283,12 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
 
           {/* 미디어 첨부 — 미리보기(이미지) 또는 영상 칩 + 제거 버튼 */}
           {media.kind === 'none' ? (
+            isProcessingMedia ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignSelf: 'flex-start' }}>
+                <ActivityIndicator size="small" color="#e9c349" />
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' }}>{t('detail.spinLogTrimming')}</Text>
+              </View>
+            ) : (
             <TouchableOpacity
               disabled={isSubmitting}
               onPress={handleAddMedia}
@@ -243,6 +297,7 @@ export const SpinLogEditorModal = ({ visible, title, hint, submitLabel, submitti
               <Feather name="camera" size={14} color="rgba(255,255,255,0.6)" />
               <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' }}>{t('detail.spinLogMediaAdd')}</Text>
             </TouchableOpacity>
+            )
           ) : (
             <View style={{ marginTop: 12, alignSelf: 'flex-start' }}>
               {media.type === 'image' ? (
