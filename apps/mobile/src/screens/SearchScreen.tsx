@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, AlbumItem } from '@vinyla/core-api';
+import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, SearchMode, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -31,38 +31,29 @@ export const SearchScreen = ({ route }: any) => {
   const { locale, t } = useLocale();
   const initialQuery = route?.params?.initialQuery || '';
   const [query, setQuery] = useState(initialQuery);
+  // The query that was actually executed. Typing alone never triggers a
+  // search (it breaks Korean IME composition) — only submit / genre tap /
+  // initialQuery do, and the results view is keyed off this value.
+  const [searchedQuery, setSearchedQuery] = useState('');
   const [results, setResults] = useState<MockVinylData[]>([]);
   const [status, setStatus] = useState<SearchStatus>('idle');
   const [totalToCheck, setTotalToCheck] = useState(0);
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
-  
+  // Aladin-sourced results only: alternate covers to offer alongside the
+  // default, keyed by ALBUM_ID since MockVinylData has no room for them.
+  const [coverCandidatesMap, setCoverCandidatesMap] = useState<Record<string, AlbumItem['coverCandidates']>>({});
+  const [searchMode, setSearchMode] = useState<SearchMode>('auto');
+
   const searchIdRef = useRef(0);
   const sessionRef = useRef<DiscogsSearchSession | null>(null);
 
-  // Edge-swipe back, active only while search results are showing:
-  // a rightward pan from the left edge clears the query, returning to
-  // the genre-explore view. On the genre view the gesture is inert.
-  // Capture-phase check so taps and vertical scrolls are untouched.
-  const queryRef = useRef(query);
-  queryRef.current = query;
-  const backGesture = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_evt, g) =>
-        !!queryRef.current && g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
-      onPanResponderRelease: (_evt, g) => {
-        if (g.dx > 60 && queryRef.current) {
-          Keyboard.dismiss();
-          setQuery('');
-        }
-      },
-    })
-  ).current;
   const loadingMoreRef = useRef(false);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const executeSearch = useCallback(async (q: string) => {
+  const executeSearch = useCallback(async (q: string, modeOverride?: SearchMode) => {
     if (!q.trim()) {
+      setSearchedQuery('');
       setResults([]);
       setStatus('idle');
       setHasMore(false);
@@ -70,6 +61,7 @@ export const SearchScreen = ({ route }: any) => {
       return;
     }
 
+    setSearchedQuery(q);
     const currentSearchId = ++searchIdRef.current;
     setResults([]);
     setTotalToCheck(0);
@@ -80,11 +72,15 @@ export const SearchScreen = ({ route }: any) => {
       q,
       (album: AlbumItem) => {
         if (searchIdRef.current !== currentSearchId) return;
+        const albumId = Number(album.id) || Date.now();
+        if (album.coverCandidates) {
+          setCoverCandidatesMap((prevMap) => ({ ...prevMap, [String(albumId)]: album.coverCandidates }));
+        }
         setResults((prev) => {
-          if (prev.some((a) => a.ALBUM_ID === Number(album.id))) return prev;
+          if (prev.some((a) => a.ALBUM_ID === albumId)) return prev;
 
           const mapped: MockVinylData = {
-            ALBUM_ID: Number(album.id) || Date.now(),
+            ALBUM_ID: albumId,
             TITLE: album.title || 'Unknown',
             ARTIST: album.artist || 'Unknown',
             RELEASE_YEAR: Number(album.year) || new Date().getFullYear(),
@@ -112,7 +108,8 @@ export const SearchScreen = ({ route }: any) => {
         if (total !== undefined) {
           setTotalToCheck(total);
         }
-      }
+      },
+      q.startsWith('#') ? 'auto' : (modeOverride ?? searchMode)
     );
     sessionRef.current = session;
 
@@ -120,7 +117,27 @@ export const SearchScreen = ({ route }: any) => {
     if (searchIdRef.current === currentSearchId) {
       setHasMore(more);
     }
-  }, []);
+  }, [searchMode]);
+
+  // Edge-swipe back, active only while search results are showing:
+  // a rightward pan from the left edge clears the search, returning to
+  // the genre-explore view. On the genre view the gesture is inert.
+  // Capture-phase check so taps and vertical scrolls are untouched.
+  const searchedQueryRef = useRef(searchedQuery);
+  searchedQueryRef.current = searchedQuery;
+  const backGesture = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_evt, g) =>
+        !!searchedQueryRef.current && g.x0 < 32 && g.dx > 14 && Math.abs(g.dy) < 24,
+      onPanResponderRelease: (_evt, g) => {
+        if (g.dx > 60 && searchedQueryRef.current) {
+          Keyboard.dismiss();
+          setQuery('');
+          executeSearch('');
+        }
+      },
+    })
+  ).current;
 
   // Fetch the next batch when the user nears the bottom of the results list.
   const handleLoadMore = useCallback(async () => {
@@ -142,25 +159,34 @@ export const SearchScreen = ({ route }: any) => {
     }
   }, [hasMore]);
 
+  // Tracked separately from executeSearch's deps (which now include
+  // searchMode) so switching the search-mode filter doesn't re-trigger this.
+  const lastInitialQueryRef = useRef<string | null>(null);
   useEffect(() => {
-    if (route?.params?.initialQuery) {
+    if (route?.params?.initialQuery && route.params.initialQuery !== lastInitialQueryRef.current) {
+      lastInitialQueryRef.current = route.params.initialQuery;
       setQuery(route.params.initialQuery);
+      executeSearch(route.params.initialQuery);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route?.params?.initialQuery]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      executeSearch(query);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [query, executeSearch]);
-
   const retrySearch = () => {
-    executeSearch(query);
+    executeSearch(searchedQuery || query);
   };
 
   const handleGenreClick = (genreTitle: string, genreSub: string) => {
     setQuery(`#${genreSub}`);
+    executeSearch(`#${genreSub}`);
+  };
+
+  // 필터를 바꾸면 이미 검색된 검색어로 곧바로 다시 검색 (장르 검색 중엔 적용 안 됨).
+  // setSearchMode는 다음 렌더까지 반영되지 않으므로, 이번 검색에는 modeOverride로 새 값을 바로 넘긴다.
+  const handleModeChange = (mode: SearchMode) => {
+    setSearchMode(mode);
+    if (searchedQuery && !searchedQuery.startsWith('#')) {
+      executeSearch(searchedQuery, mode);
+    }
   };
 
   const isLoading = status === 'fetching_discogs' || status === 'enriching';
@@ -169,7 +195,7 @@ export const SearchScreen = ({ route }: any) => {
   return (
     // Gesture handlers are only attached while a search is active — the
     // genre-explore landing view must not react to edge swipes at all.
-    <View style={styles.container} {...(query ? backGesture.panHandlers : {})}>
+    <View style={styles.container} {...(searchedQuery ? backGesture.panHandlers : {})}>
       <View style={[styles.searchHero, { paddingTop: insets.top + 40 }]}>
         <View style={styles.searchInputContainer}>
           <TextInput
@@ -178,13 +204,39 @@ export const SearchScreen = ({ route }: any) => {
             placeholderTextColor="rgba(255,255,255,0.3)"
             value={query}
             onChangeText={setQuery}
+            returnKeyType="search"
+            onSubmitEditing={({ nativeEvent }) => executeSearch(nativeEvent.text)}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')} style={styles.clearButton}>
+            <TouchableOpacity
+              onPress={() => {
+                setQuery('');
+                executeSearch('');
+              }}
+              style={styles.clearButton}
+            >
               <Text style={styles.clearButtonText}>✕</Text>
             </TouchableOpacity>
           )}
         </View>
+        {!query.startsWith('#') && (
+          <View style={styles.searchModeRow}>
+            {([
+              ['auto', t('mobile.search.modeAuto')],
+              ['artist', t('mobile.search.modeArtist')],
+              ['album', t('mobile.search.modeAlbum')],
+              ['track', t('mobile.search.modeTrack')],
+            ] as const).map(([mode, label]) => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.searchModeBtn, searchMode === mode && styles.searchModeBtnActive]}
+                onPress={() => handleModeChange(mode)}
+              >
+                <Text style={[styles.searchModeBtnText, searchMode === mode && styles.searchModeBtnTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       {status === 'error' ? (
@@ -196,10 +248,10 @@ export const SearchScreen = ({ route }: any) => {
           onScroll={({ nativeEvent }) => {
             const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
             const nearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 600;
-            if (nearBottom && !!query) handleLoadMore();
+            if (nearBottom && !!searchedQuery) handleLoadMore();
           }}
         >
-          {!query && (
+          {!searchedQuery && (
             <View>
               <Text style={styles.sectionTitle}>{t('mobile.search.genreSectionTitle')}</Text>
               <View style={styles.genresGrid}>
@@ -226,7 +278,7 @@ export const SearchScreen = ({ route }: any) => {
             </View>
           )}
 
-          {!!query && (
+          {!!searchedQuery && (
             <View>
               <View style={styles.titleRow}>
                 <Text style={styles.sectionTitle}>
@@ -269,10 +321,11 @@ export const SearchScreen = ({ route }: any) => {
         </ScrollView>
       )}
 
-      <DetailModal 
-        album={selectedAlbum} 
-        visible={!!selectedAlbum} 
-        onClose={() => setSelectedAlbum(null)} 
+      <DetailModal
+        album={selectedAlbum}
+        visible={!!selectedAlbum}
+        onClose={() => setSelectedAlbum(null)}
+        coverCandidates={selectedAlbum ? coverCandidatesMap[String(selectedAlbum.ALBUM_ID)] : undefined}
       />
     </View>
   );
@@ -308,6 +361,30 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  searchModeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  searchModeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  searchModeBtnActive: {
+    backgroundColor: '#e9c349',
+    borderColor: '#e9c349',
+  },
+  searchModeBtnText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  searchModeBtnTextActive: {
+    color: '#000',
   },
   scroll: {
     padding: 20,

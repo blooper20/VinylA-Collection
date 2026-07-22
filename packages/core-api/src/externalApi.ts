@@ -38,9 +38,18 @@ export type AlbumItem = {
   genre?: string[];
   format?: string[];
   isFeature?: boolean;
+  // Aladin-sourced items only: alternate covers the user can pick between
+  // instead of silently locking in Aladin's product-shot photo as `thumb`.
+  coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
 };
 
 export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done' | 'error';
+
+// 'auto' (default) matches today's behavior — a plain keyword search plus
+// the artist-scoped precision query. The other modes scope the *entire*
+// search to one Discogs field so a common word ("earth", "wave") doesn't
+// pull in unrelated matches from other fields.
+export type SearchMode = 'auto' | 'artist' | 'album' | 'track';
 
 export interface DiscogsRelease {
   id: number;
@@ -115,10 +124,12 @@ export type DiscogsSearchSession = {
 // Discogs is crowdsourced from people who physically own the record — a
 // Korean indie/pop LP that's still on pre-order (or just released) genuinely
 // has no Discogs entry yet. Aladin's 음반 storefront lists pre-order and
-// new-release LPs directly, filling that specific gap. Only queried for
-// Korean-language, non-genre searches (see isKoreanQuery below) — English/
-// genre browsing is already well covered by Discogs and querying Aladin
-// there would just burn the free-tier daily quota for no benefit.
+// new-release LPs directly, filling that specific gap. Queried for every
+// non-genre search regardless of query language — Aladin's own catalog
+// often lists Korean-market artists by their English stage name too (e.g.
+// "Wave to Earth"), so gating this on Korean text in the query would miss
+// exactly the artists this source exists for. Genre browsing skips it
+// since there's no Aladin equivalent to a genre facet.
 //
 // ALBUM_ID is bigint in Postgres / typed `number` everywhere in the app, so
 // Aladin items can't carry a string id — but they also can't reuse Discogs's
@@ -227,7 +238,29 @@ const primaryAladinAuthor = (author?: string): string =>
 const isVariousArtistsName = (name?: string): boolean =>
   /various artists|여러 아티스트/i.test(name || '');
 
-const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
+// Aladin's author field composites the Korean name with the English stage
+// name in trailing parens (e.g. "웨이브 투 어스 (Wave To Earth)") — cross-source
+// lookups (iTunes/Deezer/Discogs) only recognize the artist by that English
+// name, so prefer it when present instead of sending the whole bilingual
+// string as the search term (confirmed live: doing so made every cross-
+// source match/search for such an artist fail). Falls back to stripping a
+// Discogs-style numeric disambiguator suffix ("Artist (2)") otherwise.
+const cleanArtistName = (artist: string): string => {
+  const parenAlias = artist.match(/\(([^)]+)\)\s*$/)?.[1];
+  if (parenAlias && /[a-zA-Z]/.test(parenAlias)) return parenAlias.trim();
+  return artist.replace(/\s\(\d+\)$/, '').trim();
+};
+
+const fetchAladinResults = async (
+  query: string,
+  opts: { requireLP?: boolean } = {}
+): Promise<DiscogsRelease[]> => {
+  // requireLP: false is used when borrowing a cover image for a release
+  // that's already confirmed vinyl via another source (e.g. Discogs) — the
+  // title-text LP marker check exists to keep *unconfirmed* Aladin listings
+  // out of the main search results, not to gate cover art for a release we
+  // already know is a real LP.
+  const requireLP = opts.requireLP !== false;
   try {
     const ttbKey = getAladinAuth();
     const items: AladinItem[] = ttbKey
@@ -261,7 +294,7 @@ const fetchAladinResults = async (query: string): Promise<DiscogsRelease[]> => {
           .then((r) => (Array.isArray(r.data?.items) ? r.data.items : []));
 
     return items
-      .filter((it) => it.itemId && isAladinLP(it.title))
+      .filter((it) => it.itemId && (!requireLP || isAladinLP(it.title)))
       .map((it): DiscogsRelease => {
         const cleanTitle = cleanAladinTitle(it.title) || it.title;
         const cover = upgradeAladinCover(it.cover);
@@ -435,7 +468,8 @@ const fetchAppleMusicAlbumPage = async (collectionId: number): Promise<AppleMusi
 export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,
-  onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void
+  onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void,
+  searchMode: SearchMode = 'auto'
 ): DiscogsSearchSession => {
   const serverAuth = getDiscogsAuth();
   const isGenreQuery = query.startsWith('#');
@@ -477,29 +511,31 @@ export const createDiscogsSearchSession = (
     if (!aliasPromise) aliasPromise = isGenreQuery ? Promise.resolve('') : resolveAlias();
     const alias = await aliasPromise;
 
+    // Hoisted out of the Step 1 try block below so Step 3's per-item Aladin
+    // cover lookup can reuse the same request/proxy plumbing.
+    const fetchPage = async (params: Record<string, unknown>) => {
+      const request = serverAuth
+        ? axios.get('https://api.discogs.com/database/search', {
+            params: {
+              ...params,
+              ...serverAuth,
+              type: 'release',
+              format: 'vinyl',
+              per_page: 50,
+              sort: 'want',
+              sort_order: 'desc',
+            },
+          })
+        : axios.get(`${getProxyBaseUrl()}/api/external/discogs-search`, { params });
+      return request.then((r) => r.data.results || []).catch((e) => {
+        if (e.response && e.response.status === 404) return [];
+        throw e;
+      });
+    };
+
     // ── Step 1: Discogs vinyl search (two parallel pages per batch) ────────────
     let raw: DiscogsRelease[] = [];
     try {
-      const fetchPage = async (params: Record<string, unknown>) => {
-        const request = serverAuth
-          ? axios.get('https://api.discogs.com/database/search', {
-              params: {
-                ...params,
-                ...serverAuth,
-                type: 'release',
-                format: 'vinyl',
-                per_page: 50,
-                sort: 'want',
-                sort_order: 'desc',
-              },
-            })
-          : axios.get(`${getProxyBaseUrl()}/api/external/discogs-search`, { params });
-        return request.then((r) => r.data.results || []).catch((e) => {
-          if (e.response && e.response.status === 404) return [];
-          throw e;
-        });
-      };
-
       const promises = [];
 
       if (isGenreQuery) {
@@ -534,23 +570,38 @@ export const createDiscogsSearchSession = (
         // credits that happen to contain that word) that would fill the cap
         // before any of the *precise* sources below are ever processed.
         //
-        // 1. Exact artist-alias search — an English-aliased Discogs
-        //    artist=... lookup is Discogs's own most exact match for the
-        //    query; confirmed live that Discogs had a real, well-formed
-        //    entry for an artist only reachable this way (plain-text search
-        //    for the Korean name returned only unrelated noise).
-        if (alias) {
-          promises.push(fetchPage({ artist: alias, page: batch + 1 }));
+        // 1. Exact artist-field search — a Discogs artist=... lookup is
+        //    Discogs's own most exact match for the query, independent of
+        //    the popularity sort applied to the plain keyword search below.
+        //    Always run this (using the Apple Music alias when one was
+        //    resolved, otherwise the query itself) — restricting it to only
+        //    the alias case meant an already-English artist name (e.g.
+        //    "Wave to Earth", no alias to resolve) never got this precise
+        //    path, so its less-"wanted" pressings never out-ranked the
+        //    keyword search's popularity bias and fell off the 20-item cap.
+        //    Only meaningful when the query itself is an artist name, so
+        //    skip it for the 'album'/'track' modes below.
+        if (searchMode === 'auto' || searchMode === 'artist') {
+          promises.push(fetchPage({ artist: alias || query, page: batch + 1 }));
         }
         // 2. Aladin — fills the Korean-domestic-release gap Discogs's own
         //    catalog has (see fetchAladinResults above). Fetched once per
         //    session, not per page (Aladin isn't paginated the same way).
-        if (isKoreanQuery && batch === 0) {
+        //    Aladin's search is title/author based with no per-field scoping,
+        //    so it's run best-effort regardless of searchMode. Not gated on
+        //    isKoreanQuery — plenty of Korean-market artists go by an
+        //    English stage name (e.g. "Wave to Earth"), and Aladin's own
+        //    catalog lists those in English too (confirmed live), so a
+        //    Korean-text-only gate silently skipped this exact case.
+        if (batch === 0) {
           promises.push(fetchAladinResults(query));
         }
-        // 3. Plain keyword search — broadest and noisiest, pushed last on
-        //    purpose so it can't crowd out the more precise sources above.
-        promises.push(fetchPage({ q: query, page: page1 }), fetchPage({ q: query, page: page1 + 1 }));
+        // 3. Field-scoped search — 'auto' keeps today's broad keyword (`q`)
+        //    search; 'album'/'track' scope the *entire* query to that
+        //    Discogs field instead, so a common word in the title/track
+        //    can't pull in unrelated releases the way a keyword search would.
+        const fieldParam = searchMode === 'album' ? 'release_title' : searchMode === 'track' ? 'track' : 'q';
+        promises.push(fetchPage({ [fieldParam]: query, page: page1 }), fetchPage({ [fieldParam]: query, page: page1 + 1 }));
       }
 
       const pages = await Promise.all(promises);
@@ -587,10 +638,14 @@ export const createDiscogsSearchSession = (
       const { artist: releaseArtist } = parseDiscogsTitle(r.title || '');
       const relArtLower = releaseArtist?.toLowerCase() || '';
 
-      // Check if the artist matches the original query or the Apple Music alias
+      // Check if the artist matches the original query or the Apple Music alias.
+      // Only meaningful when the query names an artist — 'album'/'track' modes
+      // already scoped the Discogs request to that field, so a query like an
+      // album title has no reason to also appear as the release's artist.
       const matchesQuery = isGenreQuery || relArtLower.includes(queryLower);
       const matchesAlias = aliasLower ? relArtLower.includes(aliasLower) : false;
-      const isFeature = isGenreQuery ? false : (releaseArtist ? !(matchesQuery || matchesAlias) : false);
+      const skipArtistMatch = searchMode === 'album' || searchMode === 'track';
+      const isFeature = (isGenreQuery || skipArtistMatch) ? false : (releaseArtist ? !(matchesQuery || matchesAlias) : false);
 
       const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -645,11 +700,20 @@ export const createDiscogsSearchSession = (
       //    items whose source has no usable image.
       const rawSourceCover = r.cover_image || r.thumb || '';
       const sourceCover = rawSourceCover.includes('spacer.gif') ? '' : rawSourceCover;
-      let thumb = sourceCover;
+      // Aladin cards don't seed `thumb` with the source cover up front like
+      // Discogs cards do — Aladin's product-shot photo is demoted to just
+      // one of several selectable options below, with Apple Music's digital
+      // art as the default instead.
+      const isFromAladin = (r.master_id ?? 0) >= ALADIN_ID_OFFSET;
+      let thumb = isFromAladin ? '' : sourceCover;
       let hit: ITunesResult | null = null;
-      const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+      const cleanArtist = cleanArtistName(artist);
       const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
-      if (!thumb) try {
+      // Always attempted (not just when thumb is still empty) — even a
+      // Discogs-sourced card with its own cover already in `thumb` needs
+      // the Apple Music match as a candidate for the cover-picker below.
+      let appleMusicCover: string | undefined;
+      try {
         const itRes = await axios.get('https://itunes.apple.com/search', {
           params: { term: `${cleanArtist} ${cleanTitle}`, entity: 'album', limit: 3, country: 'KR' }
         });
@@ -683,9 +747,11 @@ export const createDiscogsSearchSession = (
         // 가져오는 대참사가 발생하므로, 무조건 첫 번째 결과를 믿는 로직을 완전히 삭제합니다!
         // 일치하는 항목이 없을 때는 안전하게 Discogs 원본 커버로 Fallback 되도록 둡니다.
         if (hit?.artworkUrl100) {
-          thumb = hit.artworkUrl100.replace('100x100bb', '600x600bb');
+          appleMusicCover = hit.artworkUrl100.replace('100x100bb', '600x600bb');
         }
       } catch (e) { /* ignore */ }
+
+      if (!thumb) thumb = appleMusicCover || '';
 
       // 1b. Second-line fallback for cover-less items: Apple-Music-exclusive
       // albums never appear in the free iTunes search index even with
@@ -695,6 +761,59 @@ export const createDiscogsSearchSession = (
         const dz = await searchDeezerAlbum(cleanArtist, cleanTitle, alias);
         const dzCover = dz?.cover_xl || dz?.cover_big;
         if (dzCover) thumb = dzCover;
+      }
+
+      // Every card offers alternate covers when we can find them — not just
+      // Aladin-sourced ones. A Discogs-sourced release can still have a
+      // usable Aladin cover we'd otherwise never surface (confirmed live:
+      // "Summer Flows 0.02" is on Aladin with a real cover image, but its
+      // listing title carries no "LP" marker, so it never becomes its own
+      // Aladin search result — fetchAladinResults({requireLP:false}) below
+      // borrows the cover anyway since Discogs already confirmed this is a
+      // real vinyl release). Apple/Deezer digital art can be the wrong
+      // edition and a source's own cover isn't guaranteed right either, so
+      // the user gets to see and choose.
+      let aladinCover: string | undefined;
+      let discogsCover: string | undefined;
+      if (isFromAladin) {
+        aladinCover = sourceCover || undefined;
+        try {
+          const discogsMatches = (await fetchPage({ q: `${cleanArtist} ${cleanTitle}`, page: 1 })) as DiscogsRelease[];
+          const match = discogsMatches.find((d) => {
+            if (!isAlbumFormat(d.format || [])) return false;
+            const { artist: dArtist } = parseDiscogsTitle(d.title || '');
+            const dArtistLower = dArtist.toLowerCase();
+            const cArtistLower = cleanArtist.toLowerCase();
+            return dArtistLower.includes(cArtistLower) || cArtistLower.includes(dArtistLower);
+          });
+          const rawDiscogsCover = match?.cover_image || match?.thumb || '';
+          if (rawDiscogsCover && !rawDiscogsCover.includes('spacer.gif')) discogsCover = rawDiscogsCover;
+        } catch { /* ignore */ }
+      } else {
+        discogsCover = sourceCover || undefined;
+        try {
+          const aladinMatches = await fetchAladinResults(`${cleanArtist} ${cleanTitle}`, { requireLP: false });
+          const match = aladinMatches.find((a) => {
+            const { artist: aArtist } = parseDiscogsTitle(a.title || '');
+            const aArtistLower = aArtist.toLowerCase();
+            const cArtistLower = cleanArtist.toLowerCase();
+            return aArtistLower.includes(cArtistLower) || cArtistLower.includes(aArtistLower);
+          });
+          const rawAladinCover = match?.cover_image || match?.thumb || '';
+          if (rawAladinCover && !rawAladinCover.includes('spacer.gif')) aladinCover = rawAladinCover;
+        } catch { /* ignore */ }
+      }
+
+      if (!thumb) thumb = sourceCover || aladinCover || discogsCover || '';
+
+      let coverCandidates: AlbumItem['coverCandidates'];
+      {
+        const candidates = {
+          ...(appleMusicCover ? { appleMusic: appleMusicCover } : {}),
+          ...(aladinCover ? { aladin: aladinCover } : {}),
+          ...(discogsCover ? { discogs: discogsCover } : {}),
+        };
+        if (Object.keys(candidates).length > 1) coverCandidates = candidates;
       }
 
       // Discogs gives `genre` and `style` as arrays. We also add `country`.
@@ -713,6 +832,7 @@ export const createDiscogsSearchSession = (
         format: r.format || ['Vinyl', 'LP'],
         genre: combinedGenres,
         isFeature,
+        ...(coverCandidates ? { coverCandidates } : {}),
       });
     };
 
@@ -733,9 +853,10 @@ export const createDiscogsSearchSession = (
 export const searchDiscogsLazy = async (
   query: string,
   onItem: (album: AlbumItem) => void,
-  onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void
+  onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void,
+  searchMode: SearchMode = 'auto'
 ): Promise<void> => {
-  await createDiscogsSearchSession(query, onItem, onStatusChange).loadMore();
+  await createDiscogsSearchSession(query, onItem, onStatusChange, searchMode).loadMore();
 };
 
 
@@ -798,7 +919,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
   // 2. Fetch extra details from iTunes (copyright, exact release date, highResCover)
   try {
     if (artist && title) {
-      const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+      const cleanArtist = cleanArtistName(artist);
       const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
 
       const itRes = await axios.get('https://itunes.apple.com/search', {
@@ -899,7 +1020,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
   //    free iTunes search index) — but Deezer carries the tracklist, a
   //    1000px cover, and the release date, keyless.
   if (artist && title && (details.tracks.length === 0 || !details.highResCover)) {
-    const cleanArtist = artist.replace(/\s\(\d+\)$/, '').trim();
+    const cleanArtist = cleanArtistName(artist);
     const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
     const dzHit = await searchDeezerAlbum(cleanArtist, cleanTitle);
     if (dzHit) {

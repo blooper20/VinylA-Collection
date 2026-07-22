@@ -13,12 +13,17 @@ import { CustomAlert } from '../../providers/AlertProvider';
 import { ShareableStoryView } from '../Share/ShareableStoryView';
 import { ShareOptionsSheet } from './ShareOptionsSheet';
 import { SpinLogEditorModal } from './SpinLogEditorModal';
+import { CoverPickerModal } from './CoverPickerModal';
 import { shareToInstagramStory } from '../../utils/nativeShare';
 
 interface DetailModalProps {
   album: MockVinylData | null;
   visible: boolean;
   onClose: () => void;
+  // Alternate covers for Aladin-sourced search results only (Apple Music is
+  // already the default in `album.IMAGE_URL`) — lets the user pick instead
+  // of silently locking in whichever source the search happened to prefer.
+  coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
 }
 
 const { width, height } = Dimensions.get('window');
@@ -63,7 +68,7 @@ const AnimatedButton = ({ onPress, style, children, isHeavy = false }: any) => {
   );
 };
 
-export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
+export const DetailModal = ({ album, visible, onClose, coverCandidates }: DetailModalProps) => {
   const insets = useSafeAreaInsets();
   const vinylAnim = useRef(new Animated.Value(0)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -110,6 +115,13 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
   const [myPhoto, setMyPhoto] = React.useState<string | null>(null);
   const [masterImage, setMasterImage] = React.useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = React.useState<string>('');
+  // Shown when the user actually chooses to save a fresh album (not on every
+  // open) — see handleSave below. Also reachable via the "앨범 재킷 변경" button.
+  const [coverPickerOpen, setCoverPickerOpen] = React.useState(false);
+  // What to do once the user resolves the picker — only set while a fresh
+  // (never-saved) album's save is pending.
+  const [pendingSaveAction, setPendingSaveAction] = React.useState<'OWNED' | 'WISH' | null>(null);
 
 
   const { user } = useAuthStore();
@@ -129,6 +141,9 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       setNotes('');
       setMyPhoto((album as any).CUSTOM_IMAGE_URL || null);
       setMasterImage(album.IMAGE_URL || null);
+      setCoverUrl(album.IMAGE_URL || '');
+      setCoverPickerOpen(false);
+      setPendingSaveAction(null);
       setShareTag(album.STATUS || 'NONE');
 
       setAlertVisible(false);
@@ -229,9 +244,19 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       const blob = await response.blob();
       const numericAlbumId = Number(album.ALBUM_ID);
       const url = await uploadUserCover(numericAlbumId, blob);
-      await setUserVinylCover(user.id, numericAlbumId, url);
-      setMyPhoto(url);
-      showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverPhotoSaved') || '커버 사진이 저장되었습니다.');
+      setCoverUrl(url);
+      if (pendingSaveAction) {
+        // 아직 USER_VINYL 행이 없는 새 앨범 — setUserVinylCover(UPDATE)는
+        // 대상 행이 없어 조용히 무시되므로, 곧 이어질 저장(payload의
+        // CUSTOM_IMAGE_URL)에 실려서 함께 생성되도록 넘긴다.
+        const action = pendingSaveAction;
+        setPendingSaveAction(null);
+        proceedWithSave(action);
+      } else {
+        await setUserVinylCover(user.id, numericAlbumId, url);
+        setMyPhoto(url);
+        showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverPhotoSaved') || '커버 사진이 저장되었습니다.');
+      }
     } catch (e) {
       console.error('cover photo update failed', e);
       showAlert(t('common.error'), getErrorMessage(e, t));
@@ -411,16 +436,21 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
     // 검색 파이프라인 개선 전 저장된 마스터의 옛 커버 갱신 (웹 DetailModal과 동일):
     // 검색에서 새로 열어 저장할 때 지금 보이는 실물 LP 커버로 마스터를 교체한다.
-    const isCatalogCover = !!album!.IMAGE_URL &&
+    // 저장 전 커버 선택 모달에서 "직접 촬영"을 고른 경우 coverUrl 자체가 개인
+    // 사진(Supabase Storage URL)일 수 있으므로, 공유 마스터에는 항상 원래
+    // 카탈로그 이미지로 대체해 반영한다.
+    const isPersonalPhoto = coverUrl.includes('supabase.co');
+    const masterImageCandidate = isPersonalPhoto ? album!.IMAGE_URL : coverUrl;
+    const isCatalogCover = !!masterImageCandidate &&
       !(album as any).CUSTOM_IMAGE_URL &&
-      !album!.IMAGE_URL.includes('supabase.co') &&
-      !album!.IMAGE_URL.includes('unsplash.com');
-    if (master?.IMAGE_URL && isCatalogCover && album!.IMAGE_URL !== master.IMAGE_URL) {
-      await updateAlbumMasterImage(numericAlbumId, album!.IMAGE_URL).catch(() => {});
+      !masterImageCandidate.includes('supabase.co') &&
+      !masterImageCandidate.includes('unsplash.com');
+    if (master?.IMAGE_URL && isCatalogCover && masterImageCandidate !== master.IMAGE_URL) {
+      await updateAlbumMasterImage(numericAlbumId, masterImageCandidate).catch(() => {});
     }
     // LP 재킷 고정 원칙(웹 DetailModal과 동일): 마스터에 커버가 없을 때만 채워넣는다.
-    const isNewImageBetter = !!album!.IMAGE_URL && !master?.IMAGE_URL;
-    
+    const isNewImageBetter = !!masterImageCandidate && !master?.IMAGE_URL;
+
     // Web앱과 동일한 조건: master가 없거나, 장르 태그가 누락되었거나(단순 'Vinyl'만 있는 경우 포함), 이미지가 더 좋은 경우 ALBUM_MASTER 업데이트
     if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
       await createAlbumMaster({
@@ -428,7 +458,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         TITLE: album!.TITLE,
         ARTIST: album!.ARTIST,
         RELEASE_YEAR: album!.RELEASE_YEAR,
-        IMAGE_URL: album!.IMAGE_URL,
+        IMAGE_URL: masterImageCandidate || album!.IMAGE_URL,
         VINYL_IMAGE_URL: album!.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
         CUSTOM_COLOR_HEX: album!.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
         CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
@@ -453,6 +483,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
       const result = await upsertUserVinyl({
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
+        ...(coverUrl.includes('supabase.co') ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
         STATUS: 'OWNED',
         PURCHASE_DATE: new Date().toISOString(),
         PURCHASE_PRICE: finalPrice
@@ -502,14 +533,10 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
 
 
 
-  const handleSave = async (status: 'OWNED' | 'WISH') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!album) return;
-
-    if (!user) {
-      showAlert(t('common.error'), t('detail.loginRequired'));
-      return;
-    }
+  // 실제 저장 로직 (기존 handleSave 본문 그대로) — 커버 선택 모달이 있다면
+  // 그걸 거친 뒤에, 없다면(대체 후보가 없는 흔한 경우) 곧바로 호출된다.
+  const proceedWithSave = async (status: 'OWNED' | 'WISH') => {
+    if (!album || !user) return;
 
     if (status === 'OWNED') {
       setIsEditingPriceOnly(false);
@@ -522,12 +549,13 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
           const EXCLUDED_TAGS = ['South Korea', 'Japan', 'US', 'UK', 'Europe', 'Germany', 'France', 'Netherlands', 'Canada', 'Australia', 'Italy', 'Sweden', 'Taiwan', 'Brazil', 'Russia', 'Vinyl', 'LP', 'Album'];
           return !EXCLUDED_TAGS.includes(g);
         });
-        
+
         await syncAlbumMasterIfNeeded(numericAlbumId, finalGenres);
 
         const result = await upsertUserVinyl({
           USER_ID: user.id,
           ALBUM_ID: numericAlbumId,
+          ...(coverUrl.includes('supabase.co') ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
           STATUS: 'WISH',
           PURCHASE_PRICE: 0
         });
@@ -543,6 +571,35 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
         showAlert(t('common.error'), getErrorMessage(error, t));
       }
     }
+  };
+
+  // "보관함 추가"/"위시" 버튼의 실제 진입점 — 새 앨범이고 대체 커버 후보나
+  // 직접 촬영 옵션 중 고를 게 있으면 먼저 커버 선택 모달을 띄우고, 그
+  // 결과(onSelect/onTakePhoto)가 이어서 원래 저장을 계속한다.
+  const handleSave = (status: 'OWNED' | 'WISH') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!album) return;
+
+    if (!user) {
+      showAlert(t('common.error'), t('detail.loginRequired'));
+      return;
+    }
+
+    const coverChoiceCount = (coverCandidates ? Object.keys(coverCandidates).length : 0) + 1;
+    const isFreshAlbum = !realStatus;
+    if (isFreshAlbum && coverChoiceCount > 1) {
+      setPendingSaveAction(status);
+      setCoverPickerOpen(true);
+      return;
+    }
+
+    proceedWithSave(status);
+  };
+
+  // "앨범 재킷 변경" 버튼 — 대체 커버 후보가 없어도(대부분의 이미 소장한
+  // 앨범) "직접 촬영" 하나만 있는 채로 항상 통합 모달을 띄운다.
+  const handleChangeJacketClick = () => {
+    setCoverPickerOpen(true);
   };
 
   const handleDelete = async () => {
@@ -629,20 +686,20 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                 <View style={styles.vinylGrooves} />
                 <View style={styles.vinylGrooves2} />
                 <View style={[styles.vinylLabel, { backgroundColor: album.CUSTOM_COLOR_HEX || '#222' }]}>
-                  <Image 
-                    source={(myPhoto || album.IMAGE_URL) ? { uri: myPhoto || album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
-                    style={StyleSheet.absoluteFill} 
-                    resizeMode={(myPhoto || album.IMAGE_URL) ? "cover" : "contain"}
+                  <Image
+                    source={(myPhoto || coverUrl) ? { uri: myPhoto || coverUrl } : require('../../../assets/logo_real_transparent.png')}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode={(myPhoto || coverUrl) ? "cover" : "contain"}
                   />
                   <View style={styles.vinylHole} />
                 </View>
               </Animated.View>
-              <Image 
-                source={(myPhoto || album.IMAGE_URL) ? { uri: myPhoto || album.IMAGE_URL } : require('../../../assets/logo_real_transparent.png')} 
-                style={[styles.cover, !(myPhoto || album.IMAGE_URL) && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]} 
-                resizeMode={(myPhoto || album.IMAGE_URL) ? "cover" : "contain"}
+              <Image
+                source={(myPhoto || coverUrl) ? { uri: myPhoto || coverUrl } : require('../../../assets/logo_real_transparent.png')}
+                style={[styles.cover, !(myPhoto || coverUrl) && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]}
+                resizeMode={(myPhoto || coverUrl) ? "cover" : "contain"}
               />
-              
+
               {realStatus === 'OWNED' && (
                 <View style={styles.coverControls}>
                   <View style={styles.coverBtnRow}>
@@ -651,7 +708,7 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
                         <FontAwesome5 name="undo" size={14} color="#fff" />
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={styles.coverCameraBtn} onPress={handleCoverPhoto} disabled={isUploadingCover}>
+                    <TouchableOpacity style={styles.coverCameraBtn} onPress={handleChangeJacketClick} disabled={isUploadingCover}>
                       {isUploadingCover ? <ActivityIndicator color="#000" size="small" /> : <FontAwesome5 name="camera" size={16} color="#000" />}
                     </TouchableOpacity>
                   </View>
@@ -947,6 +1004,26 @@ export const DetailModal = ({ album, visible, onClose }: DetailModalProps) => {
             setIsSpinModalOpen(false);
             Alert.alert('', t('detail.spinLogSaved'));
           }}
+        />
+
+        <CoverPickerModal
+          visible={coverPickerOpen}
+          candidates={coverCandidates}
+          currentUrl={coverUrl}
+          onSelect={(url) => {
+            setCoverUrl(url);
+            setCoverPickerOpen(false);
+            if (pendingSaveAction) {
+              const action = pendingSaveAction;
+              setPendingSaveAction(null);
+              proceedWithSave(action);
+            }
+          }}
+          onTakePhoto={() => {
+            setCoverPickerOpen(false);
+            handleCoverPhoto();
+          }}
+          onCancel={() => { setCoverPickerOpen(false); setPendingSaveAction(null); }}
         />
       </Animated.View>
     </Modal>

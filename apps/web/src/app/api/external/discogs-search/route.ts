@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Server-side proxy for Discogs search so the token/key never ships in a
 // client bundle. Client sends only the whitelisted search params; the fixed
 // vinyl-search params and credentials are appended here.
-const ALLOWED_PARAMS = ['q', 'artist', 'genre', 'style', 'page'] as const;
+const ALLOWED_PARAMS = ['q', 'artist', 'release_title', 'track', 'genre', 'style', 'page'] as const;
 
 const getDiscogsAuth = (): Record<string, string> | null => {
   if (process.env.DISCOGS_TOKEN) return { token: process.env.DISCOGS_TOKEN };

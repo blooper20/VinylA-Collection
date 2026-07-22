@@ -14,6 +14,10 @@ import Image from 'next/image';
 interface DetailModalProps {
   album: MockVinylData;
   onClose: () => void;
+  // Alternate covers for Aladin-sourced search results only (Apple Music is
+  // already the default in `coverUrl` below) — lets the user pick instead
+  // of silently locking in whichever source the search happened to prefer.
+  coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
 }
 
 type CoverScope = 'mine' | 'everyone';
@@ -238,7 +242,71 @@ const SpinLogModal: React.FC<{
   );
 };
 
-export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
+// Shown once, right when the user chooses to save a fresh (never-saved)
+// album — lets them pick which cover to save it with (Apple Music / Aladin /
+// Discogs, whichever the search actually found) or shoot their own jacket
+// photo instead, rather than silently defaulting to one. Also reachable via
+// the "앨범 재킷 변경" button on an already-owned album, where there are
+// usually no alternate catalog candidates and this reduces to just the
+// take-a-photo option. Reuses CoverCropModal's overlay/modal shell.
+const CoverPickerModal: React.FC<{
+  candidates?: { appleMusic?: string; aladin?: string; discogs?: string };
+  currentUrl: string;
+  onSelect: (url: string) => void;
+  onTakePhoto: () => void;
+  onCancel: () => void;
+  t: ReturnType<typeof useLocale>['t'];
+}> = ({ candidates, currentUrl, onSelect, onTakePhoto, onCancel, t }) => {
+  const sourceOptions = ([
+    ['appleMusic', candidates?.appleMusic, t('detail.coverPickAppleMusic')],
+    ['aladin', candidates?.aladin, t('detail.coverPickAladin')],
+    ['discogs', candidates?.discogs, t('detail.coverPickDiscogs')],
+  ] as const).filter((opt): opt is [typeof opt[0], string, string] => !!opt[1]);
+
+  // 대체 후보가 없을 때(대부분의 이미 소장한 앨범)는 "직접 촬영"만 덩그러니
+  // 남지 않도록, 지금 쓰이는 커버도 하나의 선택지로 보여준다 — 이미 후보
+  // 목록에 같은 이미지가 있으면 중복 표시하지 않는다.
+  const hasCurrentAsSource = sourceOptions.some(([, url]) => url === currentUrl);
+  const options = (!hasCurrentAsSource && currentUrl)
+    ? [['existing', currentUrl, t('detail.coverPickExisting')] as const, ...sourceOptions]
+    : sourceOptions;
+
+  return (
+    <div className={styles.cropOverlay} onClick={onCancel}>
+      <div className={styles.cropModal} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.cropTitle}>{t('detail.coverPickLabel')}</h3>
+        <p className={styles.cropHint}>{t('detail.coverPickHint')}</p>
+        <div className={styles.coverPickGrid}>
+          {options.map(([key, url, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`${styles.coverPickCard} ${currentUrl === url ? styles.coverPickCardActive : ''}`}
+              onClick={() => onSelect(url)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt={label} className={styles.coverPickCardImage} />
+              <span className={styles.coverPickCardCaption}>{label}</span>
+            </button>
+          ))}
+          <button type="button" className={styles.coverPickCard} onClick={onTakePhoto}>
+            <div className={styles.coverPickTakePhotoTile}>
+              <span className="material-symbols-outlined">photo_camera</span>
+            </div>
+            <span className={styles.coverPickCardCaption}>{t('detail.coverPickTakePhoto')}</span>
+          </button>
+        </div>
+        <div className={styles.cropActions}>
+          <button type="button" className={styles.cropCancelBtn} onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverCandidates }) => {
   const { user } = useAuthStore();
   const { t } = useLocale();
   const [tracks, setTracks] = React.useState<string[]>(album.TRACKS || []);
@@ -250,6 +318,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
   const [copyright, setCopyright] = React.useState<string>('');
   const [releaseDate, setReleaseDate] = React.useState<string>('');
   const [coverUrl, setCoverUrl] = React.useState<string>(album.IMAGE_URL || '');
+  // Shown when the user actually chooses to save a fresh album (not on every
+  // open) — see handleAddToCollection/handleAddToWish below. Also reachable
+  // via the "앨범 재킷 변경" button on an already-saved album.
+  const [coverPickerOpen, setCoverPickerOpen] = React.useState(false);
+  // What to do once the user resolves the picker (pick a candidate or take a
+  // photo) — only set while a fresh (never-saved) album's save is pending.
+  const [pendingSaveAction, setPendingSaveAction] = React.useState<'price-prompt' | 'wish' | null>(null);
   const [confirmTarget, setConfirmTarget] = React.useState<'OWNED' | 'WISH' | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
@@ -343,13 +418,23 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
       const url = await uploadUserCover(numericAlbumId, square);
-      // 항상 '나만 보기'로 먼저 적용 — 전체 공개는 아래 토글에서 명시적으로.
-      await setUserVinylCover(user.id, numericAlbumId, url);
-      setMyPhoto(url);
       setCoverUrl(url);
       setCropFile(null);
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
-      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+      if (pendingSaveAction) {
+        // 아직 USER_VINYL 행이 없는 새 앨범 — setUserVinylCover(UPDATE)는
+        // 대상 행이 없어 조용히 무시되므로, 곧 이어질 저장(payloadData의
+        // CUSTOM_IMAGE_URL)에 실려서 함께 생성되도록 넘긴다.
+        const action = pendingSaveAction;
+        setPendingSaveAction(null);
+        if (action === 'price-prompt') setPricePromptOpen(true);
+        else handleSave('WISH');
+      } else {
+        // 항상 '나만 보기'로 먼저 적용 — 전체 공개는 아래 토글에서 명시적으로.
+        await setUserVinylCover(user.id, numericAlbumId, url);
+        setMyPhoto(url);
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
+        window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+      }
     } catch (e) {
       console.error('cover photo update failed', e);
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
@@ -535,27 +620,32 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       // 검색 파이프라인이 실물 LP 커버를 주도록 개선되기 전에 저장된 마스터에는
       // 옛(디지털 스토어) 커버가 남아 있다 — 검색에서 새로 열어 저장하는 경우,
       // 지금 카드에 보이는 커버(=검색 소스가 준 실물 재킷)로 마스터를 갱신한다.
-      // 개인 촬영 커버(CUSTOM_IMAGE_URL)나 플레이스홀더는 마스터에 쓰지 않는다.
-      const isCatalogCover = !!album.IMAGE_URL &&
+      // 개인 촬영 커버(CUSTOM_IMAGE_URL)나 플레이스홀더는 마스터에 쓰지 않는다 —
+      // 저장 전 커버 선택 모달에서 "직접 촬영"을 고른 경우 coverUrl 자체가
+      // 개인 사진(Supabase Storage URL)일 수 있으므로, 공유 마스터에는 항상
+      // 원래 카탈로그 이미지로 대체해 반영한다.
+      const isPersonalPhoto = coverUrl.includes('supabase.co');
+      const masterImageCandidate = isPersonalPhoto ? album.IMAGE_URL : coverUrl;
+      const isCatalogCover = !!masterImageCandidate &&
         !album.CUSTOM_IMAGE_URL &&
-        !album.IMAGE_URL.includes('supabase.co') &&
-        !album.IMAGE_URL.includes('unsplash.com');
-      if (master?.IMAGE_URL && isCatalogCover && album.IMAGE_URL !== master.IMAGE_URL) {
+        !masterImageCandidate.includes('supabase.co') &&
+        !masterImageCandidate.includes('unsplash.com');
+      if (master?.IMAGE_URL && isCatalogCover && masterImageCandidate !== master.IMAGE_URL) {
         // 갱신 실패해도 저장 흐름은 계속 (커버는 부가 정보)
-        await updateAlbumMasterImage(numericAlbumId, album.IMAGE_URL).catch(() => {});
+        await updateAlbumMasterImage(numericAlbumId, masterImageCandidate).catch(() => {});
       }
 
       // LP 재킷 고정 원칙: 마스터에 커버가 없을 때만 채워넣고,
       // 이미 있는 커버를 디지털 스토어 아트로 덮어쓰지 않는다.
-      const isNewImageBetter = !!album.IMAGE_URL && !master?.IMAGE_URL;
-      
+      const isNewImageBetter = !!masterImageCandidate && !master?.IMAGE_URL;
+
       if (!master || !master.GENRES || master.GENRES.length === 0 || (master.GENRES.length === 1 && master.GENRES[0] === 'Vinyl') || (marketPrice && !master.MARKET_PRICE) || isNewImageBetter) {
         await createAlbumMaster({
           ALBUM_ID: numericAlbumId,
           TITLE: album.TITLE,
           ARTIST: album.ARTIST,
-          RELEASE_YEAR: album.RELEASE_YEAR,
-          IMAGE_URL: album.IMAGE_URL,
+          RELEASE_YEAR: Number(album.RELEASE_YEAR) || new Date().getFullYear(),
+          IMAGE_URL: masterImageCandidate || album.IMAGE_URL,
           VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
@@ -568,6 +658,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
       const payloadData: Partial<USER_VINYL> = {
         USER_ID: user.id,
         ALBUM_ID: numericAlbumId,
+        ...(isPersonalPhoto ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
         STATUS: status,
         PURCHASE_PRICE: price,
         IS_PUBLIC: isPublic
@@ -604,6 +695,38 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // 이 세션에서 검색으로 찾은 대체 커버 후보 + "직접 촬영" 옵션 — 고를 게
+  // 하나뿐이면(후보 없음) 굳이 모달을 띄우지 않고 곧바로 다음 단계로.
+  const coverChoiceCount = (coverCandidates ? Object.keys(coverCandidates).length : 0) + 1;
+  const isFreshAlbum = album.STATUS !== 'OWNED' && album.STATUS !== 'WISH';
+
+  // "보관함 추가"/"위시" 버튼의 실제 진입점 — 새 앨범이고 고를 게 있으면 먼저
+  // 커버 선택 모달을 띄우고, 그 결과(onSelect/onTakePhoto)가 이어서 원래
+  // 하려던 동작(가격 입력 프롬프트 또는 위시 저장)을 계속한다.
+  const handleAddToCollectionClick = () => {
+    if (isFreshAlbum && coverChoiceCount > 1) {
+      setPendingSaveAction('price-prompt');
+      setCoverPickerOpen(true);
+    } else {
+      setPricePromptOpen(true);
+    }
+  };
+
+  const handleAddToWishClick = () => {
+    if (isFreshAlbum && coverChoiceCount > 1) {
+      setPendingSaveAction('wish');
+      setCoverPickerOpen(true);
+    } else {
+      handleSave('WISH');
+    }
+  };
+
+  // "앨범 재킷 변경" 버튼 — 대체 커버 후보가 없어도(대부분의 이미 소장한
+  // 앨범) "직접 촬영" 하나만 있는 채로 항상 통합 모달을 띄운다.
+  const handleChangeJacketClick = () => {
+    setCoverPickerOpen(true);
   };
 
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
@@ -647,16 +770,17 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
               </div>
             </div>
 
+            <input
+              ref={coverFileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={(e) => handleCoverPhoto(e.target.files?.[0] || null)}
+            />
+
             {album.STATUS === 'OWNED' && (
               <div className={styles.coverControls}>
-                <input
-                  ref={coverFileRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  hidden
-                  onChange={(e) => handleCoverPhoto(e.target.files?.[0] || null)}
-                />
                 <div className={styles.coverBtnRow}>
                   {myPhoto && (
                     <button
@@ -672,7 +796,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
                   <button
                     type="button"
                     className={styles.coverActionBtn}
-                    onClick={() => coverFileRef.current?.click()}
+                    onClick={handleChangeJacketClick}
                     disabled={isUploadingCover}
                     title={t('detail.coverPhotoTitle')}
                   >
@@ -824,7 +948,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
             {album.STATUS === 'WISH' && (
               <>
-                <button className={styles.btnPrimary} onClick={() => setPricePromptOpen(true)} disabled={isSaving}>
+                <button className={styles.btnPrimary} onClick={handleAddToCollectionClick} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
                   {t('detail.addToCollection')}
                 </button>
@@ -842,11 +966,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
 
             {(!album.STATUS || (album.STATUS !== 'OWNED' && album.STATUS !== 'WISH')) && (
               <>
-                <button className={styles.btnPrimary} onClick={() => setPricePromptOpen(true)} disabled={isSaving}>
+                <button className={styles.btnPrimary} onClick={handleAddToCollectionClick} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
                   {t('detail.addToCollection')}
                 </button>
-                <button className={styles.btnSecondary} onClick={() => handleSave('WISH')} disabled={isSaving}>
+                <button className={styles.btnSecondary} onClick={handleAddToWishClick} disabled={isSaving}>
                   <span className="material-symbols-outlined">bookmark_add</span>
                   {t('detail.addToWishlist')}
                 </button>
@@ -1019,6 +1143,26 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose }) => {
           isBusy={isUploadingCover}
           onCancel={() => !isUploadingCover && setCropFile(null)}
           onConfirm={handleCropConfirm}
+          t={t}
+        />
+      )}
+
+      {coverPickerOpen && (
+        <CoverPickerModal
+          candidates={coverCandidates}
+          currentUrl={coverUrl}
+          onSelect={(url) => {
+            setCoverUrl(url);
+            setCoverPickerOpen(false);
+            if (pendingSaveAction === 'price-prompt') setPricePromptOpen(true);
+            else if (pendingSaveAction === 'wish') handleSave('WISH');
+            setPendingSaveAction(null);
+          }}
+          onTakePhoto={() => {
+            setCoverPickerOpen(false);
+            coverFileRef.current?.click();
+          }}
+          onCancel={() => { setCoverPickerOpen(false); setPendingSaveAction(null); }}
           t={t}
         />
       )}

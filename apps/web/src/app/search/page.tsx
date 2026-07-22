@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { searchDiscogsLazy, AlbumItem, SearchStatus, useAuthStore, getUserVinyls } from '@vinyla/core-api';
+import { searchDiscogsLazy, AlbumItem, SearchStatus, SearchMode, useAuthStore, getUserVinyls } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { DetailModal } from '../../components/Modal/DetailModal';
@@ -16,6 +16,7 @@ type SelectedAlbum = {
   RELEASE_YEAR: number | string;
   GENRES?: string[];
   STATUS?: 'OWNED' | 'WISH' | 'NONE';
+  coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
 };
 
 const genres = [
@@ -85,6 +86,7 @@ export default function SearchPage() {
   const [hasMore, setHasMore] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<SelectedAlbum | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [searchMode, setSearchMode] = useState<SearchMode>('auto');
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
@@ -124,7 +126,7 @@ export default function SearchPage() {
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  const executeSearch = useCallback(async (q: string, append: boolean = false) => {
+  const executeSearch = useCallback(async (q: string, append: boolean = false, modeOverride?: SearchMode) => {
     if (!q.trim()) {
       if (!append) setResults([]);
       setStatus('idle');
@@ -166,9 +168,10 @@ export default function SearchPage() {
             setHasMore(false);
           }
         }
-      }
+      },
+      q.startsWith('#') ? 'auto' : (modeOverride ?? searchMode)
     );
-  }, [t]);
+  }, [t, searchMode]);
 
   React.useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -205,6 +208,15 @@ export default function SearchPage() {
     setQuery(`#${genreSub}`); // Show in search bar for context
     executeSearch(`#${genreSub}`);
   }, [executeSearch]);
+
+  // 필터를 바꾸면 이미 입력해둔 검색어로 곧바로 다시 검색 (장르 검색 중엔 적용 안 됨).
+  // setSearchMode는 다음 렌더까지 반영되지 않으므로, 이번 검색에는 modeOverride로 새 값을 바로 넘긴다.
+  const handleModeChange = useCallback((mode: SearchMode) => {
+    setSearchMode(mode);
+    if (query.trim() && !query.startsWith('#')) {
+      executeSearch(query, false, mode);
+    }
+  }, [query, executeSearch]);
 
   const isLoading = status === 'fetching_discogs' || status === 'enriching';
   const isEnriching = status === 'enriching';
@@ -249,6 +261,25 @@ export default function SearchPage() {
             />
             <button type="submit" style={{ display: 'none' }}>{t('search.submitButton')}</button>
           </form>
+          {!query.startsWith('#') && (
+            <div className={styles.searchModeRow} role="radiogroup" aria-label="search mode">
+              {([
+                ['auto', t('search.modeAuto')],
+                ['artist', t('search.modeArtist')],
+                ['album', t('search.modeAlbum')],
+                ['track', t('search.modeTrack')],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`${styles.searchModeBtn} ${searchMode === mode ? styles.searchModeBtnActive : ''}`}
+                  onClick={() => handleModeChange(mode)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -281,7 +312,8 @@ export default function SearchPage() {
                     IMAGE_URL: a.thumb,
                     RELEASE_YEAR: a.year,
                     GENRES: a.genre,
-                    STATUS: existing ? existing.STATUS : undefined
+                    STATUS: existing ? existing.STATUS : undefined,
+                    coverCandidates: a.coverCandidates
                   });
                 }}
               />
@@ -341,7 +373,8 @@ export default function SearchPage() {
                       IMAGE_URL: a.thumb,
                       RELEASE_YEAR: a.year,
                       GENRES: a.genre,
-                      STATUS: existing ? existing.STATUS : undefined
+                      STATUS: existing ? existing.STATUS : undefined,
+                      coverCandidates: a.coverCandidates
                     });
                   }}
                 />
@@ -359,7 +392,11 @@ export default function SearchPage() {
       </main>
 
       {selectedAlbum && (
-        <DetailModal album={selectedAlbum as MockVinylData} onClose={() => setSelectedAlbum(null)} />
+        <DetailModal
+          album={selectedAlbum as MockVinylData}
+          onClose={() => setSelectedAlbum(null)}
+          coverCandidates={selectedAlbum.coverCandidates}
+        />
       )}
 
       {toastMessage && (

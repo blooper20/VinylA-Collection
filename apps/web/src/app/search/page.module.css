@@ -96,6 +96,35 @@
   border-bottom-color: var(--accent);
 }
 
+.searchModeRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.searchModeBtn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-mid);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.searchModeBtn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.searchModeBtnActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
 /* ---- Content ---- */
 .content {
   padding: 72px 64px;

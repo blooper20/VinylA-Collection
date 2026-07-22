@@ -815,6 +815,77 @@
 .coverActionBtn:hover { border-color: rgba(255, 255, 255, 0.45); color: #fff; }
 .coverActionBtn:disabled { opacity: 0.45; cursor: default; }
 
+.coverPickReopenBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.coverPickReopenBtn:hover { border-color: rgba(255, 255, 255, 0.45); color: #fff; }
+
+.coverPickGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.coverPickCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  /* Up to 5 tiles (candidates + take-photo) don't fit one 400px-wide modal
+     row at full square size — wrap instead of letting the flex row shrink
+     each tile's width below its fixed-size image, which squished the cover
+     art into a portrait rectangle (confirmed live). */
+  flex-shrink: 0;
+}
+
+.coverPickCard:hover { border-color: rgba(255, 255, 255, 0.3); }
+
+.coverPickCardActive { border-color: #fff; }
+
+.coverPickCardImage {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+.coverPickCardCaption {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.coverPickTakePhotoTile {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .coverScopeToggle {
   display: inline-flex;
   border: 1px solid rgba(255, 255, 255, 0.14);
