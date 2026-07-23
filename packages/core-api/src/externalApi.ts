@@ -546,7 +546,11 @@ export const createDiscogsSearchSession = (
         switch (genreKeyword) {
           case 'Ambient': discogsParams = { style: 'Ambient' }; break;
           case 'Cinematic': discogsParams = { style: 'Soundtrack' }; break; // Stage & Screen / Soundtrack
-          case 'Soul & Funk': discogsParams = { genre: 'Funk / Soul' }; break;
+          // "펑크 소울" card's sub-label is "Funk / Soul" — Discogs's real genre
+          // name, so it already resolves correctly via the `default` branch
+          // below (confirmed live). It used to be labeled "R&B / Soul", which
+          // isn't a real Discogs genre facet value and silently returned 0
+          // results — renaming the card fixed the query too, no case needed.
           case 'World': discogsParams = { genre: 'Folk, World, & Country' }; break;
           case 'Electronic': discogsParams = { genre: 'Electronic' }; break;
           case 'Jazz': discogsParams = { genre: 'Jazz' }; break;

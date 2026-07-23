@@ -16,7 +16,7 @@ const genres = [
   { title: '재즈',          sub: 'Jazz',        height: 140, img: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?q=80&w=800&auto=format&fit=crop' },
   { title: '일렉트로닉',    sub: 'Electronic',  height: 120, img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800&auto=format&fit=crop' },
   { title: '힙합',          sub: 'Hip Hop',     height: 150, img: 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?q=80&w=800&auto=format&fit=crop' },
-  { title: 'R&B / 소울',    sub: 'R&B / Soul',  height: 180, img: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=800&auto=format&fit=crop' },
+  { title: '펑크 소울',     sub: 'Funk / Soul', height: 180, img: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=800&auto=format&fit=crop' },
   { title: '인디 / 포크',   sub: 'Folk',        height: 140, img: 'https://images.unsplash.com/photo-1501612780327-45045538702b?q=80&w=800&auto=format&fit=crop' },
   { title: '클래식',        sub: 'Classical',   height: 130, img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=800&auto=format&fit=crop' },
   { title: '블루스',        sub: 'Blues',       height: 120, img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=800&auto=format&fit=crop' },
