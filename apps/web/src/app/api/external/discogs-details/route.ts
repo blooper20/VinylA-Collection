@@ -25,26 +25,35 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'discogs not configured' }, { status: 500 });
   }
 
+  const releaseId = request.nextUrl.searchParams.get('releaseId');
   const albumId = request.nextUrl.searchParams.get('albumId');
-  if (!albumId || !/^\d+$/.test(albumId)) {
-    return NextResponse.json({ error: 'invalid albumId' }, { status: 400 });
-  }
 
   try {
-    // Albums are stored under their master id when available, so try the
-    // master endpoint first and fall back to a release lookup.
-    const data =
-      (await fetchDiscogs(`masters/${albumId}`, authQuery)) ??
-      (await fetchDiscogs(`releases/${albumId}`, authQuery));
+    let data: any = null;
+    if (releaseId && /^\d+$/.test(releaseId)) {
+      // The user's exact physical pressing — ground truth for tracks/sides.
+      data = await fetchDiscogs(`releases/${releaseId}`, authQuery);
+    } else if (albumId && /^\d+$/.test(albumId)) {
+      // No known release id: fall back to the master's "representative"
+      // tracklist, then a plain release lookup if it isn't a master at all.
+      data =
+        (await fetchDiscogs(`masters/${albumId}`, authQuery)) ??
+        (await fetchDiscogs(`releases/${albumId}`, authQuery));
+    } else {
+      return NextResponse.json({ error: 'invalid albumId/releaseId' }, { status: 400 });
+    }
 
-    if (!data) return NextResponse.json({ tracks: [] });
+    if (!data) return NextResponse.json({ tracklist: [] });
 
     return NextResponse.json({
-      tracks: Array.isArray(data.tracklist) ? data.tracklist.map((t: { title: string }) => t.title) : [],
+      // Raw tracklist (with `position` intact, e.g. "A1"/"B2") — the client
+      // parses position into side, since only it knows whether this came
+      // from an exact release (has sides) or a fallback source.
+      tracklist: Array.isArray(data.tracklist) ? data.tracklist : [],
       notes: typeof data.notes === 'string' ? data.notes : undefined,
       lowest_price: typeof data.lowest_price === 'number' ? data.lowest_price : undefined,
     });
   } catch {
-    return NextResponse.json({ tracks: [] });
+    return NextResponse.json({ tracklist: [] });
   }
 }

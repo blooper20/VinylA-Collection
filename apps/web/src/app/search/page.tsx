@@ -17,6 +17,10 @@ type SelectedAlbum = {
   GENRES?: string[];
   STATUS?: 'OWNED' | 'WISH' | 'NONE';
   coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
+  // The specific Discogs release this search hit matched — lets the
+  // tracklist fetch use this exact pressing's real tracks/sides instead of
+  // the master's generic one. Undefined for Aladin-sourced items.
+  DISCOGS_RELEASE_ID?: number;
 };
 
 const genres = [
@@ -313,7 +317,8 @@ export default function SearchPage() {
                     RELEASE_YEAR: a.year,
                     GENRES: a.genre,
                     STATUS: existing ? existing.STATUS : undefined,
-                    coverCandidates: a.coverCandidates
+                    coverCandidates: a.coverCandidates,
+                    DISCOGS_RELEASE_ID: a.releaseId
                   });
                 }}
               />

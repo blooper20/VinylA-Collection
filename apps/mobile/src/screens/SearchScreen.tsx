@@ -88,7 +88,8 @@ export const SearchScreen = ({ route }: any) => {
             VINYL_IMAGE_URL: '',
             CUSTOM_COLOR_HEX: '#111',
             CUSTOM_STYLE_TYPE: 'SOLID',
-            GENRES: album.genre || []
+            GENRES: album.genre || [],
+            DISCOGS_RELEASE_ID: album.releaseId
           };
 
           return [...prev, mapped];

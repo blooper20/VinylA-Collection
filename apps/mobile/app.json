@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vinyla.app"
+      "bundleIdentifier": "com.vinyla.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["instagram-stories", "instagram"]
+      }
     },
     "android": {
       "adaptiveIcon": {

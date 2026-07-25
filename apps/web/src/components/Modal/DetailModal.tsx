@@ -1,7 +1,9 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import styles from './DetailModal.module.css';
-import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, saveAlbumTracks } from '@vinyla/core-api';
+import { MockVinylData, USER_VINYL, AlbumTrack } from '@vinyla/shared-types';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing } from '@vinyla/core-api';
+import Link from 'next/link';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -309,11 +311,33 @@ const CoverPickerModal: React.FC<{
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverCandidates }) => {
   const { user } = useAuthStore();
   const { t } = useLocale();
-  const [tracks, setTracks] = React.useState<string[]>(album.TRACKS || []);
-  // 마스터에 백필된 트랙이 없어 외부 API 조회가 필요한 동안만 로딩 문구 표시
-  const [isLoadingTracks, setIsLoadingTracks] = React.useState<boolean>(
-    !album.TRACKS || album.TRACKS.length === 0
+  const [tracks, setTracks] = React.useState<AlbumTrack[]>([]);
+  const [isLoadingTracks, setIsLoadingTracks] = React.useState<boolean>(true);
+  // true일 때만 "정확한 실물반" 트랙(사이드 포함) — false면 디지털 소스
+  // 폴백(마스터 대표 트랙/iTunes/Apple/Deezer)이라 실제 소장반과 다를 수 있다.
+  const [isExactRelease, setIsExactRelease] = React.useState(false);
+  const [releaseId, setReleaseId] = React.useState<number | undefined>(
+    album.DISCOGS_RELEASE_ID ? Number(album.DISCOGS_RELEASE_ID) : undefined
   );
+  const [pressingPickerOpen, setPressingPickerOpen] = React.useState(false);
+  const [pressingVersions, setPressingVersions] = React.useState<DiscogsReleaseVersion[]>([]);
+  const [isLoadingPressings, setIsLoadingPressings] = React.useState(false);
+  const [customPressingId, setCustomPressingId] = React.useState<number | undefined>(
+    album.CUSTOM_PRESSING_ID ? Number(album.CUSTOM_PRESSING_ID) : undefined
+  );
+  const [activeCustomPressing, setActiveCustomPressing] = React.useState<CustomPressing | null>(null);
+  const [communityPressings, setCommunityPressings] = React.useState<CustomPressing[]>([]);
+  const [showCustomPressingForm, setShowCustomPressingForm] = React.useState(false);
+  const [customFormTitle, setCustomFormTitle] = React.useState('');
+  const [customFormIsPublic, setCustomFormIsPublic] = React.useState(true);
+  const [customFormSides, setCustomFormSides] = React.useState<{ heading: string; tracks: string[] }[]>([
+    { heading: 'A Side', tracks: [''] },
+  ]);
+  const [isSubmittingCustomPressing, setIsSubmittingCustomPressing] = React.useState(false);
+  // 수정 모드일 때만 값이 있음 — 폼 제출 시 create/update 분기 기준
+  const [editingPressingId, setEditingPressingId] = React.useState<number | null>(null);
+  const [deletingPressing, setDeletingPressing] = React.useState<CustomPressing | null>(null);
+  const [isDeletingPressing, setIsDeletingPressing] = React.useState(false);
   const [notes, setNotes] = React.useState<string>('');
   const [copyright, setCopyright] = React.useState<string>('');
   const [releaseDate, setReleaseDate] = React.useState<string>('');
@@ -549,11 +573,25 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   }, []);
 
   React.useEffect(() => {
-    getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
-      if (details.tracks.length > 0 && (!album.TRACKS || album.TRACKS.length === 0)) {
+    // 커뮤니티 프레싱을 골랐으면 그 트랙을 그대로 쓴다 — Discogs/디지털
+    // 소스 조회 자체가 필요 없다(이미 유저가 직접 확인해서 입력한 데이터).
+    if (customPressingId) {
+      setIsLoadingTracks(true);
+      getCustomPressingById(customPressingId).then((p) => {
+        if (p) {
+          setTracks(p.TRACKS);
+          setIsExactRelease(true);
+          setActiveCustomPressing(p);
+        }
+      }).finally(() => setIsLoadingTracks(false));
+      return;
+    }
+    setActiveCustomPressing(null);
+    setIsLoadingTracks(true);
+    getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE, releaseId).then(details => {
+      if (details.tracks.length > 0) {
         setTracks(details.tracks);
-        // 다음 열람부터 외부 API 없이 바로 뜨도록 마스터에 백필 (실패해도 무시)
-        saveAlbumTracks(Number(album.ALBUM_ID), details.tracks).catch(() => {});
+        setIsExactRelease(!!details.isExactRelease);
       }
       if (details.notes) setNotes(details.notes);
       if (details.copyright) setCopyright(details.copyright);
@@ -573,7 +611,144 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
     }).finally(() => setIsLoadingTracks(false));
     // marketPrice를 deps에 넣으면 setMarketPrice로 인해 상세정보 재조회 루프가 발생하므로 제외
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.TRACKS, album.IMAGE_URL]);
+  }, [album.ALBUM_ID, album.ARTIST, album.TITLE, album.IMAGE_URL, releaseId, customPressingId]);
+
+  // 유저가 "프레싱 선택"에서 자기 소장반을 직접 고르면 USER_VINYL에 반영하고
+  // (이미 저장된 앨범일 때만 — 검색 중 미저장 앨범은 저장 시 반영됨) 그
+  // release id로 트랙을 다시 조회한다.
+  const handlePickPressing = async (version: DiscogsReleaseVersion) => {
+    setPressingPickerOpen(false);
+    if (album.USER_VINYL_ID) {
+      await updateUserVinylReleaseId(Number(album.USER_VINYL_ID), version.releaseId).catch(() => {});
+    }
+    setCustomPressingId(undefined);
+    setReleaseId(version.releaseId);
+  };
+
+  const handlePickCustomPressing = async (pressing: CustomPressing) => {
+    setPressingPickerOpen(false);
+    if (album.USER_VINYL_ID) {
+      await selectCustomPressing(Number(album.USER_VINYL_ID), pressing.PRESSING_ID).catch(() => {});
+    }
+    setReleaseId(undefined);
+    setCustomPressingId(pressing.PRESSING_ID);
+  };
+
+  const openPressingPicker = async () => {
+    setPressingPickerOpen(true);
+    if (pressingVersions.length === 0) {
+      setIsLoadingPressings(true);
+      getDiscogsReleaseVersions(album.ALBUM_ID, album.TITLE)
+        .then(setPressingVersions)
+        .finally(() => setIsLoadingPressings(false));
+    }
+    getCustomPressingsForAlbum(album.ALBUM_ID).then(setCommunityPressings).catch(() => {});
+  };
+
+  const addCustomFormSide = () => {
+    setCustomFormSides((prev) => [...prev, { heading: `${String.fromCharCode(65 + prev.length)} Side`, tracks: [''] }]);
+  };
+  const addCustomFormTrack = (sideIdx: number) => {
+    setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, tracks: [...s.tracks, ''] } : s)));
+  };
+  const removeCustomFormTrack = (sideIdx: number, trackIdx: number) => {
+    setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, tracks: s.tracks.filter((_, ti) => ti !== trackIdx) } : s)));
+  };
+  const removeCustomFormSide = (sideIdx: number) => {
+    setCustomFormSides((prev) => prev.filter((_, i) => i !== sideIdx));
+  };
+
+  const resetCustomForm = () => {
+    setShowCustomPressingForm(false);
+    setEditingPressingId(null);
+    setCustomFormTitle('');
+    setCustomFormIsPublic(true);
+    setCustomFormSides([{ heading: 'A Side', tracks: [''] }]);
+  };
+
+  const startCreatePressing = () => {
+    resetCustomForm();
+    setShowCustomPressingForm(true);
+  };
+
+  // 기존 트랙(side별 평평한 배열)을 폼이 쓰는 "사이드 묶음" 구조로 되돌린다 —
+  // 화면에 보여줄 때 쓰는 trackSideGroups와 같은 묶기 로직.
+  const startEditPressing = (p: CustomPressing) => {
+    const groups: { heading: string; tracks: string[] }[] = [];
+    for (const track of p.TRACKS) {
+      const heading = track.side || 'A Side';
+      const last = groups[groups.length - 1];
+      if (last && last.heading === heading) last.tracks.push(track.title);
+      else groups.push({ heading, tracks: [track.title] });
+    }
+    setEditingPressingId(p.PRESSING_ID);
+    setCustomFormTitle(p.TITLE);
+    setCustomFormIsPublic(p.IS_PUBLIC);
+    setCustomFormSides(groups.length > 0 ? groups : [{ heading: 'A Side', tracks: [''] }]);
+    setShowCustomPressingForm(true);
+  };
+
+  const confirmDeletePressing = async () => {
+    if (!deletingPressing || isDeletingPressing) return;
+    setIsDeletingPressing(true);
+    try {
+      await deleteCustomPressing(deletingPressing.PRESSING_ID);
+      const fresh = await getCustomPressingsForAlbum(album.ALBUM_ID);
+      setCommunityPressings(fresh);
+      if (customPressingId === deletingPressing.PRESSING_ID) {
+        setCustomPressingId(undefined);
+        setActiveCustomPressing(null);
+      }
+      setDeletingPressing(null);
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsDeletingPressing(false);
+    }
+  };
+
+  const handleSubmitCustomPressing = async () => {
+    if (!user?.id || isSubmittingCustomPressing) return;
+    const allTracks = customFormSides.flatMap((s) =>
+      s.tracks.filter((t) => t.trim()).map((t) => ({ side: s.heading.trim(), title: t.trim() }))
+    );
+    if (!customFormTitle.trim() || allTracks.length === 0) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.customPressingIncomplete') } }));
+      return;
+    }
+    setIsSubmittingCustomPressing(true);
+    try {
+      const pressingId = editingPressingId
+        ? (await updateCustomPressing(editingPressingId, customFormTitle, allTracks, customFormIsPublic), editingPressingId)
+        : await createCustomPressing(album.ALBUM_ID, user.id, customFormTitle, allTracks, customFormIsPublic);
+      resetCustomForm();
+      const fresh = await getCustomPressingsForAlbum(album.ALBUM_ID);
+      setCommunityPressings(fresh);
+      const affected = fresh.find((p) => p.PRESSING_ID === pressingId);
+      // 지금 보고 있는 프레싱을 수정했다면 화면도 즉시 갱신, 새로 만든 것이면 바로 선택
+      if (affected && (pressingId === customPressingId || !editingPressingId)) {
+        await handlePickCustomPressing(affected);
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsSubmittingCustomPressing(false);
+    }
+  };
+
+  // 사이드 정보(A/B/...)가 하나라도 있으면 사이드별로 묶어서 보여주고,
+  // 전부 없으면(디지털 폴백 소스) 기존처럼 평평한 번호 목록으로 표시한다.
+  const trackSideGroups = React.useMemo(() => {
+    if (!tracks.some((t) => t.side)) return null;
+    const groups: { side: string; tracks: AlbumTrack[] }[] = [];
+    for (const track of tracks) {
+      const side = track.side || '';
+      const last = groups[groups.length - 1];
+      if (last && last.side === side) last.tracks.push(track);
+      else groups.push({ side, tracks: [track] });
+    }
+    return groups;
+  }, [tracks]);
 
   const handleYoutubeListen = async () => {
     const query = `${album.ARTIST} ${album.TITLE} full album`;
@@ -649,7 +824,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
           VINYL_IMAGE_URL: album.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
           CUSTOM_COLOR_HEX: album.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
           CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
-          TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
           GENRES: finalGenres,
           MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
         });
@@ -661,7 +835,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         ...(isPersonalPhoto ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
         STATUS: status,
         PURCHASE_PRICE: price,
-        IS_PUBLIC: isPublic
+        IS_PUBLIC: isPublic,
+        // 검색 결과가 특정 프레싱(release)과 매칭됐을 때만 — 기존에 저장된
+        // 앨범을 다시 저장(가격 수정 등)할 때는 이미 잡혀 있는 release id를
+        // 실수로 지우지 않도록 값이 있을 때만 보낸다.
+        ...(releaseId ? { DISCOGS_RELEASE_ID: releaseId } : {}),
+        ...(customPressingId ? { CUSTOM_PRESSING_ID: customPressingId } : {})
       };
 
       if (status === 'OWNED' && album.STATUS !== 'OWNED') {
@@ -911,19 +1090,233 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
           </div>
           
           <div className={styles.tracklistContainer}>
-            <div className={styles.tracklistHeader}>Tracklist</div>
-            <ul className={styles.tracklist}>
-              {tracks.length > 0 ? tracks.map((track, i) => (
-                <li key={i}>
-                  <span className={styles.trackNum}>{String(i + 1).padStart(2, '0')}</span>
-                  <span className={styles.trackName}>{track}</span>
-                </li>
-              )) : (
-                <li className={styles.emptyTrack}>
-                  {isLoadingTracks ? t('detail.tracklistLoading') : t('detail.noTracklist')}
-                </li>
-              )}
-            </ul>
+            <div className={styles.tracklistHeader} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <span>Tracklist</span>
+              <button
+                type="button"
+                onClick={openPressingPicker}
+                style={{ background: 'none', border: 'none', color: 'inherit', opacity: 0.6, fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+              >
+                {t('detail.choosePressing')}
+              </button>
+            </div>
+            {tracks.length > 0 && !isExactRelease && (
+              <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '8px' }}>
+                {t('detail.tracklistNotExact')}
+              </div>
+            )}
+            {activeCustomPressing && (
+              <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '8px' }}>
+                {t('detail.customPressingByline', { title: activeCustomPressing.TITLE })}{' '}
+                <Link
+                  href={`/user/${activeCustomPressing.SUBMITTED_BY}/dashboard${activeCustomPressing.submitterName ? `?n=${encodeURIComponent(activeCustomPressing.submitterName)}` : ''}`}
+                  className={styles.pressingByline}
+                >
+                  {activeCustomPressing.submitterName || t('feed.anonymous')}
+                </Link>
+              </div>
+            )}
+            {trackSideGroups ? (
+              trackSideGroups.map((group, gi) => (
+                <div key={gi} style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '4px' }}>
+                    {t('detail.side', { side: group.side })}
+                  </div>
+                  <ul className={styles.tracklist}>
+                    {group.tracks.map((track, i) => (
+                      <li key={i}>
+                        <span className={styles.trackNum}>{track.position || String(i + 1).padStart(2, '0')}</span>
+                        <span className={styles.trackName}>{track.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <ul className={styles.tracklist}>
+                {tracks.length > 0 ? tracks.map((track, i) => (
+                  <li key={i}>
+                    <span className={styles.trackNum}>{String(i + 1).padStart(2, '0')}</span>
+                    <span className={styles.trackName}>{track.title}</span>
+                  </li>
+                )) : (
+                  <li className={styles.emptyTrack}>
+                    {isLoadingTracks ? t('detail.tracklistLoading') : t('detail.noTracklist')}
+                  </li>
+                )}
+              </ul>
+            )}
+            {pressingPickerOpen && createPortal(
+              // 부모(.modal)의 slide-in 애니메이션이 transform을 쓰기 때문에
+              // position:fixed 자식은 뷰포트가 아니라 그 부모 박스 기준으로
+              // 잘려서 작은 팝오버처럼 보인다 — portal로 body에 직접 붙여서 피한다
+              // (MediaAttachPicker의 트리밍 모달과 같은 이유/해법).
+              <div className={styles.pressingOverlay} onClick={() => setPressingPickerOpen(false)}>
+                <div className={styles.pressingModal} onClick={(e) => e.stopPropagation()}>
+                  <h3 className={styles.pressingModalTitle}>{t('detail.choosePressing')}</h3>
+
+                  {isLoadingPressings ? (
+                    <p className={styles.pressingEmpty}>{t('detail.tracklistLoading')}</p>
+                  ) : pressingVersions.length === 0 ? (
+                    <p className={styles.pressingEmpty}>{t('detail.noPressingsFound')}</p>
+                  ) : (
+                    <ul className={styles.pressingList}>
+                      {pressingVersions.map((v) => (
+                        <li key={v.releaseId}>
+                          <button
+                            type="button"
+                            onClick={() => handlePickPressing(v)}
+                            className={`${styles.pressingRow} ${v.releaseId === releaseId ? styles.pressingRowActive : ''}`}
+                          >
+                            {v.thumb && <img src={v.thumb} alt="" className={styles.pressingThumb} />}
+                            <span className={styles.pressingRowBody}>
+                              <div className={styles.pressingRowTitle}>{v.title}</div>
+                              <div className={styles.pressingRowMeta}>
+                                {[v.country, v.released, v.format].filter(Boolean).join(' · ')}
+                              </div>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <h4 className={styles.pressingSectionLabel}>{t('detail.communityPressings')}</h4>
+                  {communityPressings.length === 0 ? (
+                    <p className={styles.pressingEmpty}>{t('detail.noCommunityPressings')}</p>
+                  ) : (
+                    <ul className={styles.pressingList}>
+                      {communityPressings.map((p) => (
+                        <li key={p.PRESSING_ID}>
+                          <div className={`${styles.pressingRow} ${p.PRESSING_ID === customPressingId ? styles.pressingRowActive : ''}`}>
+                            <button type="button" onClick={() => handlePickCustomPressing(p)} className={styles.pressingRowBody} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'inherit' }}>
+                              <div className={styles.pressingRowTitle}>
+                                {p.TITLE}
+                                {!p.IS_PUBLIC && <span className={styles.pressingBadge}>{t('detail.privateOnlyMe')}</span>}
+                              </div>
+                              <div className={styles.pressingRowMeta}>
+                                {t('detail.pressingSelectedByCount', { count: p.selectionCount })}
+                              </div>
+                            </button>
+                            <Link
+                              href={`/user/${p.SUBMITTED_BY}/dashboard${p.submitterName ? `?n=${encodeURIComponent(p.submitterName)}` : ''}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className={styles.pressingByline}
+                            >
+                              {p.submitterName || t('feed.anonymous')}
+                            </Link>
+                            {p.SUBMITTED_BY === user?.id && (
+                              <div className={styles.pressingRowActions}>
+                                <button type="button" className={styles.pressingIconBtn} onClick={() => startEditPressing(p)} title={t('common.edit')}>
+                                  <span className="material-symbols-outlined">edit</span>
+                                </button>
+                                <button type="button" className={`${styles.pressingIconBtn} ${styles.pressingIconBtnDanger}`} onClick={() => setDeletingPressing(p)} title={t('common.delete')}>
+                                  <span className="material-symbols-outlined">delete</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {album.USER_VINYL_ID && !showCustomPressingForm && (
+                    <button type="button" onClick={startCreatePressing} className={styles.pressingAddBtn}>
+                      {t('detail.addCustomPressing')}
+                    </button>
+                  )}
+
+                  {showCustomPressingForm && (
+                    <div className={styles.pressingForm}>
+                      <label className={styles.pressingFormLabel}>{t('detail.customPressingTitleLabel')}</label>
+                      <input
+                        value={customFormTitle}
+                        onChange={(e) => setCustomFormTitle(e.target.value)}
+                        placeholder={t('detail.customPressingTitlePlaceholder')}
+                        className={styles.pressingInput}
+                      />
+                      {customFormSides.map((side, sideIdx) => (
+                        <div key={sideIdx} className={styles.pressingSideBlock}>
+                          <div className={styles.pressingSideHeader}>
+                            <input
+                              value={side.heading}
+                              onChange={(e) => setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, heading: e.target.value } : s)))}
+                              placeholder="A Side"
+                              className={`${styles.pressingInput} ${styles.pressingSideInput}`}
+                            />
+                            {customFormSides.length > 1 && (
+                              <button type="button" className={`${styles.pressingIconBtn} ${styles.pressingIconBtnDanger}`} onClick={() => removeCustomFormSide(sideIdx)}>
+                                <span className="material-symbols-outlined">close</span>
+                              </button>
+                            )}
+                          </div>
+                          {side.tracks.map((track, trackIdx) => (
+                            <div key={trackIdx} className={styles.pressingTrackRow}>
+                              <input
+                                value={track}
+                                onChange={(e) => setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, tracks: s.tracks.map((tr, ti) => (ti === trackIdx ? e.target.value : tr)) } : s)))}
+                                placeholder={t('detail.customPressingTrackPlaceholder', { n: trackIdx + 1 })}
+                                className={`${styles.pressingInput} ${styles.pressingTrackInput}`}
+                              />
+                              {side.tracks.length > 1 && (
+                                <button type="button" className={`${styles.pressingIconBtn} ${styles.pressingIconBtnDanger}`} onClick={() => removeCustomFormTrack(sideIdx, trackIdx)}>
+                                  <span className="material-symbols-outlined">close</span>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => addCustomFormTrack(sideIdx)} className={styles.pressingAddLink}>
+                            + {t('detail.addTrack')}
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addCustomFormSide} className={styles.pressingAddLink} style={{ marginBottom: '16px' }}>
+                        + {t('detail.addSide')}
+                      </button>
+
+                      <label className={styles.pressingCheckboxRow}>
+                        <input type="checkbox" checked={customFormIsPublic} onChange={(e) => setCustomFormIsPublic(e.target.checked)} />
+                        {t('detail.customPressingPublicToggle')}
+                      </label>
+
+                      <div className={styles.pressingFormActions}>
+                        <button type="button" onClick={resetCustomForm} className={styles.pressingCancelBtn}>
+                          {t('common.cancel')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSubmitCustomPressing}
+                          disabled={isSubmittingCustomPressing}
+                          className={styles.pressingSubmitBtn}
+                        >
+                          {isSubmittingCustomPressing ? t('detail.tracklistLoading') : (editingPressingId ? t('detail.updateCustomPressing') : t('detail.submitCustomPressing'))}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>,
+              document.body
+            )}
+            {deletingPressing && createPortal(
+              <div className={styles.confirmOverlay} style={{ position: 'fixed', zIndex: 10001 }} onClick={() => setDeletingPressing(null)}>
+                <div className={styles.confirmPopup} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.confirmIcon}><span className="material-symbols-outlined">delete</span></div>
+                  <div className={styles.confirmTitle}>{t('detail.deleteCustomPressingTitle')}</div>
+                  <div className={styles.confirmMessage}>{t('detail.deleteCustomPressingMessage', { title: deletingPressing.TITLE })}</div>
+                  <div className={styles.confirmActions}>
+                    <button className={styles.btnCancel} onClick={() => setDeletingPressing(null)} disabled={isDeletingPressing}>
+                      {t('common.cancel')}
+                    </button>
+                    <button className={styles.btnDelete} onClick={confirmDeletePressing} disabled={isDeletingPressing}>
+                      {isDeletingPressing ? t('detail.tracklistLoading') : t('common.delete')}
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
             {(releaseDate || copyright || notes) && (
               <div className={styles.extraDetails}>
                 {releaseDate && <div className={styles.detailItem}><span className={styles.detailLabel}>{t('detail.releaseDate')}</span> {releaseDate}</div>}

@@ -998,3 +998,251 @@
   width: 100%;
   margin: 4px 0 16px;
 }
+
+/* ============================================
+   Pressing Picker (다른 프레싱 선택 / 커뮤니티 프레싱)
+   ============================================ */
+.pressingOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 11, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.25s ease;
+}
+
+.pressingModal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 16px;
+  padding: 28px;
+  width: min(480px, calc(100vw - 32px));
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.pressingModal::-webkit-scrollbar { width: 6px; }
+.pressingModal::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+
+.pressingModalTitle {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.pressingSectionLabel {
+  margin: 24px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pressingEmpty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 4px 0 8px;
+}
+
+.pressingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pressingRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.pressingRow:hover { background: rgba(255, 255, 255, 0.04); }
+.pressingRowActive {
+  background: var(--accent-glow);
+  border-color: var(--accent-dim);
+}
+
+.pressingThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.pressingRowBody { flex: 1; min-width: 0; }
+.pressingRowTitle {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pressingRowMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.pressingBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-glow);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.pressingByline {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pressingByline:hover { text-decoration: underline; }
+
+.pressingRowActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.pressingIconBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pressingIconBtn span { font-size: 16px; }
+.pressingIconBtn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
+.pressingIconBtnDanger:hover { background: rgba(211, 47, 47, 0.15); color: #ff6659; }
+
+.pressingAddBtn {
+  margin-top: 18px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-strong);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.pressingAddBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+.pressingForm {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.pressingFormLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.pressingInput {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+.pressingInput:focus { outline: none; border-color: var(--accent); }
+.pressingInput::placeholder { color: var(--text-faint); }
+
+.pressingSideBlock {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.pressingSideHeader { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.pressingSideInput { flex: 1; margin-bottom: 0 !important; font-weight: 700; }
+.pressingTrackRow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.pressingTrackRow:last-of-type { margin-bottom: 0; }
+.pressingTrackInput { flex: 1; margin-bottom: 0 !important; }
+
+.pressingAddLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0 0;
+}
+.pressingAddLink:hover { text-decoration: underline; }
+
+.pressingCheckboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 12px 0 20px;
+  cursor: pointer;
+}
+.pressingCheckboxRow input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.pressingFormActions { display: flex; gap: 10px; }
+.pressingCancelBtn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+.pressingCancelBtn:hover { background: rgba(255, 255, 255, 0.06); }
+.pressingSubmitBtn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #1a1710;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.pressingSubmitBtn:hover { filter: brightness(1.08); }
+.pressingSubmitBtn:disabled { opacity: 0.6; cursor: default; }

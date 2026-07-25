@@ -5,6 +5,8 @@ import { AppError } from './errors';
 // Configure axios to retry requests on failure (e.g. rate limits, network issues)
 axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 import { logEvent } from './events';
+import { getReleaseTracks, saveReleaseTracks } from './supabaseDb';
+import type { AlbumTrack } from '@vinyla/shared-types';
 
 // ── Credential handling ───────────────────────────────────────────────────
 // API keys must never ship in a client bundle (the old EXPO_PUBLIC_/
@@ -41,6 +43,12 @@ export type AlbumItem = {
   // Aladin-sourced items only: alternate covers the user can pick between
   // instead of silently locking in Aladin's product-shot photo as `thumb`.
   coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
+  // The specific Discogs *release* this search hit matched (as opposed to
+  // `id`, which is usually the master_id — the abstract group shared by
+  // every pressing/reissue). Undefined for Aladin-sourced items (no real
+  // Discogs release behind them). Lets the tracklist fetch use the exact
+  // pressing's own tracklist/sides instead of the master's generic one.
+  releaseId?: number;
 };
 
 export type SearchStatus = 'idle' | 'fetching_discogs' | 'enriching' | 'done' | 'error';
@@ -837,6 +845,7 @@ export const createDiscogsSearchSession = (
         genre: combinedGenres,
         isFeature,
         ...(coverCandidates ? { coverCandidates } : {}),
+        ...(isFromAladin ? {} : { releaseId: r.id }),
       });
     };
 
@@ -865,7 +874,13 @@ export const searchDiscogsLazy = async (
 
 
 export interface AlbumExtraDetails {
-  tracks: string[];
+  tracks: AlbumTrack[];
+  // true when `tracks` came from the exact physical release the user owns
+  // (Discogs `/releases/{releaseId}`, position/side intact) — false when it
+  // fell back to a digital-store tracklist (iTunes/Apple/Deezer, or the
+  // master's own generic tracklist), which can legitimately differ from a
+  // given pressing's real disc layout. Lets the UI warn when it's a guess.
+  isExactRelease?: boolean;
   notes?: string;
   copyright?: string;
   releaseDate?: string;
@@ -873,34 +888,90 @@ export interface AlbumExtraDetails {
   marketPrice?: number;
 }
 
-export const getAlbumExtraDetails = async (albumId: string | number, artist?: string, title?: string): Promise<AlbumExtraDetails> => {
-  const serverAuth = getDiscogsAuth();
-  const details: AlbumExtraDetails = { tracks: [] };
+// Discogs vinyl tracklist positions look like "A1", "B2", "AA1", or (for
+// non-vinyl formats sometimes mixed into a release's tracklist) plain "1" —
+// the leading letters are the side, the trailing number the track-on-side.
+// No letters at all (CD numbering, or a heading/index track) means no side.
+const parseDiscogsPosition = (position?: string): { side?: string } => {
+  const m = /^([A-Za-z]+)\d*$/.exec((position || '').trim());
+  return m ? { side: m[1].toUpperCase() } : {};
+};
 
-  // 1. Try Discogs first (directly with server credentials, or through the
-  //    key-holding proxy from client bundles)
+const mapDiscogsTracklist = (tracklist: Array<{ position?: string; title: string; duration?: string }>): AlbumTrack[] =>
+  tracklist
+    .filter((t) => t.title)
+    .map((t) => ({
+      title: t.title,
+      ...(t.position ? { position: t.position } : {}),
+      ...(t.duration ? { duration: t.duration } : {}),
+      ...parseDiscogsPosition(t.position),
+    }));
+
+export const getAlbumExtraDetails = async (
+  albumId: string | number,
+  artist?: string,
+  title?: string,
+  releaseId?: string | number
+): Promise<AlbumExtraDetails> => {
+  const serverAuth = getDiscogsAuth();
+  const details: AlbumExtraDetails = { tracks: [], isExactRelease: false };
+
+  // 0. The exact physical release the user owns is ground truth — try the
+  //    release-tracks cache first, then Discogs `/releases/{releaseId}`
+  //    directly. This is the whole point of the redesign: a master's
+  //    "representative" tracklist (or a digital-store one) can legitimately
+  //    differ from this specific pressing's real tracks/side layout.
+  if (releaseId) {
+    try {
+      const cached = await getReleaseTracks(releaseId);
+      if (cached && cached.length > 0) {
+        details.tracks = cached;
+        details.isExactRelease = true;
+      }
+    } catch { /* cache miss/error — fall through to a live fetch */ }
+
+    if (details.tracks.length === 0) {
+      try {
+        const releaseData = serverAuth
+          ? (await axios.get(`https://api.discogs.com/releases/${releaseId}`, { params: serverAuth })).data
+          : (await axios.get(`${getProxyBaseUrl()}/api/external/discogs-details`, { params: { releaseId } })).data;
+        if (Array.isArray(releaseData?.tracklist) && releaseData.tracklist.length > 0) {
+          details.tracks = mapDiscogsTracklist(releaseData.tracklist);
+          details.isExactRelease = true;
+          if (releaseData.notes) details.notes = releaseData.notes;
+          if (releaseData.lowest_price) details.marketPrice = Math.round(releaseData.lowest_price * 1400);
+          saveReleaseTracks(releaseId, details.tracks).catch(() => {});
+        }
+      } catch { /* no exact-release data available — fall back below */ }
+    }
+  }
+
+  // 1. Fallback: the master's own "representative" tracklist (only used when
+  //    step 0 didn't produce exact-release tracks — no releaseId at all, or
+  //    the release fetch failed). Still the source for notes/marketPrice
+  //    when step 0 didn't already fill those in.
   if (serverAuth) {
     try {
       const masterRes = await axios.get(`https://api.discogs.com/masters/${albumId}`, { params: serverAuth });
-      if (masterRes.data?.tracklist) {
-        details.tracks = masterRes.data.tracklist.map((t: { title: string }) => t.title);
+      if (details.tracks.length === 0 && masterRes.data?.tracklist) {
+        details.tracks = mapDiscogsTracklist(masterRes.data.tracklist);
       }
-      if (masterRes.data?.notes) {
+      if (!details.notes && masterRes.data?.notes) {
         details.notes = masterRes.data.notes;
       }
-      if (masterRes.data?.lowest_price) {
+      if (!details.marketPrice && masterRes.data?.lowest_price) {
         details.marketPrice = Math.round(masterRes.data.lowest_price * 1400); // Convert USD/EUR to KRW roughly
       }
     } catch (e) {
       try {
         const releaseRes = await axios.get(`https://api.discogs.com/releases/${albumId}`, { params: serverAuth });
-        if (releaseRes.data?.tracklist) {
-          details.tracks = releaseRes.data.tracklist.map((t: { title: string }) => t.title);
+        if (details.tracks.length === 0 && releaseRes.data?.tracklist) {
+          details.tracks = mapDiscogsTracklist(releaseRes.data.tracklist);
         }
-        if (releaseRes.data?.notes) {
+        if (!details.notes && releaseRes.data?.notes) {
           details.notes = releaseRes.data.notes;
         }
-        if (releaseRes.data?.lowest_price) {
+        if (!details.marketPrice && releaseRes.data?.lowest_price) {
           details.marketPrice = Math.round(releaseRes.data.lowest_price * 1400);
         }
       } catch (e2) {
@@ -910,9 +981,9 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
   } else {
     try {
       const res = await axios.get(`${getProxyBaseUrl()}/api/external/discogs-details`, { params: { albumId } });
-      if (Array.isArray(res.data?.tracks)) details.tracks = res.data.tracks;
-      if (res.data?.notes) details.notes = res.data.notes;
-      if (typeof res.data?.lowest_price === 'number') {
+      if (details.tracks.length === 0 && Array.isArray(res.data?.tracklist)) details.tracks = mapDiscogsTracklist(res.data.tracklist);
+      if (!details.notes && res.data?.notes) details.notes = res.data.notes;
+      if (!details.marketPrice && typeof res.data?.lowest_price === 'number') {
         details.marketPrice = Math.round(res.data.lowest_price * 1400); // Convert USD/EUR to KRW roughly
       }
     } catch (e) {
@@ -987,7 +1058,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         }
         if (details.tracks.length === 0 && pageAlbum && pageAlbum.tracks.length > 0) {
           // The verify step above already fetched the page — reuse its tracks.
-          details.tracks = pageAlbum.tracks;
+          details.tracks = pageAlbum.tracks.map((t) => ({ title: t }));
         }
         if (details.tracks.length === 0) {
           // Fallback to iTunes tracks if Discogs failed.
@@ -1000,7 +1071,7 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
             });
             const songs = trackRes.data.results?.filter((r: ITunesResult) => r.wrapperType === 'track') || [];
             if (songs.length > 0) {
-              details.tracks = songs.map((s: ITunesResult) => s.trackName || '');
+              details.tracks = songs.map((s: ITunesResult) => ({ title: s.trackName || '' }));
             }
           } catch {
             // 앨범 페이지 폴백이 이어서 처리한다
@@ -1009,7 +1080,8 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         if (details.tracks.length === 0 && hit.collectionId) {
           // Streaming-only albums return no track entities from the lookup
           // above — the public album page still lists them.
-          details.tracks = (await fetchAppleMusicAlbumPage(hit.collectionId))?.tracks || [];
+          const pageTracks = (await fetchAppleMusicAlbumPage(hit.collectionId))?.tracks || [];
+          details.tracks = pageTracks.map((t) => ({ title: t }));
         }
       }
     }
@@ -1036,8 +1108,8 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
         if (dz) {
           if (details.tracks.length === 0 && Array.isArray(dz.tracks?.data)) {
             details.tracks = dz.tracks.data
-              .map((t) => t.title || '')
-              .filter(Boolean);
+              .map((t) => ({ title: t.title || '' }))
+              .filter((t) => t.title);
           }
           if (!details.releaseDate && dz.release_date) {
             details.releaseDate = new Date(dz.release_date).toLocaleDateString('ko-KR', {
@@ -1049,7 +1121,88 @@ export const getAlbumExtraDetails = async (albumId: string | number, artist?: st
     }
   }
 
+  // 4. Last resort: Aladin's own product description for Korean-exclusive
+  //    LPs that aren't on Discogs and are invisible to iTunes/Deezer's
+  //    global catalogs. This describes the exact physical listing (often
+  //    with real disc/side labels), but it's free text a seller typed, not
+  //    structured data — treated as a genuine last resort, tried only when
+  //    every source above came up empty.
+  if (details.tracks.length === 0 && artist && title) {
+    try {
+      const res = await axios.get(`${getProxyBaseUrl()}/api/external/aladin-tracklist`, { params: { artist, title } });
+      if (Array.isArray(res.data?.tracks) && res.data.tracks.length > 0) {
+        details.tracks = res.data.tracks;
+      }
+    } catch { /* genuinely no tracklist available anywhere */ }
+  }
+
   return details;
+};
+
+export interface DiscogsReleaseVersion {
+  releaseId: number;
+  title: string;
+  country?: string;
+  released?: string;
+  format?: string;
+  thumb?: string;
+}
+
+// Lists the real physical pressings behind a master group (format=Vinyl
+// only) so the user can pick the one they actually own — the search flow
+// only auto-picks whichever single release Discogs's search happened to
+// surface first, which is a good default but not always the user's copy.
+const normalizeForMatch = (s: string): string =>
+  s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+
+// `expectedTitle`, when given, filters out versions whose title has nothing
+// in common with the album we're actually viewing. This exists because
+// some albums' stored master_id was mismatched to a completely unrelated
+// Discogs master group by an earlier (imperfect) search/scan match — the
+// master's own generic tracklist or the digital fallback still happened to
+// show the right songs (matched by artist/title text, not master id), so
+// the bad master_id went unnoticed until this feature listed *that
+// unrelated master's* real versions (e.g. a modern R&B album's card
+// showing early-1900s 78rpm shellac pressings as "other pressings").
+// Without this filter the picker would confidently list garbage instead of
+// surfacing the mismatch as "no pressings found."
+export const getDiscogsReleaseVersions = async (
+  masterId: string | number,
+  expectedTitle?: string
+): Promise<DiscogsReleaseVersion[]> => {
+  const serverAuth = getDiscogsAuth();
+  try {
+    const data = serverAuth
+      ? (await axios.get(`https://api.discogs.com/masters/${masterId}/versions`, {
+          params: { ...serverAuth, format: 'Vinyl', per_page: 50 },
+        })).data
+      : (await axios.get(`${getProxyBaseUrl()}/api/external/discogs-versions`, { params: { masterId } })).data;
+
+    const versions: Array<{ id: number; title?: string; country?: string; released?: string; format?: string; thumb?: string }> =
+      data?.versions || [];
+    let mapped = versions.map((v) => ({
+      releaseId: v.id,
+      title: v.title || '',
+      country: v.country,
+      released: v.released,
+      format: v.format,
+      thumb: v.thumb,
+    }));
+
+    if (expectedTitle) {
+      const wanted = normalizeForMatch(expectedTitle);
+      if (wanted) {
+        mapped = mapped.filter((v) => {
+          const got = normalizeForMatch(v.title);
+          return got && (got.includes(wanted) || wanted.includes(got));
+        });
+      }
+    }
+
+    return mapped;
+  } catch {
+    return [];
+  }
 };
 
 // YouTube Data API Bridge Function — direct with a server-side key, or via

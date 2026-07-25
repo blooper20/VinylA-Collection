@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { ALBUM_MASTER, USER_VINYL, VINYL_TAG } from '@vinyla/shared-types';
+import { ALBUM_MASTER, USER_VINYL, VINYL_TAG, AlbumTrack } from '@vinyla/shared-types';
 import { logEvent } from './events';
 import { AppError } from './errors';
 
@@ -111,23 +111,49 @@ export const createAlbumMaster = async (album: Partial<ALBUM_MASTER>): Promise<A
   return error || !data ? (album as ALBUM_MASTER) : (data as ALBUM_MASTER);
 };
 
-// 상세 모달이 외부 API에서 성공적으로 가져온 트랙리스트를 마스터에 백필한다.
-// ALBUM_MASTER는 클라이언트 UPDATE가 금지돼 있어(공유 데이터 보호) "비어
-// 있을 때만 채우는" SECURITY DEFINER RPC(set_album_tracks)를 거친다 —
-// supabase_schema_migration_album_tracks.sql 참고. RPC가 없거나 실패해도
-// localStorage 미러 덕에 이 기기에서는 다음 열람부터 바로 뜬다.
-export const saveAlbumTracks = async (albumId: number, tracks: string[]): Promise<void> => {
-  if (!albumId || !tracks || tracks.length === 0) return;
-  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    try {
-      const masters = JSON.parse(localStorage.getItem('VINYL_A_LOCAL_MASTERS') || '{}');
-      masters[albumId] = { ...(masters[albumId] || {}), TRACKS: tracks };
-      localStorage.setItem('VINYL_A_LOCAL_MASTERS', JSON.stringify(masters));
-    } catch { /* ignore */ }
-  }
-  if (isOffline()) return;
-  const { error } = await supabase.rpc('set_album_tracks', { p_album_id: albumId, p_tracks: tracks });
-  if (error) console.warn('saveAlbumTracks: 마스터 백필 실패(마이그레이션 미실행?):', error.message);
+// =======================
+// ALBUM_RELEASE_TRACKS (실물반/release 단위 트랙 캐시)
+// =======================
+// ALBUM_MASTER.TRACKS(마스터 단위, 전 유저 공유)와 달리 이 테이블은 정확한
+// Discogs release id로 키가 잡혀 있어 서로 다른 프레싱끼리 오염될 수 없다
+// — 같은 프레싱을 가진 유저끼리는 안전하게 캐시를 공유한다.
+
+export const getReleaseTracks = async (releaseId: number | string): Promise<AlbumTrack[] | null> => {
+  if (!releaseId || isOffline()) return null;
+  const { data, error } = await supabase
+    .from('ALBUM_RELEASE_TRACKS')
+    .select('TRACKS')
+    .eq('DISCOGS_RELEASE_ID', Number(releaseId))
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as { TRACKS: AlbumTrack[] }).TRACKS;
+};
+
+// 캐시 행은 한 번 채워지면 불변(그 실물반의 트랙리스트는 안 바뀜)이라
+// 중복 삽입은 조용히 무시한다 — ALBUM_MASTER처럼 UPDATE 정책을 둘 필요가 없다.
+export const saveReleaseTracks = async (releaseId: number | string, tracks: AlbumTrack[]): Promise<void> => {
+  if (!releaseId || !tracks || tracks.length === 0 || isOffline()) return;
+  const { error } = await supabase
+    .from('ALBUM_RELEASE_TRACKS')
+    .upsert([{ DISCOGS_RELEASE_ID: Number(releaseId), TRACKS: tracks }], {
+      onConflict: 'DISCOGS_RELEASE_ID',
+      ignoreDuplicates: true,
+    });
+  if (error) console.warn('saveReleaseTracks 실패(마이그레이션 미실행?):', error.message);
+};
+
+// 유저가 상세화면의 "프레싱 선택" UI로 자기 소장반을 직접 지정할 때 호출.
+export const updateUserVinylReleaseId = async (
+  userVinylId: number,
+  releaseId: number | string
+): Promise<void> => {
+  // CUSTOM_PRESSING_ID와 상호 배타적 — 공식 Discogs 프레싱을 고르면
+  // 커뮤니티 등록 참조는 비운다.
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .update({ DISCOGS_RELEASE_ID: Number(releaseId), CUSTOM_PRESSING_ID: null })
+    .eq('USER_VINYL_ID', userVinylId);
+  if (error) throw error;
 };
 
 // =======================
@@ -383,6 +409,10 @@ export const addVinylTag = async (tag: Partial<VINYL_TAG>): Promise<VINYL_TAG | 
 export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
   const master = albumMaster || userVinyl?.ALBUM_MASTER;
   return {
+    // 프레싱 선택(updateUserVinylReleaseId/selectCustomPressing) 등 이 특정
+    // USER_VINYL 행을 갱신해야 하는 동작 전부가 이 id에 의존한다 — 빠지면
+    // 그런 동작이 로컬 상태만 바뀌고 DB에는 조용히 반영 안 되는 버그가 된다.
+    USER_VINYL_ID: userVinyl?.USER_VINYL_ID,
     ALBUM_ID: master?.ALBUM_ID || userVinyl?.ALBUM_ID,
     TITLE: master?.TITLE || 'Unknown Title',
     ARTIST: master?.ARTIST || 'Unknown Artist',
@@ -407,7 +437,11 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     PURCHASE_DATE: userVinyl?.CREATED_AT || userVinyl?.PURCHASE_DATE || '',
     CUSTOM_COLOR_HEX: master?.CUSTOM_COLOR_HEX || '#1a1c1c',
     MARKET_PRICE: master?.MARKET_PRICE || 0,
-    IS_PUBLIC: userVinyl?.IS_PUBLIC !== false
+    IS_PUBLIC: userVinyl?.IS_PUBLIC !== false,
+    // 유저가 소장한 정확한 실물반(Discogs release). 있으면 상세 모달이
+    // ALBUM_RELEASE_TRACKS에서 정확한 트랙/사이드를 가져온다.
+    DISCOGS_RELEASE_ID: userVinyl?.DISCOGS_RELEASE_ID ?? null,
+    CUSTOM_PRESSING_ID: userVinyl?.CUSTOM_PRESSING_ID ?? null
   };
 };
 

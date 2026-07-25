@@ -1,4 +1,15 @@
 /**
+ * 트랙 1곡 — position은 Discogs 원본 표기("A1", "B2" 등), side는 거기서
+ * 파싱한 앞쪽 알파벳(디지털 소스 폴백일 때는 둘 다 없음)
+ */
+export interface AlbumTrack {
+  position?: string;
+  side?: string;
+  title: string;
+  duration?: string;
+}
+
+/**
  * 앨범 마스터 메타데이터
  */
 export interface ALBUM_MASTER {
@@ -21,8 +32,11 @@ export interface ALBUM_MASTER {
   CUSTOM_COLOR_HEX: string;
   /** 유저가 지정한 알맹이 질감 */
   CUSTOM_STYLE_TYPE: 'SOLID' | 'TRANSLUCENT' | 'SPLATTER';
-  /** 수록곡 리스트 */
-  TRACKS?: string[];
+  /** (레거시) 마스터 단위로 캐싱되던 수록곡 — 프레싱마다 실제 트랙/사이드가
+   *  달라 오염 소지가 있었음. 더 이상 쓰지 않으며, 실물반 트랙은
+   *  ALBUM_RELEASE_TRACKS(release 단위)에서 관리한다. 과거 데이터 호환을
+   *  위해 타입만 남겨둠 */
+  TRACKS?: AlbumTrack[];
   /** 장르 태그 (UI 표시용) */
   GENRES?: string[];
   /** Discogs 등 실제 시장 최저가 (KRW 기준) */
@@ -51,6 +65,40 @@ export interface USER_VINYL {
   ADDED_AT?: string;
   /** 공개 여부 */
   IS_PUBLIC?: boolean;
+  /** 유저가 실제로 소장한 실물반의 Discogs release ID (master_id가 아님).
+   *  검색 시 자동으로 잡히거나, 프레싱 선택 UI로 직접 지정한다. 이 값이
+   *  있어야 ALBUM_RELEASE_TRACKS에서 정확한 사이드/트랙을 가져올 수 있다 */
+  DISCOGS_RELEASE_ID?: number | null;
+  /** 유저가 소장한 실물반으로 커뮤니티 프레싱(다른 유저가 직접 등록한 트랙)을
+   *  골랐을 때의 참조. DISCOGS_RELEASE_ID와 상호 배타적 — 실제 소장반은
+   *  Discogs release 아니면 커뮤니티 등록 둘 중 하나다 */
+  CUSTOM_PRESSING_ID?: number | null;
+}
+
+/**
+ * 실물반(release) 단위 트랙리스트 캐시 — 같은 프레싱을 가진 유저끼리는
+ * 안전하게 공유 가능하다(캐시 키가 정확히 "그 실물반"이므로 서로 다른
+ * 프레싱 간 오염이 구조적으로 불가능하다. ALBUM_MASTER.TRACKS와 대비).
+ */
+export interface ALBUM_RELEASE_TRACKS {
+  DISCOGS_RELEASE_ID: number;
+  TRACKS: AlbumTrack[];
+  FETCHED_AT?: string;
+}
+
+/**
+ * 유저가 직접 입력한 프레싱(사이드별 트랙리스트) — Discogs/알라딘 어디에도
+ * 없는 실물반을 위한 최후 수단. 공개 등록은 "다른 프레싱 선택"에서 같은
+ * 앨범의 다른 유저에게도 보인다(게시글처럼) — 비공개면 등록한 본인에게만.
+ */
+export interface CUSTOM_PRESSING {
+  PRESSING_ID: number;
+  ALBUM_ID: number;
+  SUBMITTED_BY: string;
+  TITLE: string;
+  TRACKS: AlbumTrack[];
+  IS_PUBLIC: boolean;
+  CREATED_AT?: string;
 }
 
 /**

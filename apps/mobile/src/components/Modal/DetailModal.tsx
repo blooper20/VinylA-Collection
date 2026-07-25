@@ -2,11 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { Alert, View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { MockVinylData } from '@vinyla/shared-types';
+import { MockVinylData, AlbumTrack } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin } from '@vinyla/core-api';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
@@ -69,13 +70,38 @@ const AnimatedButton = ({ onPress, style, children, isHeavy = false }: any) => {
 };
 
 export const DetailModal = ({ album, visible, onClose, coverCandidates }: DetailModalProps) => {
+  const navigation = useNavigation<NavigationProp<any>>();
   const insets = useSafeAreaInsets();
   const vinylAnim = useRef(new Animated.Value(0)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
   const modalAnim = useRef(new Animated.Value(0)).current;
-  const [tracks, setTracks] = React.useState<string[]>([]);
+  const [tracks, setTracks] = React.useState<AlbumTrack[]>([]);
   const [isTracksLoading, setIsTracksLoading] = React.useState<boolean>(false);
+  // true일 때만 "정확한 실물반" 트랙(사이드 포함) — false면 디지털 소스
+  // 폴백(마스터 대표 트랙/iTunes/Apple/Deezer)이라 실제 소장반과 다를 수 있다.
+  const [isExactRelease, setIsExactRelease] = React.useState(false);
+  const [releaseId, setReleaseId] = React.useState<number | undefined>(
+    album?.DISCOGS_RELEASE_ID ? Number(album.DISCOGS_RELEASE_ID) : undefined
+  );
+  const [pressingPickerOpen, setPressingPickerOpen] = React.useState(false);
+  const [pressingVersions, setPressingVersions] = React.useState<DiscogsReleaseVersion[]>([]);
+  const [isLoadingPressings, setIsLoadingPressings] = React.useState(false);
+  const [customPressingId, setCustomPressingId] = React.useState<number | undefined>(
+    album?.CUSTOM_PRESSING_ID ? Number(album.CUSTOM_PRESSING_ID) : undefined
+  );
+  const [activeCustomPressing, setActiveCustomPressing] = React.useState<CustomPressing | null>(null);
+  const [communityPressings, setCommunityPressings] = React.useState<CustomPressing[]>([]);
+  const [showCustomPressingForm, setShowCustomPressingForm] = React.useState(false);
+  const [customFormTitle, setCustomFormTitle] = React.useState('');
+  const [customFormIsPublic, setCustomFormIsPublic] = React.useState(true);
+  const [customFormSides, setCustomFormSides] = React.useState<{ heading: string; tracks: string[] }[]>([
+    { heading: 'A Side', tracks: [''] },
+  ]);
+  const [isSubmittingCustomPressing, setIsSubmittingCustomPressing] = React.useState(false);
+  const [editingPressingId, setEditingPressingId] = React.useState<number | null>(null);
+  const [deletingPressing, setDeletingPressing] = React.useState<CustomPressing | null>(null);
+  const [isDeletingPressing, setIsDeletingPressing] = React.useState(false);
   const [realStatus, setRealStatus] = React.useState<string | null>(null);
   // 스피닝 다이어리 작성 (웹 SpinLogModal 파리티 — 기분+메모+미디어+공개여부)
   const [isSpinModalOpen, setIsSpinModalOpen] = React.useState(false);
@@ -133,7 +159,11 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
 
   useEffect(() => {
     if (visible && album) {
-      setTracks(album.TRACKS || []);
+      setTracks([]);
+      setIsExactRelease(false);
+      setActiveCustomPressing(null);
+      setReleaseId(album.DISCOGS_RELEASE_ID ? Number(album.DISCOGS_RELEASE_ID) : undefined);
+      setCustomPressingId(album.CUSTOM_PRESSING_ID ? Number(album.CUSTOM_PRESSING_ID) : undefined);
       setPurchasePrice((album as any).PURCHASE_PRICE || null);
       setMarketPrice((album as any).MARKET_PRICE || null);
       setReleaseDate('');
@@ -190,16 +220,33 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
       ]).start(() => {
         // Fetch tracklist & details after animation completes to prevent UI jank
         setIsTracksLoading(true);
-        getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE).then(details => {
-          if (details.tracks && details.tracks.length > 0) setTracks(details.tracks);
-          if (details.marketPrice) setMarketPrice(details.marketPrice);
-          else if (!marketPrice && !(album as any).MARKET_PRICE) setMarketPrice(-1);
-          if (details.releaseDate) setReleaseDate(details.releaseDate);
-          if (details.copyright) setCopyright(details.copyright);
-          if (details.notes) setNotes(details.notes);
-        }).finally(() => {
-          setIsTracksLoading(false);
-        });
+        const customPressingIdAtFetch = album.CUSTOM_PRESSING_ID ? Number(album.CUSTOM_PRESSING_ID) : undefined;
+        if (customPressingIdAtFetch) {
+          // 커뮤니티 프레싱을 골랐으면 그 트랙을 그대로 쓴다 — Discogs/디지털
+          // 소스 조회 자체가 필요 없다.
+          getCustomPressingById(customPressingIdAtFetch).then((p) => {
+            if (p) {
+              setTracks(p.TRACKS);
+              setIsExactRelease(true);
+              setActiveCustomPressing(p);
+            }
+          }).finally(() => setIsTracksLoading(false));
+        } else {
+          const releaseIdAtFetch = album.DISCOGS_RELEASE_ID ? Number(album.DISCOGS_RELEASE_ID) : undefined;
+          getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE, releaseIdAtFetch).then(details => {
+            if (details.tracks && details.tracks.length > 0) {
+              setTracks(details.tracks);
+              setIsExactRelease(!!details.isExactRelease);
+            }
+            if (details.marketPrice) setMarketPrice(details.marketPrice);
+            else if (!marketPrice && !(album as any).MARKET_PRICE) setMarketPrice(-1);
+            if (details.releaseDate) setReleaseDate(details.releaseDate);
+            if (details.copyright) setCopyright(details.copyright);
+            if (details.notes) setNotes(details.notes);
+          }).finally(() => {
+            setIsTracksLoading(false);
+          });
+        }
 
         // Start infinite spin after vinyl slides out
         Animated.loop(
@@ -224,6 +271,158 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   }, [myPhoto, masterImage, album]);
 
   const coverScope = myPhoto && masterImage === myPhoto ? 'everyone' : 'mine';
+
+  // 사이드 정보(A/B/...)가 하나라도 있으면 사이드별로 묶어서 보여주고,
+  // 전부 없으면(디지털 폴백 소스) 기존처럼 평평한 번호 목록으로 표시한다.
+  const trackSideGroups = React.useMemo(() => {
+    if (!tracks.some((tr) => tr.side)) return null;
+    const groups: { side: string; tracks: AlbumTrack[] }[] = [];
+    for (const tr of tracks) {
+      const side = tr.side || '';
+      const last = groups[groups.length - 1];
+      if (last && last.side === side) last.tracks.push(tr);
+      else groups.push({ side, tracks: [tr] });
+    }
+    return groups;
+  }, [tracks]);
+
+  const openPressingPicker = async () => {
+    if (!album) return;
+    setPressingPickerOpen(true);
+    if (pressingVersions.length === 0) {
+      setIsLoadingPressings(true);
+      getDiscogsReleaseVersions(album.ALBUM_ID, album.TITLE)
+        .then(setPressingVersions)
+        .finally(() => setIsLoadingPressings(false));
+    }
+    getCustomPressingsForAlbum(album.ALBUM_ID).then(setCommunityPressings).catch(() => {});
+  };
+
+  // 유저가 "프레싱 선택"에서 자기 소장반을 직접 고르면 USER_VINYL에 반영하고
+  // (이미 저장된 앨범일 때만 — 검색 중 미저장 앨범은 저장 시 반영됨) 그
+  // release id로 트랙을 다시 조회한다.
+  const handlePickPressing = async (version: DiscogsReleaseVersion) => {
+    if (!album) return;
+    setPressingPickerOpen(false);
+    if ((album as any).USER_VINYL_ID) {
+      await updateUserVinylReleaseId(Number((album as any).USER_VINYL_ID), version.releaseId).catch(() => {});
+    }
+    setCustomPressingId(undefined);
+    setReleaseId(version.releaseId);
+    setIsTracksLoading(true);
+    try {
+      const details = await getAlbumExtraDetails(album.ALBUM_ID, album.ARTIST, album.TITLE, version.releaseId);
+      if (details.tracks.length > 0) {
+        setTracks(details.tracks);
+        setIsExactRelease(!!details.isExactRelease);
+      }
+    } finally {
+      setIsTracksLoading(false);
+    }
+  };
+
+  const handlePickCustomPressing = async (pressing: CustomPressing) => {
+    if (!album) return;
+    setPressingPickerOpen(false);
+    if ((album as any).USER_VINYL_ID) {
+      await selectCustomPressing(Number((album as any).USER_VINYL_ID), pressing.PRESSING_ID).catch(() => {});
+    }
+    setReleaseId(undefined);
+    setCustomPressingId(pressing.PRESSING_ID);
+    setTracks(pressing.TRACKS);
+    setIsExactRelease(true);
+    setActiveCustomPressing(pressing);
+  };
+
+  const addCustomFormSide = () => {
+    setCustomFormSides((prev) => [...prev, { heading: `${String.fromCharCode(65 + prev.length)} Side`, tracks: [''] }]);
+  };
+  const addCustomFormTrack = (sideIdx: number) => {
+    setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, tracks: [...s.tracks, ''] } : s)));
+  };
+  const removeCustomFormTrack = (sideIdx: number, trackIdx: number) => {
+    setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, tracks: s.tracks.filter((_, ti) => ti !== trackIdx) } : s)));
+  };
+  const removeCustomFormSide = (sideIdx: number) => {
+    setCustomFormSides((prev) => prev.filter((_, i) => i !== sideIdx));
+  };
+
+  const resetCustomForm = () => {
+    setShowCustomPressingForm(false);
+    setEditingPressingId(null);
+    setCustomFormTitle('');
+    setCustomFormIsPublic(true);
+    setCustomFormSides([{ heading: 'A Side', tracks: [''] }]);
+  };
+
+  const startCreatePressing = () => {
+    resetCustomForm();
+    setShowCustomPressingForm(true);
+  };
+
+  // 기존 트랙(side별 평평한 배열)을 폼이 쓰는 "사이드 묶음" 구조로 되돌린다 —
+  // 화면에 보여줄 때 쓰는 trackSideGroups와 같은 묶기 로직.
+  const startEditPressing = (p: CustomPressing) => {
+    const groups: { heading: string; tracks: string[] }[] = [];
+    for (const track of p.TRACKS) {
+      const heading = track.side || 'A Side';
+      const last = groups[groups.length - 1];
+      if (last && last.heading === heading) last.tracks.push(track.title);
+      else groups.push({ heading, tracks: [track.title] });
+    }
+    setEditingPressingId(p.PRESSING_ID);
+    setCustomFormTitle(p.TITLE);
+    setCustomFormIsPublic(p.IS_PUBLIC);
+    setCustomFormSides(groups.length > 0 ? groups : [{ heading: 'A Side', tracks: [''] }]);
+    setShowCustomPressingForm(true);
+  };
+
+  const confirmDeletePressing = async () => {
+    if (!album || !deletingPressing || isDeletingPressing) return;
+    setIsDeletingPressing(true);
+    try {
+      await deleteCustomPressing(deletingPressing.PRESSING_ID);
+      const fresh = await getCustomPressingsForAlbum(album.ALBUM_ID);
+      setCommunityPressings(fresh);
+      if (customPressingId === deletingPressing.PRESSING_ID) {
+        setCustomPressingId(undefined);
+        setActiveCustomPressing(null);
+      }
+      setDeletingPressing(null);
+    } catch (e) {
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsDeletingPressing(false);
+    }
+  };
+
+  const handleSubmitCustomPressing = async () => {
+    if (!album || !user?.id || isSubmittingCustomPressing) return;
+    const allTracks = customFormSides.flatMap((s) =>
+      s.tracks.filter((tr) => tr.trim()).map((tr) => ({ side: s.heading.trim(), title: tr.trim() }))
+    );
+    if (!customFormTitle.trim() || allTracks.length === 0) {
+      showAlert(t('common.error'), t('mobile.detail.customPressingIncomplete'));
+      return;
+    }
+    setIsSubmittingCustomPressing(true);
+    try {
+      const pressingId = editingPressingId
+        ? (await updateCustomPressing(editingPressingId, customFormTitle, allTracks, customFormIsPublic), editingPressingId)
+        : await createCustomPressing(album.ALBUM_ID, user.id, customFormTitle, allTracks, customFormIsPublic);
+      resetCustomForm();
+      const fresh = await getCustomPressingsForAlbum(album.ALBUM_ID);
+      setCommunityPressings(fresh);
+      const affected = fresh.find((p) => p.PRESSING_ID === pressingId);
+      if (affected && (pressingId === customPressingId || !editingPressingId)) {
+        await handlePickCustomPressing(affected);
+      }
+    } catch (e) {
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsSubmittingCustomPressing(false);
+    }
+  };
 
   const restoreCatalogCover = async (numericAlbumId: number): Promise<string> => {
     const reverted = await revertAlbumMasterCover(numericAlbumId);
@@ -462,7 +661,6 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
         VINYL_IMAGE_URL: album!.VINYL_IMAGE_URL || master?.VINYL_IMAGE_URL || '',
         CUSTOM_COLOR_HEX: album!.CUSTOM_COLOR_HEX || master?.CUSTOM_COLOR_HEX || '#000',
         CUSTOM_STYLE_TYPE: master?.CUSTOM_STYLE_TYPE || 'SOLID',
-        TRACKS: tracks.length > 0 ? tracks : (master?.TRACKS || []),
         GENRES: finalGenres,
         MARKET_PRICE: marketPrice || master?.MARKET_PRICE || 0
       });
@@ -486,7 +684,9 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
         ...(coverUrl.includes('supabase.co') ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
         STATUS: 'OWNED',
         PURCHASE_DATE: new Date().toISOString(),
-        PURCHASE_PRICE: finalPrice
+        PURCHASE_PRICE: finalPrice,
+        ...(releaseId ? { DISCOGS_RELEASE_ID: releaseId } : {}),
+        ...(customPressingId ? { CUSTOM_PRESSING_ID: customPressingId } : {})
       });
 
       setPurchasePrice(finalPrice);
@@ -557,7 +757,9 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
           ALBUM_ID: numericAlbumId,
           ...(coverUrl.includes('supabase.co') ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
           STATUS: 'WISH',
-          PURCHASE_PRICE: 0
+          PURCHASE_PRICE: 0,
+          ...(releaseId ? { DISCOGS_RELEASE_ID: releaseId } : {}),
+          ...(customPressingId ? { CUSTOM_PRESSING_ID: customPressingId } : {})
         });
         setRealStatus('WISH');
         setShareTag('WISH');
@@ -791,18 +993,248 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
               )}
 
               <View style={styles.tracklist}>
-                <Text style={styles.tracklistHeader}>Tracklist</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.tracklistHeader}>Tracklist</Text>
+                  <TouchableOpacity onPress={openPressingPicker}>
+                    <Text style={{ color: '#888', fontSize: 12, textDecorationLine: 'underline' }}>
+                      {t('mobile.detail.choosePressing')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {tracks.length > 0 && !isExactRelease && (
+                  <Text style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>
+                    {t('mobile.detail.tracklistNotExact')}
+                  </Text>
+                )}
+                {activeCustomPressing && (
+                  <Text style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>
+                    {t('mobile.detail.customPressingByline', { title: activeCustomPressing.TITLE })}{' '}
+                    <Text
+                      style={{ color: '#e9c349', textDecorationLine: 'underline' }}
+                      onPress={() => navigation.navigate('UserProfile', { userId: activeCustomPressing.SUBMITTED_BY, name: activeCustomPressing.submitterName })}
+                    >
+                      {activeCustomPressing.submitterName || t('feed.anonymous')}
+                    </Text>
+                  </Text>
+                )}
                 {isTracksLoading ? (
                   <View style={{ paddingVertical: 20, alignItems: 'center' }}>
                     <ActivityIndicator size="small" color="#e9c349" />
                     <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0, marginTop: 10, color: '#888' }]}>{t('mobile.detail.tracklistLoading')}</Text>
                   </View>
+                ) : trackSideGroups ? (
+                  trackSideGroups.map((group, gi) => (
+                    <View key={gi} style={{ marginBottom: 12 }}>
+                      <Text style={{ color: '#e9c349', fontSize: 12, marginBottom: 4 }}>
+                        {t('mobile.detail.side', { side: group.side })}
+                      </Text>
+                      {group.tracks.map((track, i) => (
+                        <Text key={i} style={styles.track}>{track.position || String(i + 1).padStart(2, '0')}. {track.title}</Text>
+                      ))}
+                    </View>
+                  ))
                 ) : tracks.length > 0 ? tracks.map((track, i) => (
-                  <Text key={i} style={styles.track}>{String(i + 1).padStart(2, '0')}. {track}</Text>
+                  <Text key={i} style={styles.track}>{String(i + 1).padStart(2, '0')}. {track.title}</Text>
                 )) : (
                   <Text style={[styles.track, { textAlign: 'center', borderBottomWidth: 0 }]}>{t('mobile.detail.noTracklist')}</Text>
                 )}
               </View>
+
+              <Modal visible={pressingPickerOpen} transparent animationType="fade" onRequestClose={() => setPressingPickerOpen(false)}>
+                <Pressable style={styles.pressingBackdrop} onPress={() => setPressingPickerOpen(false)}>
+                  <Pressable style={[styles.pressingSheet, { maxHeight: '85%' }]} onPress={(e) => e.stopPropagation()}>
+                    <ScrollView>
+                      <Text style={styles.pressingTitle}>{t('mobile.detail.choosePressing')}</Text>
+                      {isLoadingPressings ? (
+                        <ActivityIndicator size="small" color="#e9c349" style={{ marginVertical: 20 }} />
+                      ) : pressingVersions.length === 0 ? (
+                        <Text style={{ color: '#888', paddingVertical: 10 }}>{t('mobile.detail.noPressingsFound')}</Text>
+                      ) : (
+                        pressingVersions.map((v) => (
+                          <TouchableOpacity
+                            key={v.releaseId}
+                            style={[styles.pressingRow, v.releaseId === releaseId && styles.pressingRowActive]}
+                            onPress={() => handlePickPressing(v)}
+                          >
+                            {v.thumb ? <Image source={{ uri: v.thumb }} style={styles.pressingThumb} /> : null}
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: '#fff' }} numberOfLines={1}>{v.title}</Text>
+                              <Text style={{ color: '#888', fontSize: 11 }} numberOfLines={1}>
+                                {[v.country, v.released, v.format].filter(Boolean).join(' · ')}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))
+                      )}
+
+                      <Text style={[styles.pressingTitle, { fontSize: 14, marginTop: 20 }]}>{t('mobile.detail.communityPressings')}</Text>
+                      {communityPressings.length === 0 ? (
+                        <Text style={{ color: '#888', paddingVertical: 6 }}>{t('mobile.detail.noCommunityPressings')}</Text>
+                      ) : (
+                        communityPressings.map((p) => (
+                          <View
+                            key={p.PRESSING_ID}
+                            style={[styles.pressingRow, p.PRESSING_ID === customPressingId && styles.pressingRowActive]}
+                          >
+                            <TouchableOpacity style={{ flex: 1 }} onPress={() => handlePickCustomPressing(p)}>
+                              <Text style={{ color: '#fff', fontWeight: '600' }} numberOfLines={1}>
+                                {p.TITLE}
+                                {!p.IS_PUBLIC && (
+                                  <Text style={{ color: '#888', fontSize: 11, fontWeight: '400' }}> ({t('mobile.detail.privateOnlyMe')})</Text>
+                                )}
+                              </Text>
+                              <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
+                                {t('mobile.detail.pressingSelectedByCount', { count: p.selectionCount })}
+                              </Text>
+                            </TouchableOpacity>
+                            <Text
+                              style={{ color: '#e9c349', fontSize: 12, textDecorationLine: 'underline', marginRight: p.SUBMITTED_BY === user?.id ? 10 : 0 }}
+                              onPress={() => navigation.navigate('UserProfile', { userId: p.SUBMITTED_BY, name: p.submitterName })}
+                            >
+                              {p.submitterName || t('feed.anonymous')}
+                            </Text>
+                            {p.SUBMITTED_BY === user?.id && (
+                              <View style={{ flexDirection: 'row', gap: 6 }}>
+                                <TouchableOpacity style={styles.pressingIconBtn} onPress={() => startEditPressing(p)}>
+                                  <Feather name="edit-2" size={13} color="#ccc" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.pressingIconBtn, styles.pressingIconBtnDanger]} onPress={() => setDeletingPressing(p)}>
+                                  <Feather name="trash-2" size={13} color="#ff5252" />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
+                        ))
+                      )}
+
+                      {(album as any)?.USER_VINYL_ID && !showCustomPressingForm && (
+                        <TouchableOpacity
+                          onPress={startCreatePressing}
+                          style={{ marginTop: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(233,195,73,0.4)', borderRadius: 8, padding: 10, alignItems: 'center' }}
+                        >
+                          <Text style={{ color: '#e9c349', fontWeight: '600' }}>{t('mobile.detail.addCustomPressing')}</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {showCustomPressingForm && (
+                        <View style={{ marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 14 }}>
+                          <Text style={{ color: '#888', fontSize: 12, marginBottom: 4 }}>{t('mobile.detail.customPressingTitleLabel')}</Text>
+                          <TextInput
+                            value={customFormTitle}
+                            onChangeText={setCustomFormTitle}
+                            placeholder={t('mobile.detail.customPressingTitlePlaceholder')}
+                            placeholderTextColor="#666"
+                            style={styles.customPressingInput}
+                          />
+                          {customFormSides.map((side, sideIdx) => (
+                            <View key={sideIdx} style={{ marginTop: 12, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: 10 }}>
+                              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                                <TextInput
+                                  value={side.heading}
+                                  onChangeText={(v) => setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, heading: v } : s)))}
+                                  placeholder="A Side"
+                                  placeholderTextColor="#666"
+                                  style={[styles.customPressingInput, { flex: 1, fontWeight: '700' }]}
+                                />
+                                {customFormSides.length > 1 && (
+                                  <TouchableOpacity onPress={() => removeCustomFormSide(sideIdx)}>
+                                    <Text style={{ color: '#d32f2f', fontSize: 18 }}>✕</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                              {side.tracks.map((track, trackIdx) => (
+                                <View key={trackIdx} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 6 }}>
+                                  <TextInput
+                                    value={track}
+                                    onChangeText={(v) => setCustomFormSides((prev) => prev.map((s, i) => (i === sideIdx ? { ...s, tracks: s.tracks.map((tr, ti) => (ti === trackIdx ? v : tr)) } : s)))}
+                                    placeholder={t('mobile.detail.customPressingTrackPlaceholder', { n: trackIdx + 1 })}
+                                    placeholderTextColor="#666"
+                                    style={[styles.customPressingInput, { flex: 1 }]}
+                                  />
+                                  {side.tracks.length > 1 && (
+                                    <TouchableOpacity onPress={() => removeCustomFormTrack(sideIdx, trackIdx)}>
+                                      <Text style={{ color: '#d32f2f', fontSize: 18 }}>✕</Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+                              ))}
+                              <TouchableOpacity onPress={() => addCustomFormTrack(sideIdx)} style={{ marginTop: 6 }}>
+                                <Text style={{ color: '#e9c349', fontSize: 12 }}>+ {t('mobile.detail.addTrack')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          <TouchableOpacity onPress={addCustomFormSide} style={{ marginTop: 10, marginBottom: 14 }}>
+                            <Text style={{ color: '#e9c349', fontSize: 13 }}>+ {t('mobile.detail.addSide')}</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => setCustomFormIsPublic((prev) => !prev)}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}
+                          >
+                            <Feather name={customFormIsPublic ? 'check-square' : 'square'} size={16} color="#e9c349" />
+                            <Text style={{ color: '#fff', fontSize: 13 }}>{t('mobile.detail.customPressingPublicToggle')}</Text>
+                          </TouchableOpacity>
+
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <TouchableOpacity
+                              onPress={resetCustomForm}
+                              style={{ flex: 1, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 6, alignItems: 'center' }}
+                            >
+                              <Text style={{ color: '#fff' }}>{t('common.cancel')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={handleSubmitCustomPressing}
+                              disabled={isSubmittingCustomPressing}
+                              style={{ flex: 1, padding: 10, backgroundColor: '#e9c349', borderRadius: 6, alignItems: 'center' }}
+                            >
+                              <Text style={{ color: '#1a1710', fontWeight: '700' }}>
+                                {isSubmittingCustomPressing
+                                  ? t('mobile.detail.tracklistLoading')
+                                  : editingPressingId
+                                  ? t('mobile.detail.updateCustomPressing')
+                                  : t('mobile.detail.submitCustomPressing')}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </Pressable>
+                </Pressable>
+              </Modal>
+
+              <Modal visible={!!deletingPressing} transparent animationType="fade" onRequestClose={() => !isDeletingPressing && setDeletingPressing(null)}>
+                <View style={styles.confirmOverlay}>
+                  <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !isDeletingPressing && setDeletingPressing(null)} disabled={isDeletingPressing} />
+                  <BlurView intensity={glassIntensity || 30} tint="dark" style={styles.confirmContent}>
+                    <View style={styles.confirmIconWrapper}>
+                      <Feather name="trash-2" size={20} color="#ff5252" />
+                    </View>
+                    <Text style={styles.confirmTitle}>{t('mobile.detail.deleteCustomPressingTitle')}</Text>
+                    {deletingPressing && (
+                      <Text style={styles.confirmMessage}>{t('mobile.detail.deleteCustomPressingMessage', { title: deletingPressing.TITLE })}</Text>
+                    )}
+                    <View style={styles.confirmActions}>
+                      <TouchableOpacity
+                        style={styles.confirmBtnCancel}
+                        onPress={() => setDeletingPressing(null)}
+                        disabled={isDeletingPressing}
+                      >
+                        <Text style={styles.confirmBtnCancelText}>{t('common.cancel')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.confirmBtnDelete, isDeletingPressing && { opacity: 0.6 }]}
+                        onPress={confirmDeletePressing}
+                        disabled={isDeletingPressing}
+                      >
+                        <Text style={styles.confirmBtnDeleteText}>
+                          {isDeletingPressing ? t('common.loading') : t('common.delete')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </BlurView>
+                </View>
+              </Modal>
 
               {/* Extra Details */}
               {(releaseDate || copyright || notes) && (
@@ -1318,6 +1750,145 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
+  },
+  pressingBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pressingSheet: {
+    backgroundColor: '#131313',
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: 'rgba(233,195,73,0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  pressingTitle: {
+    color: '#F0E6D2',
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 14,
+    letterSpacing: -0.2,
+  },
+  pressingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  pressingRowActive: {
+    backgroundColor: 'rgba(233,195,73,0.1)',
+    borderColor: 'rgba(233,195,73,0.35)',
+  },
+  pressingThumb: {
+    width: 42,
+    height: 42,
+    borderRadius: 6,
+  },
+  pressingIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  pressingIconBtnDanger: {
+    backgroundColor: 'rgba(255,82,82,0.12)',
+  },
+  customPressingInput: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 8,
+    padding: 10,
+    color: '#fff',
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  confirmContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,82,82,0.3)',
+    backgroundColor: 'rgba(20,20,20,0.85)',
+    padding: 24,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  confirmIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,82,82,0.12)',
+    marginBottom: 14,
+  },
+  confirmTitle: {
+    color: '#F0E6D2',
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  confirmMessage: {
+    color: '#aaa',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  confirmBtnCancel: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  confirmBtnCancelText: {
+    color: '#F0E6D2',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  confirmBtnDelete: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#ff5252',
+  },
+  confirmBtnDeleteText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   extraDetailsContainer: {
     marginTop: 20,

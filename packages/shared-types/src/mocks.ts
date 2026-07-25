@@ -19,7 +19,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "OWNED",
     PURCHASE_DATE: "2023-01-15",
     PURCHASE_PRICE: 35.00,
-    TRACKS: ["So What", "Freddie Freeloader", "Blue in Green", "All Blues", "Flamenco Sketches"]
+    TRACKS: [{ title: "So What" }, { title: "Freddie Freeloader" }, { title: "Blue in Green" }, { title: "All Blues" }, { title: "Flamenco Sketches" }]
   },
   {
     ALBUM_ID: 2,
@@ -35,7 +35,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "OWNED",
     PURCHASE_DATE: "2023-05-20",
     PURCHASE_PRICE: 40.00,
-    TRACKS: ["Come Together", "Something", "Maxwell's Silver Hammer", "Oh! Darling", "Octopus's Garden", "I Want You (She's So Heavy)", "Here Comes the Sun", "Because", "You Never Give Me Your Money"]
+    TRACKS: [{ title: "Come Together" }, { title: "Something" }, { title: "Maxwell's Silver Hammer" }, { title: "Oh! Darling" }, { title: "Octopus's Garden" }, { title: "I Want You (She's So Heavy)" }, { title: "Here Comes the Sun" }, { title: "Because" }, { title: "You Never Give Me Your Money" }]
   },
   {
     ALBUM_ID: 3,
@@ -51,7 +51,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "WISH",
     PURCHASE_DATE: "",
     PURCHASE_PRICE: 0,
-    TRACKS: ["Second Hand News", "Dreams", "Never Going Back Again", "Don't Stop", "Go Your Own Way", "Songbird", "The Chain", "You Make Loving Fun", "I Don't Want to Know", "Oh Daddy", "Gold Dust Woman"]
+    TRACKS: [{ title: "Second Hand News" }, { title: "Dreams" }, { title: "Never Going Back Again" }, { title: "Don't Stop" }, { title: "Go Your Own Way" }, { title: "Songbird" }, { title: "The Chain" }, { title: "You Make Loving Fun" }, { title: "I Don't Want to Know" }, { title: "Oh Daddy" }, { title: "Gold Dust Woman" }]
   },
   {
     ALBUM_ID: 4,
@@ -67,7 +67,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "OWNED",
     PURCHASE_DATE: "2024-02-10",
     PURCHASE_PRICE: 45.00,
-    TRACKS: ["Speak to Me", "Breathe", "On the Run", "Time", "The Great Gig in the Sky", "Money", "Us and Them", "Any Colour You Like", "Brain Damage", "Eclipse"]
+    TRACKS: [{ title: "Speak to Me" }, { title: "Breathe" }, { title: "On the Run" }, { title: "Time" }, { title: "The Great Gig in the Sky" }, { title: "Money" }, { title: "Us and Them" }, { title: "Any Colour You Like" }, { title: "Brain Damage" }, { title: "Eclipse" }]
   },
   {
     ALBUM_ID: 5,
@@ -83,7 +83,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "WISH",
     PURCHASE_DATE: "",
     PURCHASE_PRICE: 0,
-    TRACKS: ["Wanna Be Startin' Somethin'", "Baby Be Mine", "The Girl Is Mine", "Thriller", "Beat It", "Billie Jean", "Human Nature", "P.Y.T. (Pretty Young Thing)", "The Lady in My Life"]
+    TRACKS: [{ title: "Wanna Be Startin' Somethin'" }, { title: "Baby Be Mine" }, { title: "The Girl Is Mine" }, { title: "Thriller" }, { title: "Beat It" }, { title: "Billie Jean" }, { title: "Human Nature" }, { title: "P.Y.T. (Pretty Young Thing)" }, { title: "The Lady in My Life" }]
   },
   {
     ALBUM_ID: 6,
@@ -99,7 +99,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "OWNED",
     PURCHASE_DATE: "2023-11-22",
     PURCHASE_PRICE: 28.00,
-    TRACKS: ["Let's Go Crazy", "Take Me with U", "The Beautiful Ones", "Computer Blue", "Darling Nikki", "When Doves Cry", "I Would Die 4 U", "Baby I'm a Star", "Purple Rain"]
+    TRACKS: [{ title: "Let's Go Crazy" }, { title: "Take Me with U" }, { title: "The Beautiful Ones" }, { title: "Computer Blue" }, { title: "Darling Nikki" }, { title: "When Doves Cry" }, { title: "I Would Die 4 U" }, { title: "Baby I'm a Star" }, { title: "Purple Rain" }]
   },
   {
     ALBUM_ID: 7,
@@ -115,7 +115,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "OWNED",
     PURCHASE_DATE: "2022-08-05",
     PURCHASE_PRICE: 32.00,
-    TRACKS: ["Rehab", "You Know I'm No Good", "Me & Mr Jones", "Just Friends", "Back to Black", "Love Is a Losing Game", "Tears Dry on Their Own", "Wake Up Alone", "Some Unholy War", "He Can Only Hold Her"]
+    TRACKS: [{ title: "Rehab" }, { title: "You Know I'm No Good" }, { title: "Me & Mr Jones" }, { title: "Just Friends" }, { title: "Back to Black" }, { title: "Love Is a Losing Game" }, { title: "Tears Dry on Their Own" }, { title: "Wake Up Alone" }, { title: "Some Unholy War" }, { title: "He Can Only Hold Her" }]
   },
   {
     ALBUM_ID: 8,
@@ -131,7 +131,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "WISH",
     PURCHASE_DATE: "",
     PURCHASE_PRICE: 0,
-    TRACKS: ["Give Life Back to Music", "The Game of Love", "Giorgio by Moroder", "Within", "Instant Crush", "Lose Yourself to Dance", "Touch", "Get Lucky", "Beyond", "Motherboard", "Fragments of Time", "Doin' It Right", "Contact"]
+    TRACKS: [{ title: "Give Life Back to Music" }, { title: "The Game of Love" }, { title: "Giorgio by Moroder" }, { title: "Within" }, { title: "Instant Crush" }, { title: "Lose Yourself to Dance" }, { title: "Touch" }, { title: "Get Lucky" }, { title: "Beyond" }, { title: "Motherboard" }, { title: "Fragments of Time" }, { title: "Doin' It Right" }, { title: "Contact" }]
   },
   {
     ALBUM_ID: 9,
@@ -147,7 +147,7 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "OWNED",
     PURCHASE_DATE: "2023-04-12",
     PURCHASE_PRICE: 38.00,
-    TRACKS: ["Wesley's Theory", "For Free? (Interlude)", "King Kunta", "Institutionalized", "These Walls", "u", "Alright", "For Sale? (Interlude)", "Momma", "Hood Politics", "How Much a Dollar Cost", "Complexion (A Zulu Love)", "The Blacker the Berry", "You Ain't Gotta Lie (Momma Said)", "i", "Mortal Man"]
+    TRACKS: [{ title: "Wesley's Theory" }, { title: "For Free? (Interlude)" }, { title: "King Kunta" }, { title: "Institutionalized" }, { title: "These Walls" }, { title: "u" }, { title: "Alright" }, { title: "For Sale? (Interlude)" }, { title: "Momma" }, { title: "Hood Politics" }, { title: "How Much a Dollar Cost" }, { title: "Complexion (A Zulu Love)" }, { title: "The Blacker the Berry" }, { title: "You Ain't Gotta Lie (Momma Said)" }, { title: "i" }, { title: "Mortal Man" }]
   },
   {
     ALBUM_ID: 10,
@@ -163,6 +163,6 @@ export const mockVinyls: MockVinylData[] = [
     STATUS: "WISH",
     PURCHASE_DATE: "",
     PURCHASE_PRICE: 0,
-    TRACKS: ["IGOR'S THEME", "EARFQUAKE", "I THINK", "EXACTLY WHAT YOU RUN FROM YOU END UP CHASING", "RUNNING OUT OF TIME", "NEW MAGIC WAND", "A BOY IS A GUN*", "PUPPET", "WHAT'S GOOD", "GONE, GONE / THANK YOU", "I DON'T LOVE YOU ANYMORE", "ARE WE STILL FRIENDS?"]
+    TRACKS: [{ title: "IGOR'S THEME" }, { title: "EARFQUAKE" }, { title: "I THINK" }, { title: "EXACTLY WHAT YOU RUN FROM YOU END UP CHASING" }, { title: "RUNNING OUT OF TIME" }, { title: "NEW MAGIC WAND" }, { title: "A BOY IS A GUN*" }, { title: "PUPPET" }, { title: "WHAT'S GOOD" }, { title: "GONE, GONE / THANK YOU" }, { title: "I DON'T LOVE YOU ANYMORE" }, { title: "ARE WE STILL FRIENDS?" }]
   }
 ];

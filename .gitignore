@@ -435,3 +435,11 @@ FodyWeavers.xsd
 .vercel
 .env*
 .turbo/
+
+# 인스타그램 콘텐츠 발행물 — 에피소드마다 반복 생성되는 무거운 PNG라 git엔
+# 안 올린다. 가이드라인(.md)과 재사용 템플릿(_templates/)은 계속 추적.
+instagram/*/slide-*.png
+
+# Claude Code 로컬 설정/세션 데이터 및 인스타그램 작업 폴더 전체는 git 추적 제외
+.claude/
+instagram/

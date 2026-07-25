@@ -18,3 +18,4 @@ export * from './spinSocial';
 export * from './vinylSocial';
 export * from './notifications';
 export * from './notice';
+export * from './customPressing';
