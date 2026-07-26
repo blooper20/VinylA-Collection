@@ -26,6 +26,14 @@
   width: var(--sidebar-expanded);
 }
 
+/* Desktop: expand on hover, exactly like the original behavior — no toggle
+   button, the rail widens while the pointer is over it. */
+@media (min-width: 641px) {
+  .sidebar:hover {
+    width: var(--sidebar-expanded);
+  }
+}
+
 /* Phones: the collapsed rail takes no space at all — only the floating
    .mobileToggle button is visible until the drawer is opened. */
 @media (max-width: 640px) {
@@ -40,31 +48,10 @@
   }
 }
 
-/* ---- Expand/collapse toggle ---- */
-.toggleBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 8px 0;
-  margin: 0 0 20px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: color 0.2s ease;
-}
-
-.toggleBtn:hover {
-  color: var(--foreground);
-}
-
 /* ---- Mobile hamburger + backdrop ----
    On phones the collapsed rail shouldn't reserve any width at all, so the
-   in-sidebar toggle (which would be clipped at width:0) is replaced by a
-   floating button rendered outside the <nav>, and an overlay backdrop dims
-   the page while the drawer is open. */
+   sidebar is opened by a floating button rendered outside the <nav>, and an
+   overlay backdrop dims the page while the drawer is open. */
 .mobileToggle {
   display: none;
 }
@@ -74,10 +61,6 @@
 }
 
 @media (max-width: 640px) {
-  .toggleBtn {
-    display: none;
-  }
-
   /* Floating action button, bottom-right — top-left would sit on top of
      the page tabs / logo, and thumbs reach the bottom corner anyway. */
   .mobileToggle {
@@ -164,6 +147,13 @@
 .sidebar.expanded .brandText {
   opacity: 1;
   transform: translateX(0);
+}
+
+@media (min-width: 641px) {
+  .sidebar:hover .brandText {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .brandName {
@@ -264,6 +254,13 @@
 .sidebar.expanded .navLabel {
   opacity: 1;
   transform: translateX(0);
+}
+
+@media (min-width: 641px) {
+  .sidebar:hover .navLabel {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ---- Bottom ---- */

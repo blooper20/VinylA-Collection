@@ -98,17 +98,6 @@ export const SideNav: React.FC = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          className={styles.toggleBtn}
-          onClick={() => setExpanded((v) => !v)}
-          aria-label={expanded ? t('nav.collapse') : t('nav.expand')}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-            {expanded ? 'chevron_left' : 'chevron_right'}
-          </span>
-        </button>
-
         <div className={styles.divider} />
 
         {/* Main Nav — admin item only for accounts with app_metadata.role === 'admin' */}
