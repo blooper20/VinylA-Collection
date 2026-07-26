@@ -100,6 +100,8 @@
   display: flex;
   gap: 8px;
   margin-top: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .searchModeBtn {
@@ -111,6 +113,8 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
@@ -167,6 +171,20 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 48px 20px 32px;
+  }
+
+  .content {
+    padding: 40px 20px;
+  }
+
+  .sectionHeader {
+    margin-bottom: 24px;
+  }
 }
 
 @media (min-width: 900px) {

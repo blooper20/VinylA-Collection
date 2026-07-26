@@ -173,6 +173,14 @@ img {
   margin-left: 0;
 }
 
+/* Phones: the collapsed sidebar takes no space (see SideNav.module.css),
+   so content shouldn't reserve a gutter for it either. */
+@media (max-width: 640px) {
+  .main-content {
+    margin-left: 0;
+  }
+}
+
 /* ============================================
    SCROLLBAR
    ============================================ */

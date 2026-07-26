@@ -757,3 +757,13 @@
     flex-wrap: wrap;
   }
 }
+
+@media (max-width: 480px) {
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statCard {
+    padding: 24px 20px;
+  }
+}

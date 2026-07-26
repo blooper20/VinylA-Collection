@@ -12,10 +12,33 @@ export const SideNav: React.FC = () => {
   const { user, initializeAuth } = useAuthStore();
   const { locale, setLocale, t } = useLocale();
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const [expanded, setExpanded] = React.useState(false);
+  const navRef = React.useRef<HTMLElement>(null);
+  const toggleRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  // 라우트가 바뀌면 (뒤로가기 등 Link onClick을 거치지 않는 경우 포함) 자동으로 접는다
+  React.useEffect(() => {
+    setExpanded(false);
+  }, [pathname]);
+
+  // 펼친 상태에서 사이드바 바깥을 탭/클릭하면 접는다.
+  // 모바일 플로팅 토글 버튼은 <nav> 밖에 있어서 "바깥"으로 오인되면
+  // pointerdown이 먼저 닫고 click이 다시 여는 무한 토글 버그가 생긴다 — 제외.
+  React.useEffect(() => {
+    if (!expanded) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (navRef.current?.contains(target)) return;
+      if (toggleRef.current?.contains(target)) return;
+      setExpanded(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [expanded]);
 
   // 미읽음 알림 배지 — 최초 로드 + Realtime(새 알림) + 알림함 열람 시 초기화
   React.useEffect(() => {
@@ -49,7 +72,21 @@ export const SideNav: React.FC = () => {
 
   return (
     <>
-      <nav className={styles.sidebar}>
+      <button
+        ref={toggleRef}
+        type="button"
+        className={styles.mobileToggle}
+        onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? t('nav.collapse') : t('nav.expand')}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+          {expanded ? 'close' : 'menu'}
+        </span>
+      </button>
+
+      {expanded && <div className={styles.backdrop} onClick={() => setExpanded(false)} />}
+
+      <nav ref={navRef} className={`${styles.sidebar} ${expanded ? styles.expanded : ''}`}>
         {/* Brand */}
         <div className={styles.brand}>
           <div className={styles.brandIcon}>
@@ -60,6 +97,17 @@ export const SideNav: React.FC = () => {
             <span className={styles.brandTagline}>Collection</span>
           </div>
         </div>
+
+        <button
+          type="button"
+          className={styles.toggleBtn}
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? t('nav.collapse') : t('nav.expand')}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+            {expanded ? 'chevron_left' : 'chevron_right'}
+          </span>
+        </button>
 
         <div className={styles.divider} />
 
@@ -75,6 +123,7 @@ export const SideNav: React.FC = () => {
               <Link
                 key={item.name}
                 href={item.path}
+                onClick={() => setExpanded(false)}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
               >
                 <span style={{ position: 'relative', display: 'inline-flex' }}>

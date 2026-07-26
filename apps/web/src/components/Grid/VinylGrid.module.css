@@ -215,6 +215,38 @@
 .filterChip:hover { border-color: var(--border-strong); color: var(--foreground); }
 .filterChip.active { background: var(--accent); border-color: var(--accent); color: #111; }
 
+@media (max-width: 640px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 24px 16px 20px;
+    gap: 16px;
+  }
+
+  .pageTitle {
+    white-space: normal;
+  }
+
+  .headerRight {
+    align-items: stretch;
+  }
+
+  .controlsRow {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .sortGroup {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .viewGroup {
+    flex-shrink: 0;
+  }
+}
+
 /* ---- Grid 4 (default) ---- */
 .grid4 {
   display: grid;
@@ -241,6 +273,16 @@
 
 @media (min-width: 1400px) {
   .grid6 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .grid4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* ---- Table View ---- */
@@ -372,6 +414,75 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-muted);
+}
+
+/* Table view becomes a stacked list on phones — each row is a small card
+   laid out with CSS grid areas instead of literal table columns, so
+   nothing needs to scroll sideways. */
+@media (max-width: 640px) {
+  .tableWrapper {
+    padding: 0 16px 32px;
+  }
+
+  .table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody {
+    display: block;
+  }
+
+  .tableRow {
+    display: grid;
+    grid-template-columns: 50px 1fr auto;
+    grid-template-areas:
+      "cover title  status"
+      "cover artist status"
+      "cover tags   tags";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 14px 4px;
+  }
+
+  .tdCover {
+    grid-area: cover;
+    width: auto;
+    padding: 0;
+  }
+
+  .tdTitle {
+    grid-area: title;
+    max-width: none;
+  }
+
+  .tdArtist {
+    grid-area: artist;
+    max-width: none;
+  }
+
+  .tdYear {
+    display: none;
+  }
+
+  .tdTags {
+    grid-area: tags;
+  }
+
+  .tdStatus {
+    grid-area: status;
+    align-self: center;
+    padding: 0;
+  }
+
+  .table td {
+    padding: 0;
+  }
 }
 
 .toast {

@@ -51,6 +51,8 @@ export const SpinSocialActions: React.FC<SpinSocialActionsProps> = ({
     padding: '4px 6px',
     fontSize: '12px',
     fontWeight: 600,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
     color: active ? 'var(--accent, #d4af37)' : 'var(--text-muted, rgba(255,255,255,0.55))',
   });
 
@@ -95,7 +97,7 @@ export const SpinSocialActions: React.FC<SpinSocialActionsProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '6px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '6px', overflowX: 'auto' }}>
       <button type="button" onClick={toggleLike} style={btn(s.likedByMe)}>
         <span className="material-symbols-outlined" style={{ fontSize: '16px', fontVariationSettings: s.likedByMe ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
         {s.likeCount}

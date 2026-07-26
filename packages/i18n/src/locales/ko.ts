@@ -44,6 +44,8 @@ export const ko = {
     support: '문의하기',
     admin: '관리자',
     logout: '로그아웃',
+    expand: '메뉴 펼치기',
+    collapse: '메뉴 접기',
   },
   sort: {
     latest: '최신순',

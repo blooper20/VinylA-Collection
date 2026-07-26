@@ -45,6 +45,8 @@ export const en = {
     support: 'Support',
     admin: 'Admin',
     logout: 'Log Out',
+    expand: 'Expand menu',
+    collapse: 'Collapse menu',
   },
   sort: {
     latest: 'Newest',

@@ -114,6 +114,41 @@
 .viewBtn:hover { background: rgba(255,255,255,0.05); color: var(--foreground); }
 .viewBtn.viewActive { background: rgba(255,200,60,0.12); color: var(--accent); }
 
+@media (max-width: 640px) {
+  .header {
+    padding: 24px 16px 20px;
+  }
+
+  .headerTop {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .title {
+    white-space: normal;
+  }
+
+  .headerControls {
+    align-items: stretch;
+  }
+
+  .sortGroup {
+    flex-wrap: wrap;
+  }
+
+  /* headerControls is a stretched column on phones — keep the view toggle
+     at its natural content width instead of a full-width empty border box */
+  .viewGroup {
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
+
+  .empty {
+    padding: 2rem 16px;
+  }
+}
+
 /* ---- Grid 4 ---- */
 .grid4 {
   display: grid;
@@ -136,6 +171,22 @@
 
 @media (min-width: 900px) { .grid6 { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 @media (min-width: 1400px) { .grid6 { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+
+@media (max-width: 640px) {
+  .grid4,
+  .grid6 {
+    gap: 20px 12px;
+    padding: 20px 16px;
+  }
+
+  .grid4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 
 /* ---- Card ---- */
 .card {
@@ -305,6 +356,69 @@
   letter-spacing: 0.04em;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Table view becomes a stacked list on phones — each row is a small card
+   laid out with CSS grid areas instead of literal table columns, so
+   nothing needs to scroll sideways. */
+@media (max-width: 640px) {
+  .tableWrapper {
+    padding: 0 16px 32px;
+  }
+
+  .table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody {
+    display: block;
+  }
+
+  .tableRow {
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    grid-template-areas:
+      "cover title"
+      "cover artist"
+      "cover tags";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 14px 4px;
+  }
+
+  .tdCover {
+    grid-area: cover;
+    width: auto;
+    padding: 0;
+  }
+
+  .tdTitle {
+    grid-area: title;
+    max-width: none;
+  }
+
+  .tdArtist {
+    grid-area: artist;
+    max-width: none;
+  }
+
+  .tdYear {
+    display: none;
+  }
+
+  .tdTags {
+    grid-area: tags;
+  }
+
+  .table td {
+    padding: 0;
+  }
 }
 
 /* ---- Empty ---- */
