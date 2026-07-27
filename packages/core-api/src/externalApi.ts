@@ -484,7 +484,13 @@ export const createDiscogsSearchSession = (
   const isKoreanQuery = /[가-힣]/.test(query);
 
   // State persisting across batches so paging never re-shows the same LP.
-  const seenMasters = new Set<number>();
+  // Master dedup keys on master_id BUT remembers the first title seen for
+  // it — Discogs search data sometimes hangs two different albums off one
+  // master (live case: MJ "Twelves" and "Number Ones" both report master
+  // 141657), and a blind master check made whichever came first permanently
+  // hide the other. Same master + similar title → duplicate pressing, skip;
+  // same master + unrelated title → treat as a distinct album.
+  const seenMasters = new Map<number, string>();
   const seenTitles = new Set<string>();
   let batch = 0;
   let cumulativeTotal = 0;
@@ -528,7 +534,9 @@ export const createDiscogsSearchSession = (
               ...params,
               ...serverAuth,
               type: 'release',
-              format: 'vinyl',
+              // A lane may narrow the format itself (e.g. "Compilation
+              // Vinyl") — only default to plain vinyl when it didn't.
+              format: (params.format as string) || 'vinyl',
               per_page: 50,
               sort: 'want',
               sort_order: 'desc',
@@ -595,6 +603,14 @@ export const createDiscogsSearchSession = (
         //    skip it for the 'album'/'track' modes below.
         if (searchMode === 'auto' || searchMode === 'artist') {
           promises.push(fetchPage({ artist: alias || query, page: batch + 1 }));
+          // 1b. Compilation lane — the want-sorted artist search buries
+          //     best-of/compilation LPs under hundreds of studio-album
+          //     pressings for deep-catalog artists (Michael Jackson's
+          //     "Number Ones" first appears ~row 267 of the plain lane, but
+          //     row 11 of this one). A separate compilation-scoped page per
+          //     batch gives those a lane of their own; the master/title
+          //     dedup below absorbs any overlap with the plain lane.
+          promises.push(fetchPage({ artist: alias || query, format: 'Compilation Vinyl', page: batch + 1 }));
         }
         // 2. Aladin — fills the Korean-domestic-release gap Discogs's own
         //    catalog has (see fetchAladinResults above). Fetched once per
@@ -638,7 +654,7 @@ export const createDiscogsSearchSession = (
     }
 
     // ── Step 2: Client-side filter → LP/Album formats + artist must match query ──
-    const unique: { r: DiscogsRelease, isFeature: boolean }[] = [];
+    const unique: { r: DiscogsRelease, isFeature: boolean, emitId?: number }[] = [];
     const queryLower = query.toLowerCase();
     const aliasLower = alias.toLowerCase();
 
@@ -647,7 +663,7 @@ export const createDiscogsSearchSession = (
       if (!isAlbumFormat(formats)) continue; // skip 7" singles, 12" EPs etc.
 
       // Discogs title format: "Artist - Album Title"
-      const { artist: releaseArtist } = parseDiscogsTitle(r.title || '');
+      const { artist: releaseArtist, title: releaseTitle } = parseDiscogsTitle(r.title || '');
       const relArtLower = releaseArtist?.toLowerCase() || '';
 
       // Check if the artist matches the original query or the Apple Music alias.
@@ -666,17 +682,48 @@ export const createDiscogsSearchSession = (
       // (e.g. searching "wave to earth" returns "Kate Bush" because "earth" is in a track name).
       // We discard these false features. Korean queries are safer and true features (e.g. 검정치마 in credits).
       if (isFeature && !isKoreanQuery && !isGenreQuery) {
-        if (!normTitle.includes(queryLower) && !(aliasLower && normTitle.includes(aliasLower))) {
+        // Compare against the title with Discogs's " - " artist/title
+        // separator flattened too — a combined "artist album" query (e.g.
+        // "michael jackson number ones") never substring-matches
+        // "Michael Jackson - Number Ones" otherwise, and the exact album
+        // the user typed out in full got discarded as noise.
+        const normTitleFlat = normTitle.replace(/\s+-\s+/g, ' ');
+        if (
+          !normTitle.includes(queryLower) && !normTitleFlat.includes(queryLower) &&
+          !(aliasLower && (normTitle.includes(aliasLower) || normTitleFlat.includes(aliasLower)))
+        ) {
           continue;
         }
       }
 
-      if (r.master_id && r.master_id !== 0 && seenMasters.has(r.master_id)) continue;
+      // Album-title portion only (artist stripped) — dual-language listings
+      // restate the artist inside the row ("Michael Jackson = マイケル・
+      // ジャクソン* - Thriller = スリラー"), so comparing full rows would
+      // treat that as a different album from plain "Thriller".
+      const normAlbumTitle = (releaseTitle || normTitle).toLowerCase().replace(/\s+/g, ' ').trim();
+
+      // A second, differently-titled album on an already-seen master must
+      // not reuse the master as its card id — the search page dedupes
+      // incoming cards by id, so it would silently replace/drop one of the
+      // two (this, not the search itself, was hiding "Number Ones" behind
+      // "Twelves"). Give it its own release id instead.
+      let emitId: number | undefined;
+      if (r.master_id && r.master_id !== 0) {
+        const firstTitleForMaster = seenMasters.get(r.master_id);
+        if (firstTitleForMaster !== undefined) {
+          if (firstTitleForMaster.includes(normAlbumTitle) || normAlbumTitle.includes(firstTitleForMaster)) {
+            continue;
+          }
+          emitId = r.id;
+        }
+      }
       if (seenTitles.has(normTitle)) continue;
 
-      if (r.master_id && r.master_id !== 0) seenMasters.add(r.master_id);
+      if (r.master_id && r.master_id !== 0 && !seenMasters.has(r.master_id)) {
+        seenMasters.set(r.master_id, normAlbumTitle);
+      }
       seenTitles.add(normTitle);
-      unique.push({ r, isFeature });
+      unique.push({ r, isFeature, emitId });
       // No early break here on purpose — `raw` is already bounded (a
       // handful of Discogs pages + at most ~20 Aladin items), so scoring
       // every candidate before capping is cheap, and doing it this way
@@ -684,6 +731,16 @@ export const createDiscogsSearchSession = (
       // which array position it landed in. Breaking early here previously
       // caused two different real bugs: a broad source's noise filling the
       // cap before a later, more precise source was ever reached.
+    }
+
+    // A release whose full "artist title" text contains the whole query is
+    // what the user literally typed out (e.g. "michael jackson number ones")
+    // — never let broader artist-lane results crowd it past the cap. Stable
+    // partition: exact matches first, everything else keeps its order.
+    if (!isGenreQuery) {
+      const isExact = ({ r }: { r: DiscogsRelease }) =>
+        (r.title || '').toLowerCase().replace(/\s+-\s+/g, ' ').replace(/\s+/g, ' ').includes(queryLower);
+      unique.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
     }
 
     unique.splice(20); // cap display count *after* every candidate was considered
@@ -700,7 +757,7 @@ export const createDiscogsSearchSession = (
     // ── Step 3: Enrich each LP with Apple Music cover art (3 concurrent) ────────
     const CONCURRENCY = 3;
 
-    const enrich = async ({ r, isFeature }: { r: DiscogsRelease, isFeature: boolean }) => {
+    const enrich = async ({ r, isFeature, emitId }: { r: DiscogsRelease, isFeature: boolean, emitId?: number }) => {
       const { artist, title } = parseDiscogsTitle(r.title || '');
 
       // 1. The LP source's own image is the ground truth for what the
@@ -836,7 +893,7 @@ export const createDiscogsSearchSession = (
       ]));
 
       onItem({
-        id: r.master_id || r.id,
+        id: emitId ?? (r.master_id || r.id),
         title,
         artist,
         thumb,

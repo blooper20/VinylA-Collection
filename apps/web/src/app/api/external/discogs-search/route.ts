@@ -5,6 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 // vinyl-search params and credentials are appended here.
 const ALLOWED_PARAMS = ['q', 'artist', 'release_title', 'track', 'genre', 'style', 'page'] as const;
 
+// `format` is client-selectable but only from this fixed menu — the proxy is
+// public, so an arbitrary passthrough would let anyone turn it into a general
+// Discogs search relay. "Compilation Vinyl" scopes an artist search to their
+// compilation/best-of vinyl, which the want-sorted plain search buries under
+// hundreds of studio-album pressings (e.g. Michael Jackson "Number Ones").
+const ALLOWED_FORMATS = ['vinyl', 'Compilation Vinyl'] as const;
+
 const getDiscogsAuth = (): Record<string, string> | null => {
   if (process.env.DISCOGS_TOKEN) return { token: process.env.DISCOGS_TOKEN };
   if (process.env.DISCOGS_KEY && process.env.DISCOGS_SECRET) {
@@ -24,8 +31,12 @@ export async function GET(request: NextRequest) {
     const value = request.nextUrl.searchParams.get(key);
     if (value) url.searchParams.set(key, value.slice(0, 200));
   }
+  const requestedFormat = request.nextUrl.searchParams.get('format');
+  const format = ALLOWED_FORMATS.includes(requestedFormat as (typeof ALLOWED_FORMATS)[number])
+    ? (requestedFormat as string)
+    : 'vinyl';
   url.searchParams.set('type', 'release');
-  url.searchParams.set('format', 'vinyl');
+  url.searchParams.set('format', format);
   url.searchParams.set('per_page', '50');
   url.searchParams.set('sort', 'want');
   url.searchParams.set('sort_order', 'desc');
