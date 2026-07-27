@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { searchDiscogsLazy, AlbumItem, SearchStatus, SearchMode, useAuthStore, getUserVinyls } from '@vinyla/core-api';
+import { createDiscogsSearchSession, DiscogsSearchSession, AlbumItem, SearchStatus, SearchMode, useAuthStore, getUserVinyls } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { DetailModal } from '../../components/Modal/DetailModal';
@@ -120,6 +120,10 @@ export default function SearchPage() {
 
   // cancel token: if user starts a new search, discard stale callbacks
   const searchIdRef = useRef(0);
+  // The live Discogs session — kept across scroll-triggered loads so paging
+  // actually advances (a fresh session per load would refetch batch 0
+  // forever). Replaced whenever a brand-new search starts.
+  const sessionRef = useRef<DiscogsSearchSession | null>(null);
 
   React.useEffect(() => {
     const handleToast = (e: Event) => {
@@ -137,15 +141,22 @@ export default function SearchPage() {
       return;
     }
 
-    const currentSearchId = ++searchIdRef.current;
-    if (!append) {
-      setResults([]);
-      setTotalToCheck(0);
-      setHasMore(true);
+    // Scroll-triggered load: advance the live session instead of starting a
+    // fresh one — a new session restarts at batch 0 and would only ever
+    // refetch the same first pages.
+    if (append) {
+      const more = await sessionRef.current?.loadMore();
+      if (more === false) setHasMore(false);
+      return;
     }
+
+    const currentSearchId = ++searchIdRef.current;
+    setResults([]);
+    setTotalToCheck(0);
+    setHasMore(true);
     setStatus('fetching_discogs');
 
-    await searchDiscogsLazy(
+    const session = createDiscogsSearchSession(
       q,
       (album) => {
         if (searchIdRef.current !== currentSearchId) return;
@@ -157,7 +168,7 @@ export default function SearchPage() {
       (newStatus, total, error) => {
         if (searchIdRef.current !== currentSearchId) return;
         setStatus(newStatus);
-        
+
         if (newStatus === 'error' && error) {
           import('@vinyla/core-api').then(({ getErrorMessage }) => {
             window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
@@ -167,7 +178,8 @@ export default function SearchPage() {
         }
 
         if (total !== undefined) {
-          setTotalToCheck(prev => append ? prev + total : total);
+          // total is already session-cumulative across batches
+          setTotalToCheck(total);
           if ((newStatus === 'done' || newStatus === 'error') && total === 0) {
             setHasMore(false);
           }
@@ -175,13 +187,16 @@ export default function SearchPage() {
       },
       q.startsWith('#') ? 'auto' : (modeOverride ?? searchMode)
     );
+    sessionRef.current = session;
+    const more = await session.loadMore();
+    if (searchIdRef.current === currentSearchId && more === false) setHasMore(false);
   }, [t, searchMode]);
 
   React.useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0].isIntersecting && query.startsWith('#') && status === 'done' && hasMore) {
+        if (entries[0].isIntersecting && query.trim() && status === 'done' && hasMore) {
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
             executeSearch(query, true);
@@ -389,7 +404,7 @@ export default function SearchPage() {
         )}
 
         {/* Loading indicator during infinite scroll fetching */}
-        {query.startsWith('#') && status !== 'idle' && hasMore && (
+        {query.trim() !== '' && status !== 'idle' && hasMore && (
           <div ref={observerTarget} style={{ height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2rem' }}>
             {status !== 'done' && status !== 'error' && <div className={styles.spinner} style={{ width: 30, height: 30, borderWidth: 3 }} />}
           </div>
