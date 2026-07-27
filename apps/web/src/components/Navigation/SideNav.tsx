@@ -87,10 +87,21 @@ export const SideNav: React.FC = () => {
       {expanded && <div className={styles.backdrop} onClick={() => setExpanded(false)} />}
 
       <nav ref={navRef} className={`${styles.sidebar} ${expanded ? styles.expanded : ''}`}>
-        {/* Brand */}
+        {/* Brand — 로고 호버/탭 시 인스타그램 핸들 툴팁, 툴팁을 클릭해야 이동 */}
         <div className={styles.brand}>
-          <div className={styles.brandIcon}>
-            <img src="/logo.png" alt="VinylA Collection Logo" className={styles.logoImage} />
+          <div className={styles.brandLink}>
+            <div className={styles.brandIcon}>
+              <img src="/logo.png" alt="VinylA Collection Logo" className={styles.logoImage} />
+            </div>
+            <a
+              href="https://www.instagram.com/vinyla_collection/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.brandTooltip}
+              aria-label="VinylA 공식 인스타그램 @vinyla_collection"
+            >
+              @vinyla_collection
+            </a>
           </div>
           <div className={styles.brandText}>
             <span className={styles.brandName}>VinylA</span>

@@ -102,6 +102,62 @@
   width: 100%;
 }
 
+/* 로고 호버/탭 → 인스타그램 핸들 툴팁. 툴팁 자체가 링크라서 클릭해야
+   이동한다(로고 클릭으로는 이동하지 않음). 툴팁은 로고 아래에 뜬다:
+   사이드바가 overflow:hidden이라 오른쪽으로 내밀면 잘리지만, 호버 중엔
+   레일이 펼쳐져 있어(256px) 아래 방향은 넉넉하다. */
+.brandLink {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+}
+
+.brandTooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  padding: 5px 11px;
+  border-radius: 6px;
+  background: rgba(20, 20, 20, 0.96);
+  border: 1px solid rgba(233, 195, 73, 0.45);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  z-index: 2;
+  cursor: pointer;
+}
+
+/* 로고→툴팁으로 마우스가 건너가는 8px 틈에서 호버가 끊기지 않게 다리를 놓는다 */
+.brandTooltip::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 10px;
+}
+
+.brandLink:hover .brandTooltip,
+.brandTooltip:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.brandTooltip:hover {
+  background: rgba(233, 195, 73, 0.16);
+}
+
+.brandLink:hover .brandIcon {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 14px rgba(233, 195, 73, 0.35);
+}
+
 .brandIcon {
   width: 40px;
   height: 40px;
@@ -113,6 +169,7 @@
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   background: #000;
+  transition: box-shadow 0.2s ease;
 }
 
 .logoImage {
