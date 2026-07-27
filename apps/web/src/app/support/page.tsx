@@ -13,6 +13,7 @@ import {
   InquiryWithReplies,
 } from '@vinyla/core-api';
 import { InquiryCategory, InquiryStatus, InquiryAttachment } from '@vinyla/shared-types';
+import { useLocale, TranslationKey } from '@vinyla/i18n';
 
 const MAX_ATTACHMENTS = 3;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -37,28 +38,29 @@ function AttachmentGrid({ attachments }: { attachments?: InquiryAttachment[] | n
   );
 }
 
-const CATEGORIES: { value: InquiryCategory; label: string }[] = [
-  { value: 'COMPLAINT', label: '불만' },
-  { value: 'SUGGESTION', label: '건의' },
-  { value: 'BUG', label: '버그 신고' },
-  { value: 'GENERAL', label: '기타' },
+const CATEGORY_KEYS: { value: InquiryCategory; key: TranslationKey }[] = [
+  { value: 'COMPLAINT', key: 'support.category.complaint' },
+  { value: 'SUGGESTION', key: 'support.category.suggestion' },
+  { value: 'BUG', key: 'support.category.bug' },
+  { value: 'GENERAL', key: 'support.category.general' },
 ];
 
-const STATUS_LABEL: Record<InquiryStatus, string> = {
-  OPEN: '답변 대기',
-  ANSWERED: '답변 완료',
-  CLOSED: '종료',
+const STATUS_KEY: Record<InquiryStatus, TranslationKey> = {
+  OPEN: 'support.status.open',
+  ANSWERED: 'support.status.answered',
+  CLOSED: 'support.status.closed',
 };
 
-const CATEGORY_LABEL: Record<InquiryCategory, string> = {
-  COMPLAINT: '불만',
-  SUGGESTION: '건의',
-  BUG: '버그',
-  GENERAL: '기타',
+const CATEGORY_BADGE_KEY: Record<InquiryCategory, TranslationKey> = {
+  COMPLAINT: 'support.categoryBadge.complaint',
+  SUGGESTION: 'support.categoryBadge.suggestion',
+  BUG: 'support.categoryBadge.bug',
+  GENERAL: 'support.categoryBadge.general',
 };
 
 export default function SupportPage() {
   const { user } = useAuthStore();
+  const { t, locale } = useLocale();
   const [category, setCategory] = useState<InquiryCategory>('SUGGESTION');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -98,17 +100,17 @@ export default function SupportPage() {
     const next = [...pendingFiles];
     for (const f of Array.from(picked)) {
       if (next.length >= MAX_ATTACHMENTS) {
-        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: `첨부는 최대 ${MAX_ATTACHMENTS}개까지 가능합니다.` } }));
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('support.toast.attachmentLimit', { count: MAX_ATTACHMENTS }) } }));
         break;
       }
       const isImage = f.type.startsWith('image/');
       const isVideo = f.type.startsWith('video/');
       if (!isImage && !isVideo) {
-        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '이미지·GIF·영상 파일만 첨부할 수 있습니다.' } }));
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('support.toast.invalidFileType') } }));
         continue;
       }
       if (f.size > (isImage ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES)) {
-        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: `파일이 너무 큽니다 (이미지 10MB, 영상 50MB 이하).` } }));
+        window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('support.toast.fileTooLarge') } }));
         continue;
       }
       next.push(f);
@@ -129,11 +131,11 @@ export default function SupportPage() {
       setTitle('');
       setContent('');
       setPendingFiles([]);
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '문의가 접수되었습니다.' } }));
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('support.toast.created') } }));
       await loadInquiries();
     } catch (e) {
       console.error('Failed to create inquiry', e);
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '문의 접수에 실패했습니다. 잠시 후 다시 시도해주세요.' } }));
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('support.toast.createFailed') } }));
     } finally {
       setIsSubmitting(false);
     }
@@ -161,10 +163,10 @@ export default function SupportPage() {
     try {
       await updateMyInquiry(inquiryId, editDraft.category, editDraft.title.trim(), editDraft.content.trim());
       setEditingId(null);
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: '문의가 수정되었습니다.' } }));
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('support.toast.updated') } }));
       await loadInquiries();
     } catch (e) {
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: e instanceof Error ? e.message : '문의 수정에 실패했습니다.' } }));
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: e instanceof Error ? e.message : t('support.toast.updateFailed') } }));
       await loadInquiries();
     } finally {
       setEditSubmitting(false);
@@ -189,35 +191,35 @@ export default function SupportPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <p className={styles.eyebrow}>SUPPORT</p>
-        <h1 className={styles.title}>문의하기</h1>
-        <p className={styles.subtitle}>불편한 점이나 바라는 점을 남겨주시면 확인 후 답변드립니다.</p>
+        <p className={styles.eyebrow}>{t('support.eyebrow')}</p>
+        <h1 className={styles.title}>{t('support.title')}</h1>
+        <p className={styles.subtitle}>{t('support.subtitle')}</p>
       </header>
 
       {/* 작성 폼 */}
       <section className={styles.formCard}>
         <div className={styles.formGroup}>
-          <label className={styles.label}>유형</label>
+          <label className={styles.label}>{t('support.typeLabel')}</label>
           <div className={styles.categoryRow}>
-            {CATEGORIES.map((c) => (
+            {CATEGORY_KEYS.map((c) => (
               <button
                 key={c.value}
                 type="button"
                 className={`${styles.categoryBtn} ${category === c.value ? styles.categorySelected : ''}`}
                 onClick={() => setCategory(c.value)}
               >
-                {c.label}
+                {t(c.key)}
               </button>
             ))}
           </div>
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>제목</label>
+          <label className={styles.label}>{t('support.titleLabel')}</label>
           <input
             type="text"
             className={styles.input}
-            placeholder="문의 제목을 입력해주세요"
+            placeholder={t('support.titlePlaceholder')}
             value={title}
             maxLength={100}
             onChange={(e) => setTitle(e.target.value)}
@@ -225,10 +227,10 @@ export default function SupportPage() {
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>내용</label>
+          <label className={styles.label}>{t('support.contentLabel')}</label>
           <textarea
             className={styles.textarea}
-            placeholder="내용을 자세히 적어주실수록 정확한 답변이 가능합니다"
+            placeholder={t('support.contentPlaceholder')}
             value={content}
             maxLength={2000}
             rows={6}
@@ -237,7 +239,10 @@ export default function SupportPage() {
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>첨부 파일 <span className={styles.labelHint}>이미지 · GIF · 영상, 최대 {MAX_ATTACHMENTS}개</span></label>
+          <label className={styles.label}>
+            {t('support.attachmentLabel')}{' '}
+            <span className={styles.labelHint}>{t('support.attachmentHint', { count: MAX_ATTACHMENTS })}</span>
+          </label>
           <input
             ref={fileInputRef}
             type="file"
@@ -258,7 +263,7 @@ export default function SupportPage() {
                 <button
                   type="button"
                   className={styles.previewRemove}
-                  aria-label="첨부 제거"
+                  aria-label={t('support.attachmentRemove')}
                   onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
                 >
                   ×
@@ -267,7 +272,7 @@ export default function SupportPage() {
             ))}
             {pendingFiles.length < MAX_ATTACHMENTS && (
               <button type="button" className={styles.attachBtn} onClick={() => fileInputRef.current?.click()}>
-                + 파일 추가
+                {t('support.attachmentAdd')}
               </button>
             )}
           </div>
@@ -278,18 +283,18 @@ export default function SupportPage() {
           onClick={handleSubmit}
           disabled={isSubmitting || !title.trim() || !content.trim()}
         >
-          {isSubmitting ? '접수 중...' : '문의 보내기'}
+          {isSubmitting ? t('support.submitting') : t('support.submit')}
         </button>
       </section>
 
       {/* 내 문의 내역 */}
       <section className={styles.history}>
-        <h2 className={styles.historyTitle}>내 문의 내역</h2>
+        <h2 className={styles.historyTitle}>{t('support.historyTitle')}</h2>
 
         {isLoading ? (
-          <p className={styles.emptyText}>불러오는 중...</p>
+          <p className={styles.emptyText}>{t('support.loading')}</p>
         ) : inquiries.length === 0 ? (
-          <p className={styles.emptyText}>아직 보낸 문의가 없습니다.</p>
+          <p className={styles.emptyText}>{t('support.empty')}</p>
         ) : (
           <ul className={styles.inquiryList}>
             {inquiries.map((inq) => {
@@ -301,13 +306,13 @@ export default function SupportPage() {
                     className={styles.inquiryHead}
                     onClick={() => handleExpand(inq)}
                   >
-                    <span className={styles.categoryBadge}>{CATEGORY_LABEL[inq.CATEGORY]}</span>
+                    <span className={styles.categoryBadge}>{t(CATEGORY_BADGE_KEY[inq.CATEGORY])}</span>
                     <span className={styles.inquiryTitle}>{inq.TITLE}</span>
                     <span className={styles.inquiryDate}>
-                      {new Date(inq.CREATED_AT).toLocaleDateString('ko-KR')}
+                      {new Date(inq.CREATED_AT).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR')}
                     </span>
                     <span className={`${styles.statusBadge} ${styles[`status${inq.STATUS}`]}`}>
-                      {STATUS_LABEL[inq.STATUS]}
+                      {t(STATUS_KEY[inq.STATUS])}
                     </span>
                   </button>
 
@@ -316,14 +321,14 @@ export default function SupportPage() {
                       {editingId === inq.INQUIRY_ID ? (
                         <div className={styles.messageUser}>
                           <div className={styles.categoryRow} style={{ marginBottom: 10 }}>
-                            {CATEGORIES.map((c) => (
+                            {CATEGORY_KEYS.map((c) => (
                               <button
                                 key={c.value}
                                 type="button"
                                 className={`${styles.categoryBtn} ${editDraft.category === c.value ? styles.categorySelected : ''}`}
                                 onClick={() => setEditDraft((p) => ({ ...p, category: c.value }))}
                               >
-                                {c.label}
+                                {t(c.key)}
                               </button>
                             ))}
                           </div>
@@ -344,7 +349,7 @@ export default function SupportPage() {
                           />
                           <div className={styles.editActions}>
                             <button type="button" className={styles.editCancelBtn} onClick={() => setEditingId(null)} disabled={editSubmitting}>
-                              취소
+                              {t('support.editCancel')}
                             </button>
                             <button
                               type="button"
@@ -352,7 +357,7 @@ export default function SupportPage() {
                               onClick={() => handleSaveEdit(inq.INQUIRY_ID)}
                               disabled={editSubmitting || !editDraft.title.trim() || !editDraft.content.trim()}
                             >
-                              {editSubmitting ? '저장 중...' : '수정 저장'}
+                              {editSubmitting ? t('support.editSaving') : t('support.editSave')}
                             </button>
                           </div>
                         </div>
@@ -361,11 +366,11 @@ export default function SupportPage() {
                           <p className={styles.messageContent}>{inq.CONTENT}</p>
                           <AttachmentGrid attachments={inq.ATTACHMENTS} />
                           <span className={styles.messageTime}>
-                            {new Date(inq.CREATED_AT).toLocaleString('ko-KR')}
+                            {new Date(inq.CREATED_AT).toLocaleString(locale === 'en' ? 'en-US' : 'ko-KR')}
                           </span>
                           {!inq.ADMIN_READ_AT && (
                             <button type="button" className={styles.editBtn} onClick={() => handleStartEdit(inq)}>
-                              ✎ 수정 <span className={styles.editHint}>(관리자 확인 전까지 가능)</span>
+                              {t('support.editStart')} <span className={styles.editHint}>{t('support.editHint')}</span>
                             </button>
                           )}
                         </div>
@@ -376,10 +381,10 @@ export default function SupportPage() {
                           key={reply.REPLY_ID}
                           className={reply.IS_ADMIN ? styles.messageAdmin : styles.messageUser}
                         >
-                          {reply.IS_ADMIN && <span className={styles.adminBadge}>관리자</span>}
+                          {reply.IS_ADMIN && <span className={styles.adminBadge}>{t('support.adminBadge')}</span>}
                           <p className={styles.messageContent}>{reply.CONTENT}</p>
                           <span className={styles.messageTime}>
-                            {new Date(reply.CREATED_AT).toLocaleString('ko-KR')}
+                            {new Date(reply.CREATED_AT).toLocaleString(locale === 'en' ? 'en-US' : 'ko-KR')}
                           </span>
                         </div>
                       ))}
@@ -389,7 +394,7 @@ export default function SupportPage() {
                           <input
                             type="text"
                             className={styles.replyInput}
-                            placeholder="추가로 남길 말이 있다면 입력하세요"
+                            placeholder={t('support.replyPlaceholder')}
                             value={replyDrafts[inq.INQUIRY_ID] || ''}
                             maxLength={1000}
                             onChange={(e) =>
@@ -405,7 +410,7 @@ export default function SupportPage() {
                             onClick={() => handleReply(inq.INQUIRY_ID)}
                             disabled={replySubmitting === inq.INQUIRY_ID || !(replyDrafts[inq.INQUIRY_ID] || '').trim()}
                           >
-                            등록
+                            {t('support.replySubmit')}
                           </button>
                         </div>
                       )}
