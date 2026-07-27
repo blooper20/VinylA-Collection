@@ -134,7 +134,8 @@ export type EventType =
   | 'SHARE'
   | 'SPIN_LOG'      // 스피닝 다이어리에 재생 기록 추가
   | 'RANDOM_PICK'   // "오늘 뭐 듣지?" 랜덤 픽 사용
-  | 'FOLLOW';       // 다른 수집가 팔로우
+  | 'FOLLOW'        // 다른 수집가 팔로우
+  | 'ERROR';        // 유저에게 코드가 보여진 에러 발생 — META: {code, message, detail}
 export type ClientPlatform = 'WEB' | 'MOBILE';
 
 /**

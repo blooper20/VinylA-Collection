@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, AppError, getErrorMessage } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
@@ -248,8 +248,16 @@ export default function MyProfilePage() {
       setIsEditing(false);
       setTopGenre(editGenre);
       setIsAvatarRemoved(false);
-    } catch {
-      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('my.profileSaveFailed') } }));
+    } catch (error) {
+      // Expected, self-explanatory failures (30-day nickname cooldown,
+      // name already taken) carry their own actionable message — show it
+      // as-is. Anything else (AppError or truly unknown) gets the coded,
+      // generic message so the user can quote the code if they contact us;
+      // getErrorMessage also records what actually happened behind it.
+      const message = error instanceof AppError
+        ? getErrorMessage(error, t)
+        : (error instanceof Error && error.message) || t('my.profileSaveFailed');
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message } }));
     } finally {
       setIsSaving(false);
     }

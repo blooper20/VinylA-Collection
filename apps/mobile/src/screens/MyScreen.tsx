@@ -5,7 +5,7 @@ import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, getMySavedVinyls, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, getMySavedVinyls, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests, AppError, getErrorMessage } from '@vinyla/core-api';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import * as ImagePicker from 'expo-image-picker';
 // v19 (SDK 54) moved readAsStringAsync to the legacy entry point
@@ -442,8 +442,8 @@ export const MyScreen = () => {
                     const { error } = await supabase.storage
                       .from('avatars')
                       .upload(filePath, decode(base64), { contentType: `image/${fileExt}` });
-                      
-                    if (error) throw error;
+
+                    if (error) throw new AppError('DB-001', '이미지 업로드에 실패했습니다.', error);
                     
                     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
                     
@@ -461,13 +461,16 @@ export const MyScreen = () => {
                 }
               } catch (error) {
                 console.error(error);
-                setToastMessage(t('mobile.my.uploadFailed'));
+                const message = error instanceof AppError
+                  ? getErrorMessage(error, t)
+                  : t('mobile.my.uploadFailed');
+                setToastMessage(message);
                 setIsToastVisible(true);
               }
             }}
           >
-            <Image 
-              source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }} 
+            <Image
+              source={{ uri: user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32' }}
               style={styles.avatar} 
             />
             {isUploading && (

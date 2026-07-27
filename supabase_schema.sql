@@ -1431,3 +1431,16 @@ BEGIN
 END $$;
 ALTER TABLE public."USER_VINYL" ADD CONSTRAINT "user_vinyl_custom_pressing_id_fkey"
   FOREIGN KEY ("CUSTOM_PRESSING_ID") REFERENCES public."CUSTOM_PRESSING"("PRESSING_ID") ON DELETE SET NULL;
+
+-- ============================================================
+-- 에러 코드 기록용 EVENT_LOG.EVENT_TYPE=ERROR 추가 (2026-07-27)
+-- Run this manually in the Supabase SQL Editor.
+--
+-- 유저에게 코드(AUTH-*/DB-*/EXT-*/NET-*/SYS-*)가 보여진 모든 에러를
+-- getErrorMessage()가 기록한다 — 유저가 "코드 DB-001"이라고 문의하면
+-- USER_ID/시간으로 EVENT_LOG를 찾아 META.message/META.detail로 실제
+-- 원인(닉네임 저장 실패였는지, 이미지 업로드 실패였는지 등)을 추적한다.
+-- ============================================================
+ALTER TABLE public."EVENT_LOG" DROP CONSTRAINT IF EXISTS "event_log_type_check";
+ALTER TABLE public."EVENT_LOG" ADD CONSTRAINT "event_log_type_check"
+  CHECK ("EVENT_TYPE" IN ('VISIT','SIGNUP','LOGIN','SEARCH','SCAN','ALBUM_ADD','WISH_ADD','SHARE','SPIN_LOG','RANDOM_PICK','FOLLOW','ERROR')) NOT VALID;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
-import { NICKNAME_MAX_LENGTH } from '@vinyla/core-api';
+import { NICKNAME_MAX_LENGTH, AppError, getErrorMessage } from '@vinyla/core-api';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
@@ -47,7 +47,14 @@ export const NicknameEditModal = ({ visible, onClose, initialNickname, onSave }:
       await onSave(nickname.trim());
       onClose();
     } catch (e: any) {
-      setErrorMsg(e.message || t('mobile.nicknameEdit.saveFailed'));
+      // Expected, self-explanatory failures (30-day cooldown, name taken)
+      // carry their own actionable message — show it as-is. Anything else
+      // gets the coded, generic message (and is recorded behind the code)
+      // so the user can quote it if they contact support.
+      const message = e instanceof AppError
+        ? getErrorMessage(e, t)
+        : e?.message || t('mobile.nicknameEdit.saveFailed');
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }

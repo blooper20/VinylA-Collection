@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase';
 import { logEvent, getFirstTouch } from '../events';
+import { AppError } from '../errors';
 
 // SIGNED_IN fires again on tab focus / token refresh, so dedupe LOGIN
 // metrics to once per user per app load.
@@ -129,22 +130,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfile: async (displayName: string, interests: string[], avatarUrl?: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("User not authenticated");
+      if (!session?.user) throw new AppError('AUTH-002', '사용자 정보를 불러올 수 없습니다.');
       const user = session.user;
 
       if (displayName !== user.user_metadata?.displayName) {
-        const { data: profile } = await supabase
+        const { data: profile, error: fetchError } = await supabase
           .from('PROFILES')
           .select('*')
           .eq('USER_ID', user.id)
           .single();
+        // PGRST116 = no row yet (first-time profile) — not a real failure.
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          throw new AppError('DB-002', '프로필 정보를 불러오는 데 실패했습니다.', fetchError);
+        }
 
         if (profile && profile.LAST_NAME_CHANGED_AT) {
           const lastChanged = new Date(profile.LAST_NAME_CHANGED_AT);
           const now = new Date();
           const diffTime = Math.abs(now.getTime() - lastChanged.getTime());
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          
+
+          // Expected, self-explanatory rule — surfaced to the user as-is
+          // (not code-ified) since the message alone already tells them
+          // exactly what to do. Plain Error on purpose, not AppError.
           if (diffDays < 30) {
             throw new Error(`닉네임은 30일에 한 번만 변경 가능합니다. (남은 기간: ${30 - diffDays}일)`);
           }
@@ -159,10 +167,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
 
         if (profileError) {
+          // Also expected/self-explanatory — same reasoning as the cooldown above.
           if (profileError.code === '23505') {
             throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
           }
-          throw profileError;
+          throw new AppError('DB-001', '프로필 저장에 실패했습니다.', profileError);
         }
       }
 
@@ -174,7 +183,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data, error } = await supabase.auth.updateUser({
         data: updateData
       });
-      if (error) throw error;
+      if (error) throw new AppError('DB-001', '프로필 저장에 실패했습니다.', error);
       if (data.user) {
         set({ user: data.user });
       }
@@ -186,22 +195,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfileWithAvatarFile: async (displayName: string, interests: string[], file?: File | null, removeAvatar?: boolean) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("User not authenticated");
+      if (!session?.user) throw new AppError('AUTH-002', '사용자 정보를 불러올 수 없습니다.');
       const user = session.user;
 
       if (displayName !== user.user_metadata?.displayName) {
-        const { data: profile } = await supabase
+        const { data: profile, error: fetchError } = await supabase
           .from('PROFILES')
           .select('*')
           .eq('USER_ID', user.id)
           .single();
+        // PGRST116 = no row yet (first-time profile) — not a real failure.
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          throw new AppError('DB-002', '프로필 정보를 불러오는 데 실패했습니다.', fetchError);
+        }
 
         if (profile && profile.LAST_NAME_CHANGED_AT) {
           const lastChanged = new Date(profile.LAST_NAME_CHANGED_AT);
           const now = new Date();
           const diffTime = Math.abs(now.getTime() - lastChanged.getTime());
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          
+
+          // Expected, self-explanatory rule — surfaced to the user as-is
+          // (not code-ified) since the message alone already tells them
+          // exactly what to do. Plain Error on purpose, not AppError.
           if (diffDays < 30) {
             throw new Error(`닉네임은 30일에 한 번만 변경 가능합니다. (남은 기간: ${30 - diffDays}일)`);
           }
@@ -216,15 +232,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
 
         if (profileError) {
+          // Also expected/self-explanatory — same reasoning as the cooldown above.
           if (profileError.code === '23505') {
             throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
           }
-          throw profileError;
+          throw new AppError('DB-001', '프로필 저장에 실패했습니다.', profileError);
         }
       }
 
       let avatarUrl = undefined;
-      
+
       if (removeAvatar) {
         avatarUrl = '/logo.png';
       } else if (file) {
@@ -232,20 +249,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Per-user folder so the storage RLS policy can verify ownership
         // ((storage.foldername(name))[1] = auth.uid())
         const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, file);
-          
-        if (uploadError) throw uploadError;
-        
+
+        if (uploadError) throw new AppError('DB-001', '이미지 업로드에 실패했습니다.', uploadError);
+
         const { data: publicUrlData } = supabase.storage
           .from('avatars')
           .getPublicUrl(filePath);
-          
+
         avatarUrl = publicUrlData.publicUrl;
       }
-      
+
       const updateData: any = { displayName, interests };
       if (avatarUrl) {
         updateData.avatar_url = avatarUrl;
@@ -256,7 +273,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         data: updateData
       });
 
-      if (error) throw error;
+      if (error) throw new AppError('DB-001', '프로필 저장에 실패했습니다.', error);
       if (data.user) {
         set({ user: data.user });
       }
