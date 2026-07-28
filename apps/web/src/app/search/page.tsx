@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { createDiscogsSearchSession, DiscogsSearchSession, AlbumItem, SearchStatus, SearchMode, useAuthStore, getUserVinyls } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
@@ -22,6 +22,29 @@ type SelectedAlbum = {
   // the master's generic one. Undefined for Aladin-sourced items.
   DISCOGS_RELEASE_ID?: number;
 };
+
+// ISO 3166-1 alpha-2 codes for every UN member/observer state plus Hong Kong
+// and Taiwan, which Discogs tags as their own release country distinct from
+// China. Used to build the search page's country filter dropdown.
+const COUNTRY_CODES = [
+  'AF','AL','DZ','AD','AO','AG','AR','AM','AU','AT','AZ','BS','BH','BD','BB','BY','BE','BZ','BJ','BT',
+  'BO','BA','BW','BR','BN','BG','BF','BI','CV','KH','CM','CA','CF','TD','CL','CN','CO','KM','CG','CD',
+  'CR','CI','HR','CU','CY','CZ','DK','DJ','DM','DO','EC','EG','SV','GQ','ER','EE','SZ','ET','FJ','FI',
+  'FR','GA','GM','GE','DE','GH','GR','GD','GT','GN','GW','GY','HT','HN','HK','HU','IS','IN','ID','IR',
+  'IQ','IE','IL','IT','JM','JP','JO','KZ','KE','KI','KP','KR','KW','KG','LA','LV','LB','LS','LR','LY',
+  'LI','LT','LU','MG','MW','MY','MV','ML','MT','MH','MR','MU','MX','FM','MD','MC','MN','ME','MA','MZ',
+  'MM','NA','NR','NP','NL','NZ','NI','NE','NG','MK','NO','OM','PK','PW','PA','PG','PY','PE','PH','PL',
+  'PT','QA','RO','RU','RW','KN','LC','VC','WS','SM','ST','SA','SN','RS','SC','SL','SG','SK','SI','SB',
+  'SO','ZA','SS','ES','LK','SD','SR','SE','CH','SY','TW','TJ','TZ','TH','TL','TG','TO','TT','TN',
+  'TR','TM','TV','UG','UA','AE','GB','US','UY','UZ','VU','VA','VE','VN','YE','ZM','ZW',
+] as const;
+
+// Discogs' own release-country strings occasionally deviate from
+// Intl.DisplayNames's full English name (verified live: "United States"/
+// "United Kingdom" return 0 results, "US"/"UK" are the values Discogs
+// actually stores) — the dropdown label stays localized/full, only the
+// value sent to Discogs is overridden.
+const DISCOGS_COUNTRY_VALUE_OVERRIDES: Record<string, string> = { US: 'US', GB: 'UK' };
 
 const genres = [
   { title: '팝',            sub: 'Pop',         height: 260, img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop' },
@@ -102,6 +125,21 @@ export default function SearchPage() {
   const { user, initializeAuth } = useAuthStore();
   const { locale, t } = useLocale();
   const [userVinyls, setUserVinyls] = useState<USER_VINYL[]>([]);
+
+  // Label localized to the site's locale, but the value sent to Discogs is
+  // always the English name it stores release countries under (with the
+  // US/UK override) — sorted by label so the dropdown reads alphabetically
+  // in whichever language is showing.
+  const countryOptions = useMemo(() => {
+    const labelNames = new Intl.DisplayNames([locale === 'ko' ? 'ko' : 'en'], { type: 'region' });
+    const valueNames = new Intl.DisplayNames(['en'], { type: 'region' });
+    return COUNTRY_CODES
+      .map((code) => ({
+        value: DISCOGS_COUNTRY_VALUE_OVERRIDES[code] ?? valueNames.of(code) ?? code,
+        label: labelNames.of(code) ?? code,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale === 'ko' ? 'ko' : 'en'));
+  }, [locale]);
 
   React.useEffect(() => {
     initializeAuth();
@@ -315,24 +353,18 @@ export default function SearchPage() {
             </div>
           )}
           {!query.startsWith('#') && (
-            <div className={styles.searchModeRow} role="radiogroup" aria-label="search country">
-              {([
-                ['', t('search.countryAll')],
-                ['South Korea', t('search.countryKR')],
-                ['US', t('search.countryUS')],
-                ['UK', t('search.countryUK')],
-                ['Japan', t('search.countryJP')],
-                ['Europe', t('search.countryEU')],
-              ] as const).map(([c, label]) => (
-                <button
-                  key={c || 'all'}
-                  type="button"
-                  className={`${styles.searchModeBtn} ${country === c ? styles.searchModeBtnActive : ''}`}
-                  onClick={() => handleCountryChange(c)}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className={styles.searchModeRow}>
+              <select
+                aria-label="search country"
+                className={styles.searchModeBtn}
+                value={country}
+                onChange={(e) => handleCountryChange(e.target.value)}
+              >
+                <option value="">{t('search.countryAll')}</option>
+                {countryOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
           )}
         </div>
