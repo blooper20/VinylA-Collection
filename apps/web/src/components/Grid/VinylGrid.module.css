@@ -247,6 +247,49 @@
   }
 }
 
+/* ---- Custom-order edit mode ---- */
+.editModeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editModeHint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sortableCardWrap {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sortableCardWrap:active {
+  cursor: grabbing;
+}
+
+.dragHandle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dragHandle :global(.material-symbols-outlined) {
+  font-size: 16px;
+}
+
 /* ---- Grid 4 (default) ---- */
 .grid4 {
   display: grid;

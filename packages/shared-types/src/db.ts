@@ -73,6 +73,9 @@ export interface USER_VINYL {
    *  골랐을 때의 참조. DISCOGS_RELEASE_ID와 상호 배타적 — 실제 소장반은
    *  Discogs release 아니면 커뮤니티 등록 둘 중 하나다 */
   CUSTOM_PRESSING_ID?: number | null;
+  /** 컬렉션 "수정 모드"에서 드래그로 정한 표시 순서. NULL이면 이 행은 아직
+   *  수동 정렬된 적이 없다는 뜻 — "직접 정렬" 모드에서 맨 뒤로 정렬된다 */
+  SORT_ORDER?: number | null;
 }
 
 /**

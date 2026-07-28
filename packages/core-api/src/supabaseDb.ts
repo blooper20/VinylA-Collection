@@ -350,6 +350,25 @@ export const updateUserVinylIsPublic = async (userVinylId: number, isPublic: boo
   return true;
 };
 
+// 컬렉션 "수정 모드"에서 드래그로 순서를 바꾼 뒤 호출 — 화면에 보이는
+// 순서 그대로(0부터) SORT_ORDER를 다시 매긴다. PostgREST는 행마다 다른 값을
+// 한 번의 upsert로 바꾸는 벌크 업데이트를 지원하지 않아 개별 update를
+// 병렬로 날린다 — 개인 컬렉션 규모(수십~수백 장)에서는 문제 없는 수준.
+export const updateUserVinylOrder = async (orderedUserVinylIds: number[]): Promise<boolean> => {
+  const results = await Promise.all(
+    orderedUserVinylIds.map((id, index) =>
+      supabase.from('USER_VINYL').update({ SORT_ORDER: index }).eq('USER_VINYL_ID', id)
+    )
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) {
+    console.error('updateUserVinylOrder error:', failed.error);
+    throw new AppError('DB-003', '순서 저장 중 오류가 발생했습니다.', failed.error);
+  }
+  return true;
+};
+
 export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
   if (isOffline()) {
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
@@ -441,7 +460,9 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     // 유저가 소장한 정확한 실물반(Discogs release). 있으면 상세 모달이
     // ALBUM_RELEASE_TRACKS에서 정확한 트랙/사이드를 가져온다.
     DISCOGS_RELEASE_ID: userVinyl?.DISCOGS_RELEASE_ID ?? null,
-    CUSTOM_PRESSING_ID: userVinyl?.CUSTOM_PRESSING_ID ?? null
+    CUSTOM_PRESSING_ID: userVinyl?.CUSTOM_PRESSING_ID ?? null,
+    // 컬렉션 "수정 모드" 드래그 정렬 순서. NULL = 아직 수동 정렬한 적 없음.
+    SORT_ORDER: userVinyl?.SORT_ORDER ?? null
   };
 };
 

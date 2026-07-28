@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { AppState } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { RootNavigator, linking } from './src/navigation/RootNavigator';
 import { StatusBar } from 'expo-status-bar';
@@ -58,14 +59,18 @@ import { AlertProvider } from './src/providers/AlertProvider';
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <LocaleProvider>
-          <AlertProvider>
-            <AppContent />
-          </AlertProvider>
-        </LocaleProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    // 컬렉션 "순서 편집" 드래그(react-native-draggable-flatlist)가 쓰는
+    // Gesture Handler는 루트를 이 컴포넌트로 감싸야 제스처를 인식한다.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AlertProvider>
+              <AppContent />
+            </AlertProvider>
+          </LocaleProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

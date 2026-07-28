@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, Text, Share } from 'react-native';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { RandomPickModal } from '../components/Modal/RandomPickModal';
 import { EmptyState } from '../components/EmptyState';
-import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, updateUserVinylOrder, supabase, useAuthStore } from '@vinyla/core-api';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
@@ -36,11 +37,20 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
   const [toastMessage, setToastMessage] = useState('');
   const [isToastVisible, setIsToastVisible] = useState(false);
   const [viewMode, setViewMode] = useState<VinylViewMode>('grid');
-  const [sortMode, setSortMode] = useState<SortMode>('latest');
+  const [sortMode, setSortMode] = useState<SortMode>('custom');
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isRandomPickOpen, setIsRandomPickOpen] = useState(false);
   const shareViewRef = useRef<View>(null);
   const navigation = useNavigation<NavigationProp<any>>();
   const { user, initializeAuth } = useAuthStore();
+  // updateUserVinylOrder fires one PATCH per row — each lands as its own
+  // postgres_changes event on the subscription below, so a reorder of N
+  // records triggers up to N concurrent loadData() refetches that land out
+  // of order relative to how many writes have landed on the server yet,
+  // flickering between the new order and a half-applied one. Suppress
+  // refetches for the duration of a manual reorder (+ a grace period for
+  // trailing echoes) since the optimistic local update already has it right.
+  const suppressRealtimeRefetchRef = useRef(false);
 
   useEffect(() => {
     initializeAuth();
@@ -102,7 +112,10 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'USER_VINYL', filter: `USER_ID=eq.${user.id}` },
-        () => loadData()
+        () => {
+          if (suppressRealtimeRefetchRef.current) return;
+          loadData();
+        }
       )
       .subscribe();
 
@@ -113,9 +126,32 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
 
   const sortedAlbums = sortVinyls(ownedAlbums, sortMode);
 
+  // 편집 모드는 "직접 정렬" 그리드 뷰에서만 의미가 있다 — 다른 정렬 기준으로
+  // 바꾸거나 테이블 뷰로 전환하면 드래그 순서 변경이 무의미해지므로 자동으로 빠져나온다.
+  useEffect(() => {
+    if (sortMode !== 'custom' || viewMode !== 'grid') setIsEditMode(false);
+  }, [sortMode, viewMode]);
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setIsToastVisible(true);
+  };
+
+  const handleDragEnd = async ({ data }: { data: MockVinylData[] }) => {
+    const reordered = data.map((a, idx) => ({ ...a, SORT_ORDER: idx }));
+    setOwnedAlbums((prev) => {
+      const byId = new Map(reordered.map((a) => [a.USER_VINYL_ID, a]));
+      return prev.map((a) => byId.get(a.USER_VINYL_ID) || a);
+    });
+    suppressRealtimeRefetchRef.current = true;
+    try {
+      await updateUserVinylOrder(reordered.map((a) => a.USER_VINYL_ID as number));
+    } catch (e) {
+      console.error('Failed to save order', e);
+      showToast(t('collection.orderSaveFailed'));
+    } finally {
+      setTimeout(() => { suppressRealtimeRefetchRef.current = false; }, 1500);
+    }
   };
 
   const handleShareLink = async () => {
@@ -173,6 +209,26 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
             <Text style={styles.randomPickBannerText}>{t('randomPick.triggerButton')}</Text>
           </TouchableOpacity>
           <SortChipRow value={sortMode} onChange={setSortMode} />
+          {/* 모바일에서는 한 줄(테이블) 뷰에서만 순서 편집 지원 — 그리드(2열)
+              드래그는 react-native-draggable-flatlist가 안정적으로 지원하지
+              않는 영역이라, 격자보다 신뢰도 높은 한 줄 뷰로 제한한다. */}
+          {sortMode === 'custom' && viewMode !== 'grid' && (
+            <TouchableOpacity
+              style={[
+                styles.editModeBtn,
+                { borderColor: isEditMode ? themeColors.accent : themeColors.border },
+                isEditMode && { backgroundColor: 'rgba(233,195,73,0.12)' },
+              ]}
+              onPress={() => setIsEditMode((v) => !v)}
+            >
+              <Text style={[styles.editModeBtnText, { color: isEditMode ? themeColors.accent : themeColors.textSecondary }]}>
+                {isEditMode ? t('collection.editModeDone') : t('collection.editMode')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {isEditMode && sortMode === 'custom' && viewMode !== 'grid' && (
+            <Text style={[styles.editModeHint, { color: themeColors.textSecondary }]}>{t('collection.editModeHint')}</Text>
+          )}
           {viewMode === 'grid' ? (
             <FlatList
               key="grid"
@@ -189,6 +245,33 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
                     resizeMode={item.IMAGE_URL ? "cover" : "contain"}
                   />
                 </TouchableOpacity>
+              )}
+            />
+          ) : isEditMode && sortMode === 'custom' ? (
+            <DraggableFlatList
+              key="table-edit"
+              style={{ flex: 1 }}
+              data={sortedAlbums}
+              keyExtractor={item => item.ALBUM_ID.toString()}
+              contentContainerStyle={styles.tableList}
+              onDragEnd={handleDragEnd}
+              renderItem={({ item, drag, isActive }: RenderItemParams<MockVinylData>) => (
+                <ScaleDecorator>
+                  <View style={[styles.editableRow, isActive && styles.editableRowActive, { borderBottomColor: themeColors.border }]}>
+                    <Image
+                      source={item.IMAGE_URL ? { uri: item.IMAGE_URL } : require('../../assets/logo_real_transparent.png')}
+                      style={styles.editableRowCover}
+                      resizeMode={item.IMAGE_URL ? 'cover' : 'contain'}
+                    />
+                    <View style={styles.editableRowInfo}>
+                      <Text style={[styles.editableRowTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{item.TITLE}</Text>
+                      <Text style={[styles.editableRowArtist, { color: themeColors.textSecondary }]} numberOfLines={1}>{item.ARTIST}</Text>
+                    </View>
+                    <TouchableOpacity onPressIn={drag} style={styles.dragHandle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 18 }}>≡</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScaleDecorator>
               )}
             />
           ) : (
@@ -288,5 +371,54 @@ const getStyles = (themeColors: any, shadows: any, shape: any, tabBarHeight: num
     width: '100%',
     height: '100%',
     borderRadius: shape.md,
+  },
+  editModeBtn: {
+    alignSelf: 'flex-start',
+    marginHorizontal: 20,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  editModeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  editModeHint: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    fontSize: 12,
+  },
+  editableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 10,
+  },
+  editableRowActive: {
+    opacity: 0.6,
+  },
+  editableRowCover: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+  },
+  editableRowInfo: {
+    flex: 1,
+  },
+  editableRowTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  editableRowArtist: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  dragHandle: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
 });

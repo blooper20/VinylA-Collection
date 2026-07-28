@@ -53,6 +53,7 @@ export const en = {
     oldest: 'Oldest',
     alpha: 'A-Z',
     year: 'Release Year',
+    custom: 'Custom',
   },
   view: {
     grid4: '4-column grid',
@@ -149,6 +150,10 @@ export const en = {
     linkCopied: 'Profile link copied!',
     statusOwned: 'Owned',
     statusWish: 'Wish',
+    editMode: 'Reorder',
+    editModeDone: 'Done',
+    editModeHint: 'Drag cards to reorder',
+    orderSaveFailed: 'Failed to save order',
   },
   wishlist: {
     title: 'Wishlist',
@@ -284,6 +289,8 @@ export const en = {
     modeAlbum: 'Album',
     modeTrack: 'Track',
     countryAll: 'All Countries',
+    countryNoMatch: 'No matching countries',
+    countryQuickPicks: 'Popular',
   },
   notFound: {
     title: 'Track Not Found',

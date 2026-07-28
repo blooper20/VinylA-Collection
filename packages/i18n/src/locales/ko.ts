@@ -52,6 +52,7 @@ export const ko = {
     oldest: '오래된순',
     alpha: '가나다순',
     year: '출시연도순',
+    custom: '직접 정렬',
   },
   view: {
     grid4: '4열 그리드',
@@ -148,6 +149,10 @@ export const ko = {
     linkCopied: '프로필 링크가 복사되었습니다!',
     statusOwned: '보유',
     statusWish: '위시',
+    editMode: '순서 편집',
+    editModeDone: '완료',
+    editModeHint: '카드를 드래그해서 순서를 바꾸세요',
+    orderSaveFailed: '순서 저장에 실패했습니다',
   },
   wishlist: {
     title: '위시리스트',
@@ -283,6 +288,8 @@ export const ko = {
     modeAlbum: '앨범',
     modeTrack: '곡',
     countryAll: '국가 전체',
+    countryNoMatch: '일치하는 국가가 없습니다',
+    countryQuickPicks: '자주 찾는 국가',
   },
   notFound: {
     title: 'Track Not Found',
