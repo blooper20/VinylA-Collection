@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, arrayMove, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, arrayMove, useSortable, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlbumCard } from './AlbumCard';
 import { DetailModal } from '../Modal/DetailModal';
@@ -48,6 +48,44 @@ function SortableAlbumCard({ album, onSelect, isEditMode }: {
   );
 }
 
+// 테이블 뷰용 정렬 가능 행. 카드와 달리 행 전체에 드래그 리스너를 걸면 표 안
+// 텍스트 선택/스크롤 제스처와 충돌하기 쉬워, 왼쪽 전용 핸들 셀에만 건다.
+function SortableAlbumRow({ album, t }: {
+  album: VinylItem;
+  t: ReturnType<typeof useLocale>['t'];
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: album.USER_VINYL_ID! });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <tr ref={setNodeRef} style={style} className={`${styles.tableRow} ${styles.tableRowEditing}`}>
+      <td className={styles.tdDragHandle} {...attributes} {...listeners}>
+        <span className="material-symbols-outlined">drag_indicator</span>
+      </td>
+      <td className={styles.tdCover}>
+        <div className={styles.tableCoverBox}>
+          <img src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`} alt={album.TITLE} className={styles.tableThumb} />
+        </div>
+      </td>
+      <td className={styles.tdTitle}>{album.TITLE}</td>
+      <td className={styles.tdArtist}>{album.ARTIST}</td>
+      <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
+      <td className={styles.tdTags}>
+        {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
+      </td>
+      <td className={styles.tdStatus}>
+        <span className={album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}>
+          {album.STATUS === 'OWNED' ? t('collection.statusOwned') : t('collection.statusWish')}
+        </span>
+      </td>
+    </tr>
+  );
+}
+
 interface VinylGridProps {
   statusFilter?: FilterType;
 }
@@ -85,12 +123,11 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
-  // 편집 모드는 "직접 정렬" 모드의 그리드 뷰에서만 의미가 있다 — 다른 정렬
-  // 기준으로 바꾸거나 테이블 뷰로 전환하면 드래그 순서 변경이 무의미해지므로
-  // 자동으로 빠져나온다.
+  // 편집 모드는 "직접 정렬" 모드에서만 의미가 있다 — 다른 정렬 기준으로
+  // 바꾸면 드래그 순서 변경이 무의미해지므로 자동으로 빠져나온다.
   useEffect(() => {
-    if (sortMode !== 'custom' || viewMode === 'table') setIsEditMode(false);
-  }, [sortMode, viewMode]);
+    if (sortMode !== 'custom') setIsEditMode(false);
+  }, [sortMode]);
 
   useEffect(() => {
     if (user && !user.user_metadata?.displayName) {
@@ -228,7 +265,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   };
 
   return (
-    <div className={styles.pageWrapper}>
+    <div className={`${styles.pageWrapper} ${isEditMode ? styles.pageWrapperEditing : ''}`}>
       <PageTabs group="collection" />
       <header className={styles.pageHeader}>
         <div className={styles.headerLeft}>
@@ -260,7 +297,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                   {label}
                 </button>
               ))}
-              {sortMode === 'custom' && viewMode !== 'table' && (
+              {sortMode === 'custom' && (
                 <button
                   className={`${styles.controlChip} ${styles.editModeBtn} ${isEditMode ? styles.controlActive : ''}`}
                   onClick={handleToggleEditMode}
@@ -304,6 +341,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
       </header>
 
+      <div className={styles.contentArea}>
       {displayedAlbums.length === 0 ? (
         <div className={styles.emptyState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'rgba(255,255,255,0.2)', marginBottom: '16px' }}>album</span>
@@ -313,7 +351,10 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       ) : viewMode !== 'table' ? (
         isEditMode ? (
           <>
-            <p className={styles.editModeHint}>{t('collection.editModeHint')}</p>
+            <p className={styles.editModeHint}>
+              <span className="material-symbols-outlined">drag_indicator</span>
+              {t('collection.editModeHint')}
+            </p>
             <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={displayedAlbums.map((a) => a.USER_VINYL_ID!)} strategy={rectSortingStrategy}>
                 <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
@@ -331,6 +372,37 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
             ))}
           </div>
         )
+      ) : isEditMode ? (
+        <>
+          <p className={styles.editModeHint}>
+            <span className="material-symbols-outlined">drag_indicator</span>
+            {t('collection.editModeHint')}
+          </p>
+          <div className={styles.tableWrapper}>
+            <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.thDragHandle}></th>
+                    <th className={styles.thCover}></th>
+                    <th className={styles.thTitle}>{t('table.album')}</th>
+                    <th className={styles.thArtist}>{t('table.artist')}</th>
+                    <th className={styles.thYear}>{t('table.year')}</th>
+                    <th className={styles.thTags}>{t('table.tags')}</th>
+                    <th className={styles.thStatus}>{t('table.status')}</th>
+                  </tr>
+                </thead>
+                <SortableContext items={displayedAlbums.map((a) => a.USER_VINYL_ID!)} strategy={verticalListSortingStrategy}>
+                  <tbody>
+                    {displayedAlbums.map(album => (
+                      <SortableAlbumRow key={album.USER_VINYL_ID} album={album} t={t} />
+                    ))}
+                  </tbody>
+                </SortableContext>
+              </table>
+            </DndContext>
+          </div>
+        </>
       ) : (
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
@@ -369,6 +441,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           </table>
         </div>
       )}
+      </div>
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
       {isRandomPickOpen && (

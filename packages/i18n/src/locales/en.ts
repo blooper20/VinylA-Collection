@@ -152,7 +152,7 @@ export const en = {
     statusWish: 'Wish',
     editMode: 'Reorder',
     editModeDone: 'Done',
-    editModeHint: 'Drag cards to reorder',
+    editModeHint: 'Drag to reorder',
     orderSaveFailed: 'Failed to save order',
   },
   wishlist: {

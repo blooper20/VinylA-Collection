@@ -151,7 +151,7 @@ export const ko = {
     statusWish: '위시',
     editMode: '순서 편집',
     editModeDone: '완료',
-    editModeHint: '카드를 드래그해서 순서를 바꾸세요',
+    editModeHint: '드래그해서 순서를 바꿔보세요',
     orderSaveFailed: '순서 저장에 실패했습니다',
   },
   wishlist: {

@@ -3,6 +3,17 @@
 .pageWrapper {
   min-height: 100dvh;
   background: var(--bg-deep);
+  transition: background-color 0.35s ease;
+}
+
+/* 수정 모드 진입 시 화면 전체 배경을 은은한 연두색으로 물들여 "지금 순서를
+   바꾸는 중"이라는 상태를 그리드/테이블 뷰 공통으로 드러낸다. */
+.pageWrapperEditing {
+  background-color: rgba(120, 230, 150, 0.07);
+}
+
+.contentArea {
+  transition: background-color 0.35s ease;
 }
 
 /* ---- Page Header ---- */
@@ -255,9 +266,23 @@
 }
 
 .editModeHint {
-  margin: 0 0 12px;
-  font-size: 12px;
-  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 56px 16px;
+  padding: 7px 14px;
+  border-radius: 2px;
+  border: 1px solid var(--accent);
+  background: rgba(255, 200, 60, 0.12);
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.editModeHint :global(.material-symbols-outlined) {
+  font-size: 15px;
 }
 
 .sortableCardWrap {
@@ -326,6 +351,10 @@
   .grid6 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .editModeHint {
+    margin: 0 16px 16px;
+  }
 }
 
 /* ---- Table View ---- */
@@ -369,7 +398,24 @@
 
 .tableRow:hover { background: rgba(255,255,255,0.04); }
 
+.tableRowEditing { cursor: default; }
+
 .table td { padding: 10px 12px; vertical-align: middle; }
+
+.thDragHandle { width: 36px; }
+
+.tdDragHandle {
+  width: 36px;
+  padding: 6px 0;
+  text-align: center;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.tdDragHandle:active { cursor: grabbing; }
+
+.tdDragHandle :global(.material-symbols-outlined) { font-size: 18px; }
 
 .tdCover { padding: 6px 12px; width: 62px; }
 
