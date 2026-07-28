@@ -477,7 +477,15 @@ export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,
   onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void,
-  searchMode: SearchMode = 'auto'
+  searchMode: SearchMode = 'auto',
+  // Discogs release country (e.g. "South Korea", "US") — narrows results to
+  // that country's pressings. Beyond letting a user pick "the pressing I
+  // actually own", this doubles as a same-name-artist disambiguator: a
+  // common name like "Crush" pulls in hundreds of unrelated Western
+  // releases (Velvet Crush, Cold Crush Brothers, ...) sorted above 크러쉬's
+  // own catalog, but scoping to South Korea collapses that noise (verified
+  // live: artist=Crush -> 419 results; +country=South Korea -> 11, all his).
+  country?: string
 ): DiscogsSearchSession => {
   const serverAuth = getDiscogsAuth();
   const isGenreQuery = query.startsWith('#');
@@ -510,9 +518,24 @@ export const createDiscogsSearchSession = (
         params: { term: query, entity: 'musicArtist', limit: 3, country: 'KR' }
       });
       const artistName = itRes.data.results?.[0]?.artistName;
-      if (artistName && artistName.toLowerCase() !== query.toLowerCase()) {
-        return artistName;
+      if (!artistName || artistName.toLowerCase() === query.toLowerCase()) return '';
+      // iTunes' musicArtist search is a loose text match, not an artist
+      // lookup — feeding it a full "artist + album/edition" query (not just
+      // a bare artist name) can return a wholly unrelated artist (live case:
+      // "Post Malone Long Bed" -> "blackbear", "Daniel Caesar Never Enough"
+      // -> "Bill Withers"), which then hijacks the artist-scoped Discogs
+      // lane below and buries the real album under that stranger's LPs.
+      // A real Korean->English translation (e.g. "우원재" -> "Woo") never
+      // shares characters with the original, so it can't be sanity-checked
+      // this way — only gate non-Korean queries, where the resolved name
+      // should plausibly relate to what was actually typed (e.g. "michael
+      // jackson number ones" -> "Michael Jackson" shares "michael jackson").
+      if (!isKoreanQuery) {
+        const queryLower = query.toLowerCase();
+        const artistWords = artistName.toLowerCase().split(/\s+/).filter((w: string) => w.length > 1);
+        if (!artistWords.some((w: string) => queryLower.includes(w))) return '';
       }
+      return artistName;
     } catch (e) { /* ignore */ }
     return '';
   };
@@ -528,21 +551,25 @@ export const createDiscogsSearchSession = (
     // Hoisted out of the Step 1 try block below so Step 3's per-item Aladin
     // cover lookup can reuse the same request/proxy plumbing.
     const fetchPage = async (params: Record<string, unknown>) => {
+      // Applied uniformly here rather than at each call site so every lane
+      // (artist, compilation, field-scoped, genre) gets the same country
+      // scoping without having to remember to add it everywhere.
+      const scopedParams = country ? { ...params, country } : params;
       const request = serverAuth
         ? axios.get('https://api.discogs.com/database/search', {
             params: {
-              ...params,
+              ...scopedParams,
               ...serverAuth,
               type: 'release',
               // A lane may narrow the format itself (e.g. "Compilation
               // Vinyl") — only default to plain vinyl when it didn't.
-              format: (params.format as string) || 'vinyl',
+              format: (scopedParams.format as string) || 'vinyl',
               per_page: 50,
               sort: 'want',
               sort_order: 'desc',
             },
           })
-        : axios.get(`${getProxyBaseUrl()}/api/external/discogs-search`, { params });
+        : axios.get(`${getProxyBaseUrl()}/api/external/discogs-search`, { params: scopedParams });
       return request.then((r) => r.data.results || []).catch((e) => {
         if (e.response && e.response.status === 404) return [];
         throw e;
@@ -671,23 +698,63 @@ export const createDiscogsSearchSession = (
       // already scoped the Discogs request to that field, so a query like an
       // album title has no reason to also appear as the release's artist.
       const matchesQuery = isGenreQuery || relArtLower.includes(queryLower);
-      const matchesAlias = aliasLower ? relArtLower.includes(aliasLower) : false;
+      // The alias is a specific resolved artist name (a Korean->English
+      // translation, or an English name sanity-checked above), so it should
+      // actually BE one of the release's credited artists — not merely a
+      // substring of the whole credit string. Discogs artist credits often
+      // list collaborators ("Jack Costanzo & Gerry Woo", "Case Woo &
+      // Patrick Turner"), and a plain .includes() let an alias like "Woo"
+      // (우원재's) match any of those unrelated collaborators too. Split on
+      // the common credit separators and require an exact token match
+      // (disambiguator stripped, since "Woo (3)" / "Woo (13)" etc. are
+      // different Discogs artists that a name-only alias can't tell apart —
+      // this narrows to "is this artist named Woo", not "is it *the*
+      // Woo the query meant").
+      const matchesAlias = aliasLower
+        ? relArtLower
+            .split(/[,&]| feat\.?| ft\.?| x /i)
+            .some((t) => t.replace(/\s*\(\d+\)\s*$/, '').trim() === aliasLower)
+        : false;
       const skipArtistMatch = searchMode === 'album' || searchMode === 'track';
-      const isFeature = (isGenreQuery || skipArtistMatch) ? false : (releaseArtist ? !(matchesQuery || matchesAlias) : false);
+      let isFeature = (isGenreQuery || skipArtistMatch) ? false : (releaseArtist ? !(matchesQuery || matchesAlias) : false);
 
       const normTitle = (r.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      // Flattened "artist title" (no " - " separator) for combined
+      // "artist album" queries (e.g. "michael jackson number ones" against
+      // "Michael Jackson - Number Ones"). Built from the already-parsed
+      // artist/title rather than re-flattening the raw string so a Discogs
+      // same-name disambiguator suffix — "Daniel Caesar (2)", "Woo (13)",
+      // "pH-1 (2)" — doesn't sit between the artist and title and break the
+      // substring match (query text obviously never includes it).
+      const relArtNoDisambig = relArtLower.replace(/\s*\(\d+\)\s*$/, '');
+      const normTitleFlat = releaseArtist
+        ? `${relArtNoDisambig} ${(releaseTitle || '').toLowerCase()}`.replace(/\s+/g, ' ').trim()
+        : normTitle;
+      // Punctuation-insensitive variants for the exact-match check below —
+      // Discogs titles carry punctuation a typed search rarely does (live
+      // case: "Various - Toy Story: Songs To Infinity And Beyond" vs a user
+      // typing "Toy Story Songs To Infinity And Beyond", no colon), and that
+      // single character otherwise defeats an otherwise-exact substring match.
+      const stripPunct = (s: string) => s.replace(/[:,;.'"!?]/g, '').replace(/\s+/g, ' ').trim();
+      const queryNoPunct = stripPunct(queryLower);
+      // A title containing the whole query verbatim is exactly what the
+      // user typed out (e.g. "post malone long bed" against "Post Malone -
+      // Long Bed") — that's a primary result, not a "feature", even when
+      // the artist-only check above didn't credit it because the query
+      // included non-artist words (an album/edition title).
+      if (
+        isFeature && !isGenreQuery && queryLower &&
+        (normTitle.includes(queryLower) || normTitleFlat.includes(queryLower) ||
+          (queryNoPunct && (stripPunct(normTitle).includes(queryNoPunct) || stripPunct(normTitleFlat).includes(queryNoPunct))))
+      ) {
+        isFeature = false;
+      }
 
       // Aggressive noise filtering for English queries:
       // If it's marked as a feature, but the query is English, Discogs often returns random junk
       // (e.g. searching "wave to earth" returns "Kate Bush" because "earth" is in a track name).
       // We discard these false features. Korean queries are safer and true features (e.g. 검정치마 in credits).
       if (isFeature && !isKoreanQuery && !isGenreQuery) {
-        // Compare against the title with Discogs's " - " artist/title
-        // separator flattened too — a combined "artist album" query (e.g.
-        // "michael jackson number ones") never substring-matches
-        // "Michael Jackson - Number Ones" otherwise, and the exact album
-        // the user typed out in full got discarded as noise.
-        const normTitleFlat = normTitle.replace(/\s+-\s+/g, ' ');
         if (
           !normTitle.includes(queryLower) && !normTitleFlat.includes(queryLower) &&
           !(aliasLower && (normTitle.includes(aliasLower) || normTitleFlat.includes(aliasLower)))
@@ -924,9 +991,10 @@ export const searchDiscogsLazy = async (
   query: string,
   onItem: (album: AlbumItem) => void,
   onStatusChange?: (status: SearchStatus, total?: number, error?: AppError) => void,
-  searchMode: SearchMode = 'auto'
+  searchMode: SearchMode = 'auto',
+  country?: string
 ): Promise<void> => {
-  await createDiscogsSearchSession(query, onItem, onStatusChange, searchMode).loadMore();
+  await createDiscogsSearchSession(query, onItem, onStatusChange, searchMode, country).loadMore();
 };
 
 

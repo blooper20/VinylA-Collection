@@ -282,6 +282,12 @@ export const ko = {
     modeArtist: '아티스트',
     modeAlbum: '앨범',
     modeTrack: '곡',
+    countryAll: '국가 전체',
+    countryKR: '한국',
+    countryUS: '미국',
+    countryUK: '영국',
+    countryJP: '일본',
+    countryEU: '유럽',
   },
   notFound: {
     title: 'Track Not Found',

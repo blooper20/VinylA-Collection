@@ -283,6 +283,12 @@ export const en = {
     modeArtist: 'Artist',
     modeAlbum: 'Album',
     modeTrack: 'Track',
+    countryAll: 'All Countries',
+    countryKR: 'South Korea',
+    countryUS: 'US',
+    countryUK: 'UK',
+    countryJP: 'Japan',
+    countryEU: 'Europe',
   },
   notFound: {
     title: 'Track Not Found',

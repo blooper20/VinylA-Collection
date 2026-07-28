@@ -91,6 +91,12 @@ export default function SearchPage() {
   const [selectedAlbum, setSelectedAlbum] = useState<SelectedAlbum | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<SearchMode>('auto');
+  // Discogs release country filter ('' = no filter / "전체"). Beyond letting
+  // a user pick "the pressing I actually own" among many legit results, it
+  // doubles as a same-name-artist disambiguator for common names (e.g.
+  // "Crush" pulls in hundreds of unrelated Western releases before 크러쉬's
+  // own catalog; scoping to South Korea collapses that noise).
+  const [country, setCountry] = useState<string>('');
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const { user, initializeAuth } = useAuthStore();
@@ -134,7 +140,7 @@ export default function SearchPage() {
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
   }, []);
 
-  const executeSearch = useCallback(async (q: string, append: boolean = false, modeOverride?: SearchMode) => {
+  const executeSearch = useCallback(async (q: string, append: boolean = false, modeOverride?: SearchMode, countryOverride?: string) => {
     if (!q.trim()) {
       if (!append) setResults([]);
       setStatus('idle');
@@ -185,12 +191,13 @@ export default function SearchPage() {
           }
         }
       },
-      q.startsWith('#') ? 'auto' : (modeOverride ?? searchMode)
+      q.startsWith('#') ? 'auto' : (modeOverride ?? searchMode),
+      q.startsWith('#') ? undefined : ((countryOverride ?? country) || undefined)
     );
     sessionRef.current = session;
     const more = await session.loadMore();
     if (searchIdRef.current === currentSearchId && more === false) setHasMore(false);
-  }, [t, searchMode]);
+  }, [t, searchMode, country]);
 
   React.useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -234,6 +241,14 @@ export default function SearchPage() {
     setSearchMode(mode);
     if (query.trim() && !query.startsWith('#')) {
       executeSearch(query, false, mode);
+    }
+  }, [query, executeSearch]);
+
+  // setCountry는 다음 렌더까지 반영되지 않으므로, 이번 검색에는 countryOverride로 새 값을 바로 넘긴다.
+  const handleCountryChange = useCallback((newCountry: string) => {
+    setCountry(newCountry);
+    if (query.trim() && !query.startsWith('#')) {
+      executeSearch(query, false, undefined, newCountry);
     }
   }, [query, executeSearch]);
 
@@ -293,6 +308,27 @@ export default function SearchPage() {
                   type="button"
                   className={`${styles.searchModeBtn} ${searchMode === mode ? styles.searchModeBtnActive : ''}`}
                   onClick={() => handleModeChange(mode)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {!query.startsWith('#') && (
+            <div className={styles.searchModeRow} role="radiogroup" aria-label="search country">
+              {([
+                ['', t('search.countryAll')],
+                ['South Korea', t('search.countryKR')],
+                ['US', t('search.countryUS')],
+                ['UK', t('search.countryUK')],
+                ['Japan', t('search.countryJP')],
+                ['Europe', t('search.countryEU')],
+              ] as const).map(([c, label]) => (
+                <button
+                  key={c || 'all'}
+                  type="button"
+                  className={`${styles.searchModeBtn} ${country === c ? styles.searchModeBtnActive : ''}`}
+                  onClick={() => handleCountryChange(c)}
                 >
                   {label}
                 </button>
