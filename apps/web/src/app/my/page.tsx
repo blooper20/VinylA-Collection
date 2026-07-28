@@ -10,8 +10,11 @@ import FoundingBadgeCelebrationModal from '../../components/Modal/FoundingBadgeC
 import DeleteAccountModal from '../../components/Modal/DeleteAccountModal';
 import { ImageCropModal } from '../../components/Modal/ImageCropModal';
 import { FollowListModal } from '../../components/Modal/FollowListModal';
-import { copyToClipboard } from '../../utils/shareUtils';
+import { copyToClipboard, captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
 import { SpinSocialModal } from '../../components/Modal/SpinSocialModal';
+import { BadgeShareTemplate } from '../../components/Share/BadgeShareTemplate';
+import { ShareBottomSheet } from '../../components/Modal/ShareBottomSheet';
+import { SharePreviewModal } from '../../components/Modal/SharePreviewModal';
 
 type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
 
@@ -50,6 +53,13 @@ export default function MyProfilePage() {
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
   const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
+
+  const badgeShareTemplateRef = React.useRef<HTMLDivElement>(null);
+  const [isBadgeCapturing, setIsBadgeCapturing] = useState(false);
+  const [isBadgeShareOpen, setIsBadgeShareOpen] = useState(false);
+  const [isBadgePreviewOpen, setIsBadgePreviewOpen] = useState(false);
+  const [badgePreviewBlob, setBadgePreviewBlob] = useState<Blob | null>(null);
+  const [badgePreviewMode, setBadgePreviewMode] = useState<'save' | 'copy' | null>(null);
 
   const selectedBadgeId = user?.user_metadata?.selected_badge || null;
   const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
@@ -306,6 +316,42 @@ export default function MyProfilePage() {
     }
   };
 
+  const captureBadgeShareImage = async (format: 'jpeg' | 'png' = 'jpeg') => {
+    if (!badgeShareTemplateRef.current || isBadgeCapturing || !selectedBadgeObj) return null;
+    setIsBadgeCapturing(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const blob = await captureElementAsBlob(badgeShareTemplateRef.current, format);
+    setIsBadgeCapturing(false);
+    return blob;
+  };
+
+  const handleBadgeShareOptions = {
+    saveImage: async () => {
+      setIsBadgeShareOpen(false);
+      const blob = await captureBadgeShareImage('jpeg');
+      if (blob) {
+        setBadgePreviewBlob(blob);
+        setBadgePreviewMode('save');
+        setIsBadgePreviewOpen(true);
+      }
+    },
+    copyImage: async () => {
+      setIsBadgeShareOpen(false);
+      const blob = await captureBadgeShareImage('png');
+      if (blob) {
+        setBadgePreviewBlob(blob);
+        setBadgePreviewMode('copy');
+        setIsBadgePreviewOpen(true);
+      }
+    },
+    shareNative: async () => {
+      const blob = await captureBadgeShareImage('jpeg');
+      if (blob) {
+        await shareImageNative(blob, 'vinyla-badge.jpg', t('previewModal.imageCopied'), { target: 'badge' });
+      }
+    },
+  };
+
   const stats: { label: string; value: string; unit: string; sub: string; isSpent?: boolean }[] = [
     { label: t('stats.marketPrice'), value: collectionValue.toLocaleString(), unit: '₩', sub: t('stats.marketPriceSub') },
     { label: t('stats.actualSpent'), value: actualSpentValue.toLocaleString(), unit: '₩', sub: t('stats.actualSpentSub'), isSpent: true },
@@ -437,6 +483,17 @@ export default function MyProfilePage() {
                   <span className={`${styles.collectorBadgeText} ${selectedBadgeObj?.id === 'founding_100' ? styles.collectorBadgeTextHolo : ''}`}>
                     {selectedBadgeObj ? getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' }).name : t('my.verifiedCollector')}
                   </span>
+                  {selectedBadgeObj && (
+                    <button
+                      className={styles.editBtnToggle}
+                      onClick={(e) => { e.stopPropagation(); setIsBadgeShareOpen(true); }}
+                      title={t('common.share')}
+                      style={{ marginLeft: '8px' }}
+                      disabled={isBadgeCapturing}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>ios_share</span>
+                    </button>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.55)' }}>
@@ -647,6 +704,35 @@ export default function MyProfilePage() {
         isOpen={showFoundingCelebration}
         onClose={() => setShowFoundingCelebration(false)}
         signupNumber={signupNumber}
+      />
+
+      {selectedBadgeObj && (
+        <BadgeShareTemplate
+          ref={badgeShareTemplateRef}
+          badge={selectedBadgeObj}
+          badgeText={getBadgeText(selectedBadgeObj, locale, t, { number: signupNumber ?? '' })}
+          username={displayName}
+          isHolographic={selectedBadgeObj.id === 'founding_100'}
+        />
+      )}
+
+      <ShareBottomSheet
+        isOpen={isBadgeShareOpen}
+        onClose={() => setIsBadgeShareOpen(false)}
+        title={t('common.share')}
+        options={[
+          { id: 'save', label: t('share.saveImage'), icon: 'download', action: handleBadgeShareOptions.saveImage },
+          { id: 'copy', label: t('share.copyImage'), icon: 'content_copy', action: handleBadgeShareOptions.copyImage },
+          { id: 'ig', label: t('share.instagram'), icon: 'camera_alt', action: handleBadgeShareOptions.shareNative },
+        ]}
+      />
+
+      <SharePreviewModal
+        isOpen={isBadgePreviewOpen}
+        onClose={() => setIsBadgePreviewOpen(false)}
+        blob={badgePreviewBlob}
+        mode={badgePreviewMode}
+        extraMeta={{ target: 'badge' }}
       />
 
       <DeleteAccountModal

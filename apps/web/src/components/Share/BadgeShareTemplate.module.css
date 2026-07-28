@@ -1,0 +1,277 @@
+.offscreenContainer {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  pointer-events: none;
+  z-index: -100;
+}
+
+.storyFrame {
+  width: 1080px;
+  height: 1920px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  padding: 150px 0 110px;
+  font-family: var(--font-body);
+  background: #060606;
+}
+
+/* Vignette + brushed-foil hairline texture — keeps the frame from reading
+   as a flat, empty void even where there's no content. */
+.storyFrame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(circle at 50% 105%, rgba(0, 0, 0, 0.7), transparent 60%);
+  z-index: 0;
+}
+
+.storyFrame::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 2px,
+    transparent 2px,
+    transparent 42px
+  );
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 900px;
+  height: 900px;
+  transform: translate(-50%, -60%);
+  border-radius: 50%;
+  filter: blur(140px);
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.tierBronze .glow { background: #cd7f32; }
+.tierSilver .glow { background: #c0c0c0; }
+.tierGold .glow { background: #d4af37; }
+.tierPlatinum .glow { background: #e5e4e2; }
+.tierDiamond .glow { background: #b9f2ff; }
+
+/* Centers the badge content block in the space above the watermark, while
+   the watermark itself stays flush at the bottom (see the auto-margin trick
+   below) — no more giant dead gap between them. */
+.contentGroup {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: auto 0;
+}
+
+.chip {
+  position: relative;
+  padding: 16px 36px;
+  margin-bottom: 64px;
+  border-radius: 999px;
+  font-family: var(--font-headline);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.tierBronze .chip { border-color: rgba(205, 127, 50, 0.65); color: #cd7f32; }
+.tierSilver .chip { border-color: rgba(192, 192, 192, 0.65); color: #c0c0c0; }
+.tierGold .chip { border-color: rgba(212, 175, 55, 0.65); color: #d4af37; }
+.tierPlatinum .chip { border-color: rgba(229, 228, 226, 0.65); color: #e5e4e2; }
+.tierDiamond .chip { border-color: rgba(185, 242, 255, 0.65); color: #b9f2ff; }
+
+.medalWrapper {
+  position: relative;
+  margin-bottom: 76px;
+}
+
+.medal {
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02) 60%);
+  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.tierBronze .medal { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12), 0 0 0 9px rgba(205, 127, 50, 0.45), 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.25); }
+.tierSilver .medal { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12), 0 0 0 9px rgba(192, 192, 192, 0.45), 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.25); }
+.tierGold .medal { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12), 0 0 0 9px rgba(212, 175, 55, 0.45), 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.25); }
+.tierPlatinum .medal { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12), 0 0 0 9px rgba(229, 228, 226, 0.45), 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.25); }
+.tierDiamond .medal { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12), 0 0 0 9px rgba(185, 242, 255, 0.45), 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.25); }
+
+/* Founding member: holographic/foil "card grading" look, mirrors
+   BadgeSelectModal's live badge picker. Kept as a static gradient (no
+   shimmer animation) since a shared image is a single frozen frame — an
+   animated gradient just captures whatever random frame it happened to be
+   on, which reads as a muddy, inconsistent color rather than "holographic". */
+.medalHolo {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 110, 196, 0.28),
+    rgba(255, 215, 110, 0.24),
+    rgba(110, 255, 224, 0.22),
+    rgba(110, 159, 255, 0.24),
+    rgba(215, 110, 255, 0.28)
+  );
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25), 0 0 70px 8px rgba(255, 255, 255, 0.35), 0 50px 100px rgba(0, 0, 0, 0.65), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+.medalInner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconImage {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+}
+
+.sparkle {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.85);
+  z-index: 1;
+}
+
+.sparkleTopLeft { top: -8px; left: -28px; font-size: 34px; }
+.sparkleTopRight { top: 24px; right: -44px; font-size: 54px; }
+.sparkleBottomLeft { bottom: 12px; left: -16px; font-size: 26px; }
+
+.infoBox {
+  text-align: center;
+  padding: 0 90px;
+  max-width: 940px;
+  box-sizing: border-box;
+}
+
+.name {
+  display: block;
+  font-family: var(--font-headline);
+  font-size: 76px;
+  font-weight: 800;
+  margin: 0 0 30px;
+  line-height: 1.25em;
+  color: #fff;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.tierBronze .name { color: #cd7f32; }
+.tierSilver .name { color: #c0c0c0; }
+.tierGold .name { color: #d4af37; }
+.tierPlatinum .name { color: #e5e4e2; }
+.tierDiamond .name { color: #b9f2ff; }
+
+.holographicText {
+  background: linear-gradient(100deg, #ff6ec4, #ffd76e, #6effe0, #6e9fff, #d76eff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.divider {
+  width: 120px;
+  height: 1px;
+  margin: 0 auto 30px;
+  background: rgba(255, 255, 255, 0.25);
+  position: relative;
+}
+
+.divider::after {
+  content: '◆';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  background: #060606;
+  padding: 0 10px;
+}
+
+.description {
+  display: block;
+  font-size: 34px;
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.5em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.watermark {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding-top: 40px;
+  box-sizing: border-box;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.brandWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.user {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 32px;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  margin: 0 0 16px;
+}
+
+.brand {
+  font-family: var(--font-headline);
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.url {
+  display: block;
+  margin-top: 12px;
+  font-family: var(--font-body);
+  font-size: 20px;
+  color: rgba(233, 195, 73, 0.55);
+  letter-spacing: 1.5px;
+}

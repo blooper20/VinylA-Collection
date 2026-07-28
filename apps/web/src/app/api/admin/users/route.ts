@@ -47,6 +47,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 국가 코드 일괄 조회 (x-vercel-ip-country로 로그인 시 자동 캡처됨)
+    const countryMap = new Map<string, string | null>();
+    {
+      let from = 0;
+      for (;;) {
+        const { data, error } = await admin
+          .from('PROFILES')
+          .select('USER_ID, COUNTRY_CODE')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        for (const r of data || []) countryMap.set(r.USER_ID, r.COUNTRY_CODE);
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+      }
+    }
+
     const users = rawUsers
       .map((u) => ({
         id: u.id,
@@ -59,6 +75,7 @@ export async function GET(request: NextRequest) {
         deleted: u.user_metadata?.del_yn === 'N',
         owned: vinylCounts.get(u.id)?.owned || 0,
         wish: vinylCounts.get(u.id)?.wish || 0,
+        countryCode: countryMap.get(u.id) || null,
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 

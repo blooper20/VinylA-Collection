@@ -14,7 +14,27 @@ interface AdminUserRow {
   deleted: boolean;
   owned: number;
   wish: number;
+  countryCode: string | null;
 }
+
+// ISO 3166-1 alpha-2 코드 → 국기 이모지 (regional indicator 유니코드 연산,
+// 라이브러리 불필요).
+const flagEmoji = (code: string | null): string => {
+  if (!code || code.length !== 2) return '🏳️';
+  const base = 0x1f1e6; // regional indicator 'A'
+  return String.fromCodePoint(
+    ...[...code.toUpperCase()].map((c) => base + (c.charCodeAt(0) - 65))
+  );
+};
+
+const countryName = (code: string | null): string => {
+  if (!code) return '알 수 없음';
+  try {
+    return new Intl.DisplayNames(['ko'], { type: 'region' }).of(code) || code;
+  } catch {
+    return code;
+  }
+};
 
 // 가입일/최근 로그인 — 초 단위까지 표시. auth.users.created_at과
 // last_sign_in_at은 Supabase Auth가 로그인마다 자동으로 갱신하는 timestamptz라
@@ -93,6 +113,7 @@ export default function AdminUsersPage() {
               <th>사용자</th>
               <th>가입</th>
               <th>수단</th>
+              <th>국가</th>
               <th>보유</th>
               <th>위시</th>
               <th>최근 로그인</th>
@@ -103,11 +124,11 @@ export default function AdminUsersPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className={styles.placeholder}>불러오는 중...</td>
+                <td colSpan={9} className={styles.placeholder}>불러오는 중...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className={styles.placeholder}>
+                <td colSpan={9} className={styles.placeholder}>
                   {query ? '검색 결과가 없습니다' : '사용자가 없습니다'}
                 </td>
               </tr>
@@ -122,6 +143,11 @@ export default function AdminUsersPage() {
                   </td>
                   <td className={styles.num}>{formatDate(u.createdAt)}</td>
                   <td>{u.provider}</td>
+                  <td title={countryName(u.countryCode)}>
+                    <span className={styles.countryCell}>
+                      {flagEmoji(u.countryCode)} {u.countryCode || '-'}
+                    </span>
+                  </td>
                   <td className={styles.num}>{u.owned}</td>
                   <td className={styles.num}>{u.wish}</td>
                   <td className={styles.num}>{formatDate(u.lastSignInAt)}</td>

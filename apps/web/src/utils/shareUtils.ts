@@ -65,14 +65,14 @@ export async function captureElementAsBlob(element: HTMLElement, format: 'jpeg' 
   }
 }
 
-export async function downloadImageBlob(blob: Blob, fileName: string) {
+export async function downloadImageBlob(blob: Blob, fileName: string, extraMeta?: Record<string, unknown>) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
-  logEvent('SHARE', { method: 'download' });
+  logEvent('SHARE', { method: 'download', ...extraMeta });
   return true;
 }
 
@@ -95,7 +95,12 @@ export async function copyImageBlobToClipboard(blob: Blob) {
 /**
  * Share via Native Share Sheet or fallback to Clipboard (State Manager)
  */
-export async function shareImageNative(blob: Blob, fileName: string = 'vinyla-share.jpg', clipboardFallbackMessage: string = 'Image copied to clipboard.') {
+export async function shareImageNative(
+  blob: Blob,
+  fileName: string = 'vinyla-share.jpg',
+  clipboardFallbackMessage: string = 'Image copied to clipboard.',
+  extraMeta?: Record<string, unknown>
+) {
   const file = new File([blob], fileName, { type: blob.type });
 
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -105,7 +110,7 @@ export async function shareImageNative(blob: Blob, fileName: string = 'vinyla-sh
         text: 'Check out my vinyl collection!',
         files: [file],
       });
-      logEvent('SHARE', { method: 'native' });
+      logEvent('SHARE', { method: 'native', ...extraMeta });
       return true;
     } catch (error) {
       console.log('Share canceled or failed', error);

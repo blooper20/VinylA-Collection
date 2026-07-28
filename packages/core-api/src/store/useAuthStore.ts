@@ -12,6 +12,21 @@ let loginLoggedForUserId: string | null = null;
 // unsubscribed, so auth events ran the wipe/set logic N times.
 let authInitialized = false;
 
+// x-vercel-ip-country는 Next.js 서버에서만 읽을 수 있는 요청 헤더라
+// (모바일 앱엔 그 서버가 없음) 웹에서만 호출한다. fetch 실패는 로그인
+// 흐름에 영향 없이 경고만 남긴다.
+const captureCountry = async (accessToken: string) => {
+  if (typeof navigator !== 'undefined' && (navigator as any).product === 'ReactNative') return;
+  try {
+    await fetch('/api/auth/geo', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch (e) {
+    console.warn('captureCountry failed:', e);
+  }
+};
+
 // 아바타는 auth 메타데이터에만 있으면 다른 유저 화면(피드·댓글·모달)에서 못
 // 읽는다 — public read인 PROFILES.PROFILE_IMAGE_URL에 함께 동기화한다.
 // '/logo.png'는 "사진 없음" 기본값이라 null로 저장. 프로필 저장 자체가 이
@@ -101,6 +116,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           loginLoggedForUserId = newUser.id;
           logEvent('LOGIN');
           logSignupIfNew(newUser);
+          if (session?.access_token) captureCountry(session.access_token);
         }
         if (newUser?.user_metadata?.del_yn === 'N') {
           // On-the-fly login with deleted account

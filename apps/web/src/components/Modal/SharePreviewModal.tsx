@@ -8,9 +8,10 @@ interface SharePreviewModalProps {
   onClose: () => void;
   blob: Blob | null;
   mode: 'save' | 'copy' | null;
+  extraMeta?: Record<string, unknown>;
 }
 
-export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, onClose, blob, mode }) => {
+export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, onClose, blob, mode, extraMeta }) => {
   const { t } = useLocale();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,7 +36,7 @@ export const SharePreviewModal: React.FC<SharePreviewModalProps> = ({ isOpen, on
     
     try {
       if (mode === 'save') {
-        await downloadImageBlob(blob, 'vinyla-share.jpg');
+        await downloadImageBlob(blob, 'vinyla-share.jpg', extraMeta);
         window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('previewModal.imageSaved') } }));
       } else if (mode === 'copy') {
         const success = await copyImageBlobToClipboard(blob);

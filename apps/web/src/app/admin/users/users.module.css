@@ -95,6 +95,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.countryCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
 .chipActive,
 .chipDeleted {
   display: inline-block;
