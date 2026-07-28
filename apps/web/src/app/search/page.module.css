@@ -129,6 +129,214 @@
   color: #000;
 }
 
+/* Country filter — a select rather than a toggle, so it gets its own
+   affordances (icon, chevron) instead of looking like another mode button. */
+.countrySelectWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.countrySelectIcon,
+.countrySelectChevron {
+  position: absolute;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.countrySelectIcon {
+  left: 12px;
+  font-size: 16px;
+}
+
+.countrySelectChevron {
+  right: 12px;
+  font-size: 18px;
+}
+
+.countrySelect {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 180px;
+  padding: 6px 36px 6px 42px;
+  border: 1px solid var(--border-mid);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.countrySelectWrap:hover .countrySelect {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.countrySelectWrap:hover .countrySelectIcon,
+.countrySelectWrap:hover .countrySelectChevron {
+  color: var(--text-primary);
+}
+
+.countrySelect:focus {
+  outline: none;
+}
+
+.countrySelectWrap:focus-within .countrySelectIcon,
+.countrySelectWrap:focus-within .countrySelectChevron {
+  color: var(--accent);
+}
+
+.countrySelectWrap:focus-within .countrySelect {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.countrySelect.countrySelectActive {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(233, 195, 73, 0.08);
+}
+
+@keyframes countryDropdownIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* position/top/left/width are set inline (see page.tsx) — this is portaled
+   to <body> and anchored to the input's live bounding rect, since .hero's
+   overflow:hidden would otherwise clip a plain absolutely-positioned popup. */
+.countryDropdown {
+  z-index: 30;
+  padding: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-mid);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  animation: countryDropdownIn 0.14s ease-out;
+}
+
+.countryDropdownSectionLabel {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.countryQuickPickRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px 8px;
+}
+
+.countryQuickPickChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-mid);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.countryQuickPickChip:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.countryQuickPickChipActive {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(233, 195, 73, 0.08);
+}
+
+.countryDropdownDivider {
+  height: 1px;
+  margin: 0 4px 8px;
+  background: var(--border-mid);
+}
+
+.countryDropdownList {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-mid) transparent;
+}
+
+.countryDropdownList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.countryDropdownList::-webkit-scrollbar-thumb {
+  background: var(--border-mid);
+  border-radius: 3px;
+}
+
+.countryDropdownList::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.countryDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.countryDropdownItemFlag {
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.countryDropdownItemLabel {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.countryDropdownItemCheck {
+  font-size: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.countryDropdownItemHighlight {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.countryDropdownItemSelected {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.countryDropdownEmpty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
 /* ---- Content ---- */
 .content {
   padding: 72px 64px;
