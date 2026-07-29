@@ -41,6 +41,16 @@ export interface ALBUM_MASTER {
   GENRES?: string[];
   /** Discogs 등 실제 시장 최저가 (KRW 기준) */
   MARKET_PRICE?: number;
+  /** 이 앨범을 등록한 유저 — NULL이면 Discogs 소스(캐노니컬) 행 */
+  SUBMITTED_BY?: string | null;
+  /** 앨범 출처 — 커뮤니티 등록(위키형) 앨범인지 구분 */
+  SOURCE?: 'DISCOGS' | 'APPLE_MUSIC' | 'MANUAL';
+  /** 애플뮤직에서 가져온 경우 원본 collectionId — 중복 등록 방지용 */
+  APPLE_COLLECTION_ID?: number | null;
+  /** 커뮤니티 등록 앨범 전용 트랙리스트(레거시 TRACKS와 별개 — TRACKS는 재사용하지 않음) */
+  COMMUNITY_TRACKS?: AlbumTrack[] | null;
+  /** 등록 시각(커뮤니티 목록 정렬 기준) */
+  CREATED_AT?: string;
 }
 
 /**

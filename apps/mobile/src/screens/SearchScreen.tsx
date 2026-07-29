@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, SearchMode, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
@@ -28,6 +29,7 @@ const genres = [
 
 export const SearchScreen = ({ route }: any) => {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { locale, t } = useLocale();
   const initialQuery = route?.params?.initialQuery || '';
   const [query, setQuery] = useState(initialQuery);
@@ -238,6 +240,12 @@ export const SearchScreen = ({ route }: any) => {
             ))}
           </View>
         )}
+        <TouchableOpacity
+          style={styles.communityCta}
+          onPress={() => navigation.navigate('CommunityAlbums')}
+        >
+          <Text style={styles.communityCtaText}>{t('search.communityCta')}</Text>
+        </TouchableOpacity>
       </View>
 
       {status === 'error' ? (
@@ -336,6 +344,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  communityCta: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  communityCtaText: {
+    color: '#e9c349',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   searchHero: {
     paddingHorizontal: 20,

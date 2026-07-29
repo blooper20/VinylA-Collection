@@ -19,3 +19,4 @@ export * from './vinylSocial';
 export * from './notifications';
 export * from './notice';
 export * from './customPressing';
+export * from './communityAlbum';

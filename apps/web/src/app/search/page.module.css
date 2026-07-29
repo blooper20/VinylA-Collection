@@ -370,6 +370,23 @@
   cursor: pointer;
 }
 
+.communityCta {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.communityCta:hover {
+  opacity: 0.8;
+}
+
 .viewAllBtn:hover {
   letter-spacing: 0.18em;
 }

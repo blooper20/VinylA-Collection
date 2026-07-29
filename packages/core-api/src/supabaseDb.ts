@@ -462,7 +462,12 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     DISCOGS_RELEASE_ID: userVinyl?.DISCOGS_RELEASE_ID ?? null,
     CUSTOM_PRESSING_ID: userVinyl?.CUSTOM_PRESSING_ID ?? null,
     // 컬렉션 "수정 모드" 드래그 정렬 순서. NULL = 아직 수동 정렬한 적 없음.
-    SORT_ORDER: userVinyl?.SORT_ORDER ?? null
+    SORT_ORDER: userVinyl?.SORT_ORDER ?? null,
+    // 커뮤니티 등록(위키형) 앨범 여부와 그 트랙리스트 — 상세 모달이 이 값이
+    // 있으면 외부 API 라이브 조회 없이 바로 트랙을 표시한다.
+    SOURCE: master?.SOURCE || 'DISCOGS',
+    SUBMITTED_BY: master?.SUBMITTED_BY ?? null,
+    COMMUNITY_TRACKS: master?.COMMUNITY_TRACKS ?? null
   };
 };
 

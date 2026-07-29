@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing } from '@vinyla/core-api';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
@@ -136,6 +136,9 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   const [releaseDate, setReleaseDate] = React.useState<string>('');
   const [copyright, setCopyright] = React.useState<string>('');
   const [notes, setNotes] = React.useState<string>('');
+  // 커뮤니티 등록 앨범 전용: 등록자 본인이고, 아직 다른 유저가 담지 않았을
+  // 때만 "수정하기" 링크를 보여준다.
+  const [communityLocked, setCommunityLocked] = React.useState(true);
 
   // Cover photo state
   const [isUploadingCover, setIsUploadingCover] = React.useState(false);
@@ -220,8 +223,25 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
       ]).start(() => {
         // Fetch tracklist & details after animation completes to prevent UI jank
         setIsTracksLoading(true);
+        const albumSource = (album as any).SOURCE;
         const customPressingIdAtFetch = album.CUSTOM_PRESSING_ID ? Number(album.CUSTOM_PRESSING_ID) : undefined;
-        if (customPressingIdAtFetch) {
+        if (albumSource && albumSource !== 'DISCOGS') {
+          // 커뮤니티 등록(위키형) 앨범이면 등록 시 저장된 트랙을 그대로 쓴다 —
+          // Discogs/디지털 소스 자체가 없는 앨범이라 외부 조회가 의미 없다.
+          setTracks((album as any).COMMUNITY_TRACKS || []);
+          setIsExactRelease(true);
+          setIsTracksLoading(false);
+          // Discogs 매물이 없는 앨범이라 시장가를 조회할 대상 자체가 없다 —
+          // '불러오는 중...'에 영원히 머무르지 않도록 명시적으로 '정보 없음' 처리.
+          if (!marketPrice && !(album as any).MARKET_PRICE) setMarketPrice(-1);
+          // 등록자 본인일 때만 "수정하기" 노출 여부를 확인 — 다른 유저가 이미
+          // 담았으면 RLS도 수정을 막으므로 미리 잠금 상태를 알아둔다.
+          if (user?.id && user.id === (album as any).SUBMITTED_BY) {
+            communityAlbumHasOtherAdopters(Number(album.ALBUM_ID)).then(setCommunityLocked);
+          } else {
+            setCommunityLocked(true);
+          }
+        } else if (customPressingIdAtFetch) {
           // 커뮤니티 프레싱을 골랐으면 그 트랙을 그대로 쓴다 — Discogs/디지털
           // 소스 조회 자체가 필요 없다.
           getCustomPressingById(customPressingIdAtFetch).then((p) => {
@@ -995,11 +1015,23 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
               <View style={styles.tracklist}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.tracklistHeader}>Tracklist</Text>
-                  <TouchableOpacity onPress={openPressingPicker}>
-                    <Text style={{ color: '#888', fontSize: 12, textDecorationLine: 'underline' }}>
-                      {t('mobile.detail.choosePressing')}
-                    </Text>
-                  </TouchableOpacity>
+                  {(!(album as any)?.SOURCE || (album as any).SOURCE === 'DISCOGS') && (
+                    <TouchableOpacity onPress={openPressingPicker}>
+                      <Text style={{ color: '#888', fontSize: 12, textDecorationLine: 'underline' }}>
+                        {t('mobile.detail.choosePressing')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {(album as any)?.SOURCE && (album as any).SOURCE !== 'DISCOGS' &&
+                    user?.id === (album as any).SUBMITTED_BY && !communityLocked && (
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('CommunityAlbumRegister', { albumId: Number(album.ALBUM_ID) })}
+                    >
+                      <Text style={{ color: '#888', fontSize: 12, textDecorationLine: 'underline' }}>
+                        {t('community.editButton')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 {tracks.length > 0 && !isExactRelease && (
                   <Text style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>

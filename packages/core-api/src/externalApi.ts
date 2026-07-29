@@ -473,6 +473,38 @@ const fetchAppleMusicAlbumPage = async (collectionId: number): Promise<AppleMusi
   }
 };
 
+// ── Apple Music free-text search (community album registration) ───────────
+// Unlike fetchAppleMusicAlbumPage (keyed by a known collectionId), this
+// searches by title/artist text so a user registering an album that Discogs
+// doesn't have can still auto-pull a cover + tracklist. Goes through the
+// apple-search proxy route (keyless iTunes Search API, but routed the same
+// way as every other external call here so mobile gets it for free via
+// getProxyBaseUrl()).
+export interface AppleMusicSearchResult {
+  collectionId: number;
+  artistName: string;
+  collectionName: string;
+  artworkUrl: string;
+  releaseYear?: number;
+}
+
+export const searchAppleMusicAlbums = async (term: string): Promise<AppleMusicSearchResult[]> => {
+  if (!term.trim()) return [];
+  try {
+    const res = await axios.get(`${getProxyBaseUrl()}/api/external/apple-search`, {
+      params: { term },
+    });
+    return Array.isArray(res.data?.results) ? res.data.results : [];
+  } catch {
+    return [];
+  }
+};
+
+// Fetch the full tracklist + localized name for a specific search result the
+// user picked, reusing the same apple-tracks proxy the Discogs-matching flow
+// already relies on.
+export const fetchAppleMusicAlbumTracks = fetchAppleMusicAlbumPage;
+
 export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,

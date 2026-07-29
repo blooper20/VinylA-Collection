@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { createDiscogsSearchSession, DiscogsSearchSession, AlbumItem, SearchStatus, SearchMode, useAuthStore, getUserVinyls } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
@@ -550,6 +551,9 @@ export default function SearchPage() {
               </div>
             </div>
           )}
+          <Link href="/community-albums" className={styles.communityCta}>
+            {t('search.communityCta')}
+          </Link>
         </div>
       </header>
 
