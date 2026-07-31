@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MockVinylData } from '@vinyla/shared-types';
+import { EditionCoverArt } from '../Edition/EditionCoverArt';
 
 interface ShareableStoryViewProps {
   album: MockVinylData;
@@ -77,6 +78,8 @@ export const ShareableStoryView = forwardRef<View, ShareableStoryViewProps>(
               style={styles.cover}
               resizeMode={album.IMAGE_URL ? 'cover' : 'contain'}
             />
+            {/* 한정반/사인반 표시 — 보관함 화면과 같은 컴포넌트를 재사용 */}
+            <EditionCoverArt album={album} />
           </View>
           <Text style={styles.title} numberOfLines={2}>{album.TITLE}</Text>
           <Text style={styles.artist} numberOfLines={1}>{album.ARTIST}</Text>

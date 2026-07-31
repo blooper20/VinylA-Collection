@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import styles from './ShareableGridTemplate.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
+import { EditionCoverArt } from '../Edition/EditionCoverArt';
 
 interface ShareableGridTemplateProps {
   albums: (MockVinylData & { COVER_URL?: string; MASTER_IMAGE_URL?: string })[];
@@ -46,6 +47,9 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
             <div key={album.USER_VINYL_ID ?? album.ALBUM_ID} className={styles.gridItem}>
               <div className={styles.coverWrapper}>
                 <img src={imageSrc} alt={album.TITLE} className={styles.cover} crossOrigin="anonymous" />
+                {/* 한정반/사인반 표시도 공유 이미지에 함께 나간다 — 보관함 화면과
+                    같은 컴포넌트를 써서 두 곳의 모양이 어긋나지 않게 한다 */}
+                <EditionCoverArt album={album} size="sm" />
               </div>
               <div className={styles.info}>
                 <p className={styles.albumTitle}>{album.TITLE}</p>

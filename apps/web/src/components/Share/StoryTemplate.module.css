@@ -62,6 +62,14 @@
   z-index: 3;
 }
 
+/* 에디션 표시는 커버보다 위에 — recordOuter 기준으로 커버와 같은 영역을 덮는다 */
+.editionLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
 .vinylDisk {
   position: absolute;
   width: 480px;

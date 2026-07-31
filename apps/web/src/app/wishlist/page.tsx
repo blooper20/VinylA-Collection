@@ -11,6 +11,7 @@ import { useAuthStore, getUserVinyls, mapToFrontendModel, supabase } from '@viny
 import { useLocale } from '@vinyla/i18n';
 import styles from './page.module.css';
 import { PageTabs } from '../../components/Navigation/PageTabs';
+import { EditionCoverArt, EditionTag } from '../../components/Edition/EditionCoverArt';
 
 type ViewMode = 'grid4' | 'grid6' | 'table';
 type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
@@ -151,7 +152,8 @@ export default function WishlistPage() {
                 <div className={styles.coverOverlay}>
                   <span className="material-symbols-outlined">zoom_in</span>
                 </div>
-                {rec.EDITION_LABEL && (
+                <EditionCoverArt album={rec} size="sm" />
+                {rec.EDITION_LABEL && !rec.EDITION_ON_COVER && (
                   <div className={styles.editionBadge}>
                     <span className="material-symbols-outlined">auto_awesome</span>
                     {rec.EDITION_LABEL}
@@ -189,12 +191,7 @@ export default function WishlistPage() {
                   <td className={styles.tdArtist}>{rec.ARTIST}</td>
                   <td className={styles.tdYear}>{rec.RELEASE_YEAR || '—'}</td>
                   <td className={styles.tdTags}>
-                    {rec.EDITION_LABEL && (
-                      <span className={styles.editionTag}>
-                        <span className="material-symbols-outlined">auto_awesome</span>
-                        {rec.EDITION_LABEL}
-                      </span>
-                    )}
+                    <EditionTag album={rec} className={styles.editionTag} />
                     {(rec.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
                   </td>
                 </tr>

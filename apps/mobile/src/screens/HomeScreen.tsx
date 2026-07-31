@@ -12,6 +12,7 @@ import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { EditionCoverArt } from '../components/Edition/EditionCoverArt';
 import { AppHeader, VinylViewMode } from '../components/AppHeader';
 import { ShareableGridView } from '../components/Share/ShareableGridView';
 import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
@@ -245,7 +246,8 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
                     style={[styles.cover, { backgroundColor: 'transparent' }]}
                     resizeMode={item.IMAGE_URL ? "cover" : "contain"}
                   />
-                  {item.EDITION_LABEL && (
+                  <EditionCoverArt album={item} />
+                  {item.EDITION_LABEL && !item.EDITION_ON_COVER && (
                     <LinearGradient
                       colors={['#f8e9b8', '#e9c349', '#b8860b']}
                       start={{ x: 0, y: 0 }}

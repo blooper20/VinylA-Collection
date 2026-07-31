@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { searchYouTube, createAlbumMaster, upsertUserVinyl, insertUserVinylEdition, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinyl, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, insertUserVinylEdition, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinyl, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, updateUserVinylEdition, EditionStyle, SplatterForm, EditionTagKey, StickerStyle, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
@@ -16,7 +16,8 @@ import { ShareableStoryView } from '../Share/ShareableStoryView';
 import { ShareOptionsSheet } from './ShareOptionsSheet';
 import { SpinLogEditorModal } from './SpinLogEditorModal';
 import { CoverPickerModal } from './CoverPickerModal';
-import { EditionRegisterSheet } from './EditionRegisterSheet';
+import { EditionRegisterSheet, EditionDraft } from './EditionRegisterSheet';
+import { EditionCoverArt, EditionSplatterMarks, editionDiscTint } from '../Edition/EditionCoverArt';
 import { shareToInstagramStory } from '../../utils/nativeShare';
 
 interface DetailModalProps {
@@ -123,6 +124,11 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
 
   // 같은 앨범을 초반/재반/컬러반처럼 별도 항목으로 "또 등록"하기 위한 시트.
   const [editionModalOpen, setEditionModalOpen] = React.useState(false);
+  // 이미 보관함에 있는 이 항목의 에디션 정보를 고치는 모드(새 항목을 만들지 않는다)
+  const [editionEditOpen, setEditionEditOpen] = React.useState(false);
+  // 저장 직후 이 모달이 들고 있는 album prop은 부모(목록 화면)가 넘겨준 옛
+  // 값이라, 그대로면 "저장이 안 된 것처럼" 보인다. 저장 성공 시 덮어써 즉시 반영.
+  const [editionOverride, setEditionOverride] = React.useState<Partial<MockVinylData> | null>(null);
   const [isSavingEdition, setIsSavingEdition] = React.useState(false);
 
   const showAlert = (title: string, message: string, onCloseCallback?: () => void) => {
@@ -850,10 +856,14 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
     }
   };
 
+  React.useEffect(() => {
+    setEditionOverride(null);
+  }, [album?.USER_VINYL_ID]);
+
   // "또 등록" — 이미 소장/위시에 있는 앨범을 초반/재반/컬러반 등 별도
   // 항목으로 새로 저장한다. upsertUserVinyl과 달리 기존 행을 확인하지
   // 않고 항상 새 행을 만든다(insertUserVinylEdition).
-  const handleSaveEdition = async (editionLabel: string, price: number) => {
+  const handleSaveEdition = async (draft: EditionDraft) => {
     if (!user?.id || !album || !album.STATUS) return;
     setIsSavingEdition(true);
     try {
@@ -861,12 +871,57 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
         USER_ID: user.id,
         ALBUM_ID: Number(album.ALBUM_ID),
         STATUS: album.STATUS as 'OWNED' | 'WISH',
-        EDITION_LABEL: editionLabel || null,
-        PURCHASE_PRICE: price,
+        EDITION_LABEL: draft.label || null,
+        EDITION_COLOR: draft.color,
+        EDITION_STYLE: draft.style,
+        EDITION_SPLATTER_FORM: draft.splatterForm,
+        EDITION_TAG: draft.tag,
+        EDITION_TAG_TEXT: draft.tagText,
+        EDITION_STICKER_STYLE: draft.stickerStyle,
+        EDITION_ON_COVER: draft.onCover,
+        PURCHASE_PRICE: draft.price,
         ...(album.STATUS === 'OWNED' ? { PURCHASE_DATE: new Date().toISOString() } : {}),
       });
       setEditionModalOpen(false);
       showAlert(t('mobile.detail.successTitle'), t('detail.editionRegistered'));
+    } catch (e) {
+      console.error(e);
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsSavingEdition(false);
+    }
+  };
+
+  // 기존 항목의 에디션 정보 수정 — 예전에 그냥 저장해둔 앨범에 "그린반" 같은
+  // 정보를 나중에 붙이거나 색/표시 여부를 바꾼다. 라벨을 비우면 표시가 사라진다.
+  const handleUpdateEdition = async (draft: EditionDraft) => {
+    if (!album?.USER_VINYL_ID) return;
+    setIsSavingEdition(true);
+    try {
+      await updateUserVinylEdition(Number(album.USER_VINYL_ID), {
+        EDITION_LABEL: draft.label || null,
+        EDITION_COLOR: draft.color,
+        EDITION_COLOR_ALT: draft.altColor,
+        EDITION_STYLE: draft.style,
+        EDITION_SPLATTER_FORM: draft.splatterForm,
+        EDITION_TAG: draft.tag,
+        EDITION_TAG_TEXT: draft.tagText,
+        EDITION_STICKER_STYLE: draft.stickerStyle,
+        EDITION_ON_COVER: draft.onCover,
+      });
+      setEditionOverride({
+        EDITION_LABEL: draft.label || null,
+        EDITION_COLOR: draft.color,
+        EDITION_COLOR_ALT: draft.altColor,
+        EDITION_STYLE: draft.style,
+        EDITION_SPLATTER_FORM: draft.splatterForm,
+        EDITION_TAG: draft.tag,
+        EDITION_TAG_TEXT: draft.tagText,
+        EDITION_STICKER_STYLE: draft.stickerStyle,
+        EDITION_ON_COVER: draft.onCover,
+      });
+      setEditionEditOpen(false);
+      showAlert(t('mobile.detail.successTitle'), t('detail.editionUpdated'));
     } catch (e) {
       console.error(e);
       showAlert(t('common.error'), getErrorMessage(e, t));
@@ -893,6 +948,10 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   ).current;
 
   if (!album) return null;
+
+  // 에디션 필드를 읽는 곳은 모두 이 값을 쓴다 — prop과 방금 저장한 값의 병합.
+  // (album null 가드 뒤에 두어 타입이 좁혀진 상태로 쓰인다)
+  const albumView = editionOverride ? { ...album, ...editionOverride } : album;
 
   const coverTranslateX = vinylAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -35] });
   const vinylTranslateX = vinylAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 95] });
@@ -926,7 +985,9 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
             <Animated.View style={[styles.coverContainer, { transform: [{ translateX: coverTranslateX }] }]}>
               <Animated.View 
                 style={[
-                  styles.vinyl, 
+                  styles.vinyl,
+                  /* 컬러반이면 슬리브에서 나오는 이 판이 실제로 그 색이 된다 */
+                  editionDiscTint(albumView),
                   { 
                     transform: [
                       { translateX: vinylTranslateX },
@@ -938,6 +999,8 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
               >
                 <View style={styles.vinylGrooves} />
                 <View style={styles.vinylGrooves2} />
+                {/* 스플래터반이면 이 판 위에 튄 물감이 그대로 얹힌다 */}
+                <EditionSplatterMarks album={albumView} size={width * 0.55 * 0.96} />
                 <View style={[styles.vinylLabel, { backgroundColor: album.CUSTOM_COLOR_HEX || '#222' }]}>
                   <Image
                     source={(myPhoto || coverUrl) ? { uri: myPhoto || coverUrl } : require('../../../assets/logo_real_transparent.png')}
@@ -952,6 +1015,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
                 style={[styles.cover, !(myPhoto || coverUrl) && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]}
                 resizeMode={(myPhoto || coverUrl) ? "cover" : "contain"}
               />
+              <EditionCoverArt album={albumView} />
 
               {realStatus === 'OWNED' && (
                 <View style={styles.coverControls}>
@@ -991,14 +1055,14 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
               <Text style={styles.title}>{album.TITLE}</Text>
               <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
 
-              {album.EDITION_LABEL && (
+              {albumView.EDITION_LABEL && (
                 <LinearGradient
                   colors={['#f8e9b8', '#e9c349', '#b8860b']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.editionBadge}
                 >
-                  <Text style={styles.editionBadgeText}>✨ {album.EDITION_LABEL}</Text>
+                  <Text style={styles.editionBadgeText}>✨ {albumView.EDITION_LABEL}</Text>
                 </LinearGradient>
               )}
 
@@ -1374,6 +1438,14 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
                 >
                   <Text style={styles.btnOutlineText}>{t('detail.registerAnotherEdition')}</Text>
                 </AnimatedButton>
+                {album.USER_VINYL_ID ? (
+                  <AnimatedButton
+                    style={[styles.btnOutline, { flex: 1 }]}
+                    onPress={() => setEditionEditOpen(true)}
+                  >
+                    <Text style={styles.btnOutlineText}>{t('detail.editEdition')}</Text>
+                  </AnimatedButton>
+                ) : null}
               </View>
             )}
 
@@ -1548,6 +1620,26 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
           isBusy={isSavingEdition}
           onCancel={() => setEditionModalOpen(false)}
           onConfirm={handleSaveEdition}
+          coverUrl={myPhoto || coverUrl}
+        />
+        <EditionRegisterSheet
+          visible={editionEditOpen}
+          mode="edit"
+          initial={{
+            label: albumView.EDITION_LABEL ?? '',
+            color: albumView.EDITION_COLOR ?? null,
+            altColor: albumView.EDITION_COLOR_ALT ?? null,
+            style: (albumView.EDITION_STYLE as EditionStyle | null) ?? null,
+            splatterForm: (albumView.EDITION_SPLATTER_FORM as SplatterForm | null) ?? null,
+            tag: (albumView.EDITION_TAG as EditionTagKey | null) ?? null,
+            tagText: albumView.EDITION_TAG_TEXT ?? null,
+            stickerStyle: (albumView.EDITION_STICKER_STYLE as StickerStyle | null) ?? null,
+            onCover: albumView.EDITION_ON_COVER === true,
+          }}
+          isBusy={isSavingEdition}
+          onCancel={() => setEditionEditOpen(false)}
+          onConfirm={handleUpdateEdition}
+          coverUrl={myPhoto || coverUrl}
         />
       </Animated.View>
     </Modal>

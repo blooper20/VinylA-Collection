@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
+import { EditionCoverArt } from '../Edition/EditionCoverArt';
 import { MockVinylData } from '@vinyla/shared-types';
 
 interface ShareableGridViewProps {
@@ -51,6 +52,9 @@ export const ShareableGridView = forwardRef<View, ShareableGridViewProps>(
                     style={styles.cover}
                     resizeMode={item.IMAGE_URL ? 'cover' : 'contain'}
                   />
+                  {/* 한정반/사인반 표시도 공유 이미지에 함께 나간다 — 보관함 화면과
+                      같은 컴포넌트를 써서 두 곳의 모양이 어긋나지 않게 한다 */}
+                  <EditionCoverArt album={item} />
                   {showMoreOverlay && (
                     <View style={styles.moreOverlay}>
                       <Text style={styles.moreText}>+{remaining}</Text>

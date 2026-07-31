@@ -1,0 +1,149 @@
+/* 스플래터 물감 오버레이 — 상세 화면·호버의 실제 디스크가 쓴다.
+   (커버에는 더 이상 미니 칩을 얹지 않는다 — 호버하면 실제 판이 나오므로 중복) */
+.splatterSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ── 재킷 표시 ─────────────────────────────────────────
+   에디션 구분을 재킷에 붙이는 세 가지 모양. 공통 위치·타이포는 .sticker에 두고
+   모양별 차이는 아래 변형 클래스에서 준다. */
+.sticker {
+  position: absolute;
+  z-index: 6;
+  max-width: 80%;
+  line-height: 1.2;
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.stickerText {
+  position: relative;
+  z-index: 1;
+  display: block;
+  /* 생략부호(…) 없이 전부 보이게 — 공백 없는 한글은 keep-all이면 아예 못 끊겨서
+     넘치는 순간 잘리므로, 글자 단위로 줄바꿈되게 둔다. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ① 금박 스티커 — 은은하게 떠 있는 고급 포일.
+      강한 대비 대신 샴페인 골드의 좁은 색폭 + 위쪽의 부드러운 하이라이트만 두고,
+      넓고 옅은 그림자로 재킷에서 살짝 떠 있는 느낌을 만든다. */
+.foil {
+  top: 6.5%;
+  left: 6.5%;
+  max-width: 74%;
+  padding: 0.55em 1.05em;
+  border-radius: 3px;
+  transform: rotate(-2deg);
+  overflow: hidden;
+  background: linear-gradient(
+    145deg,
+    #f8efd9 0%,
+    #eadfbe 28%,
+    #d9c493 52%,
+    #e6d7ae 74%,
+    #cdb583 100%
+  );
+  color: #4a3a1c;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  /* 넓고 옅은 그림자 = 떠 있는 느낌. 윤곽선은 어둡게가 아니라 아주 옅게만. */
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.26),
+    0 2px 6px rgba(0, 0, 0, 0.16),
+    0 0 0 0.5px rgba(90, 70, 30, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* 광택과 괘선은 가상요소(::before/::after)가 아니라 실제 자식으로 그린다 —
+   공유 이미지를 dom-to-image로 캡처할 때 가상요소는 빠질 수 있기 때문. */
+
+/* 위쪽에서 부드럽게 떨어지는 광택 — 번쩍이는 밴드 대신 은은한 그라데이션 */
+.foilSheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.42), transparent 42%);
+  pointer-events: none;
+}
+
+/* 포일 씰의 얇은 안쪽 괘선 — 아주 옅게 */
+.foilRule {
+  position: absolute;
+  inset: 3px;
+  border-radius: 1.5px;
+  border: 0.5px solid rgba(90, 70, 30, 0.22);
+  pointer-events: none;
+}
+
+/* 도장의 얇은 내곽 링 — 같은 이유로 inset box-shadow 대신 실제 요소 */
+.stampRule {
+  position: absolute;
+  inset: 0.09em;
+  border-radius: 50%;
+  border: 0.055em solid #c62828;
+  pointer-events: none;
+}
+
+/* ② 도장 — 낙관을 찍은 느낌. 어떤 아트워크 위에서도 읽히도록 종이 같은 밝은
+      바탕을 깔고 그 위에 붉은 인주로 이중 링과 글자를 앉힌다. */
+.stamp {
+  top: 6%;
+  left: 6%;
+  max-width: 52%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0.6em;
+  border-radius: 50%;
+  transform: rotate(-7deg);
+  color: #c62828;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  /* 종이 바탕 + 붉은 인주 링(두꺼운 외곽 + 얇은 내곽) */
+  background: radial-gradient(circle, #fffdf7 0 62%, #fbf3e4 100%);
+  border: 0.19em solid #c62828;
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.stamp .stickerText {
+  /* 한 줄에 4자 정도까지 두고 넘치면 줄바꿈 — 원은 내용에 맞춰 함께 커진다
+     (aspect-ratio: 1이라 높이가 늘면 지름도 같이 늘어난다) */
+  max-width: 4.4em;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* 테이블 뷰 태그의 색 점 — 작은 실물 디스크 색 표시 */
+.tagDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* ── 사이즈 ──────────────────────────────────────────── */
+.sticker.sm {
+  font-size: 11.5px;
+}
+.sticker.md {
+  font-size: 14px;
+}
+.sticker.lg {
+  font-size: 17px;
+}
+/* 스토리(단일 앨범) 공유 이미지 — 1080px 캔버스라 훨씬 크게 */
+.sticker.xl {
+  font-size: 30px;
+}

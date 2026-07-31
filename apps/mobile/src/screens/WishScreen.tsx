@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { EditionCoverArt } from '../components/Edition/EditionCoverArt';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -179,7 +180,8 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
                     style={styles.cover}
                     resizeMode={item.IMAGE_URL ? "cover" : "contain"}
                   />
-                  {item.EDITION_LABEL && (
+                  <EditionCoverArt album={item} />
+                  {item.EDITION_LABEL && !item.EDITION_ON_COVER && (
                     <LinearGradient
                       colors={['#f8e9b8', '#e9c349', '#b8860b']}
                       start={{ x: 0, y: 0 }}

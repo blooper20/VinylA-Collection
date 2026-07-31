@@ -1,6 +1,8 @@
 import React, { forwardRef } from 'react';
 import styles from './StoryTemplate.module.css';
 import { MockVinylData } from '@vinyla/shared-types';
+import { SplatterForm } from '@vinyla/core-api';
+import { EditionCoverArt, EditionSplatterMarks, editionDiscStyle } from '../Edition/EditionCoverArt';
 
 interface StoryTemplateProps {
   album: MockVinylData & { COVER_URL?: string };
@@ -42,10 +44,22 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
         <div className={styles.content}>
           <div className={styles.recordWrapper}>
             <div className={styles.recordOuter}>
-              {/* The vinyl record sliding out */}
-              <div className={styles.vinylDisk} style={{ 
-                background: album.CUSTOM_COLOR_HEX ? album.CUSTOM_COLOR_HEX : '#111' 
-              }}>
+              {/* The vinyl record sliding out — 에디션이 지정돼 있으면 이 판이
+                  실제로 그 실물의 색·무늬를 갖는다(보관함/상세와 동일 규칙) */}
+              <div
+                className={styles.vinylDisk}
+                style={
+                  editionDiscStyle(album) ?? {
+                    background: album.CUSTOM_COLOR_HEX ? album.CUSTOM_COLOR_HEX : '#111',
+                  }
+                }
+              >
+                {album.EDITION_STYLE === 'splatter' && (
+                  <EditionSplatterMarks
+                    color={album.EDITION_COLOR_ALT ?? null}
+                    form={(album.EDITION_SPLATTER_FORM as SplatterForm) ?? 'streak'}
+                  />
+                )}
                 <div className={styles.vinylGroove} />
                 <div className={styles.vinylLabel}>
                   <img src={imageSrc} alt="label" crossOrigin="anonymous" />
@@ -58,6 +72,10 @@ export const StoryTemplate = forwardRef<HTMLDivElement, StoryTemplateProps>(({ a
                 className={styles.coverImage}
                 crossOrigin="anonymous"
               />
+              {/* 한정반/사인반 표시 — 커버(z-index 3) 위에 올라가야 한다 */}
+              <div className={styles.editionLayer}>
+                <EditionCoverArt album={album} size="xl" />
+              </div>
             </div>
           </div>
 

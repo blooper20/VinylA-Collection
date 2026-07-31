@@ -379,8 +379,11 @@
 }
 
 /* ---- Actions ---- */
+/* 버튼이 3개 이상 들어가면(또 등록 + 에디션 수정 + 삭제 + 공개설정) 한 줄에
+   다 넣을 수 없어 글자가 세로로 깨지므로, 넘치면 줄바꿈시킨다. */
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 24px;
 }
@@ -390,14 +393,16 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 32px;
+  padding: 16px 24px;
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s ease;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: max-content;
 }
 
 .btnPrimary {

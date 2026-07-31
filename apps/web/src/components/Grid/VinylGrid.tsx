@@ -6,6 +6,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, arrayMove, useSortable, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlbumCard } from './AlbumCard';
+import { EditionTag } from '../Edition/EditionCoverArt';
 import { DetailModal } from '../Modal/DetailModal';
 import { RandomPickModal } from '../Modal/RandomPickModal';
 import { ShareBottomSheet } from '../Modal/ShareBottomSheet';
@@ -75,12 +76,7 @@ function SortableAlbumRow({ album, t }: {
       <td className={styles.tdArtist}>{album.ARTIST}</td>
       <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
       <td className={styles.tdTags}>
-        {album.EDITION_LABEL && (
-          <span className={styles.editionTag}>
-            <span className="material-symbols-outlined">auto_awesome</span>
-            {album.EDITION_LABEL}
-          </span>
-        )}
+        <EditionTag album={album} className={styles.editionTag} />
         {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
       </td>
       <td className={styles.tdStatus}>
@@ -434,12 +430,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                   <td className={styles.tdArtist}>{album.ARTIST}</td>
                   <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
                   <td className={styles.tdTags}>
-                    {album.EDITION_LABEL && (
-          <span className={styles.editionTag}>
-            <span className="material-symbols-outlined">auto_awesome</span>
-            {album.EDITION_LABEL}
-          </span>
-        )}
+                    <EditionTag album={album} className={styles.editionTag} />
         {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
                   </td>
                   <td className={styles.tdStatus}>

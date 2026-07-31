@@ -6,6 +6,7 @@ import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../Modal/DetailModal';
 import { FollowListModal } from '../Modal/FollowListModal';
+import { EditionCoverArt } from '../Edition/EditionCoverArt';
 
 type PublicVinyl = MockVinylData & { COVER_URL?: string };
 
@@ -119,7 +120,10 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
             STATUS: v.STATUS,
             PURCHASE_PRICE: v.PURCHASE_PRICE,
             PURCHASE_DATE: v.PURCHASE_DATE,
-            EDITION_LABEL: v.EDITION_LABEL
+            EDITION_LABEL: v.EDITION_LABEL,
+            EDITION_COLOR: v.EDITION_COLOR,
+            EDITION_STYLE: v.EDITION_STYLE,
+            EDITION_ON_COVER: v.EDITION_ON_COVER
           }));
           setDbData(formatted);
         }
@@ -255,7 +259,8 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
             <div className={styles.coverWrapper}>
               <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={styles.cover} />
               {album.STATUS === 'WISH' && <div className={styles.wishBadge}>WISH</div>}
-              {album.EDITION_LABEL && (
+              <EditionCoverArt album={album} size="sm" />
+              {album.EDITION_LABEL && !album.EDITION_ON_COVER && (
                 <div className={styles.editionBadge}>
                   <span className="material-symbols-outlined">auto_awesome</span>
                   {album.EDITION_LABEL}

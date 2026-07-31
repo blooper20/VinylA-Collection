@@ -90,6 +90,25 @@ export interface USER_VINYL {
    *  자유 입력, 예: "그린반", "스플래터반"). NULL이면 "또 등록" 없이
    *  저장된 기본 항목 */
   EDITION_LABEL?: string | null;
+  /** 실물 디스크 바탕색(#RRGGBB). 값이 있으면 커버에 "디스크 색"으로 표현하고,
+   *  NULL이면 라벨 텍스트를 담은 하이프 스티커로 표현한다 */
+  EDITION_COLOR?: string | null;
+  /** 두 번째 색(#RRGGBB) — 스플래터반의 튄 색, 마블반의 섞인 색.
+   *  NULL이면 바탕색에서 파생한 기본값을 쓴다 */
+  EDITION_COLOR_ALT?: string | null;
+  /** 디스크 렌더링 변형(clear/splatter/marbled/pictureDisc). NULL/solid는 단색 */
+  EDITION_STYLE?: string | null;
+  /** 튄 물감의 형태(streak/drip/speck). NULL이면 streak */
+  EDITION_SPLATTER_FORM?: string | null;
+  /** 에디션 구분(한정반/사인반 등) — 재킷 표시로 표현. LP 종류와 독립 */
+  EDITION_TAG?: string | null;
+  /** 직접 입력한 표시 문구(EDITION_TAG='custom'일 때). 최대 10자 */
+  EDITION_TAG_TEXT?: string | null;
+  /** 그 표시의 모양(foil/stamp/bookmark). NULL이면 foil */
+  EDITION_STICKER_STYLE?: string | null;
+  /** 앨범 커버(그리드/상세)에 이 에디션을 시각적으로 드러낼지 여부.
+   *  false면 기존처럼 텍스트 뱃지만 표시한다 */
+  EDITION_ON_COVER?: boolean | null;
 }
 
 /**

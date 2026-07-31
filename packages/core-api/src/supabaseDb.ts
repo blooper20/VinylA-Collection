@@ -342,6 +342,57 @@ export const insertUserVinylEdition = async (
   return data as USER_VINYL;
 };
 
+// 이미 보관함에 있는 항목의 에디션 정보를 수정한다 — 예전에 그냥 저장해둔
+// 앨범에 LP 종류나 에디션 구분을 나중에 붙이거나, 색/표시 여부를 바꾸는 경로.
+// 선택을 모두 해제하면 에디션 표시 자체를 없애는 것으로 보고 관련 값을 지운다.
+export const updateUserVinylEdition = async (
+  userVinylId: number,
+  edition: {
+    EDITION_LABEL: string | null;
+    EDITION_COLOR: string | null;
+    EDITION_COLOR_ALT: string | null;
+    EDITION_STYLE: string | null;
+    EDITION_SPLATTER_FORM: string | null;
+    EDITION_TAG: string | null;
+    EDITION_TAG_TEXT: string | null;
+    EDITION_STICKER_STYLE: string | null;
+    EDITION_ON_COVER: boolean;
+  }
+): Promise<void> => {
+  // 라벨이 더 이상 필수가 아니므로(LP 종류만 지정하는 경우가 정상), "표시 없애기"는
+  // 라벨·구분·디스크가 모두 비었을 때로 판단한다.
+  const cleared =
+    !edition.EDITION_LABEL?.trim() &&
+    !edition.EDITION_TAG &&
+    !edition.EDITION_STYLE &&
+    !edition.EDITION_COLOR;
+  const { error } = await supabase
+    .from('USER_VINYL')
+    .update(
+      cleared
+        ? {
+            EDITION_LABEL: null,
+            EDITION_COLOR: null,
+            EDITION_COLOR_ALT: null,
+            EDITION_STYLE: null,
+            EDITION_SPLATTER_FORM: null,
+            EDITION_TAG: null,
+            EDITION_TAG_TEXT: null,
+            EDITION_STICKER_STYLE: null,
+            EDITION_ON_COVER: false,
+          }
+        : edition
+    )
+    .eq('USER_VINYL_ID', userVinylId);
+
+  if (error) {
+    if (isNetworkError(error)) {
+      throw new AppError('NET-001', '네트워크 오류로 저장하지 못했습니다.', error);
+    }
+    throw new AppError('DB-001', '에디션 정보를 저장하지 못했습니다.', error);
+  }
+};
+
 // DB-assigned, tamper-proof order this user completed /setup in (see the
 // PROFILES.SIGNUP_NUMBER migration) — backs the founding_100 badge.
 export const getSignupNumber = async (userId: string): Promise<number | null> => {
@@ -472,8 +523,18 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     CUSTOM_PRESSING_ID: userVinyl?.CUSTOM_PRESSING_ID ?? null,
     // 컬렉션 "수정 모드" 드래그 정렬 순서. NULL = 아직 수동 정렬한 적 없음.
     SORT_ORDER: userVinyl?.SORT_ORDER ?? null,
-    // 같은 앨범의 여러 소장/위시 항목을 구분하는 에디션 라벨(예: "그린반").
+    // 같은 앨범의 여러 소장/위시 항목을 구분하는 에디션 라벨(예: "그린반")과
+    // 그 시각 표현 — 색이 있으면 디스크 색으로, 없으면 하이프 스티커로 커버에
+    // 드러낸다(resolveEditionVisual 참고).
     EDITION_LABEL: userVinyl?.EDITION_LABEL ?? null,
+    EDITION_COLOR: userVinyl?.EDITION_COLOR ?? null,
+    EDITION_COLOR_ALT: userVinyl?.EDITION_COLOR_ALT ?? null,
+    EDITION_STYLE: userVinyl?.EDITION_STYLE ?? null,
+    EDITION_SPLATTER_FORM: userVinyl?.EDITION_SPLATTER_FORM ?? null,
+    EDITION_TAG: userVinyl?.EDITION_TAG ?? null,
+    EDITION_TAG_TEXT: userVinyl?.EDITION_TAG_TEXT ?? null,
+    EDITION_STICKER_STYLE: userVinyl?.EDITION_STICKER_STYLE ?? null,
+    EDITION_ON_COVER: userVinyl?.EDITION_ON_COVER ?? false,
     // 커뮤니티 등록(위키형) 앨범 여부와 그 트랙리스트 — 상세 모달이 이 값이
     // 있으면 외부 API 라이브 조회 없이 바로 트랙을 표시한다.
     SOURCE: master?.SOURCE || 'DISCOGS',
