@@ -211,6 +211,33 @@
   transition: box-shadow 0.3s ease;
 }
 
+/* 에디션 뱃지 — 초반/재반/컬러반 등, 상시 노출 */
+.editionBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: calc(100% - 20px);
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: linear-gradient(135deg, #f8e9b8, #e9c349 55%, #b8860b);
+  color: #2a1c00;
+  box-shadow: 0 4px 14px rgba(233, 195, 73, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.editionBadge .material-symbols-outlined {
+  font-size: 11px;
+}
+
 .cover {
   position: absolute;
   top: 0;
@@ -356,6 +383,27 @@
   letter-spacing: 0.04em;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* 에디션 태그 — 일반 장르 태그와 구분되도록 골드로 강조 */
+.editionTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  font-size: 10px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: rgba(233, 195, 73, 0.12);
+  white-space: nowrap;
+}
+
+.editionTag .material-symbols-outlined {
+  font-size: 11px;
 }
 
 /* Table view becomes a stacked list on phones — each row is a small card

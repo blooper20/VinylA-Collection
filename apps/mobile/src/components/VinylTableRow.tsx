@@ -30,6 +30,11 @@ export const VinylTableRow = ({ item, onPress }: VinylTableRowProps) => {
         <Text style={[styles.artist, { color: themeColors.textSecondary }]} numberOfLines={1}>
           {item.ARTIST}
         </Text>
+        {item.EDITION_LABEL && (
+          <Text style={[styles.editionLabel, { color: themeColors.accent }]} numberOfLines={1}>
+            ✨ {item.EDITION_LABEL}
+          </Text>
+        )}
       </View>
       <Text style={[styles.year, { color: themeColors.textSecondary }]}>{item.RELEASE_YEAR || '—'}</Text>
       <View style={styles.tagsWrap}>
@@ -65,6 +70,12 @@ const styles = StyleSheet.create({
   artist: {
     fontSize: 11,
     marginTop: 2,
+  },
+  editionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
   year: {
     width: 42,

@@ -2,12 +2,13 @@ import React, { useEffect, useRef } from 'react';
 import { Alert, View, Text, StyleSheet, Modal, Image, TouchableOpacity, Animated, ScrollView, Dimensions, PanResponder, Linking, Easing, Pressable, ActivityIndicator, TextInput, Share, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MockVinylData, AlbumTrack } from '@vinyla/shared-types';
 import * as Haptics from 'expo-haptics';
 import { FontAwesome5, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { searchYouTube, createAlbumMaster, upsertUserVinyl, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
+import { searchYouTube, createAlbumMaster, upsertUserVinyl, insertUserVinylEdition, getAlbumMaster, useAuthStore, getAlbumExtraDetails, deleteUserVinyl, getUserVinyls, getErrorMessage, updateAlbumMasterImage, uploadUserCover, setUserVinylCover, revertAlbumMasterCover, logSpin, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CustomAlert } from '../../providers/AlertProvider';
@@ -15,6 +16,7 @@ import { ShareableStoryView } from '../Share/ShareableStoryView';
 import { ShareOptionsSheet } from './ShareOptionsSheet';
 import { SpinLogEditorModal } from './SpinLogEditorModal';
 import { CoverPickerModal } from './CoverPickerModal';
+import { EditionRegisterSheet } from './EditionRegisterSheet';
 import { shareToInstagramStory } from '../../utils/nativeShare';
 
 interface DetailModalProps {
@@ -118,6 +120,10 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   const [pricePromptVisible, setPricePromptVisible] = React.useState(false);
   const [priceInputValue, setPriceInputValue] = React.useState('');
   const [isEditingPriceOnly, setIsEditingPriceOnly] = React.useState(false);
+
+  // 같은 앨범을 초반/재반/컬러반처럼 별도 항목으로 "또 등록"하기 위한 시트.
+  const [editionModalOpen, setEditionModalOpen] = React.useState(false);
+  const [isSavingEdition, setIsSavingEdition] = React.useState(false);
 
   const showAlert = (title: string, message: string, onCloseCallback?: () => void) => {
     setAlertTitle(title);
@@ -471,8 +477,8 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
         const action = pendingSaveAction;
         setPendingSaveAction(null);
         proceedWithSave(action);
-      } else {
-        await setUserVinylCover(user.id, numericAlbumId, url);
+      } else if (album.USER_VINYL_ID) {
+        await setUserVinylCover(Number(album.USER_VINYL_ID), url);
         setMyPhoto(url);
         showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverPhotoSaved') || '커버 사진이 저장되었습니다.');
       }
@@ -532,12 +538,12 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   };
 
   const handleUseOriginalCover = async () => {
-    if (!user?.id || !myPhoto || isUploadingCover || !album) return;
+    if (!user?.id || !myPhoto || isUploadingCover || !album || !album.USER_VINYL_ID) return;
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
       const restored = await restoreCatalogCover(numericAlbumId);
-      await setUserVinylCover(user.id, numericAlbumId, null);
+      await setUserVinylCover(Number(album.USER_VINYL_ID), null);
       setMyPhoto(null);
       if (restored) {
         setMasterImage(restored);
@@ -826,13 +832,13 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
 
   const handleDelete = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!album) return;
+    if (!album || !album.USER_VINYL_ID) return;
     if (!user) {
       showAlert(t('common.error'), t('detail.loginRequired'));
       return;
     }
     try {
-      await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
+      await deleteUserVinyl(Number(album.USER_VINYL_ID));
       setRealStatus('NONE');
       setShareTag('NONE');
       showAlert(t('mobile.detail.successTitle'), t('mobile.detail.deletedFromCollection'), () => {
@@ -841,6 +847,31 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
     } catch (e) {
       console.error(e);
       showAlert(t('common.error'), getErrorMessage(e, t));
+    }
+  };
+
+  // "또 등록" — 이미 소장/위시에 있는 앨범을 초반/재반/컬러반 등 별도
+  // 항목으로 새로 저장한다. upsertUserVinyl과 달리 기존 행을 확인하지
+  // 않고 항상 새 행을 만든다(insertUserVinylEdition).
+  const handleSaveEdition = async (editionLabel: string, price: number) => {
+    if (!user?.id || !album || !album.STATUS) return;
+    setIsSavingEdition(true);
+    try {
+      await insertUserVinylEdition({
+        USER_ID: user.id,
+        ALBUM_ID: Number(album.ALBUM_ID),
+        STATUS: album.STATUS as 'OWNED' | 'WISH',
+        EDITION_LABEL: editionLabel || null,
+        PURCHASE_PRICE: price,
+        ...(album.STATUS === 'OWNED' ? { PURCHASE_DATE: new Date().toISOString() } : {}),
+      });
+      setEditionModalOpen(false);
+      showAlert(t('mobile.detail.successTitle'), t('detail.editionRegistered'));
+    } catch (e) {
+      console.error(e);
+      showAlert(t('common.error'), getErrorMessage(e, t));
+    } finally {
+      setIsSavingEdition(false);
     }
   };
 
@@ -959,6 +990,17 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
             <View style={styles.info}>
               <Text style={styles.title}>{album.TITLE}</Text>
               <Text style={styles.artist}>{album.ARTIST} • {album.RELEASE_YEAR}</Text>
+
+              {album.EDITION_LABEL && (
+                <LinearGradient
+                  colors={['#f8e9b8', '#e9c349', '#b8860b']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.editionBadge}
+                >
+                  <Text style={styles.editionBadgeText}>✨ {album.EDITION_LABEL}</Text>
+                </LinearGradient>
+              )}
 
               {/* Price Section */}
               <View style={styles.priceContainer}>
@@ -1326,6 +1368,17 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
 
             {(realStatus === 'OWNED' || realStatus === 'WISH') && (
               <View style={[styles.actions, { marginTop: 10 }]}>
+                <AnimatedButton
+                  style={[styles.btnOutline, { flex: 1 }]}
+                  onPress={() => setEditionModalOpen(true)}
+                >
+                  <Text style={styles.btnOutlineText}>{t('detail.registerAnotherEdition')}</Text>
+                </AnimatedButton>
+              </View>
+            )}
+
+            {(realStatus === 'OWNED' || realStatus === 'WISH') && (
+              <View style={[styles.actions, { marginTop: 10 }]}>
                 {realStatus === 'OWNED' ? (
                   <AnimatedButton
                     style={[styles.btnPrimary, { backgroundColor: '#d32f2f', borderColor: '#d32f2f' }]}
@@ -1488,6 +1541,13 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
             handleCoverPhoto();
           }}
           onCancel={() => { setCoverPickerOpen(false); setPendingSaveAction(null); }}
+        />
+
+        <EditionRegisterSheet
+          visible={editionModalOpen}
+          isBusy={isSavingEdition}
+          onCancel={() => setEditionModalOpen(false)}
+          onConfirm={handleSaveEdition}
         />
       </Animated.View>
     </Modal>
@@ -1667,6 +1727,27 @@ const getStyles = (themeColors: any, shadows: any, shape: any) => StyleSheet.cre
     marginTop: 6,
     fontWeight: '500',
     letterSpacing: 0.5,
+  },
+  editionBadge: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 100,
+    shadowColor: '#e9c349',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  editionBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: '#2a1c00',
+    textTransform: 'uppercase',
   },
   tracklist: {
     width: '100%',

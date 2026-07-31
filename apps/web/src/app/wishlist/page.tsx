@@ -145,12 +145,18 @@ export default function WishlistPage() {
       ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {sorted.map(rec => (
-            <div key={rec.ALBUM_ID} className={styles.card} onClick={() => setSelectedAlbum(rec)}>
+            <div key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} className={styles.card} onClick={() => setSelectedAlbum(rec)}>
               <div className={styles.coverWrapper}>
                 <img src={rec.IMAGE_URL || rec.COVER_URL} alt={rec.TITLE} className={styles.cover} loading="lazy" />
                 <div className={styles.coverOverlay}>
                   <span className="material-symbols-outlined">zoom_in</span>
                 </div>
+                {rec.EDITION_LABEL && (
+                  <div className={styles.editionBadge}>
+                    <span className="material-symbols-outlined">auto_awesome</span>
+                    {rec.EDITION_LABEL}
+                  </div>
+                )}
               </div>
               <div className={styles.info}>
                 <h2 className={styles.albumTitle}>{rec.TITLE}</h2>
@@ -173,7 +179,7 @@ export default function WishlistPage() {
             </thead>
             <tbody>
               {sorted.map(rec => (
-                <tr key={rec.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(rec)}>
+                <tr key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(rec)}>
                   <td className={styles.tdCover}>
                     <div className={styles.tableCoverBox}>
                       <img src={rec.IMAGE_URL || rec.COVER_URL} alt={rec.TITLE} className={styles.tableThumb} />
@@ -183,6 +189,12 @@ export default function WishlistPage() {
                   <td className={styles.tdArtist}>{rec.ARTIST}</td>
                   <td className={styles.tdYear}>{rec.RELEASE_YEAR || '—'}</td>
                   <td className={styles.tdTags}>
+                    {rec.EDITION_LABEL && (
+                      <span className={styles.editionTag}>
+                        <span className="material-symbols-outlined">auto_awesome</span>
+                        {rec.EDITION_LABEL}
+                      </span>
+                    )}
                     {(rec.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
                   </td>
                 </tr>

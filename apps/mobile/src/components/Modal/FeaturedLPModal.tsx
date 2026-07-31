@@ -20,6 +20,10 @@ export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, o
   const { themeColors, glassIntensity } = useTheme();
   const { t } = useLocale();
 
+  // 대표 LP는 앨범 단위 선택이라 같은 앨범의 여러 에디션(초반/재반 등)이
+  // 중복 항목으로 뜨는 건 의미가 없다 — ALBUM_ID 기준으로 한 장만 보여준다.
+  const uniqueAlbums = Array.from(new Map(albums.map((a) => [a.ALBUM_ID, a])).values());
+
   const handleSelect = (id: number | null) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSelect(id);
@@ -53,7 +57,7 @@ export const FeaturedLPModal = ({ visible, onClose, albums, currentFeaturedId, o
               <Text style={[styles.albumTitle, { color: themeColors.textPrimary }]}>{t('featuredLp.none')}</Text>
             </TouchableOpacity>
 
-            {albums.map((album) => (
+            {uniqueAlbums.map((album) => (
               <TouchableOpacity 
                 key={album.ALBUM_ID}
                 style={[

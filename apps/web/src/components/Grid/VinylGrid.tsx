@@ -75,6 +75,12 @@ function SortableAlbumRow({ album, t }: {
       <td className={styles.tdArtist}>{album.ARTIST}</td>
       <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
       <td className={styles.tdTags}>
+        {album.EDITION_LABEL && (
+          <span className={styles.editionTag}>
+            <span className="material-symbols-outlined">auto_awesome</span>
+            {album.EDITION_LABEL}
+          </span>
+        )}
         {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
       </td>
       <td className={styles.tdStatus}>
@@ -368,7 +374,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         ) : (
           <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
             {displayedAlbums.map(album => (
-              <AlbumCard key={album.ALBUM_ID} album={album} onClick={setSelectedAlbum} />
+              <AlbumCard key={album.USER_VINYL_ID ?? album.ALBUM_ID} album={album} onClick={setSelectedAlbum} />
             ))}
           </div>
         )
@@ -418,7 +424,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
             </thead>
             <tbody>
               {displayedAlbums.map(album => (
-                <tr key={album.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(album)}>
+                <tr key={album.USER_VINYL_ID ?? album.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(album)}>
                   <td className={styles.tdCover}>
                     <div className={styles.tableCoverBox}>
                       <img src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`} alt={album.TITLE} className={styles.tableThumb} />
@@ -428,7 +434,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                   <td className={styles.tdArtist}>{album.ARTIST}</td>
                   <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
                   <td className={styles.tdTags}>
-                    {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
+                    {album.EDITION_LABEL && (
+          <span className={styles.editionTag}>
+            <span className="material-symbols-outlined">auto_awesome</span>
+            {album.EDITION_LABEL}
+          </span>
+        )}
+        {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
                   </td>
                   <td className={styles.tdStatus}>
                     <span className={album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}>

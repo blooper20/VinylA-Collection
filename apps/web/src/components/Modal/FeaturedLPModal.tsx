@@ -17,6 +17,10 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
 
   if (!isOpen) return null;
 
+  // 대표 LP는 앨범 단위 선택이라 같은 앨범의 여러 에디션(초반/재반 등)이
+  // 중복 타일로 뜨는 건 의미가 없다 — ALBUM_ID 기준으로 한 장만 보여준다.
+  const uniqueAlbums = Array.from(new Map(albums.map((a) => [a.ALBUM_ID, a])).values());
+
   const handleSelect = async (albumId: number) => {
     setIsSaving(true);
     try {
@@ -40,9 +44,9 @@ export function FeaturedLPModal({ isOpen, onClose, albums, currentFeaturedId, on
         </div>
         
         <div className={styles.content}>
-          {albums.length > 0 ? (
+          {uniqueAlbums.length > 0 ? (
             <div className={styles.grid}>
-              {albums.map((album) => (
+              {uniqueAlbums.map((album) => (
                 <div 
                   key={album.ALBUM_ID} 
                   className={`${styles.item} ${currentFeaturedId === album.ALBUM_ID ? styles.itemActive : ''}`}

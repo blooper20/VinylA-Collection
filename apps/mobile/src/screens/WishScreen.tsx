@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Share } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
@@ -169,7 +170,7 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
               style={{ flex: 1 }}
               data={sortedWishes}
               numColumns={2}
-              keyExtractor={item => item.ALBUM_ID.toString()}
+              keyExtractor={item => (item.USER_VINYL_ID ?? item.ALBUM_ID).toString()}
               contentContainerStyle={styles.list}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
@@ -178,6 +179,16 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
                     style={styles.cover}
                     resizeMode={item.IMAGE_URL ? "cover" : "contain"}
                   />
+                  {item.EDITION_LABEL && (
+                    <LinearGradient
+                      colors={['#f8e9b8', '#e9c349', '#b8860b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.editionBadge}
+                    >
+                      <Text style={styles.editionBadgeText} numberOfLines={1}>✨ {item.EDITION_LABEL}</Text>
+                    </LinearGradient>
+                  )}
                   <View style={styles.info}>
                     <Text style={styles.title} numberOfLines={1}>{item.TITLE}</Text>
                     <Text style={styles.artist} numberOfLines={1}>{item.ARTIST}</Text>
@@ -190,7 +201,7 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
               key="table"
               style={{ flex: 1 }}
               data={sortedWishes}
-              keyExtractor={item => item.ALBUM_ID.toString()}
+              keyExtractor={item => (item.USER_VINYL_ID ?? item.ALBUM_ID).toString()}
               contentContainerStyle={styles.tableList}
               renderItem={({ item }) => (
                 <VinylTableRow item={item} onPress={() => setSelectedAlbum(item)} />
@@ -259,6 +270,28 @@ const getStyles = (themeColors: any, tabBarHeight: number) => StyleSheet.create(
     height: itemSize,
     borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  editionBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: '80%',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 100,
+    shadowColor: '#e9c349',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editionBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    color: '#2a1c00',
   },
   info: {
     marginTop: 8,

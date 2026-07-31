@@ -480,6 +480,27 @@
   white-space: nowrap;
 }
 
+/* 에디션 태그 — 일반 장르 태그와 구분되도록 골드로 강조 */
+.editionTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  font-size: 10px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: rgba(233, 195, 73, 0.12);
+  white-space: nowrap;
+}
+
+.editionTag .material-symbols-outlined {
+  font-size: 11px;
+}
+
 .tdStatus { text-align: center; }
 
 .statusOwned {

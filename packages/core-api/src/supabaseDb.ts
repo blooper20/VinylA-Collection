@@ -254,8 +254,11 @@ export const wipeUserData = async (userId: string): Promise<void> => {
 export const upsertUserVinyl = async (
   userVinyl: Partial<USER_VINYL>
 ): Promise<(USER_VINYL & { isFirstEverSave?: boolean }) | null> => {
-  // Read the current row first (only to decide which metric to log below —
-  // the write itself is a single atomic upsert on (USER_ID, ALBUM_ID)).
+  // 이 유저가 이 앨범에 대해 이미 가진 "기본" 행을 조회한다. 같은 앨범을
+  // 여러 에디션으로 등록하는 경우(insertUserVinylEdition)는 별도 함수를
+  // 쓰므로, 여기서는 (USER_ID, ALBUM_ID) 최초 매치 한 건만 갱신 대상으로
+  // 본다 — USER_VINYL_ID로 update하기 때문에 DB 유니크 제약에 의존하지
+  // 않는다(에디션 다중 등록을 위해 그 제약은 제거됨).
   let existing = null;
   if (userVinyl.USER_ID && userVinyl.ALBUM_ID) {
     const { data } = await supabase
@@ -267,13 +270,18 @@ export const upsertUserVinyl = async (
     existing = data;
   }
 
-  const payload = existing ? { ...existing, ...userVinyl } : userVinyl;
-
-  const { data, error } = await supabase
-    .from('USER_VINYL')
-    .upsert([payload], { onConflict: 'USER_ID,ALBUM_ID' })
-    .select()
-    .single();
+  const { data, error } = existing
+    ? await supabase
+        .from('USER_VINYL')
+        .update(userVinyl)
+        .eq('USER_VINYL_ID', existing.USER_VINYL_ID)
+        .select()
+        .single()
+    : await supabase
+        .from('USER_VINYL')
+        .insert([userVinyl])
+        .select()
+        .single();
 
   let isFirstEverSave = false;
   if (!error && !existing) {
@@ -310,6 +318,28 @@ export const upsertUserVinyl = async (
     throw new AppError('DB-001', '앨범 저장 중 오류가 발생했습니다.', error);
   }
   return data ? { ...(data as USER_VINYL), isFirstEverSave } : null;
+};
+
+// "또 등록" 전용 — 이미 같은 (USER_ID, ALBUM_ID) 행이 있어도 확인하지 않고
+// 항상 새 행을 만든다. 초반/재반/컬러반처럼 같은 앨범을 여러 장 독립적으로
+// 소장·관리하기 위한 함수(upsertUserVinyl과 달리 기존 행을 갱신하지 않음).
+export const insertUserVinylEdition = async (
+  userVinyl: Partial<USER_VINYL>
+): Promise<USER_VINYL | null> => {
+  const { data, error } = await supabase
+    .from('USER_VINYL')
+    .insert([userVinyl])
+    .select()
+    .single();
+
+  if (error) {
+    if (isNetworkError(error)) {
+      throw new AppError('NET-001', '네트워크 오류로 저장하지 못했습니다.', error);
+    }
+    throw new AppError('DB-001', '앨범 저장 중 오류가 발생했습니다.', error);
+  }
+  logEvent(userVinyl.STATUS === 'WISH' ? 'WISH_ADD' : 'ALBUM_ADD', { albumId: userVinyl.ALBUM_ID });
+  return data as USER_VINYL;
 };
 
 // DB-assigned, tamper-proof order this user completed /setup in (see the
@@ -365,27 +395,6 @@ export const updateUserVinylOrder = async (orderedUserVinylIds: number[]): Promi
   if (failed?.error) {
     console.error('updateUserVinylOrder error:', failed.error);
     throw new AppError('DB-003', '순서 저장 중 오류가 발생했습니다.', failed.error);
-  }
-  return true;
-};
-
-export const deleteUserVinylByAlbum = async (userId: string | number, albumId: number): Promise<boolean> => {
-  if (isOffline()) {
-    throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');
-  }
-
-  const { error } = await supabase
-    .from('USER_VINYL')
-    .delete()
-    .eq('USER_ID', userId)
-    .eq('ALBUM_ID', albumId);
-
-  if (error) {
-    console.error('deleteUserVinylByAlbum error:', error);
-    if (isNetworkError(error)) {
-      throw new AppError('NET-001', '네트워크 연결이 불안정하여 삭제할 수 없습니다.', error);
-    }
-    throw new AppError('DB-003', '앨범 삭제 중 오류가 발생했습니다.', error);
   }
   return true;
 };
@@ -463,6 +472,8 @@ export const mapToFrontendModel = (userVinyl: any, albumMaster?: any) => {
     CUSTOM_PRESSING_ID: userVinyl?.CUSTOM_PRESSING_ID ?? null,
     // 컬렉션 "수정 모드" 드래그 정렬 순서. NULL = 아직 수동 정렬한 적 없음.
     SORT_ORDER: userVinyl?.SORT_ORDER ?? null,
+    // 같은 앨범의 여러 소장/위시 항목을 구분하는 에디션 라벨(예: "그린반").
+    EDITION_LABEL: userVinyl?.EDITION_LABEL ?? null,
     // 커뮤니티 등록(위키형) 앨범 여부와 그 트랙리스트 — 상세 모달이 이 값이
     // 있으면 외부 API 라이브 조회 없이 바로 트랙을 표시한다.
     SOURCE: master?.SOURCE || 'DISCOGS',
@@ -497,15 +508,13 @@ export const uploadUserCover = async (albumId: number, file: Blob): Promise<stri
 };
 
 export const setUserVinylCover = async (
-  userId: string | number,
-  albumId: number,
+  userVinylId: number,
   coverUrl: string | null
 ): Promise<void> => {
   const { error } = await supabase
     .from('USER_VINYL')
     .update({ CUSTOM_IMAGE_URL: coverUrl })
-    .eq('USER_ID', userId)
-    .eq('ALBUM_ID', albumId);
+    .eq('USER_VINYL_ID', userVinylId);
   if (error) {
     throw new AppError('DB-004', '커버 변경 사항을 저장하지 못했습니다.', error);
   }

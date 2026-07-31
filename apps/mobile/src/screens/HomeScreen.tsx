@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppHeader, VinylViewMode } from '../components/AppHeader';
 import { ShareableGridView } from '../components/Share/ShareableGridView';
 import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
@@ -235,7 +236,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
               style={{ flex: 1 }}
               data={sortedAlbums}
               numColumns={2}
-              keyExtractor={item => item.ALBUM_ID.toString()}
+              keyExtractor={item => (item.USER_VINYL_ID ?? item.ALBUM_ID).toString()}
               contentContainerStyle={styles.list}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.card} onPress={() => setSelectedAlbum(item)}>
@@ -244,6 +245,16 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
                     style={[styles.cover, { backgroundColor: 'transparent' }]}
                     resizeMode={item.IMAGE_URL ? "cover" : "contain"}
                   />
+                  {item.EDITION_LABEL && (
+                    <LinearGradient
+                      colors={['#f8e9b8', '#e9c349', '#b8860b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.editionBadge}
+                    >
+                      <Text style={styles.editionBadgeText} numberOfLines={1}>✨ {item.EDITION_LABEL}</Text>
+                    </LinearGradient>
+                  )}
                 </TouchableOpacity>
               )}
             />
@@ -252,7 +263,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
               key="table-edit"
               style={{ flex: 1 }}
               data={sortedAlbums}
-              keyExtractor={item => item.ALBUM_ID.toString()}
+              keyExtractor={item => (item.USER_VINYL_ID ?? item.ALBUM_ID).toString()}
               contentContainerStyle={styles.tableList}
               onDragEnd={handleDragEnd}
               renderItem={({ item, drag, isActive }: RenderItemParams<MockVinylData>) => (
@@ -279,7 +290,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
               key="table"
               style={{ flex: 1 }}
               data={sortedAlbums}
-              keyExtractor={item => item.ALBUM_ID.toString()}
+              keyExtractor={item => (item.USER_VINYL_ID ?? item.ALBUM_ID).toString()}
               contentContainerStyle={styles.tableList}
               renderItem={({ item }) => (
                 <VinylTableRow item={item} onPress={() => setSelectedAlbum(item)} />
@@ -371,6 +382,28 @@ const getStyles = (themeColors: any, shadows: any, shape: any, tabBarHeight: num
     width: '100%',
     height: '100%',
     borderRadius: shape.md,
+  },
+  editionBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: '80%',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 100,
+    shadowColor: '#e9c349',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editionBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    color: '#2a1c00',
   },
   editModeBtn: {
     alignSelf: 'flex-start',

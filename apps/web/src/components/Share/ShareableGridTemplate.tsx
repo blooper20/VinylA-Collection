@@ -43,7 +43,7 @@ export const ShareableGridTemplate = forwardRef<HTMLDivElement, ShareableGridTem
             const rawImageUrl = album.MASTER_IMAGE_URL || album.COVER_URL || album.IMAGE_URL;
             const imageSrc = rawImageUrl ? `/api/proxy-image?url=${encodeURIComponent(rawImageUrl)}` : '/logo.png';
             return (
-            <div key={album.ALBUM_ID} className={styles.gridItem}>
+            <div key={album.USER_VINYL_ID ?? album.ALBUM_ID} className={styles.gridItem}>
               <div className={styles.coverWrapper}>
                 <img src={imageSrc} alt={album.TITLE} className={styles.cover} crossOrigin="anonymous" />
               </div>

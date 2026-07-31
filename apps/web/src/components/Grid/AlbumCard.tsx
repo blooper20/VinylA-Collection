@@ -47,6 +47,14 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
       <div className={`${styles.badge} ${album.STATUS === 'OWNED' ? styles.badgeOwned : styles.badgeWish}`}>
         {album.STATUS === 'OWNED' ? t('collection.statusOwned') : t('collection.statusWish')}
       </div>
+
+      {/* Edition badge — 초반/재반/컬러반 등, 상시 노출 */}
+      {album.EDITION_LABEL && (
+        <div className={styles.editionBadge}>
+          <span className="material-symbols-outlined">auto_awesome</span>
+          {album.EDITION_LABEL}
+        </div>
+      )}
     </div>
   );
 };

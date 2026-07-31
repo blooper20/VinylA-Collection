@@ -41,7 +41,7 @@ export const ShareableGridView = forwardRef<View, ShareableGridViewProps>(
             {items.map((item, index) => {
               const showMoreOverlay = remaining > 0 && index === items.length - 1;
               return (
-                <View key={String(item.ALBUM_ID ?? index)} style={styles.cell}>
+                <View key={String(item.USER_VINYL_ID ?? item.ALBUM_ID ?? index)} style={styles.cell}>
                   <Image
                     source={
                       item.IMAGE_URL

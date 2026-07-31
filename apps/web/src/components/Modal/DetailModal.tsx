@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL, AlbumTrack } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, useAuthStore, getAlbumExtraDetails, deleteUserVinylByAlbum, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, insertUserVinylEdition, useAuthStore, getAlbumExtraDetails, deleteUserVinyl, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, getDiscogsReleaseVersions, updateUserVinylReleaseId, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
 import Link from 'next/link';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
@@ -12,6 +12,7 @@ import { captureElementAsBlob, shareImageNative } from '../../utils/shareUtils';
 import { MediaAttachPicker, EditMediaState } from './MediaAttachPicker';
 import { VisibilityToggle } from './VisibilityToggle';
 import { CoverCropModal } from './CoverCropModal';
+import { EditionRegisterModal } from './EditionRegisterModal';
 import Image from 'next/image';
 
 interface DetailModalProps {
@@ -207,6 +208,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   const [confirmTarget, setConfirmTarget] = React.useState<'OWNED' | 'WISH' | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [pricePromptOpen, setPricePromptOpen] = React.useState(false);
+  // 같은 앨범을 초반/재반/컬러반처럼 별도 항목으로 "또 등록"하기 위한 모달.
+  const [editionModalOpen, setEditionModalOpen] = React.useState(false);
+  const [isSavingEdition, setIsSavingEdition] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
   const [marketPrice, setMarketPrice] = React.useState<number | null>(album.MARKET_PRICE || null);
   const [isPublic, setIsPublic] = React.useState<boolean>(album.IS_PUBLIC !== false);
@@ -310,9 +314,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         setPendingSaveAction(null);
         if (action === 'price-prompt') setPricePromptOpen(true);
         else handleSave('WISH');
-      } else {
+      } else if (album.USER_VINYL_ID) {
         // 항상 '나만 보기'로 먼저 적용 — 전체 공개는 아래 토글에서 명시적으로.
-        await setUserVinylCover(user.id, numericAlbumId, url);
+        await setUserVinylCover(Number(album.USER_VINYL_ID), url);
         setMyPhoto(url);
         window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
         window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
@@ -328,12 +332,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   // 기존(카탈로그) 커버로 복귀: 마스터가 내 사진으로 덮여 있으면 복원(또는
   // 치유)하고, 내 개인 커버를 지운다. 실제로 복원된 경우에만 성공 토스트.
   const handleUseOriginalCover = async () => {
-    if (!user?.id || !myPhoto || isUploadingCover) return;
+    if (!user?.id || !myPhoto || isUploadingCover || !album.USER_VINYL_ID) return;
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
       const restored = await restoreCatalogCover(numericAlbumId);
-      await setUserVinylCover(user.id, numericAlbumId, null);
+      await setUserVinylCover(Number(album.USER_VINYL_ID), null);
       setMyPhoto(null);
       if (restored) {
         setMasterImage(restored);
@@ -788,8 +792,8 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
     try {
       setIsDeleting(true);
-      if (!user?.id) return;
-      await deleteUserVinylByAlbum(user.id, Number(album.ALBUM_ID));
+      if (!user?.id || !album.USER_VINYL_ID) return;
+      await deleteUserVinyl(Number(album.USER_VINYL_ID));
       onClose();
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', {
         detail: { message: t('detail.removedFromTarget', { target: target === 'OWNED' ? t('nav.collection') : t('nav.wishlist') }) }
@@ -802,6 +806,33 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
       window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: msg }}));
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // "또 등록" — 이미 소장/위시에 있는 앨범을 초반/재반/컬러반 등 별도
+  // 항목으로 새로 저장한다. upsertUserVinyl과 달리 기존 행을 확인하지
+  // 않고 항상 새 행을 만든다(insertUserVinylEdition).
+  const handleSaveEdition = async (editionLabel: string, price: number) => {
+    if (!user?.id || !album.STATUS) return;
+    setIsSavingEdition(true);
+    try {
+      await insertUserVinylEdition({
+        USER_ID: user.id,
+        ALBUM_ID: Number(album.ALBUM_ID),
+        STATUS: album.STATUS as 'OWNED' | 'WISH',
+        EDITION_LABEL: editionLabel || null,
+        PURCHASE_PRICE: price,
+        ...(album.STATUS === 'OWNED' ? { PURCHASE_DATE: new Date().toISOString() } : {}),
+        IS_PUBLIC: isPublic,
+      });
+      setEditionModalOpen(false);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.editionRegistered') } }));
+      window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+    } catch (e) {
+      console.error(e);
+      window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+    } finally {
+      setIsSavingEdition(false);
     }
   };
 
@@ -909,7 +940,14 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
             <div className={styles.eyebrow}>{album.RELEASE_YEAR || 'Unknown Year'} • LP</div>
             <h2 className={styles.title}>{album.TITLE}</h2>
             <h3 className={styles.artist}>{album.ARTIST}</h3>
-            
+
+            {album.EDITION_LABEL && (
+              <div className={styles.editionBadge}>
+                <span className="material-symbols-outlined">auto_awesome</span>
+                {album.EDITION_LABEL}
+              </div>
+            )}
+
             <div style={{ marginBottom: 24 }}>
               <div className={styles.estimatedValue} style={{ marginBottom: 4 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>monetization_on</span>
@@ -1215,15 +1253,21 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
           
           <div className={styles.actions}>
             {album.STATUS === 'OWNED' && (
-              <button 
-                className={styles.btnPrimary} 
-                style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f' }}
-                onClick={() => setConfirmTarget('OWNED')} 
-                disabled={isSaving}
-              >
-                <span className="material-symbols-outlined">delete</span>
-                {t('detail.removeFromCollection')}
-              </button>
+              <>
+                <button className={styles.btnSecondary} onClick={() => setEditionModalOpen(true)} disabled={isSaving}>
+                  <span className="material-symbols-outlined">library_add</span>
+                  {t('detail.registerAnotherEdition')}
+                </button>
+                <button
+                  className={styles.btnPrimary}
+                  style={{ backgroundColor: '#d32f2f', borderColor: '#d32f2f' }}
+                  onClick={() => setConfirmTarget('OWNED')}
+                  disabled={isSaving}
+                >
+                  <span className="material-symbols-outlined">delete</span>
+                  {t('detail.removeFromCollection')}
+                </button>
+              </>
             )}
 
             {album.STATUS === 'WISH' && (
@@ -1231,6 +1275,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                 <button className={styles.btnPrimary} onClick={handleAddToCollectionClick} disabled={isSaving}>
                   <span className="material-symbols-outlined">add</span>
                   {t('detail.addToCollection')}
+                </button>
+                <button className={styles.btnSecondary} onClick={() => setEditionModalOpen(true)} disabled={isSaving}>
+                  <span className="material-symbols-outlined">library_add</span>
+                  {t('detail.registerAnotherEdition')}
                 </button>
                 <button
                   className={styles.btnSecondary}
@@ -1355,6 +1403,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
             </div>
           </div>
         </div>
+      )}
+
+      {editionModalOpen && (
+        <EditionRegisterModal
+          onCancel={() => setEditionModalOpen(false)}
+          onConfirm={handleSaveEdition}
+          isBusy={isSavingEdition}
+          t={t}
+        />
       )}
 
       {/* 공유 이미지는 밖으로 나가는 화면 — '나만 보기' 개인 커버 대신 공유

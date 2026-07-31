@@ -115,9 +115,11 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
         if (vinyls && vinyls.length > 0) {
           const formatted: PublicVinyl[] = vinyls.map((v) => ({
             ...(v.ALBUM_MASTER || {}),
+            USER_VINYL_ID: v.USER_VINYL_ID,
             STATUS: v.STATUS,
             PURCHASE_PRICE: v.PURCHASE_PRICE,
-            PURCHASE_DATE: v.PURCHASE_DATE
+            PURCHASE_DATE: v.PURCHASE_DATE,
+            EDITION_LABEL: v.EDITION_LABEL
           }));
           setDbData(formatted);
         }
@@ -249,10 +251,16 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
 
       <div className={styles.grid}>
         {displayData.map(album => (
-          <div key={album.ALBUM_ID} className={styles.card} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
+          <div key={album.USER_VINYL_ID ?? album.ALBUM_ID} className={styles.card} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
             <div className={styles.coverWrapper}>
               <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={styles.cover} />
               {album.STATUS === 'WISH' && <div className={styles.wishBadge}>WISH</div>}
+              {album.EDITION_LABEL && (
+                <div className={styles.editionBadge}>
+                  <span className="material-symbols-outlined">auto_awesome</span>
+                  {album.EDITION_LABEL}
+                </div>
+              )}
             </div>
             <div className={styles.info}>
               <p className={styles.albumTitle}>{album.TITLE}</p>
