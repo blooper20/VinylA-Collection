@@ -4,7 +4,7 @@ import { MockVinylData } from '@vinyla/shared-types';
 import { SplatterForm } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import Image from 'next/image';
-import { EditionCoverArt, EditionSplatterMarks, editionDiscStyle } from '../Edition/EditionCoverArt';
+import { EditionCoverArt, EditionSplatterMarks, EditionMarbleOverlay, editionDiscStyle } from '../Edition/EditionCoverArt';
 
 interface AlbumCardProps {
   album: MockVinylData;
@@ -23,6 +23,12 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
             <EditionSplatterMarks
               color={album.EDITION_COLOR_ALT ?? null}
               form={(album.EDITION_SPLATTER_FORM as SplatterForm) ?? 'streak'}
+            />
+          )}
+          {album.EDITION_STYLE === 'marbled' && (
+            <EditionMarbleOverlay
+              color={album.EDITION_COLOR ?? '#ffffff'}
+              altColor={album.EDITION_COLOR_ALT ?? null}
             />
           )}
           <div className={styles.vinylLabel}>

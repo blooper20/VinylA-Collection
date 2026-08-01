@@ -13,7 +13,7 @@ import { MediaAttachPicker, EditMediaState } from './MediaAttachPicker';
 import { VisibilityToggle } from './VisibilityToggle';
 import { CoverCropModal } from './CoverCropModal';
 import { EditionRegisterModal, EditionDraft } from './EditionRegisterModal';
-import { EditionCoverArt, EditionSplatterMarks, editionDiscStyle } from '../Edition/EditionCoverArt';
+import { EditionCoverArt, EditionSplatterMarks, EditionMarbleOverlay, editionDiscStyle } from '../Edition/EditionCoverArt';
 import Image from 'next/image';
 
 interface DetailModalProps {
@@ -913,6 +913,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                   <EditionSplatterMarks
                     color={albumView.EDITION_COLOR_ALT ?? null}
                     form={(albumView.EDITION_SPLATTER_FORM as SplatterForm) ?? 'streak'}
+                  />
+                )}
+                {albumView.EDITION_STYLE === 'marbled' && (
+                  <EditionMarbleOverlay
+                    color={albumView.EDITION_COLOR ?? '#ffffff'}
+                    altColor={albumView.EDITION_COLOR_ALT ?? null}
                   />
                 )}
                 <div

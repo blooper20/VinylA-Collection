@@ -21,12 +21,12 @@ type EditionRow = {
 // SVG로 직접 그리면 물감마다 시작 반지름·길이·굵기·색을 다르게 줄 수 있다.
 // 형태별 파라미터: count(개수), r0(시작 반지름), len(길이), w(굵기), head(방울 머리 배율)
 const FORM_SPEC: Record<SplatterForm, { count: number; r0: [number, number]; len: [number, number]; w: [number, number]; head: number }> = {
-  // 촘촘하고 길게 뻗은 가는 줄기
-  streak: { count: 56, r0: [25, 34], len: [6, 23], w: [0.7, 1.5], head: 0 },
-  // 드문드문 떨어진 큰 물방울 — 바깥쪽에 둥근 머리, 안쪽으로 꼬리
-  drip: { count: 22, r0: [24, 33], len: [9, 20], w: [1.4, 2.8], head: 1.5 },
-  // 촘촘한 작은 점 + 짧은 꼬리
-  speck: { count: 52, r0: [26, 40], len: [2.5, 7], w: [1.3, 2.4], head: 1.4 },
+  // 촘촘하고 길게 뻗은 가는 줄기 (더 많고 더 길게)
+  streak: { count: 180, r0: [10, 25], len: [15, 34], w: [0.3, 0.8], head: 0 },
+  // 드문드문 떨어진 큰 물방울 (끝부분 물방울 머리 크기를 더 키워 물방울 느낌 강조)
+  drip: { count: 85, r0: [10, 24], len: [16, 28], w: [0.6, 1.4], head: 2.8 },
+  // 촘촘한 작은 점 (더 넓게 퍼진 느낌)
+  speck: { count: 80, r0: [15, 43], len: [1.5, 4], w: [0.8, 1.8], head: 2.2 },
 };
 
 type SplatterMark = { a: number; r0: number; r1: number; w: number; head: number; ci: number; o: number };
@@ -62,30 +62,70 @@ const MARKS: Record<SplatterForm, SplatterMark[]> = {
 
 /**
  * 스플래터 물감 오버레이 — 미니 칩과 상세 화면의 큰 디스크가 함께 쓴다.
- * color가 null이면 기본값인 "여러 색"(빨·주·노·초·파)이 섞여 튄 형태가 된다.
  */
 export const EditionSplatterMarks: React.FC<{
   color: string | null;
   form: SplatterForm;
 }> = ({ color, form }) => (
-  <svg className={styles.splatterSvg} viewBox="0 0 100 100" aria-hidden="true">
-    {MARKS[form].map((m, i) => {
-      const fill = color ?? SPLATTER_MULTI_PALETTE[m.ci];
-      // 바깥쪽이 넓어지는 꼬리 — 물감이 원심력으로 늘어난 모양
-      const wi = m.w * 0.16;
-      const wo = m.w * 0.5;
-      return (
-        <g key={i} transform={`rotate(${m.a} 50 50)`} opacity={m.o}>
-          <polygon
-            points={`${50 - wi},${50 - m.r0} ${50 + wi},${50 - m.r0} ${50 + wo},${50 - m.r1} ${50 - wo},${50 - m.r1}`}
-            fill={fill}
-          />
-          {m.head > 0 && <circle cx="50" cy={50 - m.r1} r={m.head * 0.5} fill={fill} />}
-        </g>
-      );
-    })}
+  <svg className={styles.splatterSvg} viewBox="0 0 100 100" aria-hidden="true" style={{ mixBlendMode: 'multiply' }}>
+    <defs>
+      <filter id={`gooey-${form}`}>
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.9" result="blur" />
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 14 -5" result="gooey" />
+        <feComposite in="SourceGraphic" in2="gooey" operator="atop" />
+      </filter>
+    </defs>
+    <g filter={`url(#gooey-${form})`}>
+      {MARKS[form].map((m, i) => {
+        const fill = color ?? SPLATTER_MULTI_PALETTE[m.ci];
+        // 바깥쪽이 넓어지는 꼬리 — 물감이 원심력으로 늘어난 모양
+        const wi = m.w * 0.16;
+        const wo = m.w * 0.6;
+        return (
+          <g key={i} transform={`rotate(${m.a} 50 50)`} opacity={m.o * 1.2}>
+            <polygon
+              points={`${50 - wi},${50 - m.r0} ${50 + wi},${50 - m.r0} ${50 + wo},${50 - m.r1} ${50 - wo},${50 - m.r1}`}
+              fill={fill}
+            />
+            {m.head > 0 && <circle cx="50" cy={50 - m.r1} r={m.head * 0.55} fill={fill} />}
+          </g>
+        );
+      })}
+    </g>
   </svg>
 );
+
+/**
+ * 마블(스모키) 텍스처 오버레이
+ */
+export const EditionMarbleOverlay: React.FC<{
+  color: string;
+  altColor?: string | null;
+}> = ({ color, altColor }) => {
+  const sw = altColor ?? `color-mix(in srgb, ${color} 55%, #fff)`;
+  return (
+    <>
+      <svg width="0" height="0" style={{ position: 'absolute' }}>
+        <filter id="marble-turbulence">
+          <feTurbulence type="fractalNoise" baseFrequency="0.015 0.035" numOctaves="4" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="14" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+      <div className={styles.splatterSvg} style={{ overflow: 'hidden', clipPath: 'circle(50% at 50% 50%)' }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: '-10%',
+            background: `conic-gradient(from 20deg at 50% 50%, ${sw} 0deg, transparent 45deg, ${sw} 110deg, transparent 160deg, ${sw} 200deg, transparent 250deg, ${sw} 300deg, transparent 350deg)`,
+            filter: 'url(#marble-turbulence)',
+            opacity: 0.85,
+            mixBlendMode: 'normal'
+          }}
+        />
+      </div>
+    </>
+  );
+};
 
 // 앨범 커버 위에 얹는 에디션 표현 — 재킷에 붙은 하이프 스티커만.
 //
@@ -180,22 +220,21 @@ export const editionDiscStyle = (
       color-mix(in srgb, ${c} 78%, #000) 4px
     )`;
   if (visual.style === 'clear') {
+    const clearGrooves = `repeating-radial-gradient(
+      color-mix(in srgb, ${c} 15%, transparent) 0px,
+      color-mix(in srgb, ${c} 15%, transparent) 2px,
+      color-mix(in srgb, #ffffff 30%, transparent) 3px,
+      color-mix(in srgb, ${c} 15%, transparent) 4px
+    )`;
     return {
-      background: `${grooves}, radial-gradient(circle at 32% 28%, rgba(255,255,255,0.35), transparent 60%), ${c}`,
-      opacity: 0.72,
+      background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65) 0%, transparent 55%), ${clearGrooves}, color-mix(in srgb, ${c} 25%, transparent)`,
+      backdropFilter: 'blur(6px) saturate(110%)',
+      boxShadow: 'inset 0 0 20px rgba(255,255,255,0.15)',
     };
   }
   if (visual.style === 'marbled') {
-    const sw = visual.altColor ?? `color-mix(in srgb, ${c} 55%, #fff)`;
     return {
-      background: `
-        conic-gradient(from 210deg at 42% 38%,
-          ${sw} 0deg,
-          ${c} 90deg,
-          color-mix(in srgb, ${c} 60%, #000) 180deg,
-          ${c} 270deg,
-          ${sw} 360deg),
-        ${grooves}, ${c}`,
+      background: `${grooves}, ${c}`,
     };
   }
   return { background: `${grooves}, ${c}` };
