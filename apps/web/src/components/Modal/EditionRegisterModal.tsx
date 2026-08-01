@@ -21,6 +21,7 @@ import styles from './EditionRegisterModal.module.css';
 export interface EditionDraft {
   label: string;
   price: number;
+  purchaseDate: string;
   color: string | null;
   /** 스플래터의 튄 색 / 마블의 섞인 색. null이면 스플래터는 "여러 색" */
   altColor: string | null;
@@ -85,6 +86,10 @@ export const EditionRegisterModal: React.FC<EditionRegisterModalProps> = ({
   const [tagText, setTagText] = React.useState(initial?.tagText ?? '');
   const [stickerStyle, setStickerStyle] = React.useState<StickerStyle>(initial?.stickerStyle ?? 'foil');
   const [priceInput, setPriceInput] = React.useState('');
+  const [purchaseDateInput, setPurchaseDateInput] = React.useState(() => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  });
   const [onCover, setOnCover] = React.useState(initial?.onCover ?? true);
   // 라벨은 두 카테고리 선택에서 자동으로 만들어주되, 유저가 한 번 직접 고치면
   // 그 뒤로는 건드리지 않는다.
@@ -152,6 +157,7 @@ export const EditionRegisterModal: React.FC<EditionRegisterModalProps> = ({
     onConfirm({
       label: trimmed,
       price: Number(priceInput.replace(/[^0-9]/g, '')) || 0,
+      purchaseDate: purchaseDateInput,
       color: isValidEditionColor(color) ? color : null,
       altColor: showAltColor && isValidEditionColor(altColor) ? altColor : null,
       style,
@@ -424,6 +430,19 @@ export const EditionRegisterModal: React.FC<EditionRegisterModalProps> = ({
               value={priceInput}
               onChange={(e) => setPriceInput(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder={t('detail.pricePlaceholder')}
+              className={styles.textInput}
+              disabled={isBusy}
+            />
+          </div>
+        )}
+
+        {!isEdit && (
+          <div className={styles.field}>
+            <label className={styles.fieldLabel}>{t('detail.purchaseDateFieldLabel')}</label>
+            <input
+              type="date"
+              value={purchaseDateInput}
+              onChange={(e) => setPurchaseDateInput(e.target.value)}
               className={styles.textInput}
               disabled={isBusy}
             />

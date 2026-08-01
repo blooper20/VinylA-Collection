@@ -338,6 +338,79 @@ const fetchAladinResults = async (
   }
 };
 
+// ── On-demand cover candidates for an already-saved album ──────────────────
+// coverCandidates on a search result only lives in that session's React
+// state — reopening an owned album later (from the collection/wishlist grid,
+// not from a fresh search) always starts with none, so "앨범 재킷 변경" could
+// only ever offer "현재 커버 + 직접 촬영". This re-derives the same
+// Apple Music / Aladin / Discogs trio the search-time enrichment computes,
+// but as a single best-match lookup for one known artist/title instead of
+// scoring a whole result page.
+export const fetchCoverCandidates = async (
+  artist: string,
+  title: string
+): Promise<{ appleMusic?: string; aladin?: string; discogs?: string } | undefined> => {
+  const cleanArtist = cleanArtistName(artist);
+  const cleanTitle = title.split(' / ')[0].split('(')[0].trim();
+  const query = `${cleanArtist} ${cleanTitle}`;
+
+  let appleMusicCover: string | undefined;
+  try {
+    const itRes = await axios.get('https://itunes.apple.com/search', {
+      params: { term: query, entity: 'album', limit: 5, country: 'KR' }
+    });
+    const itResults: ITunesResult[] = itRes.data.results || [];
+    const qArtist = cleanArtist.toLowerCase();
+    const qTitle = cleanTitle.toLowerCase();
+    const hit = itResults.find((item) => {
+      const itemArtist = item.artistName?.toLowerCase() || '';
+      const itemTitle = item.collectionName?.toLowerCase() || '';
+      const artistMatch = itemArtist.includes(qArtist) || qArtist.includes(itemArtist);
+      const titleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
+      return (artistMatch && (titleMatch || itResults.length === 1)) ||
+        (isVariousArtistsName(item.artistName) && titleMatch);
+    }) ?? null;
+    if (hit?.artworkUrl100) appleMusicCover = hit.artworkUrl100.replace('100x100bb', '600x600bb');
+  } catch { /* ignore */ }
+
+  let aladinCover: string | undefined;
+  try {
+    const aladinMatches = await fetchAladinResults(query, { requireLP: false });
+    const match = aladinMatches.find((a) => {
+      const { artist: aArtist } = parseDiscogsTitle(a.title || '');
+      const aArtistLower = aArtist.toLowerCase();
+      const cArtistLower = cleanArtist.toLowerCase();
+      return aArtistLower.includes(cArtistLower) || cArtistLower.includes(aArtistLower);
+    });
+    const rawAladinCover = match?.cover_image || match?.thumb || '';
+    if (rawAladinCover && !rawAladinCover.includes('spacer.gif')) aladinCover = rawAladinCover;
+  } catch { /* ignore */ }
+
+  let discogsCover: string | undefined;
+  try {
+    const res = await axios.get(`${getProxyBaseUrl()}/api/external/discogs-search`, {
+      params: { q: query, format: 'vinyl' }
+    });
+    const results: DiscogsRelease[] = res.data?.results || [];
+    const match = results.find((d) => {
+      if (!isAlbumFormat(d.format || [])) return false;
+      const { artist: dArtist } = parseDiscogsTitle(d.title || '');
+      const dArtistLower = dArtist.toLowerCase();
+      const cArtistLower = cleanArtist.toLowerCase();
+      return dArtistLower.includes(cArtistLower) || cArtistLower.includes(dArtistLower);
+    });
+    const rawDiscogsCover = match?.cover_image || match?.thumb || '';
+    if (rawDiscogsCover && !rawDiscogsCover.includes('spacer.gif')) discogsCover = rawDiscogsCover;
+  } catch { /* ignore */ }
+
+  const candidates = {
+    ...(appleMusicCover ? { appleMusic: appleMusicCover } : {}),
+    ...(aladinCover ? { aladin: aladinCover } : {}),
+    ...(discogsCover ? { discogs: discogsCover } : {}),
+  };
+  return Object.keys(candidates).length > 0 ? candidates : undefined;
+};
+
 // ── Deezer: keyless fallback when the free iTunes Search API misses ────────
 // Apple-Music-exclusive albums (streaming-only, never sold on the iTunes
 // Store) are invisible to itunes.apple.com/search even with country=KR —

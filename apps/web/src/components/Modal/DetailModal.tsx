@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import styles from './DetailModal.module.css';
 import { MockVinylData, USER_VINYL, AlbumTrack } from '@vinyla/shared-types';
-import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, insertUserVinylEdition, useAuthStore, getAlbumExtraDetails, deleteUserVinyl, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, getDiscogsReleaseVersions, updateUserVinylReleaseId, updateUserVinylEdition, EditionStyle, SplatterForm, EditionTagKey, StickerStyle, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters } from '@vinyla/core-api';
+import { searchYouTube, getAlbumMaster, createAlbumMaster, upsertUserVinyl, insertUserVinylEdition, useAuthStore, getAlbumExtraDetails, deleteUserVinyl, getErrorMessage, uploadUserCover, setUserVinylCover, updateAlbumMasterImage, revertAlbumMasterCover, logSpin, uploadSpinLogMedia, getDiscogsReleaseVersions, updateUserVinylReleaseId, updateUserVinylEdition, EditionStyle, SplatterForm, EditionTagKey, StickerStyle, DiscogsReleaseVersion, getCustomPressingsForAlbum, getCustomPressingById, createCustomPressing, updateCustomPressing, deleteCustomPressing, selectCustomPressing, CustomPressing, communityAlbumHasOtherAdopters, fetchCoverCandidates } from '@vinyla/core-api';
 import Link from 'next/link';
 import { useLocale } from '@vinyla/i18n';
 import { StoryTemplate } from '../Share/StoryTemplate';
@@ -111,11 +111,12 @@ const SpinLogModal: React.FC<{
 const CoverPickerModal: React.FC<{
   candidates?: { appleMusic?: string; aladin?: string; discogs?: string };
   currentUrl: string;
+  isSearchingMore?: boolean;
   onSelect: (url: string) => void;
   onTakePhoto: () => void;
   onCancel: () => void;
   t: ReturnType<typeof useLocale>['t'];
-}> = ({ candidates, currentUrl, onSelect, onTakePhoto, onCancel, t }) => {
+}> = ({ candidates, currentUrl, isSearchingMore, onSelect, onTakePhoto, onCancel, t }) => {
   const sourceOptions = ([
     ['appleMusic', candidates?.appleMusic, t('detail.coverPickAppleMusic')],
     ['aladin', candidates?.aladin, t('detail.coverPickAladin')],
@@ -134,7 +135,9 @@ const CoverPickerModal: React.FC<{
     <div className={styles.cropOverlay} onClick={onCancel}>
       <div className={styles.cropModal} onClick={(e) => e.stopPropagation()}>
         <h3 className={styles.cropTitle}>{t('detail.coverPickLabel')}</h3>
-        <p className={styles.cropHint}>{t('detail.coverPickHint')}</p>
+        <p className={styles.cropHint}>
+          {isSearchingMore ? t('detail.coverPickSearching') : t('detail.coverPickHint')}
+        </p>
         <div className={styles.coverPickGrid}>
           {options.map(([key, url, label]) => (
             <button
@@ -167,7 +170,7 @@ const CoverPickerModal: React.FC<{
 
 export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverCandidates }) => {
   const { user } = useAuthStore();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [tracks, setTracks] = React.useState<AlbumTrack[]>([]);
   const [isLoadingTracks, setIsLoadingTracks] = React.useState<boolean>(true);
   // true일 때만 "정확한 실물반" 트랙(사이드 포함) — false면 디지털 소스
@@ -203,6 +206,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   // open) — see handleAddToCollection/handleAddToWish below. Also reachable
   // via the "앨범 재킷 변경" button on an already-saved album.
   const [coverPickerOpen, setCoverPickerOpen] = React.useState(false);
+  // coverCandidates 프롭은 검색 세션에서만 채워진다 — 이미 보관함/위시에
+  // 있는 앨범을 다시 열었을 때는 항상 비어 있으므로, "앨범 재킷 변경"을
+  // 누르는 시점에 Apple Music/알라딘/Discogs를 다시 조회해 채운다.
+  const [liveCoverCandidates, setLiveCoverCandidates] = React.useState<{ appleMusic?: string; aladin?: string; discogs?: string } | undefined>(undefined);
+  const [isSearchingCoverCandidates, setIsSearchingCoverCandidates] = React.useState(false);
   // What to do once the user resolves the picker (pick a candidate or take a
   // photo) — only set while a fresh (never-saved) album's save is pending.
   const [pendingSaveAction, setPendingSaveAction] = React.useState<'price-prompt' | 'wish' | null>(null);
@@ -219,6 +227,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   const [editionOverride, setEditionOverride] = React.useState<Partial<MockVinylData> | null>(null);
   const [isSavingEdition, setIsSavingEdition] = React.useState(false);
   const [purchasePriceInput, setPurchasePriceInput] = React.useState('');
+  const [purchaseDateInput, setPurchaseDateInput] = React.useState('');
   const [marketPrice, setMarketPrice] = React.useState<number | null>(album.MARKET_PRICE || null);
   const [isPublic, setIsPublic] = React.useState<boolean>(album.IS_PUBLIC !== false);
   // 커뮤니티 등록 앨범 전용: 등록자 본인이고, 아직 다른 유저가 담지 않았을
@@ -255,6 +264,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
     } finally {
       setIsSubmittingSpin(false);
     }
+  };
+
+  // <input type="date"> 값(YYYY-MM-DD, 로컬 기준)으로 오늘 날짜를 반환한다.
+  const todayDateInputValue = () => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   };
 
   const coverFileRef = React.useRef<HTMLInputElement>(null);
@@ -319,8 +334,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         // CUSTOM_IMAGE_URL)에 실려서 함께 생성되도록 넘긴다.
         const action = pendingSaveAction;
         setPendingSaveAction(null);
-        if (action === 'price-prompt') setPricePromptOpen(true);
-        else handleSave('WISH');
+        if (action === 'price-prompt') {
+          setPurchaseDateInput(todayDateInputValue());
+          setPricePromptOpen(true);
+        } else handleSave('WISH');
       } else if (album.USER_VINYL_ID) {
         // 항상 '나만 보기'로 먼저 적용 — 전체 공개는 아래 토글에서 명시적으로.
         await setUserVinylCover(Number(album.USER_VINYL_ID), url);
@@ -658,7 +675,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
 
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const handleSave = async (status: 'OWNED' | 'WISH', price: number = 0, publicOverride?: boolean) => {
+  const handleSave = async (status: 'OWNED' | 'WISH', price: number = 0, publicOverride?: boolean, purchaseDateOverride?: string) => {
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
         // Strip any leftover country tags from old saves
@@ -731,7 +748,9 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         ...(customPressingId ? { CUSTOM_PRESSING_ID: customPressingId } : {})
       };
 
-      if (status === 'OWNED' && album.STATUS !== 'OWNED') {
+      if (purchaseDateOverride) {
+        payloadData.PURCHASE_DATE = purchaseDateOverride;
+      } else if (status === 'OWNED' && album.STATUS !== 'OWNED') {
         payloadData.PURCHASE_DATE = new Date().toISOString();
       }
 
@@ -777,6 +796,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
       setPendingSaveAction('price-prompt');
       setCoverPickerOpen(true);
     } else {
+      setPurchaseDateInput(todayDateInputValue());
       setPricePromptOpen(true);
     }
   };
@@ -791,9 +811,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   };
 
   // "앨범 재킷 변경" 버튼 — 대체 커버 후보가 없어도(대부분의 이미 소장한
-  // 앨범) "직접 촬영" 하나만 있는 채로 항상 통합 모달을 띄운다.
+  // 앨범) "직접 촬영" 하나만 있는 채로 항상 통합 모달을 띄우고, 검색
+  // 세션에서 물려받은 coverCandidates가 없으면 이 시점에 Apple Music/
+  // 알라딘/Discogs를 다시 조회해 후보를 채운다(한 모달 세션에 한 번만).
   const handleChangeJacketClick = () => {
     setCoverPickerOpen(true);
+    if (!coverCandidates && !liveCoverCandidates && !isSearchingCoverCandidates && album.ARTIST && album.TITLE) {
+      setIsSearchingCoverCandidates(true);
+      fetchCoverCandidates(album.ARTIST, album.TITLE)
+        .then((result) => setLiveCoverCandidates(result))
+        .catch(() => {})
+        .finally(() => setIsSearchingCoverCandidates(false));
+    }
   };
 
   const handleDelete = async (target: 'OWNED' | 'WISH') => {
@@ -843,7 +872,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         EDITION_STICKER_STYLE: draft.stickerStyle,
         EDITION_ON_COVER: draft.onCover,
         PURCHASE_PRICE: draft.price,
-        ...(album.STATUS === 'OWNED' ? { PURCHASE_DATE: new Date().toISOString() } : {}),
+        ...(album.STATUS === 'OWNED' ? { PURCHASE_DATE: draft.purchaseDate || new Date().toISOString() } : {}),
         IS_PUBLIC: isPublic,
       });
       setEditionModalOpen(false);
@@ -1040,12 +1069,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                   className={styles.editPriceBtn}
                   onClick={() => {
                     setPurchasePriceInput(album.PURCHASE_PRICE ? String(album.PURCHASE_PRICE) : '');
+                    setPurchaseDateInput(album.PURCHASE_DATE ? String(album.PURCHASE_DATE).slice(0, 10) : todayDateInputValue());
                     setPricePromptOpen(true);
                   }}
                   title={t('detail.editPriceTitle')}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                 </button>
+              </div>
+            ) : null}
+            {album.STATUS === 'OWNED' && album.PURCHASE_DATE ? (
+              <div className={styles.actualValue} style={{ marginTop: 2 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>calendar_month</span>
+                {t('detail.purchaseDate')} {new Date(album.PURCHASE_DATE).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR')}
               </div>
             ) : null}
 
@@ -1464,11 +1500,21 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
               className={styles.priceInput}
               autoFocus
             />
+            <label style={{ display: 'block', textAlign: 'left', fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginTop: '-16px', marginBottom: '6px' }}>
+              {t('detail.purchaseDateFieldLabel')}
+            </label>
+            <input
+              type="date"
+              value={purchaseDateInput}
+              onChange={(e) => setPurchaseDateInput(e.target.value)}
+              max={todayDateInputValue()}
+              className={styles.priceInput}
+            />
             <div className={styles.confirmActions}>
               <button
                 className={styles.btnCancel}
                 onClick={() => {
-                  handleSave('OWNED', 0);
+                  handleSave('OWNED', 0, undefined, purchaseDateInput || undefined);
                   setPricePromptOpen(false);
                 }}
                 disabled={isSaving}
@@ -1480,7 +1526,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                 style={{ flex: 1, padding: '12px' }}
                 onClick={() => {
                   const price = Number(purchasePriceInput) || 0;
-                  handleSave('OWNED', price);
+                  handleSave('OWNED', price, undefined, purchaseDateInput || undefined);
                   setPricePromptOpen(false);
                 }}
                 disabled={isSaving}
@@ -1596,13 +1642,30 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
 
       {coverPickerOpen && (
         <CoverPickerModal
-          candidates={coverCandidates}
+          candidates={coverCandidates ?? liveCoverCandidates}
           currentUrl={coverUrl}
-          onSelect={(url) => {
+          isSearchingMore={isSearchingCoverCandidates}
+          onSelect={async (url) => {
             setCoverUrl(url);
             setCoverPickerOpen(false);
-            if (pendingSaveAction === 'price-prompt') setPricePromptOpen(true);
-            else if (pendingSaveAction === 'wish') handleSave('WISH');
+            if (pendingSaveAction === 'price-prompt') {
+              setPurchaseDateInput(todayDateInputValue());
+              setPricePromptOpen(true);
+            } else if (pendingSaveAction === 'wish') {
+              handleSave('WISH');
+            } else if (album.USER_VINYL_ID) {
+              // "앨범 재킷 변경"으로 이미 보관함/위시에 있는 항목의 커버를
+              // 바꾼 경우 — 직접 촬영 플로우(handleCropConfirm)와 동일하게
+              // USER_VINYL.CUSTOM_IMAGE_URL에 반영한다.
+              try {
+                await setUserVinylCover(Number(album.USER_VINYL_ID), url);
+                setMyPhoto(url);
+                window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: t('detail.coverPhotoSaved') } }));
+                window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
+              } catch (e) {
+                window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: getErrorMessage(e, t) } }));
+              }
+            }
             setPendingSaveAction(null);
           }}
           onTakePhoto={() => {
