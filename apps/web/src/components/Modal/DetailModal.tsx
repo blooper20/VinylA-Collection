@@ -1519,12 +1519,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
               <button
                 className={styles.btnCancel}
                 onClick={() => {
+                  if (album.USER_VINYL_ID) {
+                    // 이미 보관함에 있는 항목의 가격/구입일을 "수정"하러 연
+                    // 모달이라, 여기서 닫는 건 취소여야 한다 — 아래 fresh-save
+                    // 분기처럼 0원으로 덮어써 저장해버리면 기존 값이 지워진다.
+                    setPricePromptOpen(false);
+                    return;
+                  }
                   handleSave('OWNED', 0, undefined, purchaseDateInput || undefined);
                   setPricePromptOpen(false);
                 }}
                 disabled={isSaving}
               >
-                {t('detail.skip')}
+                {album.USER_VINYL_ID ? t('common.cancel') : t('detail.skip')}
               </button>
               <button
                 className={styles.btnPrimary}
