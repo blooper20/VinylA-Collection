@@ -135,9 +135,14 @@ const CoverPickerModal: React.FC<{
     <div className={styles.cropOverlay} onClick={onCancel}>
       <div className={styles.cropModal} onClick={(e) => e.stopPropagation()}>
         <h3 className={styles.cropTitle}>{t('detail.coverPickLabel')}</h3>
-        <p className={styles.cropHint}>
-          {isSearchingMore ? t('detail.coverPickSearching') : t('detail.coverPickHint')}
-        </p>
+        {isSearchingMore ? (
+          <div className={styles.cropHintRow}>
+            <span className={styles.miniSpinner} />
+            <p className={styles.cropHint}>{t('detail.coverPickSearching')}</p>
+          </div>
+        ) : (
+          <p className={styles.cropHint}>{t('detail.coverPickHint')}</p>
+        )}
         <div className={styles.coverPickGrid}>
           {options.map(([key, url, label]) => (
             <button
