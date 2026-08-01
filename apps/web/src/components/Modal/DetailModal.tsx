@@ -658,7 +658,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
 
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const handleSave = async (status: 'OWNED' | 'WISH', price: number = 0) => {
+  const handleSave = async (status: 'OWNED' | 'WISH', price: number = 0, publicOverride?: boolean) => {
     try {
       const finalGenres = (album.GENRES || []).filter(g => {
         // Strip any leftover country tags from old saves
@@ -723,7 +723,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         ...(isPersonalPhoto ? { CUSTOM_IMAGE_URL: coverUrl } : {}),
         STATUS: status,
         PURCHASE_PRICE: price,
-        IS_PUBLIC: isPublic,
+        IS_PUBLIC: publicOverride ?? isPublic,
         // 검색 결과가 특정 프레싱(release)과 매칭됐을 때만 — 기존에 저장된
         // 앨범을 다시 저장(가격 수정 등)할 때는 이미 잡혀 있는 release id를
         // 실수로 지우지 않도록 값이 있을 때만 보낸다.
@@ -1396,7 +1396,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
               <div style={{ marginTop: '16px' }}>
                 <VisibilityToggle value={isPublic} onChange={(val) => {
                   setIsPublic(val);
-                  handleSave(album.STATUS as 'OWNED'|'WISH', album.PURCHASE_PRICE || 0);
+                  handleSave(album.STATUS as 'OWNED'|'WISH', album.PURCHASE_PRICE || 0, val);
                 }} disabled={isSaving} t={t} />
               </div>
             )}

@@ -18,6 +18,7 @@ type SelectedAlbum = {
   RELEASE_YEAR: number | string;
   GENRES?: string[];
   STATUS?: 'OWNED' | 'WISH' | 'NONE';
+  USER_VINYL_ID?: number;
   coverCandidates?: { appleMusic?: string; aladin?: string; discogs?: string };
   // The specific Discogs release this search hit matched — lets the
   // tracklist fetch use this exact pressing's real tracks/sides instead of
@@ -587,6 +588,7 @@ export default function SearchPage() {
                     RELEASE_YEAR: a.year,
                     GENRES: a.genre,
                     STATUS: existing ? existing.STATUS : undefined,
+                    USER_VINYL_ID: existing?.USER_VINYL_ID,
                     coverCandidates: a.coverCandidates,
                     DISCOGS_RELEASE_ID: a.releaseId
                   });
@@ -649,6 +651,7 @@ export default function SearchPage() {
                       RELEASE_YEAR: a.year,
                       GENRES: a.genre,
                       STATUS: existing ? existing.STATUS : undefined,
+                      USER_VINYL_ID: existing?.USER_VINYL_ID,
                       coverCandidates: a.coverCandidates
                     });
                   }}
