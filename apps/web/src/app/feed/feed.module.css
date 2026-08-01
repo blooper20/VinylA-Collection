@@ -122,6 +122,24 @@
   overflow-x: auto;
   padding-bottom: 8px;
   scrollbar-width: thin;
+  scrollbar-color: var(--border-mid) transparent;
+}
+
+.matchesRail::-webkit-scrollbar {
+  height: 4px;
+}
+
+.matchesRail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.matchesRail::-webkit-scrollbar-thumb {
+  background: var(--border-mid);
+  border-radius: 2px;
+}
+
+.matchesRail::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 .matchCard {

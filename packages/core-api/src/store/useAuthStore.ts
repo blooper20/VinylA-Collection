@@ -109,6 +109,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
       set({ user: activeUser, isLoading: false });
+      // SIGNED_IN만으로는 이 기능 출시 이전부터 로그인 상태를 유지 중인
+      // 유저(세션 복원 = INITIAL_SESSION)의 COUNTRY_CODE가 영영 채워지지
+      // 않는다 — 앱 로드 시 세션 복원 시점에도 한 번 캡처해준다.
+      if (activeUser && session?.access_token) captureCountry(session.access_token);
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
         let newUser = session?.user ?? null;
@@ -189,6 +193,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
           throw new AppError('DB-001', '프로필 저장에 실패했습니다.', profileError);
         }
+
+        // 최초 가입자는 로그인 시점엔 PROFILES 행이 아직 없어 geo capture의
+        // upsert가 DISPLAY_NAME NOT NULL 제약에 걸려 실패한다 — 행이 막 생긴
+        // 지금(=DISPLAY_NAME 확보됨) 다시 한번 캡처를 시도해 채워준다.
+        if (session.access_token) captureCountry(session.access_token);
       }
 
       const updateData: any = { displayName, interests };
@@ -254,6 +263,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
           throw new AppError('DB-001', '프로필 저장에 실패했습니다.', profileError);
         }
+
+        // 최초 가입자는 로그인 시점엔 PROFILES 행이 아직 없어 geo capture의
+        // upsert가 DISPLAY_NAME NOT NULL 제약에 걸려 실패한다 — 행이 막 생긴
+        // 지금(=DISPLAY_NAME 확보됨) 다시 한번 캡처를 시도해 채워준다.
+        if (session.access_token) captureCountry(session.access_token);
       }
 
       let avatarUrl = undefined;
