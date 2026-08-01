@@ -631,7 +631,7 @@ export default function MyProfilePage() {
             className={`${styles.tabButton} ${timelineTab === 'saved' ? styles.tabButtonActive : ''}`}
             onClick={() => setTimelineTab('saved')}
           >
-            저장된 콘텐츠
+            {t('my.savedContentTab')}
           </button>
         </div>
 
@@ -642,7 +642,7 @@ export default function MyProfilePage() {
                 <div className={styles.timelineDot} />
                 <img src={item.COVER_URL || item.IMAGE_URL} alt={item.TITLE} className={styles.timelineImage} />
                 <div className={styles.timelineText}>
-                  <span className={styles.timelineDate}>Recently Added</span>
+                  <span className={styles.timelineDate}>{t('my.recentlyAdded')}</span>
                   <div className={styles.timelineTitle}>{item.TITLE}</div>
                   <div className={styles.timelineDesc}>{item.ARTIST}</div>
                 </div>
@@ -656,13 +656,13 @@ export default function MyProfilePage() {
                 <div className={styles.timelineDot} />
                 <img src={item.log.ALBUM_MASTER?.IMAGE_URL} alt={item.log.ALBUM_MASTER?.TITLE} className={styles.timelineImage} />
                 <div className={styles.timelineText}>
-                  <span className={styles.timelineDate}>{new Date(item.SAVED_AT).toLocaleDateString()}</span>
+                  <span className={styles.timelineDate}>{new Date(item.SAVED_AT).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR')}</span>
                   <div className={styles.timelineTitle}>{item.log.ALBUM_MASTER?.TITLE}</div>
-                  <div className={styles.timelineDesc}>{item.OWNER_NAME}님의 다이어리</div>
+                  <div className={styles.timelineDesc}>{t('my.savedDiaryOwner', { name: item.OWNER_NAME || 'Collector' })}</div>
                 </div>
               </div>
             )) : (
-              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>저장된 다이어리가 없습니다.</p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 24, marginTop: 16 }}>{t('my.noSavedDiary')}</p>
             )
           )}
         </div>
