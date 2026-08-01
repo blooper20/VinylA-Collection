@@ -16,8 +16,25 @@ import {
 } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { VinylSocialModal } from '../../components/Modal/VinylSocialModal';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 const PAGE_SIZE = 30;
+
+// 각 피드 항목마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에
+// 인라인으로 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진
+// 이미지 아이콘 대신, 이미 있던 "커버 없음" 아이콘 폴백을 그대로 재사용한다.
+const FeedItemCover: React.FC<{ imageUrl?: string; title?: string }> = ({ imageUrl, title }) => {
+  const displayCoverUrl = useCoverImageUrl(imageUrl, '');
+  if (!displayCoverUrl) {
+    return (
+      <div className={styles.feedCoverFallback}>
+        <span className="material-symbols-outlined">album</span>
+      </div>
+    );
+  }
+  /* eslint-disable-next-line @next/next/no-img-element */
+  return <img className={styles.feedCover} src={displayCoverUrl} alt={title} />;
+};
 
 export default function DiscoveryFeedPage() {
   const { t } = useLocale();
@@ -198,14 +215,7 @@ export default function DiscoveryFeedPage() {
                     style={{ cursor: 'pointer' }}
                   >
                     <div style={{ position: 'relative' }}>
-                      {item.ALBUM?.IMAGE_URL ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img className={styles.feedCover} src={item.ALBUM.IMAGE_URL} alt={item.ALBUM.TITLE} />
-                      ) : (
-                        <div className={styles.feedCoverFallback}>
-                          <span className="material-symbols-outlined">album</span>
-                        </div>
-                      )}
+                      <FeedItemCover imageUrl={item.ALBUM?.IMAGE_URL} title={item.ALBUM?.TITLE} />
                       {item.STATUS === 'WISH' && (
                         <span className={styles.wishBadge}>WISH</span>
                       )}

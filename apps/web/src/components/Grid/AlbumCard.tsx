@@ -5,6 +5,7 @@ import { SplatterForm } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import Image from 'next/image';
 import { EditionCoverArt, EditionSplatterMarks, EditionMarbleOverlay, editionDiscStyle } from '../Edition/EditionCoverArt';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 interface AlbumCardProps {
   album: MockVinylData;
@@ -13,12 +14,15 @@ interface AlbumCardProps {
 
 export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
   const { t } = useLocale();
+  // 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘 대신 프록시 재시도 후
+  // 기존 컨벤션과 동일한 picsum 플레이스홀더로 대체한다.
+  const displayCoverUrl = useCoverImageUrl(album.IMAGE_URL, `https://picsum.photos/seed/${album.ALBUM_ID}/400/400`);
   return (
     <div className={styles.card} onClick={() => onClick(album)}>
       {/* Vinyl disc behind — 호버하면 커버 뒤에서 밀려 나온다. 에디션 정보가
           있으면 이 판이 실제로 그 실물의 색·무늬를 갖는다(제네릭 검은 판 대신). */}
       <div className={styles.vinylWrapper}>
-        <div className={styles.vinyl} style={editionDiscStyle(album, album.IMAGE_URL)}>
+        <div className={styles.vinyl} style={editionDiscStyle(album, displayCoverUrl)}>
           {album.EDITION_STYLE === 'splatter' && (
             <EditionSplatterMarks
               color={album.EDITION_COLOR_ALT ?? null}
@@ -40,7 +44,7 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
       {/* Album cover */}
       <div className={styles.cover}>
         <Image
-          src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/400/400`}
+          src={displayCoverUrl}
           alt={album.TITLE}
           className={styles.coverImage}
           width={400}

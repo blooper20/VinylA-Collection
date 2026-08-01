@@ -5,6 +5,7 @@ import styles from './RandomPickModal.module.css';
 import { useAuthStore, getLastPlayedMap, pickWeightedRandomAlbum } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 // 뽑는 연출이 너무 순식간에 끝나지 않도록 최소 대기 시간을 둔다 — 실제
 // getLastPlayedMap 조회 시간과 병렬로 흘러가므로 체감상 추가 지연은 거의 없다.
@@ -25,6 +26,7 @@ export const RandomPickModal: React.FC<{
   const [picked, setPicked] = React.useState<MockVinylData | null>(null);
   const [flipped, setFlipped] = React.useState(false);
   const [isRevealing, setIsRevealing] = React.useState(false);
+  const displayCoverUrl = useCoverImageUrl(picked?.IMAGE_URL, '/logo_real_transparent.png');
 
   const runPick = React.useCallback(async () => {
     if (albums.length === 0) return;
@@ -78,7 +80,7 @@ export const RandomPickModal: React.FC<{
                 <div className={`${styles.flipFace} ${styles.flipFront}`}>
                   {picked && (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img className={styles.flipFrontImage} src={picked.IMAGE_URL} alt={picked.TITLE} />
+                    <img className={styles.flipFrontImage} src={displayCoverUrl} alt={picked.TITLE} />
                   )}
                 </div>
               </div>

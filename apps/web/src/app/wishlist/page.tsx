@@ -12,10 +12,59 @@ import { useLocale } from '@vinyla/i18n';
 import styles from './page.module.css';
 import { PageTabs } from '../../components/Navigation/PageTabs';
 import { EditionCoverArt, EditionTag } from '../../components/Edition/EditionCoverArt';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 type ViewMode = 'grid4' | 'grid6' | 'table';
 type SortMode = 'latest' | 'oldest' | 'alpha' | 'year';
 type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
+
+// 행/카드마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에 인라인으로
+// 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘
+// 대신 프록시 재시도 후 플레이스홀더로 대체한다.
+const WishlistGridCard: React.FC<{ rec: FrontendVinyl; onClick: () => void }> = ({ rec, onClick }) => {
+  const displayCoverUrl = useCoverImageUrl(rec.IMAGE_URL || rec.COVER_URL, '/logo_real_transparent.png');
+  return (
+    <div className={styles.card} onClick={onClick}>
+      <div className={styles.coverWrapper}>
+        <img src={displayCoverUrl} alt={rec.TITLE} className={styles.cover} loading="lazy" />
+        <div className={styles.coverOverlay}>
+          <span className="material-symbols-outlined">zoom_in</span>
+        </div>
+        <EditionCoverArt album={rec} size="sm" />
+        {rec.EDITION_LABEL && !rec.EDITION_ON_COVER && (
+          <div className={styles.editionBadge}>
+            <span className="material-symbols-outlined">auto_awesome</span>
+            {rec.EDITION_LABEL}
+          </div>
+        )}
+      </div>
+      <div className={styles.info}>
+        <h2 className={styles.albumTitle}>{rec.TITLE}</h2>
+        <p className={styles.albumArtist}>{rec.ARTIST} <span className={styles.dot}>•</span> {rec.RELEASE_YEAR}</p>
+      </div>
+    </div>
+  );
+};
+
+const WishlistTableRow: React.FC<{ rec: FrontendVinyl; onClick: () => void }> = ({ rec, onClick }) => {
+  const displayCoverUrl = useCoverImageUrl(rec.IMAGE_URL || rec.COVER_URL, '/logo_real_transparent.png');
+  return (
+    <tr className={styles.tableRow} onClick={onClick}>
+      <td className={styles.tdCover}>
+        <div className={styles.tableCoverBox}>
+          <img src={displayCoverUrl} alt={rec.TITLE} className={styles.tableThumb} />
+        </div>
+      </td>
+      <td className={styles.tdTitle}>{rec.TITLE}</td>
+      <td className={styles.tdArtist}>{rec.ARTIST}</td>
+      <td className={styles.tdYear}>{rec.RELEASE_YEAR || '—'}</td>
+      <td className={styles.tdTags}>
+        <EditionTag album={rec} className={styles.editionTag} />
+        {(rec.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
+      </td>
+    </tr>
+  );
+};
 
 export default function WishlistPage() {
   const [selectedAlbum, setSelectedAlbum] = useState<FrontendVinyl | null>(null);
@@ -146,25 +195,7 @@ export default function WishlistPage() {
       ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {sorted.map(rec => (
-            <div key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} className={styles.card} onClick={() => setSelectedAlbum(rec)}>
-              <div className={styles.coverWrapper}>
-                <img src={rec.IMAGE_URL || rec.COVER_URL} alt={rec.TITLE} className={styles.cover} loading="lazy" />
-                <div className={styles.coverOverlay}>
-                  <span className="material-symbols-outlined">zoom_in</span>
-                </div>
-                <EditionCoverArt album={rec} size="sm" />
-                {rec.EDITION_LABEL && !rec.EDITION_ON_COVER && (
-                  <div className={styles.editionBadge}>
-                    <span className="material-symbols-outlined">auto_awesome</span>
-                    {rec.EDITION_LABEL}
-                  </div>
-                )}
-              </div>
-              <div className={styles.info}>
-                <h2 className={styles.albumTitle}>{rec.TITLE}</h2>
-                <p className={styles.albumArtist}>{rec.ARTIST} <span className={styles.dot}>•</span> {rec.RELEASE_YEAR}</p>
-              </div>
-            </div>
+            <WishlistGridCard key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} rec={rec} onClick={() => setSelectedAlbum(rec)} />
           ))}
         </div>
       ) : (
@@ -181,20 +212,7 @@ export default function WishlistPage() {
             </thead>
             <tbody>
               {sorted.map(rec => (
-                <tr key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(rec)}>
-                  <td className={styles.tdCover}>
-                    <div className={styles.tableCoverBox}>
-                      <img src={rec.IMAGE_URL || rec.COVER_URL} alt={rec.TITLE} className={styles.tableThumb} />
-                    </div>
-                  </td>
-                  <td className={styles.tdTitle}>{rec.TITLE}</td>
-                  <td className={styles.tdArtist}>{rec.ARTIST}</td>
-                  <td className={styles.tdYear}>{rec.RELEASE_YEAR || '—'}</td>
-                  <td className={styles.tdTags}>
-                    <EditionTag album={rec} className={styles.editionTag} />
-                    {(rec.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
-                  </td>
-                </tr>
+                <WishlistTableRow key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} rec={rec} onClick={() => setSelectedAlbum(rec)} />
               ))}
             </tbody>
           </table>

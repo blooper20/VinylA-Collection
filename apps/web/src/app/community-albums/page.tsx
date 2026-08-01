@@ -6,7 +6,18 @@ import { getCommunityAlbums, CommunityAlbum, useAuthStore, getUserVinyls } from 
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { DetailModal } from '../../components/Modal/DetailModal';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 import styles from './page.module.css';
+
+// 카드마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에 인라인으로
+// 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘
+// 대신 이미 있던 "커버 없음" 플레이스홀더를 그대로 재사용한다.
+const CommunityAlbumCover: React.FC<{ src?: string | null }> = ({ src }) => {
+  const displayCoverUrl = useCoverImageUrl(src, '');
+  if (!displayCoverUrl) return <div className={styles.coverPlaceholder} />;
+  /* eslint-disable-next-line @next/next/no-img-element */
+  return <img src={displayCoverUrl} alt="" className={styles.cover} />;
+};
 
 // Discogs 카탈로그에 없어 유저가 직접 등록한 앨범들을 모아 보여주는 위키형
 // 목록 — 메인 Discogs 검색과는 완전히 분리된 화면이다(메인 검색 매칭 로직은
@@ -86,12 +97,7 @@ export default function CommunityAlbumsPage() {
       <div className={styles.grid}>
         {albums.map((a) => (
           <button key={a.ALBUM_ID} type="button" className={styles.card} onClick={() => setSelected(a)}>
-            {a.IMAGE_URL ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={a.IMAGE_URL} alt="" className={styles.cover} />
-            ) : (
-              <div className={styles.coverPlaceholder} />
-            )}
+            <CommunityAlbumCover src={a.IMAGE_URL} />
             <div className={styles.cardTitle}>{a.TITLE}</div>
             <div className={styles.cardArtist}>{a.ARTIST}</div>
             {a.submitterName && (

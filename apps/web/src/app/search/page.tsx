@@ -7,6 +7,7 @@ import { createDiscogsSearchSession, DiscogsSearchSession, AlbumItem, SearchStat
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData, USER_VINYL } from '@vinyla/shared-types';
 import { DetailModal } from '../../components/Modal/DetailModal';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 import styles from './page.module.css';
 
 // 검색 결과(AlbumItem)에서 DetailModal로 넘기는 앨범 형태
@@ -91,6 +92,7 @@ function SkeletonCard() {
 
 // ─── Result card with entrance animation ─────────────────────────────────────
 function AlbumCard({ item, onSelect }: { item: AlbumItem; onSelect: (item: AlbumItem) => void }) {
+  const displayThumb = useCoverImageUrl(item.thumb, '/logo_real_transparent.png');
   return (
     <div
       className={`${styles.masonryItem} ${styles.albumCardIn}`}
@@ -98,7 +100,7 @@ function AlbumCard({ item, onSelect }: { item: AlbumItem; onSelect: (item: Album
       style={{ cursor: 'pointer' }}
     >
       <img
-        src={item.thumb || '/logo_real_transparent.png'}
+        src={displayThumb}
         alt={item.title}
         className={styles.genreImage}
         style={{ 

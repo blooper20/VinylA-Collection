@@ -18,6 +18,7 @@ import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
 import styles from './VinylGrid.module.css';
 import { PageTabs } from '../Navigation/PageTabs';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 type FilterType = 'ALL' | 'OWNED' | 'WISH';
 type ViewMode = 'grid4' | 'grid6' | 'table';
@@ -56,6 +57,7 @@ function SortableAlbumRow({ album, t }: {
   t: ReturnType<typeof useLocale>['t'];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: album.USER_VINYL_ID! });
+  const displayCoverUrl = useCoverImageUrl(album.IMAGE_URL, `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`);
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -69,7 +71,39 @@ function SortableAlbumRow({ album, t }: {
       </td>
       <td className={styles.tdCover}>
         <div className={styles.tableCoverBox}>
-          <img src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`} alt={album.TITLE} className={styles.tableThumb} />
+          <img src={displayCoverUrl} alt={album.TITLE} className={styles.tableThumb} />
+        </div>
+      </td>
+      <td className={styles.tdTitle}>{album.TITLE}</td>
+      <td className={styles.tdArtist}>{album.ARTIST}</td>
+      <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
+      <td className={styles.tdTags}>
+        <EditionTag album={album} className={styles.editionTag} />
+        {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
+      </td>
+      <td className={styles.tdStatus}>
+        <span className={album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}>
+          {album.STATUS === 'OWNED' ? t('collection.statusOwned') : t('collection.statusWish')}
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+// 순서 편집 모드가 아닐 때의 일반 테이블 행 — 드래그가 없어 SortableAlbumRow와
+// 별개 컴포넌트지만, 행마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백
+// 안에 인라인으로 두지 않고 따로 뺐다.
+function PlainAlbumRow({ album, t, onClick }: {
+  album: VinylItem;
+  t: ReturnType<typeof useLocale>['t'];
+  onClick: () => void;
+}) {
+  const displayCoverUrl = useCoverImageUrl(album.IMAGE_URL, `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`);
+  return (
+    <tr className={styles.tableRow} onClick={onClick}>
+      <td className={styles.tdCover}>
+        <div className={styles.tableCoverBox}>
+          <img src={displayCoverUrl} alt={album.TITLE} className={styles.tableThumb} />
         </div>
       </td>
       <td className={styles.tdTitle}>{album.TITLE}</td>
@@ -420,25 +454,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
             </thead>
             <tbody>
               {displayedAlbums.map(album => (
-                <tr key={album.USER_VINYL_ID ?? album.ALBUM_ID} className={styles.tableRow} onClick={() => setSelectedAlbum(album)}>
-                  <td className={styles.tdCover}>
-                    <div className={styles.tableCoverBox}>
-                      <img src={album.IMAGE_URL || `https://picsum.photos/seed/${album.ALBUM_ID}/60/60`} alt={album.TITLE} className={styles.tableThumb} />
-                    </div>
-                  </td>
-                  <td className={styles.tdTitle}>{album.TITLE}</td>
-                  <td className={styles.tdArtist}>{album.ARTIST}</td>
-                  <td className={styles.tdYear}>{album.RELEASE_YEAR || '—'}</td>
-                  <td className={styles.tdTags}>
-                    <EditionTag album={album} className={styles.editionTag} />
-        {(album.GENRES || []).slice(0, 3).map((g: string) => <span key={g} className={styles.tableTag}>{g}</span>)}
-                  </td>
-                  <td className={styles.tdStatus}>
-                    <span className={album.STATUS === 'OWNED' ? styles.statusOwned : styles.statusWish}>
-                      {album.STATUS === 'OWNED' ? t('collection.statusOwned') : t('collection.statusWish')}
-                    </span>
-                  </td>
-                </tr>
+                <PlainAlbumRow key={album.USER_VINYL_ID ?? album.ALBUM_ID} album={album} t={t} onClick={() => setSelectedAlbum(album)} />
               ))}
             </tbody>
           </table>

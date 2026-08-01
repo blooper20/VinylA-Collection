@@ -7,6 +7,7 @@ import { MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../Modal/DetailModal';
 import { FollowListModal } from '../Modal/FollowListModal';
 import { EditionCoverArt } from '../Edition/EditionCoverArt';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 type PublicVinyl = MockVinylData & { COVER_URL?: string };
 
@@ -16,6 +17,32 @@ interface PublicGridProps {
   initialAvatar?: string;
   filterType?: 'collection' | 'wishlist';
 }
+
+// 행마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에 인라인으로
+// 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘
+// 대신 프록시 재시도 후 플레이스홀더로 대체한다.
+const PublicGridCard: React.FC<{ album: PublicVinyl; onClick: () => void }> = ({ album, onClick }) => {
+  const displayCoverUrl = useCoverImageUrl(album.COVER_URL || album.IMAGE_URL, '/logo_real_transparent.png');
+  return (
+    <div className={styles.card} onClick={onClick} style={{ cursor: 'pointer' }}>
+      <div className={styles.coverWrapper}>
+        <img src={displayCoverUrl} alt={album.TITLE} className={styles.cover} />
+        {album.STATUS === 'WISH' && <div className={styles.wishBadge}>WISH</div>}
+        <EditionCoverArt album={album} size="sm" />
+        {album.EDITION_LABEL && !album.EDITION_ON_COVER && (
+          <div className={styles.editionBadge}>
+            <span className="material-symbols-outlined">auto_awesome</span>
+            {album.EDITION_LABEL}
+          </div>
+        )}
+      </div>
+      <div className={styles.info}>
+        <p className={styles.albumTitle}>{album.TITLE}</p>
+        <p className={styles.albumArtist}>{album.ARTIST}</p>
+      </div>
+    </div>
+  );
+};
 
 export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'Collector', initialAvatar = '/logo.png', filterType = 'collection' }) => {
   const [dbData, setDbData] = useState<PublicVinyl[]>([]);
@@ -255,23 +282,7 @@ export const PublicGrid: React.FC<PublicGridProps> = ({ userId, initialName = 'C
 
       <div className={styles.grid}>
         {displayData.map(album => (
-          <div key={album.USER_VINYL_ID ?? album.ALBUM_ID} className={styles.card} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
-            <div className={styles.coverWrapper}>
-              <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={styles.cover} />
-              {album.STATUS === 'WISH' && <div className={styles.wishBadge}>WISH</div>}
-              <EditionCoverArt album={album} size="sm" />
-              {album.EDITION_LABEL && !album.EDITION_ON_COVER && (
-                <div className={styles.editionBadge}>
-                  <span className="material-symbols-outlined">auto_awesome</span>
-                  {album.EDITION_LABEL}
-                </div>
-              )}
-            </div>
-            <div className={styles.info}>
-              <p className={styles.albumTitle}>{album.TITLE}</p>
-              <p className={styles.albumArtist}>{album.ARTIST}</p>
-            </div>
-          </div>
+          <PublicGridCard key={album.USER_VINYL_ID ?? album.ALBUM_ID} album={album} onClick={() => handleAlbumClick(album)} />
         ))}
       </div>
 

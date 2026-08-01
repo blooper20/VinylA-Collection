@@ -9,6 +9,15 @@ import { MediaAttachPicker, EditMediaState } from '../../components/Modal/MediaA
 import { VisibilityToggle } from '../../components/Modal/VisibilityToggle';
 import { SpinSocialModal } from '../../components/Modal/SpinSocialModal';
 import { SpinSocialActions } from '../../components/SpinSocialActions';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
+
+// 목록 항목마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에 인라인으로
+// 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘
+// 대신 프록시 재시도 후 플레이스홀더로 대체한다.
+const LogCoverImg: React.FC<{ src?: string; alt?: string; className: string }> = ({ src, alt, className }) => {
+  const displayCoverUrl = useCoverImageUrl(src, '/logo_real_transparent.png');
+  return <img src={displayCoverUrl} alt={alt} className={className} />;
+};
 
 const PAGE_SIZE = 20;
 const MOOD_PRESETS = ['🤩', '🙂', '😌', '😐', '😢'] as const;
@@ -216,7 +225,7 @@ export default function ListeningLogPage() {
             <section key={g.albumId} className={styles.albumGroup}>
               <div className={styles.albumGroupHeader}>
                 {g.album && (
-                  <img src={g.album.IMAGE_URL} alt={g.album.TITLE} className={styles.albumGroupCover} />
+                  <LogCoverImg src={g.album.IMAGE_URL} alt={g.album.TITLE} className={styles.albumGroupCover} />
                 )}
                 <div className={styles.albumGroupInfo}>
                   <div className={styles.timelineTitle}>{g.album?.TITLE || '(삭제된 앨범)'}</div>
@@ -282,7 +291,7 @@ export default function ListeningLogPage() {
                     >
                       <div className={styles.timelineDot} />
                       {album && (
-                        <img
+                        <LogCoverImg
                           src={album.IMAGE_URL}
                           alt={album.TITLE}
                           className={styles.timelineImage}

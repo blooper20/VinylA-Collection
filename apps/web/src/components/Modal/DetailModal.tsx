@@ -15,6 +15,7 @@ import { CoverCropModal } from './CoverCropModal';
 import { EditionRegisterModal, EditionDraft } from './EditionRegisterModal';
 import { EditionCoverArt, EditionSplatterMarks, EditionMarbleOverlay, editionDiscStyle } from '../Edition/EditionCoverArt';
 import Image from 'next/image';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 interface DetailModalProps {
   album: MockVinylData;
@@ -101,6 +102,16 @@ const SpinLogModal: React.FC<{
   );
 };
 
+// 후보 타일마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에
+// 인라인으로 두지 않고 따로 뺐다 — 방금 재조회한 후보 URL이 순간 실패해도
+// 깨진 이미지 아이콘 대신 폴백을 보여준다. onSelect에 넘어가는 건 항상
+// 이 컴포넌트 바깥의 원본 url이라 저장 로직엔 영향 없다.
+const CoverPickCardImage: React.FC<{ url: string; label: string }> = ({ url, label }) => {
+  const displayUrl = useCoverImageUrl(url, '/logo_real_transparent.png');
+  // eslint-disable-next-line jsx-a11y/alt-text -- alt is passed as `label` via props, not a literal
+  return <img src={displayUrl} alt={label} className={styles.coverPickCardImage} />;
+};
+
 // Shown once, right when the user chooses to save a fresh (never-saved)
 // album — lets them pick which cover to save it with (Apple Music / Aladin /
 // Discogs, whichever the search actually found) or shoot their own jacket
@@ -151,8 +162,7 @@ const CoverPickerModal: React.FC<{
               className={`${styles.coverPickCard} ${currentUrl === url ? styles.coverPickCardActive : ''}`}
               onClick={() => onSelect(url)}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={label} className={styles.coverPickCardImage} />
+              <CoverPickCardImage url={url} label={label} />
               <span className={styles.coverPickCardCaption}>{label}</span>
             </button>
           ))}
@@ -207,6 +217,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   const [copyright, setCopyright] = React.useState<string>('');
   const [releaseDate, setReleaseDate] = React.useState<string>('');
   const [coverUrl, setCoverUrl] = React.useState<string>(album.IMAGE_URL || '');
+  // 화면 표시 전용 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘 대신
+  // 프록시 재시도 후 플레이스홀더로 대체한다. 저장/비교 로직은 반드시
+  // 원본 coverUrl을 써야 하므로(잘못하면 프록시/플레이스홀더 URL이 그대로
+  // DB에 저장될 수 있다) 절대 coverUrl 자체를 이 값으로 바꿔치기하지 않는다.
+  const displayCoverUrl = useCoverImageUrl(coverUrl, `https://picsum.photos/seed/${album.ALBUM_ID}/800/800`);
   // Shown when the user actually chooses to save a fresh album (not on every
   // open) — see handleAddToCollection/handleAddToWish below. Also reachable
   // via the "앨범 재킷 변경" button on an already-saved album.
@@ -942,7 +957,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
             <div className={styles.coverContainer}>
               {/* 이 실물이 컬러반이면 슬리브에서 나오는 디스크가 실제로 그 색을
                   갖는다 — 커버에 뭘 덧붙이는 게 아니라 실물 그대로의 표현 */}
-              <div className={styles.vinyl} style={editionDiscStyle(albumView, coverUrl)}>
+              <div className={styles.vinyl} style={editionDiscStyle(albumView, displayCoverUrl)}>
                 {albumView.EDITION_STYLE === 'splatter' && (
                   <EditionSplatterMarks
                     color={albumView.EDITION_COLOR_ALT ?? null}
@@ -957,11 +972,11 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                 )}
                 <div
                   className={styles.vinylLabel}
-                  style={{ backgroundImage: `url(${coverUrl})` }}
+                  style={{ backgroundImage: `url(${displayCoverUrl})` }}
                 />
               </div>
               <div className={styles.cover}>
-                <Image src={coverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
+                <Image src={displayCoverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
                 <EditionCoverArt album={albumView} size="lg" />
               </div>
             </div>

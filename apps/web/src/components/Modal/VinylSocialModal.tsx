@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { copyToClipboard } from '../../utils/shareUtils';
 import { ReportModal } from './ReportModal';
 import { DetailModal } from './DetailModal';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 const profileHref = (id: string, name?: string | null, currentUser?: any) => {
   if (currentUser && currentUser.id === id) {
@@ -63,6 +64,7 @@ export const VinylSocialModal: React.FC<VinylSocialModalProps> = ({ entry, owner
 
   const id = entry.USER_VINYL_ID;
   const album = entry.ALBUM;
+  const displayAlbumCoverUrl = useCoverImageUrl(album?.IMAGE_URL, '/logo_real_transparent.png');
 
   const showNotice = (msg: string) => {
     setNotice(msg);
@@ -300,7 +302,7 @@ export const VinylSocialModal: React.FC<VinylSocialModalProps> = ({ entry, owner
         >
           {album && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={album.IMAGE_URL} alt={album.TITLE} style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+            <img src={displayAlbumCoverUrl} alt={album.TITLE} style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
           )}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

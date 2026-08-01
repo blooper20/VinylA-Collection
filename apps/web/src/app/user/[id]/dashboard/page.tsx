@@ -11,9 +11,18 @@ import { SpinSocialModal } from '../../../../components/Modal/SpinSocialModal';
 import { SpinSocialActions } from '../../../../components/SpinSocialActions';
 import styles from '../../../my/page.module.css';
 import dashStyles from './dashboard.module.css';
+import { useCoverImageUrl } from '../../../../hooks/useCoverImageUrl';
 
 type TabType = 'timeline' | 'collection' | 'wishlist' | 'diary';
 type VinylItem = ReturnType<typeof mapToFrontendModel>;
+
+// 목록 항목마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에 인라인으로
+// 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘
+// 대신 프록시 재시도 후 플레이스홀더로 대체한다.
+const DashboardCoverImg: React.FC<{ src?: string; alt?: string; className: string }> = ({ src, alt, className }) => {
+  const displayCoverUrl = useCoverImageUrl(src, '/logo_real_transparent.png');
+  return <img src={displayCoverUrl} alt={alt} className={className} />;
+};
 
 function PublicDashboardContent() {
   const params = useParams();
@@ -353,7 +362,7 @@ function PublicDashboardContent() {
                 </div>
               ) : featuredAlbum ? (
                 <>
-                  <img src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
+                  <DashboardCoverImg src={featuredAlbum.COVER_URL || featuredAlbum.IMAGE_URL} alt={featuredAlbum.TITLE} className={styles.featuredCover} />
                   {featuredAlbum.STATUS === 'WISH' && (
                     <div className={styles.featuredWishBadge}>WISH</div>
                   )}
@@ -408,7 +417,7 @@ function PublicDashboardContent() {
             {recentAdditions.length > 0 ? recentAdditions.map((item, i) => (
               <div key={i} className={styles.timelineItem}>
                 <div className={styles.timelineDot} />
-                <img src={item.COVER_URL || item.IMAGE_URL} alt={item.TITLE} className={styles.timelineImage} />
+                <DashboardCoverImg src={item.COVER_URL || item.IMAGE_URL} alt={item.TITLE} className={styles.timelineImage} />
                 <div className={styles.timelineText}>
                   <span className={styles.timelineDate}>Recently Added</span>
                   <div className={styles.timelineTitle}>{item.TITLE}</div>
@@ -426,7 +435,7 @@ function PublicDashboardContent() {
           <div className={dashStyles.albumGrid}>
             {ownedAlbums.length > 0 ? ownedAlbums.map((album, i) => (
               <div key={i} className={dashStyles.albumCard} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
-                <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
+                <DashboardCoverImg src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
                 <p className={dashStyles.albumTitle}>{album.TITLE}</p>
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
               </div>
@@ -453,7 +462,7 @@ function PublicDashboardContent() {
                 >
                   <div className={styles.timelineDot} />
                   {entry.ALBUM_MASTER && (
-                    <img src={entry.ALBUM_MASTER.IMAGE_URL} alt={entry.ALBUM_MASTER.TITLE} className={styles.timelineImage} />
+                    <DashboardCoverImg src={entry.ALBUM_MASTER.IMAGE_URL} alt={entry.ALBUM_MASTER.TITLE} className={styles.timelineImage} />
                   )}
                   <div className={styles.timelineText}>
                     <span className={styles.timelineDate}>
@@ -494,7 +503,7 @@ function PublicDashboardContent() {
           <div className={dashStyles.albumGrid}>
             {wishAlbums.length > 0 ? wishAlbums.map((album, i) => (
               <div key={i} className={dashStyles.albumCard} onClick={() => handleAlbumClick(album)} style={{ cursor: 'pointer' }}>
-                <img src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
+                <DashboardCoverImg src={album.COVER_URL || album.IMAGE_URL} alt={album.TITLE} className={dashStyles.albumCover} />
                 <p className={dashStyles.albumTitle}>{album.TITLE}</p>
                 <p className={dashStyles.albumArtist}>{album.ARTIST}</p>
               </div>

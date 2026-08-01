@@ -16,6 +16,7 @@ import {
   styleUsesAltColor,
 } from '@vinyla/core-api';
 import { EditionCoverArt } from '../Edition/EditionCoverArt';
+import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 import styles from './EditionRegisterModal.module.css';
 
 export interface EditionDraft {
@@ -94,6 +95,7 @@ export const EditionRegisterModal: React.FC<EditionRegisterModalProps> = ({
   // 라벨은 두 카테고리 선택에서 자동으로 만들어주되, 유저가 한 번 직접 고치면
   // 그 뒤로는 건드리지 않는다.
   const [labelDirty, setLabelDirty] = React.useState(!!initial?.label);
+  const displayCoverUrl = useCoverImageUrl(coverUrl, '/logo_real_transparent.png');
 
   const discKindKey = DISC_KINDS.find((k) => k.style === style)?.key ?? null;
 
@@ -209,7 +211,7 @@ export const EditionRegisterModal: React.FC<EditionRegisterModalProps> = ({
           <div className={styles.previewStage}>
             {coverUrl && (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={coverUrl} alt="" className={styles.previewCover} />
+              <img src={displayCoverUrl} alt="" className={styles.previewCover} />
             )}
             <EditionCoverArt album={previewAlbum} size="md" />
           </div>
