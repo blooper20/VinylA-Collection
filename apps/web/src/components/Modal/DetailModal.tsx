@@ -1076,7 +1076,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
           <div className={styles.tracklistContainer}>
             <div className={styles.tracklistHeader} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
               <span>Tracklist</span>
-              {(!album.SOURCE || album.SOURCE === 'DISCOGS') && (
+              {true && (
                 <button
                   type="button"
                   onClick={openPressingPicker}

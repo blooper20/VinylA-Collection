@@ -41,7 +41,8 @@ export default function CommunityAlbumsPage() {
   }, [user?.id]);
 
   const toDetailAlbum = (a: CommunityAlbum): MockVinylData => {
-    const existing = userVinyls.find((v) => v.ALBUM_ID === a.ALBUM_ID);
+    const numericId = Number(a.ALBUM_ID);
+    const existing = userVinyls.find((v) => Number(v.ALBUM_ID) === numericId);
     return {
       ALBUM_ID: a.ALBUM_ID,
       TITLE: a.TITLE,

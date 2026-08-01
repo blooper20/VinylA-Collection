@@ -1121,7 +1121,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
               <View style={styles.tracklist}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.tracklistHeader}>Tracklist</Text>
-                  {(!(album as any)?.SOURCE || (album as any).SOURCE === 'DISCOGS') && (
+                  {true && (
                     <TouchableOpacity onPress={openPressingPicker}>
                       <Text style={{ color: '#888', fontSize: 12, textDecorationLine: 'underline' }}>
                         {t('mobile.detail.choosePressing')}
