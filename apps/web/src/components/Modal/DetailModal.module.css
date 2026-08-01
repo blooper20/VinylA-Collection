@@ -563,11 +563,25 @@
   font-size: 16px;
   margin-bottom: 24px;
   text-align: center;
+  /* type="date"만 해당 — 브라우저 기본 달력 팝업을 다크 테마로 렌더링한다.
+     이게 없으면 아이콘/팝업이 라이트 테마(밝은 배경+검은 아이콘)로 뜨면서
+     이 모달의 어두운 배경 위에 거의 안 보인다. */
+  color-scheme: dark;
 }
 
 .priceInput:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.priceInput::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 4px;
+  filter: invert(70%) sepia(50%) saturate(500%) hue-rotate(358deg) brightness(1.05);
+}
+
+.priceInput::-webkit-calendar-picker-indicator:hover {
+  filter: invert(80%) sepia(60%) saturate(600%) hue-rotate(358deg) brightness(1.15);
 }
 
 .editPriceBtn {
