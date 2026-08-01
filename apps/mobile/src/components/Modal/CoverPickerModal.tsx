@@ -1,7 +1,8 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, Image } from 'react-native';
+import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useLocale } from '@vinyla/i18n';
+import { CoverImage } from '../CoverImage';
 
 interface CoverPickerModalProps {
   visible: boolean;
@@ -58,7 +59,7 @@ export const CoverPickerModal = ({ visible, candidates, currentUrl, onSelect, on
                   borderColor: currentUrl === url ? '#fff' : 'transparent',
                 }}
               >
-                <Image source={{ uri: url }} style={{ width: 96, height: 96, borderRadius: 8 }} resizeMode="cover" />
+                <CoverImage uri={url} fallback={require('../../../assets/logo_real_transparent.png')} style={{ width: 96, height: 96, borderRadius: 8 }} resizeMode="cover" />
                 <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11 }}>{label}</Text>
               </TouchableOpacity>
             ))}

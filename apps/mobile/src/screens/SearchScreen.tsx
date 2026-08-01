@@ -1,10 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, ImageBackground, PanResponder, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { createDiscogsSearchSession, DiscogsSearchSession, SearchStatus, SearchMode, AlbumItem } from '@vinyla/core-api';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { ErrorState } from '../components/ErrorState';
+import { CoverImage } from '../components/CoverImage';
 import { MockVinylData } from '@vinyla/shared-types';
 import { useLocale } from '@vinyla/i18n';
 
@@ -306,9 +307,10 @@ export const SearchScreen = ({ route }: any) => {
               <View style={styles.resultsGrid}>
                 {results.map(album => (
                   <TouchableOpacity key={album.ALBUM_ID} style={styles.resultCard} onPress={() => setSelectedAlbum(album)}>
-                    <Image 
-                      source={album.IMAGE_URL ? { uri: album.IMAGE_URL } : require('../../assets/logo_real_transparent.png')} 
-                      style={[styles.resultCover, !album.IMAGE_URL && { padding: 16, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]} 
+                    <CoverImage
+                      uri={album.IMAGE_URL}
+                      fallback={require('../../assets/logo_real_transparent.png')}
+                      style={[styles.resultCover, !album.IMAGE_URL && { padding: 16, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]}
                       resizeMode={album.IMAGE_URL ? "cover" : "contain"}
                     />
                     <View style={styles.resultInfo}>

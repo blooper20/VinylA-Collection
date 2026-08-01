@@ -19,6 +19,7 @@ import { CoverPickerModal } from './CoverPickerModal';
 import { EditionRegisterSheet, EditionDraft } from './EditionRegisterSheet';
 import { EditionCoverArt, EditionSplatterMarks, editionDiscTint } from '../Edition/EditionCoverArt';
 import { shareToInstagramStory } from '../../utils/nativeShare';
+import { CoverImage } from '../CoverImage';
 
 interface DetailModalProps {
   album: MockVinylData | null;
@@ -106,6 +107,12 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   const [deletingPressing, setDeletingPressing] = React.useState<CustomPressing | null>(null);
   const [isDeletingPressing, setIsDeletingPressing] = React.useState(false);
   const [realStatus, setRealStatus] = React.useState<string | null>(null);
+  // album prop은 검색 결과를 다시 열었을 때 USER_VINYL_ID가 안 실려 있을 수
+  // 있다 — 아래 useEffect의 getUserVinyls 조회로 찾아낸 실제 값을 여기
+  // 담아두고, 커버 저장/삭제/에디션 수정 등 모든 영속화 로직은 album.USER_VINYL_ID
+  // 대신 이 값을 써야 한다(그렇지 않으면 이미 소장 중인 앨범을 검색으로 다시
+  // 열었을 때 커버 변경이 조용히 무시된다).
+  const [resolvedUserVinylId, setResolvedUserVinylId] = React.useState<number | undefined>(undefined);
   // 스피닝 다이어리 작성 (웹 SpinLogModal 파리티 — 기분+메모+미디어+공개여부)
   const [isSpinModalOpen, setIsSpinModalOpen] = React.useState(false);
 
@@ -201,6 +208,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
       
       // DB에서 이 앨범의 실제 상태(OWNED/WISH/없음)를 확인
       setRealStatus(album.STATUS || null);
+      setResolvedUserVinylId(album.USER_VINYL_ID ? Number(album.USER_VINYL_ID) : undefined);
       if (!album.STATUS && user?.id) {
         getUserVinyls(user.id).then((vinyls: any[]) => {
           const found = vinyls.find((v: any) => v.ALBUM_ID === album.ALBUM_ID);
@@ -209,6 +217,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
             setShareTag(found.STATUS);
             setPurchasePrice(found.PURCHASE_PRICE || null);
             setMyPhoto(found.CUSTOM_IMAGE_URL || null);
+            setResolvedUserVinylId(found.USER_VINYL_ID ? Number(found.USER_VINYL_ID) : undefined);
           }
         }).catch(() => {});
       }
@@ -483,8 +492,8 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
         const action = pendingSaveAction;
         setPendingSaveAction(null);
         proceedWithSave(action);
-      } else if (album.USER_VINYL_ID) {
-        await setUserVinylCover(Number(album.USER_VINYL_ID), url);
+      } else if (resolvedUserVinylId) {
+        await setUserVinylCover(resolvedUserVinylId, url);
         setMyPhoto(url);
         showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverPhotoSaved') || '커버 사진이 저장되었습니다.');
       }
@@ -544,12 +553,12 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   };
 
   const handleUseOriginalCover = async () => {
-    if (!user?.id || !myPhoto || isUploadingCover || !album || !album.USER_VINYL_ID) return;
+    if (!user?.id || !myPhoto || isUploadingCover || !album || !resolvedUserVinylId) return;
     setIsUploadingCover(true);
     try {
       const numericAlbumId = Number(album.ALBUM_ID);
       const restored = await restoreCatalogCover(numericAlbumId);
-      await setUserVinylCover(Number(album.USER_VINYL_ID), null);
+      await setUserVinylCover(resolvedUserVinylId, null);
       setMyPhoto(null);
       if (restored) {
         setMasterImage(restored);
@@ -838,13 +847,13 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
 
   const handleDelete = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!album || !album.USER_VINYL_ID) return;
+    if (!album || !resolvedUserVinylId) return;
     if (!user) {
       showAlert(t('common.error'), t('detail.loginRequired'));
       return;
     }
     try {
-      await deleteUserVinyl(Number(album.USER_VINYL_ID));
+      await deleteUserVinyl(resolvedUserVinylId);
       setRealStatus('NONE');
       setShareTag('NONE');
       showAlert(t('mobile.detail.successTitle'), t('mobile.detail.deletedFromCollection'), () => {
@@ -858,7 +867,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
 
   React.useEffect(() => {
     setEditionOverride(null);
-  }, [album?.USER_VINYL_ID]);
+  }, [resolvedUserVinylId]);
 
   // "또 등록" — 이미 소장/위시에 있는 앨범을 초반/재반/컬러반 등 별도
   // 항목으로 새로 저장한다. upsertUserVinyl과 달리 기존 행을 확인하지
@@ -895,10 +904,10 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   // 기존 항목의 에디션 정보 수정 — 예전에 그냥 저장해둔 앨범에 "그린반" 같은
   // 정보를 나중에 붙이거나 색/표시 여부를 바꾼다. 라벨을 비우면 표시가 사라진다.
   const handleUpdateEdition = async (draft: EditionDraft) => {
-    if (!album?.USER_VINYL_ID) return;
+    if (!resolvedUserVinylId) return;
     setIsSavingEdition(true);
     try {
-      await updateUserVinylEdition(Number(album.USER_VINYL_ID), {
+      await updateUserVinylEdition(resolvedUserVinylId, {
         EDITION_LABEL: draft.label || null,
         EDITION_COLOR: draft.color,
         EDITION_COLOR_ALT: draft.altColor,
@@ -1002,16 +1011,18 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
                 {/* 스플래터반이면 이 판 위에 튄 물감이 그대로 얹힌다 */}
                 <EditionSplatterMarks album={albumView} size={width * 0.55 * 0.96} />
                 <View style={[styles.vinylLabel, { backgroundColor: album.CUSTOM_COLOR_HEX || '#222' }]}>
-                  <Image
-                    source={(myPhoto || coverUrl) ? { uri: myPhoto || coverUrl } : require('../../../assets/logo_real_transparent.png')}
+                  <CoverImage
+                    uri={myPhoto || coverUrl}
+                    fallback={require('../../../assets/logo_real_transparent.png')}
                     style={StyleSheet.absoluteFill}
                     resizeMode={(myPhoto || coverUrl) ? "cover" : "contain"}
                   />
                   <View style={styles.vinylHole} />
                 </View>
               </Animated.View>
-              <Image
-                source={(myPhoto || coverUrl) ? { uri: myPhoto || coverUrl } : require('../../../assets/logo_real_transparent.png')}
+              <CoverImage
+                uri={myPhoto || coverUrl}
+                fallback={require('../../../assets/logo_real_transparent.png')}
                 style={[styles.cover, !(myPhoto || coverUrl) && { padding: 40, backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }]}
                 resizeMode={(myPhoto || coverUrl) ? "cover" : "contain"}
               />
@@ -1438,7 +1449,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
                 >
                   <Text style={styles.btnOutlineText}>{t('detail.registerAnotherEdition')}</Text>
                 </AnimatedButton>
-                {album.USER_VINYL_ID ? (
+                {resolvedUserVinylId ? (
                   <AnimatedButton
                     style={[styles.btnOutline, { flex: 1 }]}
                     onPress={() => setEditionEditOpen(true)}
@@ -1599,13 +1610,25 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
           visible={coverPickerOpen}
           candidates={coverCandidates}
           currentUrl={coverUrl}
-          onSelect={(url) => {
+          onSelect={async (url) => {
             setCoverUrl(url);
             setCoverPickerOpen(false);
             if (pendingSaveAction) {
               const action = pendingSaveAction;
               setPendingSaveAction(null);
               proceedWithSave(action);
+            } else if (resolvedUserVinylId) {
+              // "앨범 재킷 변경"으로 이미 보관함/위시에 있는 항목의 커버를
+              // 바꾼 경우 — handleCropConfirm(직접 촬영)과 동일하게
+              // USER_VINYL.CUSTOM_IMAGE_URL에 반영한다.
+              try {
+                await setUserVinylCover(resolvedUserVinylId, url);
+                setMyPhoto(url);
+                showAlert(t('mobile.detail.successTitle') || 'Success', t('detail.coverPhotoSaved') || '커버 사진이 저장되었습니다.');
+              } catch (e) {
+                console.error('cover select save failed', e);
+                showAlert(t('common.error'), getErrorMessage(e, t));
+              }
             }
           }}
           onTakePhoto={() => {
