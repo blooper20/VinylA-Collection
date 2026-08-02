@@ -1082,9 +1082,17 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
               </div>
             </div>
             {album.STATUS === 'OWNED' ? (
-              <div className={styles.actualValue}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>receipt_long</span>
-                {t('detail.actualPrice')} {album.PURCHASE_PRICE ? `₩${(album.PURCHASE_PRICE).toLocaleString()}` : t('detail.notEntered')}
+              <div className={styles.actualValueGroup}>
+                <div className={styles.actualValueStack}>
+                  <div className={styles.actualValueRow}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>receipt_long</span>
+                    {t('detail.actualPrice')} {album.PURCHASE_PRICE ? `₩${(album.PURCHASE_PRICE).toLocaleString()}` : t('detail.notEntered')}
+                  </div>
+                  <div className={styles.actualValueRow}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>calendar_month</span>
+                    {t('detail.purchaseDate')} {album.PURCHASE_DATE ? new Date(album.PURCHASE_DATE).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR') : t('detail.notEntered')}
+                  </div>
+                </div>
                 <button
                   className={styles.editPriceBtn}
                   onClick={() => {
@@ -1096,12 +1104,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                 </button>
-              </div>
-            ) : null}
-            {album.STATUS === 'OWNED' && album.PURCHASE_DATE ? (
-              <div className={styles.actualValue} style={{ marginTop: 2 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4 }}>calendar_month</span>
-                {t('detail.purchaseDate')} {new Date(album.PURCHASE_DATE).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR')}
               </div>
             ) : null}
 

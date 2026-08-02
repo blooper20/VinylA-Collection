@@ -243,7 +243,7 @@ export const en = {
     spinLogPrivate: 'Private',
     actualPrice: 'Actual purchase price:',
     notEntered: 'Not entered',
-    editPriceTitle: 'Edit purchase price',
+    editPriceTitle: 'Edit purchase price & date',
     purchaseDate: 'Purchased:',
     purchaseDateFieldLabel: 'Purchase date (optional)',
     releaseDate: 'Release date:',

@@ -242,7 +242,7 @@ export const ko = {
     spinLogPrivate: '비공개',
     actualPrice: '실제 구입가:',
     notEntered: '미입력',
-    editPriceTitle: '구입가 수정',
+    editPriceTitle: '구입가·구입일 수정',
     purchaseDate: '구입일:',
     purchaseDateFieldLabel: '구입일 (선택)',
     releaseDate: '발매일:',
