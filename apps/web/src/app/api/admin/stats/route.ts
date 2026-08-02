@@ -55,22 +55,24 @@ const fetchAllChunked = async <T, R>(
   return results.flat();
 };
 
-// UTC timestamps bucketed to Korean calendar days ('sv-SE' → YYYY-MM-DD)
-const toKstDate = (iso: string): string =>
-  new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+// UTC timestamps bucketed to Korean calendar days. 한국은 연중 고정 UTC+9라
+// (서머타임 없음) 9시간을 더한 뒤 UTC getter로 읽는 게 Intl.DateTimeFormat/
+// toLocaleDateString과 동일한 결과를 낸다 — 이 두 Intl API는 이벤트 하나당
+// 호출되면 눈에 띄게 느려서(수천~수만 건이면 수 초 단위로 누적), 통계 집계처럼
+// 이벤트 로우마다 반복 호출하는 경로에서는 순수 산술 연산으로 대체한다.
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+const toKstDate = (iso: string): string => {
+  const d = new Date(new Date(iso).getTime() + KST_OFFSET_MS);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const kstParts = (iso: string): { dow: number; hour: number } => {
-  const d = new Date(iso);
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Seoul',
-    weekday: 'short',
-    hour: 'numeric',
-    hour12: false,
-  }).formatToParts(d);
-  const dowName = parts.find((p) => p.type === 'weekday')?.value || 'Sun';
-  const hour = Number(parts.find((p) => p.type === 'hour')?.value || 0) % 24;
-  const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
-  return { dow: dow < 0 ? 0 : dow, hour };
+  const d = new Date(new Date(iso).getTime() + KST_OFFSET_MS);
+  return { dow: d.getUTCDay(), hour: d.getUTCHours() };
 };
 
 type AdminUser = {
