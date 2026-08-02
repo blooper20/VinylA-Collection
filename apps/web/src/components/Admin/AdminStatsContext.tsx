@@ -106,7 +106,10 @@ export const AdminStatsProvider = ({ children, enabled }: { children: React.Reac
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('세션이 없습니다');
 
-      const res = await fetch(`/api/admin/stats?days=${period}`, {
+      // force=1은 서버 쪽 unstable_cache(5분 TTL)도 함께 무효화한다 —
+      // 아니면 "새로고침"을 눌러도 서버 캐시가 살아있는 동안은 같은 값을 받는다.
+      const qs = force ? `?days=${period}&force=1` : `?days=${period}`;
+      const res = await fetch(`/api/admin/stats${qs}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!res.ok) {
