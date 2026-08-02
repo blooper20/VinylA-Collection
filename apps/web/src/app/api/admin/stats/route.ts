@@ -132,6 +132,15 @@ type AlbumMasterRow = {
 // 먼저 끝내고, days만 인자로 넘긴다.)
 const computeStats = async (days: number) => {
   const admin = getSupabaseAdmin();
+  // 임시 진단용 — 어느 쿼리가 느린지 특정하기 위해 각 요청 소요시간을 잰다.
+  // 원인을 확정하면 제거할 예정.
+  const debugTimings: { label: string; ms: number }[] = [];
+  const timed = async <T>(label: string, p: PromiseLike<T>): Promise<T> => {
+    const start = Date.now();
+    const v = await p;
+    debugTimings.push({ label, ms: Date.now() - start });
+    return v;
+  };
   const now = Date.now();
   const sinceMs = now - days * DAY_MS;
   const sinceIso = new Date(sinceMs).toISOString();
@@ -142,27 +151,36 @@ const computeStats = async (days: number) => {
   ).toISOString();
 
   const [users, openInquiriesRes, events, vinylRows, wishConvertRes] = await Promise.all([
-    listAllUsers(admin),
-    admin.from('INQUIRY').select('*', { count: 'exact', head: true }).eq('STATUS', 'OPEN'),
-    fetchAll<EventRow>((from, to) =>
+    timed('listAllUsers', listAllUsers(admin)),
+    timed('openInquiries', admin.from('INQUIRY').select('*', { count: 'exact', head: true }).eq('STATUS', 'OPEN')),
+    timed(
+      'eventLog',
+      fetchAll<EventRow>((from, to) =>
+        admin
+          .from('EVENT_LOG')
+          .select('EVENT_TYPE, USER_ID, CREATED_AT, META', { count: 'exact' })
+          .gte('CREATED_AT', eventWindowIso)
+          .range(from, to)
+      )
+    ),
+    timed(
+      'userVinyl',
+      fetchAll<VinylRow>((from, to) =>
+        admin
+          .from('USER_VINYL')
+          .select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE', { count: 'exact' })
+          .range(from, to)
+      )
+    ),
+    timed(
+      'wishConvert',
       admin
         .from('EVENT_LOG')
-        .select('EVENT_TYPE, USER_ID, CREATED_AT, META', { count: 'exact' })
-        .gte('CREATED_AT', eventWindowIso)
-        .range(from, to)
+        .select('*', { count: 'exact', head: true })
+        .eq('EVENT_TYPE', 'ALBUM_ADD')
+        .contains('META', { fromWish: true })
+        .gte('CREATED_AT', sinceIso)
     ),
-    fetchAll<VinylRow>((from, to) =>
-      admin
-        .from('USER_VINYL')
-        .select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE', { count: 'exact' })
-        .range(from, to)
-    ),
-    admin
-      .from('EVENT_LOG')
-      .select('*', { count: 'exact', head: true })
-      .eq('EVENT_TYPE', 'ALBUM_ADD')
-      .contains('META', { fromWish: true })
-      .gte('CREATED_AT', sinceIso),
   ]);
 
   const activeUsers = users.filter((u) => !u.deleted);
@@ -375,20 +393,26 @@ const computeStats = async (days: number) => {
   const ownedAlbumIds = Array.from(new Set(ownedRows.map((r) => r.ALBUM_ID)));
 
   const [albumMasters, genreTags] = await Promise.all([
-    fetchAllChunked<number, AlbumMasterRow>(allAlbumIds, (chunk, from, to) =>
-      admin
-        .from('ALBUM_MASTER')
-        .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE', { count: 'exact' })
-        .in('ALBUM_ID', chunk)
-        .range(from, to)
+    timed(
+      'albumMasters',
+      fetchAllChunked<number, AlbumMasterRow>(allAlbumIds, (chunk, from, to) =>
+        admin
+          .from('ALBUM_MASTER')
+          .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE', { count: 'exact' })
+          .in('ALBUM_ID', chunk)
+          .range(from, to)
+      )
     ),
-    fetchAllChunked<number, { TAG_NAME: string }>(ownedAlbumIds, (chunk, from, to) =>
-      admin
-        .from('VINYL_TAG')
-        .select('TAG_NAME', { count: 'exact' })
-        .eq('TAG_TYPE', 'GENRE')
-        .in('ALBUM_ID', chunk)
-        .range(from, to)
+    timed(
+      'genreTags',
+      fetchAllChunked<number, { TAG_NAME: string }>(ownedAlbumIds, (chunk, from, to) =>
+        admin
+          .from('VINYL_TAG')
+          .select('TAG_NAME', { count: 'exact' })
+          .eq('TAG_TYPE', 'GENRE')
+          .in('ALBUM_ID', chunk)
+          .range(from, to)
+      )
     ),
   ]);
 
@@ -475,6 +499,7 @@ const computeStats = async (days: number) => {
     collectionHistogram,
     topAlbums,
     topArtists,
+    _debugTimingMs: debugTimings,
   };
 };
 
