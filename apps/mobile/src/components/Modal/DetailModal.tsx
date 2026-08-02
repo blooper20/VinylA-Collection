@@ -209,9 +209,16 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
       // DB에서 이 앨범의 실제 상태(OWNED/WISH/없음)를 확인
       setRealStatus(album.STATUS || null);
       setResolvedUserVinylId(album.USER_VINYL_ID ? Number(album.USER_VINYL_ID) : undefined);
-      if (!album.STATUS && user?.id) {
+      // 항상(STATUS 유무와 무관하게) 최신 DB 상태로 재확인한다 — 목록 화면이
+      // 들고 있던 album prop이 검색 재진입뿐 아니라 다른 경로로도 오래된
+      // USER_VINYL_ID/CUSTOM_IMAGE_URL을 들고 있을 수 있어, 매번 열 때 진짜
+      // 값으로 덮어써야 커버 변경이 조용히 씹히는 사고(문의 #20/#21)를 막는다.
+      // ALBUM_ID 비교는 외부 검색 결과 등에서 숫자/문자열이 섞여 들어올 수
+      // 있어 Number()로 맞춰 비교한다 — 같은 버그 클래스가 웹 검색 페이지에서도
+      // 발견돼 수정됨(apps/web/src/app/search/page.tsx).
+      if (user?.id) {
         getUserVinyls(user.id).then((vinyls: any[]) => {
-          const found = vinyls.find((v: any) => v.ALBUM_ID === album.ALBUM_ID);
+          const found = vinyls.find((v: any) => Number(v.ALBUM_ID) === Number(album.ALBUM_ID));
           if (found) {
             setRealStatus(found.STATUS);
             setShareTag(found.STATUS);

@@ -572,12 +572,25 @@ export const setUserVinylCover = async (
   userVinylId: number,
   coverUrl: string | null
 ): Promise<void> => {
-  const { error } = await supabase
+  // .update()만 쓰면 USER_VINYL_ID가 이미 지워졌거나(문의 #20/#21처럼 호출부가
+  // 낡은/잘못된 id를 들고 있는 경우) 매칭되는 행이 0개여도 Supabase가 에러를
+  // 던지지 않는다 — 화면에서는 "저장됐다"는 토스트까지 뜨고 실제로는 아무 것도
+  // 바뀌지 않는 조용한 실패가 발생한다. .select()로 실제 갱신된 행을 돌려받아
+  // 0건이면 명시적으로 에러를 던져, 이런 케이스가 다시는 조용히 묻히지 않게 한다.
+  const { data, error } = await supabase
     .from('USER_VINYL')
     .update({ CUSTOM_IMAGE_URL: coverUrl })
-    .eq('USER_VINYL_ID', userVinylId);
+    .eq('USER_VINYL_ID', userVinylId)
+    .select('USER_VINYL_ID');
   if (error) {
     throw new AppError('DB-004', '커버 변경 사항을 저장하지 못했습니다.', error);
+  }
+  if (!data || data.length === 0) {
+    throw new AppError(
+      'DB-004',
+      '커버 변경 사항을 저장하지 못했습니다.',
+      new Error(`setUserVinylCover: no USER_VINYL row matched USER_VINYL_ID=${userVinylId}`)
+    );
   }
 };
 
