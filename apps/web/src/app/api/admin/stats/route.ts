@@ -134,15 +134,6 @@ type AlbumMasterRow = {
 // 먼저 끝내고, days만 인자로 넘긴다.)
 const computeStats = async (days: number) => {
   const admin = getSupabaseAdmin();
-  // 임시 진단용 — 어느 쿼리가 느린지 특정하기 위해 각 요청 소요시간을 잰다.
-  // 원인을 확정하면 제거할 예정.
-  const debugTimings: { label: string; ms: number }[] = [];
-  const timed = async <T>(label: string, p: PromiseLike<T>): Promise<T> => {
-    const start = Date.now();
-    const v = await p;
-    debugTimings.push({ label, ms: Date.now() - start });
-    return v;
-  };
   const now = Date.now();
   const sinceMs = now - days * DAY_MS;
   const sinceIso = new Date(sinceMs).toISOString();
@@ -153,36 +144,27 @@ const computeStats = async (days: number) => {
   ).toISOString();
 
   const [users, openInquiriesRes, events, vinylRows, wishConvertRes] = await Promise.all([
-    timed('listAllUsers', listAllUsers(admin)),
-    timed('openInquiries', admin.from('INQUIRY').select('*', { count: 'exact', head: true }).eq('STATUS', 'OPEN')),
-    timed(
-      'eventLog',
-      fetchAll<EventRow>((from, to) =>
-        admin
-          .from('EVENT_LOG')
-          .select('EVENT_TYPE, USER_ID, CREATED_AT, META', { count: 'exact' })
-          .gte('CREATED_AT', eventWindowIso)
-          .range(from, to)
-      )
-    ),
-    timed(
-      'userVinyl',
-      fetchAll<VinylRow>((from, to) =>
-        admin
-          .from('USER_VINYL')
-          .select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE', { count: 'exact' })
-          .range(from, to)
-      )
-    ),
-    timed(
-      'wishConvert',
+    listAllUsers(admin),
+    admin.from('INQUIRY').select('*', { count: 'exact', head: true }).eq('STATUS', 'OPEN'),
+    fetchAll<EventRow>((from, to) =>
       admin
         .from('EVENT_LOG')
-        .select('*', { count: 'exact', head: true })
-        .eq('EVENT_TYPE', 'ALBUM_ADD')
-        .contains('META', { fromWish: true })
-        .gte('CREATED_AT', sinceIso)
+        .select('EVENT_TYPE, USER_ID, CREATED_AT, META', { count: 'exact' })
+        .gte('CREATED_AT', eventWindowIso)
+        .range(from, to)
     ),
+    fetchAll<VinylRow>((from, to) =>
+      admin
+        .from('USER_VINYL')
+        .select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE', { count: 'exact' })
+        .range(from, to)
+    ),
+    admin
+      .from('EVENT_LOG')
+      .select('*', { count: 'exact', head: true })
+      .eq('EVENT_TYPE', 'ALBUM_ADD')
+      .contains('META', { fromWish: true })
+      .gte('CREATED_AT', sinceIso),
   ]);
 
   const activeUsers = users.filter((u) => !u.deleted);
@@ -395,26 +377,20 @@ const computeStats = async (days: number) => {
   const ownedAlbumIds = Array.from(new Set(ownedRows.map((r) => r.ALBUM_ID)));
 
   const [albumMasters, genreTags] = await Promise.all([
-    timed(
-      'albumMasters',
-      fetchAllChunked<number, AlbumMasterRow>(allAlbumIds, (chunk, from, to) =>
-        admin
-          .from('ALBUM_MASTER')
-          .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE', { count: 'exact' })
-          .in('ALBUM_ID', chunk)
-          .range(from, to)
-      )
+    fetchAllChunked<number, AlbumMasterRow>(allAlbumIds, (chunk, from, to) =>
+      admin
+        .from('ALBUM_MASTER')
+        .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE', { count: 'exact' })
+        .in('ALBUM_ID', chunk)
+        .range(from, to)
     ),
-    timed(
-      'genreTags',
-      fetchAllChunked<number, { TAG_NAME: string }>(ownedAlbumIds, (chunk, from, to) =>
-        admin
-          .from('VINYL_TAG')
-          .select('TAG_NAME', { count: 'exact' })
-          .eq('TAG_TYPE', 'GENRE')
-          .in('ALBUM_ID', chunk)
-          .range(from, to)
-      )
+    fetchAllChunked<number, { TAG_NAME: string }>(ownedAlbumIds, (chunk, from, to) =>
+      admin
+        .from('VINYL_TAG')
+        .select('TAG_NAME', { count: 'exact' })
+        .eq('TAG_TYPE', 'GENRE')
+        .in('ALBUM_ID', chunk)
+        .range(from, to)
     ),
   ]);
 
@@ -501,7 +477,6 @@ const computeStats = async (days: number) => {
     collectionHistogram,
     topAlbums,
     topArtists,
-    _debugTimingMs: debugTimings,
   };
 };
 
@@ -511,12 +486,7 @@ const computeStatsCached = unstable_cache(computeStats, ['admin-stats-v1'], {
 });
 
 export async function GET(request: NextRequest) {
-  // 임시 진단용 — 내부 쿼리 합산(_debugTimingMs)과 실제 총 소요시간 사이의
-  // 차이가 어디서 나는지(auth 체크, revalidateTag, unstable_cache 래퍼 자체)
-  // 특정하기 위한 바깥쪽 타이밍. 원인을 확정하면 제거할 예정.
-  const tStart = Date.now();
   const auth = await requireAdmin(request);
-  const tAfterAuth = Date.now();
   if (auth.error) return auth.error;
 
   const daysParam = Number(request.nextUrl.searchParams.get('days'));
@@ -527,17 +497,8 @@ export async function GET(request: NextRequest) {
     // { expire: 0 }으로 즉시 만료 — profile="max"(기본 stale-while-revalidate)는
     // 다음 방문에서만 갱신되므로, 이 요청 자체가 새 값을 받으려면 즉시 만료가 필요하다.
     if (force) revalidateTag(STATS_CACHE_TAG, { expire: 0 });
-    const tAfterRevalidate = Date.now();
     const payload = await computeStatsCached(days);
-    const tAfterCompute = Date.now();
-    return NextResponse.json({
-      ...payload,
-      _debugOuterMs: {
-        auth: tAfterAuth - tStart,
-        revalidate: tAfterRevalidate - tAfterAuth,
-        computeCachedCall: tAfterCompute - tAfterRevalidate,
-      },
-    });
+    return NextResponse.json(payload);
   } catch (e) {
     console.error('admin stats failed:', e instanceof Error ? e.message : e);
     return NextResponse.json({ error: 'stats aggregation failed' }, { status: 500 });
