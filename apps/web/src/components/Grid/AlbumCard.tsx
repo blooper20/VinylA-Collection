@@ -16,7 +16,14 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
   const { t } = useLocale();
   // 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘 대신 프록시 재시도 후
   // 기존 컨벤션과 동일한 picsum 플레이스홀더로 대체한다.
-  const displayCoverUrl = useCoverImageUrl(album.IMAGE_URL, `https://picsum.photos/seed/${album.ALBUM_ID}/400/400`);
+  const coverFallbackUrl = `https://picsum.photos/seed/${album.ALBUM_ID}/400/400`;
+  const displayCoverUrl = useCoverImageUrl(album.IMAGE_URL, coverFallbackUrl);
+  // useCoverImageUrl의 브라우저 사전 확인(new Image())과 실제 렌더링에 쓰는
+  // next/image는 서로 별개의 요청이다 — Vercel 이미지 최적화 서버가 그
+  // URL을 "따로" 다시 가져오다 실패하면(문의 #22) 사전 확인이 성공했어도
+  // onError 없이는 깨진 이미지 아이콘이 그대로 뜬다. 렌더 시점 실패도 잡는다.
+  const [coverRenderFailed, setCoverRenderFailed] = React.useState(false);
+  React.useEffect(() => { setCoverRenderFailed(false); }, [displayCoverUrl]);
   return (
     <div className={styles.card} onClick={() => onClick(album)}>
       {/* Vinyl disc behind — 호버하면 커버 뒤에서 밀려 나온다. 에디션 정보가
@@ -44,12 +51,13 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
       {/* Album cover */}
       <div className={styles.cover}>
         <Image
-          src={displayCoverUrl}
+          src={coverRenderFailed ? coverFallbackUrl : displayCoverUrl}
           alt={album.TITLE}
           className={styles.coverImage}
           width={400}
           height={400}
           style={{ objectFit: 'cover' }}
+          onError={() => setCoverRenderFailed(true)}
         />
         <EditionCoverArt album={album} size="sm" />
       </div>

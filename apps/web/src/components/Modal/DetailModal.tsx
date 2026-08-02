@@ -221,7 +221,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
   // 프록시 재시도 후 플레이스홀더로 대체한다. 저장/비교 로직은 반드시
   // 원본 coverUrl을 써야 하므로(잘못하면 프록시/플레이스홀더 URL이 그대로
   // DB에 저장될 수 있다) 절대 coverUrl 자체를 이 값으로 바꿔치기하지 않는다.
-  const displayCoverUrl = useCoverImageUrl(coverUrl, `https://picsum.photos/seed/${album.ALBUM_ID}/800/800`);
+  const coverFallbackUrl = `https://picsum.photos/seed/${album.ALBUM_ID}/800/800`;
+  const displayCoverUrl = useCoverImageUrl(coverUrl, coverFallbackUrl);
+  // useCoverImageUrl은 브라우저에서 new Image()로 미리 한 번 확인한 뒤 그
+  // URL을 넘겨줄 뿐이다 — 실제로 화면에 그리는 next/image는 Vercel 이미지
+  // 최적화 서버가 "따로" 그 URL을 서버사이드에서 다시 가져오므로, 미리
+  // 확인이 성공해도 이 두 번째 요청이 별도로 실패하면(문의 #22처럼) onError
+  // 없이는 그대로 깨진 이미지 아이콘이 뜬다. 렌더 시점 실패를 잡아 플레이스홀더로 넘어간다.
+  const [coverRenderFailed, setCoverRenderFailed] = React.useState(false);
+  React.useEffect(() => { setCoverRenderFailed(false); }, [displayCoverUrl]);
   // Shown when the user actually chooses to save a fresh album (not on every
   // open) — see handleAddToCollection/handleAddToWish below. Also reachable
   // via the "앨범 재킷 변경" button on an already-saved album.
@@ -976,7 +984,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
                 />
               </div>
               <div className={styles.cover}>
-                <Image src={displayCoverUrl} alt={album.TITLE} className={styles.coverImage} width={800} height={800} style={{ objectFit: 'cover' }} />
+                <Image
+                  src={coverRenderFailed ? coverFallbackUrl : displayCoverUrl}
+                  alt={album.TITLE}
+                  className={styles.coverImage}
+                  width={800}
+                  height={800}
+                  style={{ objectFit: 'cover' }}
+                  onError={() => setCoverRenderFailed(true)}
+                />
                 <EditionCoverArt album={albumView} size="lg" />
               </div>
             </div>
