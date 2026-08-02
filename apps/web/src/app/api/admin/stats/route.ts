@@ -509,7 +509,12 @@ const computeStatsCached = unstable_cache(computeStats, ['admin-stats-v1'], {
 });
 
 export async function GET(request: NextRequest) {
+  // 임시 진단용 — 내부 쿼리 합산(_debugTimingMs)과 실제 총 소요시간 사이의
+  // 차이가 어디서 나는지(auth 체크, revalidateTag, unstable_cache 래퍼 자체)
+  // 특정하기 위한 바깥쪽 타이밍. 원인을 확정하면 제거할 예정.
+  const tStart = Date.now();
   const auth = await requireAdmin(request);
+  const tAfterAuth = Date.now();
   if (auth.error) return auth.error;
 
   const daysParam = Number(request.nextUrl.searchParams.get('days'));
@@ -520,8 +525,17 @@ export async function GET(request: NextRequest) {
     // { expire: 0 }으로 즉시 만료 — profile="max"(기본 stale-while-revalidate)는
     // 다음 방문에서만 갱신되므로, 이 요청 자체가 새 값을 받으려면 즉시 만료가 필요하다.
     if (force) revalidateTag(STATS_CACHE_TAG, { expire: 0 });
+    const tAfterRevalidate = Date.now();
     const payload = await computeStatsCached(days);
-    return NextResponse.json(payload);
+    const tAfterCompute = Date.now();
+    return NextResponse.json({
+      ...payload,
+      _debugOuterMs: {
+        auth: tAfterAuth - tStart,
+        revalidate: tAfterRevalidate - tAfterAuth,
+        computeCachedCall: tAfterCompute - tAfterRevalidate,
+      },
+    });
   } catch (e) {
     console.error('admin stats failed:', e instanceof Error ? e.message : e);
     return NextResponse.json({ error: 'stats aggregation failed' }, { status: 500 });
