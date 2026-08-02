@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase, ListeningLogWithAlbum } from '@vinyla/core-api';
+import { compareValues, SortDir } from '../../../utils/tableSort';
 import styles from './reports.module.css';
 import { SpinSocialModal } from '../../../components/Modal/SpinSocialModal';
 
 type TabType = 'log' | 'comment';
+type SortKey = 'CREATED_AT' | 'REASON' | 'IS_HIDDEN';
 
 interface ReportData {
   REPORT_ID: number;
@@ -24,6 +26,9 @@ export default function AdminReportsPage() {
   const [reports, setReports] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalData, setModalData] = useState<{ entry: ListeningLogWithAlbum, ownerName: string | null } | null>(null);
+  const [query, setQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('CREATED_AT');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   useEffect(() => {
     fetchReports(activeTab);
@@ -116,6 +121,27 @@ export default function AdminReportsPage() {
     }
   };
 
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return reports;
+    return reports.filter(
+      (r) => r.REASON.toLowerCase().includes(q)
+        || (r.DETAILS || '').toLowerCase().includes(q)
+        || r.CONTENT_TEXT.toLowerCase().includes(q)
+    );
+  }, [reports, query]);
+
+  const sorted = useMemo(() => {
+    const rows = [...filtered];
+    rows.sort((a, b) => compareValues(a[sortKey], b[sortKey]) * (sortDir === 'asc' ? 1 : -1));
+    return rows;
+  }, [filtered, sortKey, sortDir]);
+
   const handleViewOriginal = async (logId: number) => {
     try {
       const { data, error } = await supabase
@@ -136,13 +162,13 @@ export default function AdminReportsPage() {
       <h2 className={styles.title}>신고 관리</h2>
 
       <div className={styles.tabs}>
-        <button 
+        <button
           className={`${styles.tab} ${activeTab === 'log' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('log')}
         >
           다이어리 신고
         </button>
-        <button 
+        <button
           className={`${styles.tab} ${activeTab === 'comment' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('comment')}
         >
@@ -150,14 +176,33 @@ export default function AdminReportsPage() {
         </button>
       </div>
 
+      <div className={styles.toolbar}>
+        <input
+          type="search"
+          className={styles.search}
+          placeholder="신고 사유, 상세, 원본 콘텐츠 검색"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span className={styles.count}>
+          {loading ? '불러오는 중...' : `${sorted.length.toLocaleString('ko-KR')}건`}
+        </span>
+      </div>
+
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '15%' }}>접수일시</th>
-              <th style={{ width: '25%' }}>신고 사유</th>
+              <th style={{ width: '15%' }} className={styles.sortableHeader} onClick={() => toggleSort('CREATED_AT')}>
+                접수일시{sortKey === 'CREATED_AT' && <span className={styles.sortArrow}>{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>}
+              </th>
+              <th style={{ width: '25%' }} className={styles.sortableHeader} onClick={() => toggleSort('REASON')}>
+                신고 사유{sortKey === 'REASON' && <span className={styles.sortArrow}>{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>}
+              </th>
               <th style={{ width: '35%' }}>원본 콘텐츠</th>
-              <th style={{ width: '10%' }}>현재 상태</th>
+              <th style={{ width: '10%' }} className={styles.sortableHeader} onClick={() => toggleSort('IS_HIDDEN')}>
+                현재 상태{sortKey === 'IS_HIDDEN' && <span className={styles.sortArrow}>{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>}
+              </th>
               <th style={{ width: '15%' }}>액션</th>
             </tr>
           </thead>
@@ -166,12 +211,14 @@ export default function AdminReportsPage() {
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>데이터를 불러오는 중입니다...</td>
               </tr>
-            ) : reports.length === 0 ? (
+            ) : sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>접수된 신고가 없습니다.</td>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
+                  {query ? '검색 결과가 없습니다.' : '접수된 신고가 없습니다.'}
+                </td>
               </tr>
             ) : (
-              reports.map((r) => (
+              sorted.map((r) => (
                 <tr key={r.REPORT_ID}>
                   <td>
                     {new Date(r.CREATED_AT).toLocaleDateString('ko-KR')}<br/>

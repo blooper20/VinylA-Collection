@@ -79,7 +79,11 @@ export const useAdminStats = (): AdminStatsValue => {
 // admin 레이아웃에서 한 번만 로드해 모든 탭이 공유한다.
 // 기간(7/30/90)별 응답도 캐시해서 기간을 오가도 재요청하지 않는다 —
 // 갱신은 헤더의 새로고침 버튼(reload)으로만.
-export const AdminStatsProvider = ({ children }: { children: React.ReactNode }) => {
+// enabled=false(통계 탭이 아닐 때)면 절대 fetch하지 않는다 — 이 provider는
+// layout에서 모든 admin 탭을 감싸고 있어서, 이 가드가 없으면 사용자/문의/신고
+// 탭처럼 통계를 쓰지도 않는 화면에 들어갈 때마다 EVENT_LOG·USER_VINYL 전체
+// 스캔이 백그라운드에서 함께 돌아 "관리자 페이지 전체가 느리다"는 원인이 된다.
+export const AdminStatsProvider = ({ children, enabled }: { children: React.ReactNode; enabled: boolean }) => {
   const [days, setDays] = useState(30);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,8 +127,9 @@ export const AdminStatsProvider = ({ children }: { children: React.ReactNode }) 
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     loadStats(days);
-  }, [days, loadStats]);
+  }, [enabled, days, loadStats]);
 
   return (
     <AdminStatsCtx.Provider

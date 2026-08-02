@@ -155,3 +155,49 @@
   color: #d4af37;
   background: rgba(212, 175, 55, 0.1);
 }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.search {
+  flex: 1;
+  max-width: 320px;
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: 1px solid #333;
+  background: transparent;
+  color: #eee;
+  font-size: 13px;
+}
+
+.search::placeholder {
+  color: #777;
+}
+
+.search:focus {
+  outline: none;
+  border-color: #d4af37;
+}
+
+.count {
+  font-size: 13px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortableHeader:hover {
+  color: #ccc;
+}
+
+.sortArrow {
+  color: #d4af37;
+}

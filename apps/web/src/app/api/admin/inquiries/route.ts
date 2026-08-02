@@ -35,14 +35,16 @@ export async function GET(request: NextRequest) {
       for (const p of profiles || []) nameMap.set(p.USER_ID, p.DISPLAY_NAME);
 
       const missing = userIds.filter((id) => !nameMap.has(id));
-      for (const id of missing) {
-        const { data } = await admin.auth.admin.getUserById(id);
-        const u = data?.user;
-        nameMap.set(
-          id,
-          u?.user_metadata?.displayName || u?.email?.split('@')[0] || '(알 수 없음)'
-        );
-      }
+      await Promise.all(
+        missing.map(async (id) => {
+          const { data } = await admin.auth.admin.getUserById(id);
+          const u = data?.user;
+          nameMap.set(
+            id,
+            u?.user_metadata?.displayName || u?.email?.split('@')[0] || '(알 수 없음)'
+          );
+        })
+      );
     }
 
     const result = rows.map((i) => ({

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@vinyla/core-api';
+import { compareValues, SortDir } from '../../../utils/tableSort';
 import styles from './users.module.css';
 
 interface AdminUserRow {
@@ -48,11 +49,26 @@ const formatDate = (iso: string | null) =>
       })
     : '—';
 
+type SortKey = 'displayName' | 'createdAt' | 'provider' | 'countryCode' | 'owned' | 'wish' | 'lastSignInAt' | 'deleted';
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: 'displayName', label: '사용자' },
+  { key: 'createdAt', label: '가입' },
+  { key: 'provider', label: '수단' },
+  { key: 'countryCode', label: '국가' },
+  { key: 'owned', label: '보유' },
+  { key: 'wish', label: '위시' },
+  { key: 'lastSignInAt', label: '최근 로그인' },
+  { key: 'deleted', label: '상태' },
+];
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   // 프로필 미리보기: 해당 사용자의 공개 프로필(/user/[id] — 마이페이지의
   // '프로필 공유'로 열리는 화면)을 iframe으로 띄운다. 커버 등 사용자가
   // 실제로 보는 상태를 관리자가 눈으로 확인하는 용도.
@@ -89,6 +105,17 @@ export default function AdminUsersPage() {
     );
   }, [users, query]);
 
+  const sorted = useMemo(() => {
+    const rows = [...filtered];
+    rows.sort((a, b) => compareValues(a[sortKey], b[sortKey]) * (sortDir === 'asc' ? 1 : -1));
+    return rows;
+  }, [filtered, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
   if (error) return <p className={styles.placeholder}>{error}</p>;
 
   return (
@@ -110,14 +137,18 @@ export default function AdminUsersPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>사용자</th>
-              <th>가입</th>
-              <th>수단</th>
-              <th>국가</th>
-              <th>보유</th>
-              <th>위시</th>
-              <th>최근 로그인</th>
-              <th>상태</th>
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className={styles.sortableHeader}
+                  onClick={() => toggleSort(col.key)}
+                >
+                  {col.label}
+                  {sortKey === col.key && (
+                    <span className={styles.sortArrow}>{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
+                  )}
+                </th>
+              ))}
               <th>프로필</th>
             </tr>
           </thead>
@@ -126,14 +157,14 @@ export default function AdminUsersPage() {
               <tr>
                 <td colSpan={9} className={styles.placeholder}>불러오는 중...</td>
               </tr>
-            ) : filtered.length === 0 ? (
+            ) : sorted.length === 0 ? (
               <tr>
                 <td colSpan={9} className={styles.placeholder}>
                   {query ? '검색 결과가 없습니다' : '사용자가 없습니다'}
                 </td>
               </tr>
             ) : (
-              filtered.map((u) => (
+              sorted.map((u) => (
                 <tr key={u.id} className={u.deleted ? styles.rowDeleted : undefined}>
                   <td>
                     <div className={styles.userCell}>

@@ -61,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AdminGuard>
-      <AdminStatsProvider>
+      <AdminStatsProvider enabled={isStatsTab}>
         <div className={styles.container}>
           <header className={styles.header}>
             <div className={styles.headerTop}>
