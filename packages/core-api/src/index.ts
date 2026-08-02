@@ -20,4 +20,5 @@ export * from './notifications';
 export * from './notice';
 export * from './customPressing';
 export * from './communityAlbum';
+export * from './communityBoard';
 export * from './edition';

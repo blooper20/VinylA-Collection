@@ -289,6 +289,61 @@ export interface NOTICE {
 }
 
 /**
+ * 커뮤니티 게시글 첨부 이미지 1건 — NoticeMediaItem과 동일 모양(영상은 v1 범위 밖)
+ */
+export interface CommunityMediaItem {
+  url: string;
+  type: 'image';
+}
+
+export type CommunityPostCategory = 'ARRIVAL' | 'FREE' | 'QNA' | 'INFO' | 'LISTENING_ROOM' | 'TIP';
+
+/**
+ * 커뮤니티 게시판 — 6개 카테고리를 한 테이블로 묶고 CATEGORY로 구분한다.
+ * 카테고리별 전용 필드(오늘 온 전리품의 앨범 첨부는 COMMUNITY_POST_ALBUM,
+ * QnA의 채택 답변은 ACCEPTED_COMMENT_ID, 정보 게시판의 위치는 PLACE_NAME 등)만
+ * 다르고 나머지는 전 카테고리 공통이다. 항상 전체 공개(비공개 옵션 없음).
+ */
+export interface COMMUNITY_POST {
+  POST_ID: number;
+  CATEGORY: CommunityPostCategory;
+  TITLE: string;
+  CONTENT: string;
+  MEDIA_ITEMS: CommunityMediaItem[];
+  AUTHOR_ID: string;
+  VIEW_COUNT: number;
+  /** QnA 전용: 질문자가 채택한 최상위 답변의 COMMENT_ID */
+  ACCEPTED_COMMENT_ID: number | null;
+  /** 정보 게시판 전용 위치 공유 */
+  PLACE_NAME: string | null;
+  PLACE_ADDRESS: string | null;
+  LATITUDE: number | null;
+  LONGITUDE: number | null;
+  CREATED_AT: string;
+  UPDATED_AT: string;
+}
+
+/** 오늘 온 전리품 — 게시글에 첨부된 본인 컬렉션 앨범 (다대다) */
+export interface COMMUNITY_POST_ALBUM {
+  POST_ALBUM_ID: number;
+  POST_ID: number;
+  ALBUM_ID: number;
+}
+
+/**
+ * 댓글(자유/정보/청음실/팁) 겸 답변(QnA) — 1단계 대댓글 스레딩.
+ * QnA에서는 PARENT_COMMENT_ID가 null인 행만 "답변"으로 채택 가능하다.
+ */
+export interface COMMUNITY_COMMENT {
+  COMMENT_ID: number;
+  POST_ID: number;
+  USER_ID: string;
+  PARENT_COMMENT_ID: number | null;
+  CONTENT: string;
+  CREATED_AT: string;
+}
+
+/**
  * 태그 정보
  */
 export interface VINYL_TAG {

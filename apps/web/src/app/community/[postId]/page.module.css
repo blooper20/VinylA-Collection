@@ -1,0 +1,198 @@
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+.status {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  padding: 40px 0;
+}
+
+.backLink {
+  display: inline-block;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+
+.category {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: #e6b93c;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: #fff;
+  margin: 8px 0 8px;
+}
+
+.meta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 16px;
+}
+
+.location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(230, 185, 60, 0.08);
+  color: #e6b93c;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.mediaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mediaImg {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #000;
+}
+
+.albumGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.albumCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.albumCover {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #000;
+}
+
+.albumText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.albumTitle {
+  font-size: 13px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.albumArtist {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.content {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.actionBtn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.actionBtn:hover { color: #fff; }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 100;
+}
+
+.reportBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.reportCard {
+  width: 320px;
+  max-width: 90vw;
+  background: #1a1a1c;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reportTextarea {
+  min-height: 80px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.reportSubmitBtn {
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  background: #e6b93c;
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}

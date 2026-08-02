@@ -8,6 +8,8 @@ import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { NoticeDetailScreen } from '../screens/NoticeDetailScreen';
 import { CommunityAlbumsScreen } from '../screens/CommunityAlbumsScreen';
 import { CommunityAlbumRegisterScreen } from '../screens/CommunityAlbumRegisterScreen';
+import { CommunityPostScreen } from '../screens/CommunityPostScreen';
+import { CommunityNewPostScreen } from '../screens/CommunityNewPostScreen';
 import { TabNavigator } from './TabNavigator';
 import { tabLinkingConfig } from './TabNavigator';
 import { useAuthStore } from '@vinyla/core-api';
@@ -50,6 +52,8 @@ export const RootNavigator = () => {
           <Stack.Screen name="NoticeDetail" component={NoticeDetailScreen} />
           <Stack.Screen name="CommunityAlbums" component={CommunityAlbumsScreen} />
           <Stack.Screen name="CommunityAlbumRegister" component={CommunityAlbumRegisterScreen} />
+          <Stack.Screen name="CommunityPost" component={CommunityPostScreen} />
+          <Stack.Screen name="CommunityNewPost" component={CommunityNewPostScreen} />
         </>
       )}
     </Stack.Navigator>

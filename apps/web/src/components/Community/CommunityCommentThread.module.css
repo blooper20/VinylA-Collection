@@ -1,0 +1,205 @@
+.wrap {
+  margin-top: 24px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: #fff;
+  margin: 0 0 12px;
+}
+
+.status {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 12px 0;
+}
+
+.item {
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.reply {
+  margin-left: 34px;
+  border-top: none;
+  padding-top: 8px;
+}
+
+.accepted {
+  background: rgba(230, 185, 60, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  border-top: none;
+}
+
+.acceptedBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e6b93c;
+  border: 1px solid rgba(230, 185, 60, 0.4);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar, .avatarFallback {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.date {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-left: auto;
+}
+
+.content {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.actionBtn:hover { color: #fff; }
+
+.acceptBtn {
+  border: 1px solid rgba(230, 185, 60, 0.5);
+  background: transparent;
+  color: #e6b93c;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.form {
+  margin-top: 16px;
+}
+
+.replyBanner {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.replyBanner button {
+  border: none;
+  background: transparent;
+  color: #e6b93c;
+  cursor: pointer;
+}
+
+.formRow {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 13px;
+}
+
+.submitBtn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #e6b93c;
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 100;
+}
+
+.reportBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.reportCard {
+  width: 320px;
+  max-width: 90vw;
+  background: #1a1a1c;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reportTextarea {
+  min-height: 80px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 13px;
+  resize: vertical;
+}

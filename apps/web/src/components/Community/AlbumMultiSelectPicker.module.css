@@ -1,0 +1,168 @@
+.wrap {
+  width: 100%;
+  position: relative;
+}
+
+.openBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.openBtn:hover { border-color: rgba(230, 185, 60, 0.5); color: #e6b93c; }
+
+.countBadge {
+  background: #e6b93c;
+  color: #000;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.selectedGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.selectedThumb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+}
+
+.selectedImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.removeBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panel {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(20, 20, 22, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.status {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  padding: 12px 0;
+}
+
+.list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.row:hover { background: rgba(255, 255, 255, 0.05); }
+.rowSelected { background: rgba(230, 185, 60, 0.12); }
+
+.rowImg {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #000;
+  flex-shrink: 0;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowTitle {
+  font-size: 13px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowArtist {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.rowCheck {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.rowSelected .rowCheck { color: #e6b93c; }
+
+.doneBtn {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  background: #e6b93c;
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}

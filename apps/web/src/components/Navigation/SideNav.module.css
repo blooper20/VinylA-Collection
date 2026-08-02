@@ -242,13 +242,90 @@
   flex-shrink: 0;
 }
 
-/* ---- Nav ---- */
+/* ---- Mode switch (컬렉션 ↔ 커뮤니티) ----
+   접힌 레일: 라벨 없는 전환 아이콘 하나만. 펼쳐지면(호버/탭): 라벨 달린
+   두 버튼 스위치로 바뀐다. 다른 항목들의 opacity 트랜지션(.navLabel)과 달리
+   display를 토글하는 이유는, 접힌 폭(60~80px)에 두 버튼이 나란히 들어가면
+   레이블만 숨겨진 텅 빈 사각형처럼 보이기 때문 — 아예 다른 마크업으로 교체한다. */
+.modeToggleCollapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 0;
+  margin-bottom: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.modeToggleCollapsed:hover {
+  color: var(--accent);
+}
+
+.modeSwitchExpanded {
+  display: none;
+  gap: 6px;
+  width: 100%;
+  padding: 0 10px;
+  margin-bottom: 16px;
+}
+
+.sidebar.expanded .modeToggleCollapsed { display: none; }
+.sidebar.expanded .modeSwitchExpanded { display: flex; }
+
+@media (min-width: 641px) {
+  .sidebar:hover .modeToggleCollapsed { display: none; }
+  .sidebar:hover .modeSwitchExpanded { display: flex; }
+}
+
+.modeSwitchBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.modeSwitchBtn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+}
+
+.modeSwitchActive {
+  background: rgba(233, 195, 73, 0.12);
+  border-color: rgba(233, 195, 73, 0.35);
+  color: var(--accent);
+}
+
+/* ---- Nav flip (모드 전환 시 메뉴 전체가 카드처럼 뒤집히며 교체된다) ---- */
+.navFlipViewport {
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+  perspective: 1200px;
+}
+
+.navFlipInner {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 100%;
-  flex: 1;
   padding: 0 10px;
 }
 

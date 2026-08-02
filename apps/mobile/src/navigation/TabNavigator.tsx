@@ -7,6 +7,7 @@ import { TAB_BAR_BASE_HEIGHT } from '../constants/layout';
 
 import { CollectionTabsScreen } from '../screens/CollectionTabsScreen';
 import { SocialScreen } from '../screens/SocialScreen';
+import { CommunityScreen } from '../screens/CommunityScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { MyScreen } from '../screens/MyScreen';
@@ -55,6 +56,14 @@ export const TabNavigator = () => {
         options={{
           tabBarLabel: t('nav.social'),
           tabBarIcon: ({ color, size }) => <Feather name="rss" color={color} size={size} />
+        }}
+      />
+      <Tab.Screen
+        name="Community"
+        component={CommunityScreen}
+        options={{
+          tabBarLabel: t('mobile.tab.community'),
+          tabBarIcon: ({ color, size }) => <Feather name="message-circle" color={color} size={size} />
         }}
       />
       <Tab.Screen

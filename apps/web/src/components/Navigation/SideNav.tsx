@@ -1,20 +1,92 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore, getUnreadNotificationCount, subscribeToNotifications } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
+import { CommunityPostCategory } from '@vinyla/shared-types';
 import styles from './SideNav.module.css';
 
-export const SideNav: React.FC = () => {
+type SideNavMode = 'collection' | 'community';
+// LOCATION은 실제 DB 카테고리가 아니다(CommunityPostCategory에 없음) — 지도
+// SDK 도입 전까지 "준비 중" 안내만 보여주는 자리표시 카테고리라 UI 쪽 목록에만 존재한다.
+type CommunityNavCategory = CommunityPostCategory | 'LOCATION';
+const FLIP_MS = 220;
+const COMMUNITY_CATEGORIES: CommunityNavCategory[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'INFO', 'TIP', 'QNA', 'LOCATION'];
+const CATEGORY_ICON: Record<CommunityNavCategory, string> = {
+  ARRIVAL: 'inventory_2',
+  FREE: 'chat_bubble',
+  QNA: 'help',
+  INFO: 'storefront',
+  LISTENING_ROOM: 'speaker',
+  TIP: 'lightbulb',
+  LOCATION: 'map',
+};
+
+// useSearchParams()(카테고리 하이라이트용)가 정적 생성 페이지를 전부 강제
+// 동적 렌더링으로 만들지 않도록, 그 훅을 쓰는 부분만 Suspense로 감싼다.
+export const SideNav: React.FC = () => (
+  <Suspense fallback={null}>
+    <SideNavInner />
+  </Suspense>
+);
+
+const SideNavInner: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, initializeAuth } = useAuthStore();
   const { locale, setLocale, t } = useLocale();
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [expanded, setExpanded] = React.useState(false);
   const navRef = React.useRef<HTMLElement>(null);
   const toggleRef = React.useRef<HTMLButtonElement>(null);
+
+  // 커뮤니티 모드로 전환하면 사이드 메뉴 자체가 통째로 바뀐다(컬렉션 관련
+  // 항목 ↔ 게시판 카테고리 목록). pathname 기반이라 뒤로가기/직접 URL
+  // 진입에도 항상 올바른 모드로 맞춰진다.
+  const pathMode: SideNavMode = pathname.startsWith('/community') ? 'community' : 'collection';
+  const [displayMode, setDisplayMode] = React.useState<SideNavMode>(pathMode);
+  const [flipDeg, setFlipDeg] = React.useState(0);
+  const [flipInstant, setFlipInstant] = React.useState(false);
+  const isFlippingRef = React.useRef(false);
+
+  // 카드 뒤집기 트릭: 0deg → -90deg로 애니메이션(뒤집혀 사라짐) → 그 순간
+  // 메뉴 목록을 교체하고 트랜지션 없이 +90deg로 순간 이동(반대편에서 보이지
+  // 않는 채로 대기) → 다시 0deg로 애니메이션(뒤집히며 나타남). 두 번의
+  // requestAnimationFrame으로 "트랜지션 없는 순간 이동"이 실제로 한 프레임
+  // 그려진 뒤에 트랜지션을 되살려야 브라우저가 두 번째 회전도 애니메이션한다.
+  const flipToMode = React.useCallback((nextMode: SideNavMode) => {
+    if (isFlippingRef.current || nextMode === displayMode) return;
+    isFlippingRef.current = true;
+    setFlipInstant(false);
+    setFlipDeg(-90);
+    window.setTimeout(() => {
+      setDisplayMode(nextMode);
+      setFlipInstant(true);
+      setFlipDeg(90);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setFlipInstant(false);
+          setFlipDeg(0);
+          window.setTimeout(() => { isFlippingRef.current = false; }, FLIP_MS);
+        });
+      });
+    }, FLIP_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayMode]);
+
+  React.useEffect(() => {
+    if (pathMode !== displayMode && !isFlippingRef.current) flipToMode(pathMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathMode]);
+
+  const switchMode = (nextMode: SideNavMode) => {
+    if (nextMode === displayMode) return;
+    flipToMode(nextMode);
+    router.push(nextMode === 'community' ? '/community' : '/collection');
+  };
 
   React.useEffect(() => {
     initializeAuth();
@@ -58,7 +130,7 @@ export const SideNav: React.FC = () => {
   // 컬렉션(+위시리스트)과 소셜(피드+다이어리)은 페이지 내 탭으로 통합 —
   // match는 그룹의 다른 탭 경로에서도 메뉴가 활성으로 보이게 한다
   type NavItem = { name: string; path: string; icon: string; badge?: number; match?: string[] };
-  const navItems: NavItem[] = [
+  const collectionNavItems: NavItem[] = [
     { name: t('nav.collection'), path: '/collection', icon: 'shelves', match: ['/collection', '/wishlist'] },
     { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
     { name: t('nav.social'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log'] },
@@ -68,7 +140,32 @@ export const SideNav: React.FC = () => {
     { name: t('nav.support'), path: '/support', icon: 'support_agent' },
   ];
 
+  const currentCategoryParam = searchParams.get('category');
+  const communityNavItems: NavItem[] = [
+    { name: t('communityBoard.allCategoriesTab'), path: '/community', icon: 'forum' },
+    ...COMMUNITY_CATEGORIES.map((c) => ({
+      name: t(`communityBoard.categories.${c}` as any),
+      path: `/community?category=${c}`,
+      icon: CATEGORY_ICON[c],
+    })),
+  ];
+
   const adminNavItem: NavItem = { name: t('nav.admin'), path: '/admin', icon: 'admin_panel_settings' };
+
+  const activeNavItems = displayMode === 'community'
+    ? communityNavItems
+    : [...collectionNavItems, ...(user?.app_metadata?.role === 'admin' ? [adminNavItem] : [])];
+
+  const isItemActive = (item: NavItem) => {
+    if (displayMode === 'community') {
+      if (pathname !== '/community') return false;
+      const itemCategory = item.path.includes('category=') ? item.path.split('category=')[1] : null;
+      return itemCategory ? currentCategoryParam === itemCategory : !currentCategoryParam;
+    }
+    if (item.path === '/admin') return pathname.startsWith('/admin');
+    if (item.match) return item.match.includes(pathname);
+    return pathname === item.path;
+  };
 
   return (
     <>
@@ -111,46 +208,84 @@ export const SideNav: React.FC = () => {
 
         <div className={styles.divider} />
 
-        {/* Main Nav — admin item only for accounts with app_metadata.role === 'admin' */}
-        <div className={styles.nav}>
-          {[...navItems, ...(user?.app_metadata?.role === 'admin' ? [adminNavItem] : [])].map((item) => {
-            const isActive = item.path === '/admin'
-              ? pathname.startsWith('/admin')
-              : item.match
-                ? item.match.includes(pathname)
-                : pathname === item.path;
-            return (
-              <Link
-                key={item.name}
-                href={item.path}
-                onClick={() => setExpanded(false)}
-                className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-              >
-                <span style={{ position: 'relative', display: 'inline-flex' }}>
-                  <span
-                    className={`material-symbols-outlined ${styles.navIcon}`}
-                    style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300" }}
+        {/* 컬렉션 ↔ 커뮤니티 모드 스위치 — 누르면 메뉴 전체가 뒤집히며 교체된다.
+            접힌 레일에서는 두 버튼이 나란히 들어갈 공간이 없어 라벨 없는
+            전환 아이콘 하나만 보여주고, 펼쳐지면(호버/탭) 라벨 달린 두 버튼으로
+            바뀐다 — .navLabel과 같은 opacity 트랜지션 대신 display 자체를
+            토글해 접힌 상태에서 텅 빈 사각형 두 개로 보이는 문제를 없앤다. */}
+        <button
+          type="button"
+          className={styles.modeToggleCollapsed}
+          onClick={() => switchMode(displayMode === 'collection' ? 'community' : 'collection')}
+          aria-label={t('nav.communityBoard')}
+        >
+          <span className={`material-symbols-outlined ${styles.navIcon}`}>sync_alt</span>
+        </button>
+        <div className={styles.modeSwitchExpanded}>
+          <button
+            type="button"
+            className={`${styles.modeSwitchBtn} ${displayMode === 'collection' ? styles.modeSwitchActive : ''}`}
+            onClick={() => switchMode('collection')}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>shelves</span>
+            <span className={styles.navLabel}>{t('nav.collection')}</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.modeSwitchBtn} ${displayMode === 'community' ? styles.modeSwitchActive : ''}`}
+            onClick={() => switchMode('community')}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>forum</span>
+            <span className={styles.navLabel}>{t('nav.communityBoard')}</span>
+          </button>
+        </div>
+
+        {/* Main Nav — 모드에 따라 완전히 다른 목록이 3D 플립으로 전환된다 */}
+        <div className={styles.navFlipViewport}>
+          <div
+            className={styles.navFlipInner}
+            style={{
+              transform: `rotateX(${flipDeg}deg)`,
+              transition: flipInstant ? 'none' : `transform ${FLIP_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+            }}
+          >
+            <div className={styles.nav}>
+              {activeNavItems.map((item) => {
+                const isActive = isItemActive(item);
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    onClick={() => setExpanded(false)}
+                    className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                   >
-                    {item.icon}
-                  </span>
-                  {!!item.badge && item.badge > 0 && (
-                    <span
-                      style={{
-                        position: 'absolute', top: '-4px', right: '-6px',
-                        minWidth: '16px', height: '16px', padding: '0 4px',
-                        borderRadius: '999px', background: '#ff4d6d', color: '#fff',
-                        fontSize: '10px', fontWeight: 700, lineHeight: '16px',
-                        textAlign: 'center',
-                      }}
-                    >
-                      {item.badge > 99 ? '99+' : item.badge}
+                    <span style={{ position: 'relative', display: 'inline-flex' }}>
+                      <span
+                        className={`material-symbols-outlined ${styles.navIcon}`}
+                        style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 300" }}
+                      >
+                        {item.icon}
+                      </span>
+                      {!!item.badge && item.badge > 0 && (
+                        <span
+                          style={{
+                            position: 'absolute', top: '-4px', right: '-6px',
+                            minWidth: '16px', height: '16px', padding: '0 4px',
+                            borderRadius: '999px', background: '#ff4d6d', color: '#fff',
+                            fontSize: '10px', fontWeight: 700, lineHeight: '16px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-                <span className={styles.navLabel}>{item.name}</span>
-              </Link>
-            );
-          })}
+                    <span className={styles.navLabel}>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
       {/* Bottom */}
