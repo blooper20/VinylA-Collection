@@ -110,7 +110,13 @@ export const CommunityScreen = () => {
             onPress={() => navigation.navigate('CommunityPost', { postId: p.POST_ID })}
           >
             {p.MEDIA_ITEMS[0] ? (
-              <Image source={{ uri: p.MEDIA_ITEMS[0].url }} style={styles.thumb} />
+              p.MEDIA_ITEMS[0].type === 'video' ? (
+                <View style={[styles.thumb, styles.thumbVideo, { backgroundColor: themeColors.border }]}>
+                  <Feather name="video" size={18} color={themeColors.textSecondary} />
+                </View>
+              ) : (
+                <Image source={{ uri: p.MEDIA_ITEMS[0].url }} style={styles.thumb} />
+              )
             ) : (
               <View style={[styles.thumb, { backgroundColor: themeColors.border }]} />
             )}
@@ -159,6 +165,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   thumb: { width: 56, height: 56, borderRadius: 8 },
+  thumbVideo: { alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 14, fontWeight: '600', marginTop: 2 },
   rowMeta: { fontSize: 11, marginTop: 2 },
 });

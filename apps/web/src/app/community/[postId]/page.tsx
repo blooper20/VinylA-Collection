@@ -88,10 +88,14 @@ export default function CommunityPostDetailPage() {
 
       {post.MEDIA_ITEMS.length > 0 && (
         <div className={styles.mediaGrid}>
-          {post.MEDIA_ITEMS.map((m, i) => (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img key={i} src={m.url} alt="" className={styles.mediaImg} />
-          ))}
+          {post.MEDIA_ITEMS.map((m, i) =>
+            m.type === 'video' ? (
+              <video key={i} className={styles.mediaImg} src={m.url} controls playsInline />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img key={i} src={m.url} alt="" className={styles.mediaImg} />
+            )
+          )}
         </div>
       )}
 

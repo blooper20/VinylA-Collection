@@ -4,15 +4,18 @@ import React from 'react';
 import { useLocale } from '@vinyla/i18n';
 import styles from './CommunityMediaPicker.module.css';
 
-// 커뮤니티 게시글 사진 첨부 — 최대 5장, 이미지만(영상 없음). MediaAttachPicker와
-// 달리 트리밍/단일첨부가 필요 없어 훨씬 단순한 전용 컴포넌트로 새로 만들었다.
+// 커뮤니티 게시글 사진/영상 첨부 — 최대 5개. MediaAttachPicker와 달리
+// 트리밍/단일첨부가 필요 없어 훨씬 단순한 전용 컴포넌트로 새로 만들었다.
 export type CommunityMediaSlot =
-  | { kind: 'existing'; url: string }
-  | { kind: 'new'; file: File; previewUrl: string };
+  | { kind: 'existing'; url: string; type: 'image' | 'video' }
+  | { kind: 'new'; file: File; previewUrl: string; type: 'image' | 'video' };
 
 const MAX_ITEMS = 5;
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+// mp4/mov만 허용 — webm은 iOS 앱(AVPlayer)이 재생하지 못한다.
+const VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
 
 export const CommunityMediaPicker: React.FC<{
   value: CommunityMediaSlot[];
@@ -41,15 +44,17 @@ export const CommunityMediaPicker: React.FC<{
       setError(t('communityBoard.photoLimit'));
       return;
     }
-    if (!IMAGE_TYPES.includes(file.type)) {
+    const isImage = IMAGE_TYPES.includes(file.type);
+    const isVideo = VIDEO_TYPES.includes(file.type);
+    if (!isImage && !isVideo) {
       setError(t('communityBoard.photoLimit'));
       return;
     }
-    if (file.size > MAX_BYTES) {
+    if (file.size > (isImage ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES)) {
       setError(t('communityBoard.photoLimit'));
       return;
     }
-    onChange([...value, { kind: 'new', file, previewUrl: URL.createObjectURL(file) }]);
+    onChange([...value, { kind: 'new', file, previewUrl: URL.createObjectURL(file), type: isImage ? 'image' : 'video' }]);
   };
 
   const handleRemove = (index: number) => {
@@ -63,15 +68,22 @@ export const CommunityMediaPicker: React.FC<{
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime"
         hidden
         onChange={(e) => handlePick(e.target.files?.[0] || null)}
       />
       <div className={styles.grid}>
-        {value.map((v, i) => (
+        {value.map((v, i) => {
+          const url = v.kind === 'existing' ? v.url : v.previewUrl;
+          return (
           <div key={i} className={styles.thumb}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={v.kind === 'existing' ? v.url : v.previewUrl} alt="" className={styles.thumbImg} />
+            {v.type === 'video' ? (
+              <video className={styles.thumbImg} src={url} muted />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={url} alt="" className={styles.thumbImg} />
+            )}
+            {v.type === 'video' && <span className={styles.videoBadge}>VIDEO</span>}
             <button
               type="button"
               className={styles.removeBtn}
@@ -82,7 +94,8 @@ export const CommunityMediaPicker: React.FC<{
               ×
             </button>
           </div>
-        ))}
+          );
+        })}
         {value.length < MAX_ITEMS && (
           <button
             type="button"

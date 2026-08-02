@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { AppError } from './errors';
 import { getProxyBaseUrl } from './externalApi';
 import { getProfilesLite } from './profile';
+import type { RNFilePart } from './listeningLog';
 import { COMMUNITY_POST, COMMUNITY_COMMENT, CommunityMediaItem, CommunityPostCategory } from '@vinyla/shared-types';
 
 // 커뮤니티 게시판 — 6개 카테고리(오늘 온 전리품/자유/QnA/정보/나만의 청음실/팁)를
@@ -176,12 +177,20 @@ export const deleteCommunityPost = async (postId: number): Promise<void> => {
   }
 };
 
-/** 게시글 첨부 이미지 업로드(사진만, 여러 건은 한 파일씩 호출) */
-export const uploadCommunityPostMedia = async (file: Blob & { name?: string }): Promise<CommunityMediaItem> => {
+/** 게시글 첨부 이미지/영상 업로드(여러 건은 한 파일씩 호출) — 모바일은 Blob이
+ * 아니라 RNFilePart({ uri, name, type })를 넘긴다(uploadSpinLogMedia와 동일
+ * 이유: fetch(uri).blob()은 수십 MB 영상에서 멈추거나 조용히 실패한다). */
+export const uploadCommunityPostMedia = async (file: (Blob & { name?: string }) | RNFilePart): Promise<CommunityMediaItem> => {
   const headers = await authHeaders();
   const form = new FormData();
-  const filename = (file as File).name || 'image.jpg';
-  form.append('file', file, filename);
+  if ('uri' in file) {
+    // RN FormData는 (name, { uri, name, type }) 형태만 받는다 — 세 번째
+    // filename 인자가 없다(웹 Blob 경로와 시그니처가 다르다).
+    form.append('file', file as any);
+  } else {
+    const filename = (file as File).name || 'image.jpg';
+    form.append('file', file, filename);
+  }
   const res = await fetch(`${getProxyBaseUrl()}/api/community-post/upload`, {
     method: 'POST',
     headers,

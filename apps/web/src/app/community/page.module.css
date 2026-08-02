@@ -66,6 +66,13 @@
   flex-shrink: 0;
 }
 
+.thumbWrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
 .rowBody {
   display: flex;
   flex-direction: column;

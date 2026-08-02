@@ -57,7 +57,7 @@ export default function CommunityNewPostPage() {
     setError(null);
     try {
       const mediaItems = await Promise.all(
-        media.map(async (m) => (m.kind === 'existing' ? { url: m.url, type: 'image' as const } : await uploadCommunityPostMedia(m.file)))
+        media.map(async (m) => (m.kind === 'existing' ? { url: m.url, type: m.type } : await uploadCommunityPostMedia(m.file)))
       );
       const postId = await createCommunityPost({
         category,

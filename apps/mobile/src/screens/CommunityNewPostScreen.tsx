@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import {
@@ -23,8 +24,18 @@ import { ComingSoonNotice } from '../components/Community/ComingSoonNotice';
 type CategoryChoice = CommunityPostCategory | 'LOCATION';
 const CATEGORIES: CategoryChoice[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'INFO', 'TIP', 'QNA', 'LOCATION'];
 const MAX_MEDIA = 5;
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+  mp4: 'video/mp4', mov: 'video/quicktime',
+};
 
 interface PickedAlbum { ALBUM_ID: number; TITLE: string; ARTIST: string; IMAGE_URL: string | null }
+
+// 각 영상마다 자기 자신의 useVideoPlayer 인스턴스가 필요해 별도 컴포넌트로 분리(NoticeDetailScreen과 동일 패턴).
+const NewPostVideoThumb = ({ uri }: { uri: string }) => {
+  const player = useVideoPlayer(uri);
+  return <VideoView player={player} style={styles.mediaThumb} nativeControls={false} contentFit="cover" />;
+};
 
 // 커뮤니티 글쓰기 — 웹 /community/new의 모바일 버전. 정보게시판 위치는 v1
 // 모바일에서 지도 SDK 없이 장소명/주소 텍스트 입력으로만 받는다(웹은 구글맵
@@ -40,7 +51,7 @@ export const CommunityNewPostScreen = () => {
   const [category, setCategory] = useState<CategoryChoice>('FREE');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [media, setMedia] = useState<{ uri: string }[]>([]);
+  const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [albums, setAlbums] = useState<PickedAlbum[]>([]);
@@ -59,9 +70,10 @@ export const CommunityNewPostScreen = () => {
       Alert.alert(t('common.error'), '갤러리 접근 권한이 필요합니다.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 });
     if (!result.canceled && result.assets?.length) {
-      setMedia((prev) => [...prev, { uri: result.assets[0].uri }]);
+      const asset = result.assets[0];
+      setMedia((prev) => [...prev, { uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image' }]);
     }
   };
 
@@ -104,9 +116,9 @@ export const CommunityNewPostScreen = () => {
     try {
       const mediaItems = await Promise.all(
         media.map(async (m) => {
-          const response = await fetch(m.uri);
-          const blob = await response.blob();
-          return uploadCommunityPostMedia(blob);
+          const ext = (m.uri.split('.').pop() || (m.type === 'video' ? 'mp4' : 'jpg')).toLowerCase();
+          const mimeType = MIME_BY_EXT[ext] || (m.type === 'video' ? 'video/mp4' : 'image/jpeg');
+          return uploadCommunityPostMedia({ uri: m.uri, name: `media.${ext}`, type: mimeType });
         })
       );
       const postId = await createCommunityPost({
@@ -184,7 +196,11 @@ export const CommunityNewPostScreen = () => {
         <View style={styles.mediaGrid}>
           {media.map((m, i) => (
             <View key={i} style={styles.mediaThumbWrap}>
-              <Image source={{ uri: m.uri }} style={styles.mediaThumb} />
+              {m.type === 'video' ? (
+                <NewPostVideoThumb uri={m.uri} />
+              ) : (
+                <Image source={{ uri: m.uri }} style={styles.mediaThumb} />
+              )}
               <TouchableOpacity style={styles.removeMediaBtn} onPress={() => setMedia((prev) => prev.filter((_, idx) => idx !== i))}>
                 <Feather name="x" size={12} color="#fff" />
               </TouchableOpacity>

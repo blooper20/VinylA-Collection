@@ -86,8 +86,20 @@ function CommunityPageInner() {
             {posts.map((p) => (
               <Link key={p.POST_ID} href={`/community/${p.POST_ID}`} className={styles.row}>
                 {p.MEDIA_ITEMS[0] ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={p.MEDIA_ITEMS[0].url} alt="" className={styles.thumb} />
+                  <div className={styles.thumbWrap}>
+                    {p.MEDIA_ITEMS[0].type === 'video' ? (
+                      <video className={styles.thumb} src={p.MEDIA_ITEMS[0].url} muted playsInline preload="metadata" />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={p.MEDIA_ITEMS[0].url} alt="" className={styles.thumb} />
+                    )}
+                    {p.MEDIA_ITEMS[0].type === 'video' && (
+                      <span className="material-symbols-outlined" aria-hidden style={{
+                        position: 'absolute', inset: 0, margin: 'auto', width: 18, height: 18,
+                        fontSize: 18, color: '#fff', textShadow: '0 0 4px rgba(0,0,0,0.8)',
+                      }}>play_circle</span>
+                    )}
+                  </div>
                 ) : (
                   <div className={styles.thumbPlaceholder} />
                 )}

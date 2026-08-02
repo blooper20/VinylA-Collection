@@ -289,11 +289,11 @@ export interface NOTICE {
 }
 
 /**
- * 커뮤니티 게시글 첨부 이미지 1건 — NoticeMediaItem과 동일 모양(영상은 v1 범위 밖)
+ * 커뮤니티 게시글 첨부 미디어 1건 — NoticeMediaItem과 동일 모양
  */
 export interface CommunityMediaItem {
   url: string;
-  type: 'image';
+  type: 'image' | 'video';
 }
 
 export type CommunityPostCategory = 'ARRIVAL' | 'FREE' | 'QNA' | 'INFO' | 'LISTENING_ROOM' | 'TIP';

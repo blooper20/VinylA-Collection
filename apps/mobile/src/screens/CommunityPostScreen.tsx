@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import {
@@ -26,6 +27,12 @@ import {
   CommunityPostWithMeta,
   CommunityComment,
 } from '@vinyla/core-api';
+
+// 각 영상마다 자기 자신의 useVideoPlayer 인스턴스가 필요해 별도 컴포넌트로 분리(NoticeDetailScreen과 동일 패턴).
+const CommunityVideo = ({ url }: { url: string }) => {
+  const player = useVideoPlayer(url, (p) => { p.loop = true; });
+  return <VideoView player={player} style={styles.mediaImg} allowsFullscreen allowsPictureInPicture nativeControls />;
+};
 
 // 커뮤니티 게시글 상세 — 웹 /community/[postId]의 모바일 버전. 댓글/답변
 // 스레드(1단계 대댓글)와 QnA 채택 버튼을 한 화면에서 처리한다.
@@ -222,9 +229,13 @@ export const CommunityPostScreen = () => {
 
         {post.MEDIA_ITEMS.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {post.MEDIA_ITEMS.map((m, i) => (
-              <Image key={i} source={{ uri: m.url }} style={styles.mediaImg} />
-            ))}
+            {post.MEDIA_ITEMS.map((m, i) =>
+              m.type === 'video' ? (
+                <CommunityVideo key={i} url={m.url} />
+              ) : (
+                <Image key={i} source={{ uri: m.url }} style={styles.mediaImg} />
+              )
+            )}
           </ScrollView>
         )}
 
