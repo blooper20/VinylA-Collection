@@ -84,6 +84,12 @@ export const CommunityScreen = () => {
         )}
       />
 
+      {!isLocationPlaceholder && (
+        <Text style={[styles.categoryHint, { color: themeColors.textSecondary }]}>
+          {category === 'ALL' ? t('communityBoard.allCategoriesHint') : t(`communityBoard.categoryHint.${category}` as any)}
+        </Text>
+      )}
+
       {isLocationPlaceholder && <ComingSoonNotice />}
 
       {!isLocationPlaceholder && isLoading && <ActivityIndicator color={themeColors.accent} style={{ marginTop: 24 }} />}
@@ -137,6 +143,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '700' },
   tabsList: { flexGrow: 0, paddingVertical: 10 },
+  categoryHint: { fontSize: 12, paddingHorizontal: 16, marginBottom: 8 },
   tab: {
     paddingHorizontal: 14,
     paddingVertical: 6,

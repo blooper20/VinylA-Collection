@@ -415,6 +415,7 @@ export const en = {
       TIP: 'Leave tips for beginners or useful info',
       LOCATION: 'Browse posts by place on a map',
     },
+    allCategoriesHint: 'See posts from every category in one place',
     comingSoonTitle: 'Coming soon',
     comingSoonDesc: "This board unlocks once map support is added. Hang tight!",
     pageTitle: 'Community',

@@ -414,6 +414,7 @@ export const ko = {
       TIP: '입문자를 위한 팁이나 알아두면 좋은 정보를 남겨보세요',
       LOCATION: '지도 위에서 장소로 둘러보는 게시판이에요',
     },
+    allCategoriesHint: '모든 카테고리의 글을 한 곳에서 만나보세요',
     comingSoonTitle: '준비 중이에요',
     comingSoonDesc: '지도 기능이 도입되면 만나볼 수 있는 게시판이에요. 조금만 기다려주세요!',
     pageTitle: '커뮤니티',

@@ -58,11 +58,18 @@ function CommunityPageInner() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          {isLocationPlaceholder
-            ? t('communityBoard.categories.LOCATION' as any)
-            : category === 'ALL' ? t('communityBoard.pageTitle') : t(`communityBoard.categories.${category}` as any)}
-        </h1>
+        <div>
+          <h1 className={styles.title}>
+            {isLocationPlaceholder
+              ? t('communityBoard.categories.LOCATION' as any)
+              : category === 'ALL' ? t('communityBoard.pageTitle') : t(`communityBoard.categories.${category}` as any)}
+          </h1>
+          {!isLocationPlaceholder && (
+            <p className={styles.hint}>
+              {category === 'ALL' ? t('communityBoard.allCategoriesHint') : t(`communityBoard.categoryHint.${category}` as any)}
+            </p>
+          )}
+        </div>
         {!isLocationPlaceholder && (
           <Link href="/community/new" className={styles.writeBtn}>{t('communityBoard.writeCta')}</Link>
         )}
