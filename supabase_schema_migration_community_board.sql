@@ -135,6 +135,10 @@ CREATE POLICY "community_comment_delete_own_or_post_owner" ON public."COMMUNITY_
   );
 
 -- 이제 COMMUNITY_COMMENT가 존재하므로 ACCEPTED_COMMENT_ID FK를 건다.
+-- ADD CONSTRAINT는 IF NOT EXISTS를 지원하지 않아(Postgres 제약), 먼저 지우고
+-- 다시 걸어야 이 파일 전체를 처음부터 다시 실행해도 안전하다(파일의 다른
+-- 모든 문장은 CREATE ... IF NOT EXISTS/DROP ... IF EXISTS로 이미 재실행 가능함).
+ALTER TABLE public."COMMUNITY_POST" DROP CONSTRAINT IF EXISTS "community_post_accepted_comment_fk";
 ALTER TABLE public."COMMUNITY_POST"
   ADD CONSTRAINT "community_post_accepted_comment_fk"
   FOREIGN KEY ("ACCEPTED_COMMENT_ID") REFERENCES public."COMMUNITY_COMMENT"("COMMENT_ID") ON DELETE SET NULL;
