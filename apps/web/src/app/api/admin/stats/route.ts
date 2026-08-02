@@ -9,20 +9,36 @@ const PAGE = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const COHORT_WEEKS = 8;
 
-// supabase-js silently caps selects at 1000 rows — page through with .range()
+// supabase-js silently caps selects at 1000 rows. Tables like EVENT_LOG can
+// span many pages — fetching them one .range() at a time in series (as this
+// used to) means N round trips stacked back-to-back. Instead, fetch the first
+// page with an exact count, then fire every remaining page concurrently:
+// N round trips in series become ~2 round trips total regardless of N.
+// buildQuery's .select(...) must pass { count: 'exact' } for this to work.
 const fetchAll = async <T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown; count?: number | null }>
 ): Promise<T[]> => {
-  const all: T[] = [];
-  let from = 0;
-  for (;;) {
-    const { data, error } = await buildQuery(from, from + PAGE - 1);
-    if (error) throw error;
-    all.push(...(data || []));
-    if (!data || data.length < PAGE) break;
-    from += PAGE;
+  const first = await buildQuery(0, PAGE - 1);
+  if (first.error) throw first.error;
+  const firstPage = first.data || [];
+  const total = first.count ?? null;
+  if (total === null || firstPage.length < PAGE) return firstPage;
+
+  const remainingPages = Math.ceil((total - PAGE) / PAGE);
+  if (remainingPages <= 0) return firstPage;
+
+  const rest = await Promise.all(
+    Array.from({ length: remainingPages }, (_, i) => {
+      const from = PAGE * (i + 1);
+      return buildQuery(from, from + PAGE - 1);
+    })
+  );
+  const restRows: T[] = [];
+  for (const r of rest) {
+    if (r.error) throw r.error;
+    restRows.push(...(r.data || []));
   }
-  return all;
+  return firstPage.concat(restRows);
 };
 
 // ID 목록을 500개씩 나눠 청크별로 병렬 조회 — 순차 for-loop보다 청크 수만큼
@@ -131,12 +147,15 @@ const computeStats = async (days: number) => {
     fetchAll<EventRow>((from, to) =>
       admin
         .from('EVENT_LOG')
-        .select('EVENT_TYPE, USER_ID, CREATED_AT, META')
+        .select('EVENT_TYPE, USER_ID, CREATED_AT, META', { count: 'exact' })
         .gte('CREATED_AT', eventWindowIso)
         .range(from, to)
     ),
     fetchAll<VinylRow>((from, to) =>
-      admin.from('USER_VINYL').select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE').range(from, to)
+      admin
+        .from('USER_VINYL')
+        .select('USER_ID, ALBUM_ID, STATUS, PURCHASE_PRICE', { count: 'exact' })
+        .range(from, to)
     ),
     admin
       .from('EVENT_LOG')
@@ -359,12 +378,17 @@ const computeStats = async (days: number) => {
     fetchAllChunked<number, AlbumMasterRow>(allAlbumIds, (chunk, from, to) =>
       admin
         .from('ALBUM_MASTER')
-        .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE')
+        .select('ALBUM_ID, TITLE, ARTIST, IMAGE_URL, MARKET_PRICE', { count: 'exact' })
         .in('ALBUM_ID', chunk)
         .range(from, to)
     ),
     fetchAllChunked<number, { TAG_NAME: string }>(ownedAlbumIds, (chunk, from, to) =>
-      admin.from('VINYL_TAG').select('TAG_NAME').eq('TAG_TYPE', 'GENRE').in('ALBUM_ID', chunk).range(from, to)
+      admin
+        .from('VINYL_TAG')
+        .select('TAG_NAME', { count: 'exact' })
+        .eq('TAG_TYPE', 'GENRE')
+        .in('ALBUM_ID', chunk)
+        .range(from, to)
     ),
   ]);
 
