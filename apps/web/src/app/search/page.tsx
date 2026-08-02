@@ -581,7 +581,7 @@ export default function SearchPage() {
                 key={item.id}
                 item={item}
                 onSelect={(a) => {
-                  const existing = userVinyls.find(v => v.ALBUM_ID === a.id);
+                  const existing = userVinyls.find(v => Number(v.ALBUM_ID) === Number(a.id));
                   setSelectedAlbum({
                     ALBUM_ID: a.id,
                     TITLE: a.title,
@@ -644,7 +644,7 @@ export default function SearchPage() {
                   key={item.id}
                   item={item}
                   onSelect={(a) => {
-                    const existing = userVinyls.find(v => v.ALBUM_ID === a.id);
+                    const existing = userVinyls.find(v => Number(v.ALBUM_ID) === Number(a.id));
                     setSelectedAlbum({
                       ALBUM_ID: a.id,
                       TITLE: a.title,
