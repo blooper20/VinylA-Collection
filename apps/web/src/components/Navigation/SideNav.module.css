@@ -242,90 +242,13 @@
   flex-shrink: 0;
 }
 
-/* ---- Mode switch (컬렉션 ↔ 커뮤니티) ----
-   접힌 레일: 라벨 없는 전환 아이콘 하나만. 펼쳐지면(호버/탭): 라벨 달린
-   두 버튼 스위치로 바뀐다. 다른 항목들의 opacity 트랜지션(.navLabel)과 달리
-   display를 토글하는 이유는, 접힌 폭(60~80px)에 두 버튼이 나란히 들어가면
-   레이블만 숨겨진 텅 빈 사각형처럼 보이기 때문 — 아예 다른 마크업으로 교체한다. */
-.modeToggleCollapsed {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 10px 0;
-  margin-bottom: 16px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.modeToggleCollapsed:hover {
-  color: var(--accent);
-}
-
-.modeSwitchExpanded {
-  display: none;
-  gap: 6px;
-  width: 100%;
-  padding: 0 10px;
-  margin-bottom: 16px;
-}
-
-.sidebar.expanded .modeToggleCollapsed { display: none; }
-.sidebar.expanded .modeSwitchExpanded { display: flex; }
-
-@media (min-width: 641px) {
-  .sidebar:hover .modeToggleCollapsed { display: none; }
-  .sidebar:hover .modeSwitchExpanded { display: flex; }
-}
-
-.modeSwitchBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-muted);
-  cursor: pointer;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.modeSwitchBtn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--foreground);
-}
-
-.modeSwitchActive {
-  background: rgba(233, 195, 73, 0.12);
-  border-color: rgba(233, 195, 73, 0.35);
-  color: var(--accent);
-}
-
-/* ---- Nav flip (모드 전환 시 메뉴 전체가 카드처럼 뒤집히며 교체된다) ---- */
-.navFlipViewport {
-  width: 100%;
-  flex: 1;
-  overflow: hidden;
-  perspective: 1200px;
-}
-
-.navFlipInner {
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
 .nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 100%;
+  flex: 1;
+  overflow: hidden;
   padding: 0 10px;
 }
 
@@ -403,9 +326,32 @@
   width: 100%;
 }
 
-.bottomDivider {
-  width: calc(100% - 20px);
-  height: 1px;
-  background: var(--border);
-  margin: 0 10px 16px;
+.bottomRow {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+/* 마이페이지/알림은 같은 행에 두 칸으로 나눠 쓰는 .navItem이라 — 다른
+   메뉴 항목들과 똑같이 펼치면 라벨이 나타난다. flex:1은 기본 min-width:auto
+   때문에 라벨 텍스트(opacity:0이어도 자기 너비는 그대로 차지)가 접힌 폭보다
+   넓으면 아이콘까지 밀려나 잘려버린다 — min-width:0로 실제로 줄어들게 하고,
+   접힌 상태에선 좁은 여백을 쓰다가 펼쳐지면 다른 항목과 같은 여백으로 늘어난다. */
+.bottomItem {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  gap: 8px;
+  padding: 11px 2px;
+  transition: background 0.2s ease, color 0.2s ease, padding 0.25s ease;
+}
+
+.sidebar.expanded .bottomItem {
+  padding: 11px 10px;
+}
+
+@media (min-width: 641px) {
+  .sidebar:hover .bottomItem {
+    padding: 11px 10px;
+  }
 }

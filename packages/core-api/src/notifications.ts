@@ -90,15 +90,26 @@ export const markAllNotificationsRead = async (): Promise<void> => {
 /**
  * 새 알림 실시간 구독 — 미읽음 배지 갱신용. RLS(WALRUS)가 수신자 본인
  * 이벤트만 전달한다. 반환값은 해제 함수.
+ *
+ * 같은 페이지에서 사이드바·마이페이지 등 여러 곳이 동시에 구독할 수 있다.
+ * `supabase.channel('my-notifications')`는 같은 topic이면 기존 채널
+ * 인스턴스를 그대로 돌려주는데, 거기에 `subscribe()` 이후 `.on()`을 다시
+ * 걸면 에러가 나므로 채널은 한 번만 만들고 리스너 목록에 콜백만 추가/제거한다.
  */
+const notificationListeners = new Set<() => void>();
+let notificationChannel: ReturnType<typeof supabase.channel> | null = null;
+
 export const subscribeToNotifications = (onNew: () => void): (() => void) => {
-  const channel = supabase
-    .channel('my-notifications')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'NOTIFICATION' },
-      () => onNew()
-    )
-    .subscribe();
-  return () => { void supabase.removeChannel(channel); };
+  notificationListeners.add(onNew);
+  if (!notificationChannel) {
+    notificationChannel = supabase
+      .channel('my-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'NOTIFICATION' },
+        () => { notificationListeners.forEach((fn) => fn()); }
+      )
+      .subscribe();
+  }
+  return () => { notificationListeners.delete(onNew); };
 };

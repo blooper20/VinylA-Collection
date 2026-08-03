@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, AppError, getErrorMessage } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, AppError, getErrorMessage, getUnreadNotificationCount, subscribeToNotifications } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
@@ -39,7 +40,8 @@ const TimelineCoverImg: React.FC<{ src?: string; alt?: string; className: string
 
 export default function MyProfilePage() {
   const { user, initializeAuth, updateProfileWithAvatarFile, updateFeaturedAlbum, updateUnlockedBadges, updateSelectedBadge, markFoundingCelebrationSeen, deleteAccount } = useAuthStore();
-  const { locale, t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
+  const [unreadCount, setUnreadCount] = useState(0);
   const [collectionValue, setCollectionValue] = useState(0);
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
@@ -93,6 +95,22 @@ export default function MyProfilePage() {
     getFollowCounts(user.id).then(setFollowCounts).catch(() => {});
     getProfileInfo(user.id).then((p) => setIsProfilePublic(p.IS_PUBLIC)).catch(() => {});
     getIncomingFollowRequests().then((r) => setIncomingRequestCount(r.length)).catch(() => {});
+  }, [user?.id]);
+
+  // 사이드바가 아니라 마이페이지 설정 섹션에서 알림 배지를 보여준다 —
+  // 알림·언어·로그아웃이 이제 여기로 모였기 때문.
+  useEffect(() => {
+    if (!user?.id) { setUnreadCount(0); return; }
+    getUnreadNotificationCount().then(setUnreadCount);
+    const unsubscribe = subscribeToNotifications(() => {
+      getUnreadNotificationCount().then(setUnreadCount);
+    });
+    const onRead = () => setUnreadCount(0);
+    window.addEventListener('NOTIFICATIONS_READ', onRead);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('NOTIFICATIONS_READ', onRead);
+    };
   }, [user?.id]);
 
   const toggleProfileVisibility = async () => {
@@ -675,6 +693,59 @@ export default function MyProfilePage() {
             )
           )}
         </div>
+      </section>
+
+      <section className={styles.settings}>
+        <h2 className={styles.settingsTitle}>{t('my.settingsTitle')}</h2>
+
+        <Link href="/notifications" className={styles.settingsRow}>
+          <span className={styles.settingsRowLeft}>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>notifications</span>
+            {t('nav.notifications')}
+          </span>
+          <span className={styles.settingsRowRight}>
+            {unreadCount > 0 && <span className={styles.settingsBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
+          </span>
+        </Link>
+
+        <div className={styles.settingsRow}>
+          <span className={styles.settingsRowLeft}>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>language</span>
+            {t('my.languageLabel')}
+          </span>
+          <div className={styles.languageToggle}>
+            <button
+              type="button"
+              className={`${styles.languageToggleBtn} ${locale === 'ko' ? styles.languageToggleActive : ''}`}
+              onClick={() => setLocale('ko')}
+            >
+              한국어
+            </button>
+            <button
+              type="button"
+              className={`${styles.languageToggleBtn} ${locale === 'en' ? styles.languageToggleActive : ''}`}
+              onClick={() => setLocale('en')}
+            >
+              English
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className={styles.settingsRow}
+          onClick={async () => {
+            const { signOut } = await import('@vinyla/core-api');
+            await signOut();
+            window.location.href = '/';
+          }}
+        >
+          <span className={styles.settingsRowLeft} style={{ color: '#eb5757' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>logout</span>
+            {t('nav.logout')}
+          </span>
+        </button>
       </section>
 
       {followListTab && user?.id && (
