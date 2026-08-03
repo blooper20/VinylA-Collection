@@ -789,14 +789,25 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
         onClose();
 
         let message = t('detail.savedToTarget', { target: status === 'OWNED' ? t('nav.collection') : t('nav.wishlist') });
+        const isNewlyOwned = status === 'OWNED' && album.STATUS !== 'OWNED';
         if (status === 'OWNED' && album.STATUS === 'OWNED') {
           message = t('detail.priceSaved');
         } else if (result?.isFirstEverSave) {
           message = t('detail.firstSaveCelebration');
         }
 
-        // Dispatch custom event for Toast
-        const event = new CustomEvent('SHOW_TOAST', { detail: { message } });
+        // Dispatch custom event for Toast — 보관함에 새로 추가된 경우에만
+        // 커뮤니티 "오온음(ARRIVAL)" 글쓰기로 유도하는 CTA를 함께 띄운다
+        // (구입가만 갱신한 경우·위시리스트 추가는 대상이 아니다).
+        const event = new CustomEvent('SHOW_TOAST', {
+          detail: {
+            message,
+            ...(isNewlyOwned ? {
+              ctaHref: `/community/new?category=ARRIVAL&albumId=${numericAlbumId}`,
+              ctaLabel: t('detail.shareArrivalCta'),
+            } : {}),
+          },
+        });
         window.dispatchEvent(event);
         window.dispatchEvent(new CustomEvent('REFRESH_VINYLS'));
       }, 500);

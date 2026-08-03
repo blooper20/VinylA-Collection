@@ -1,18 +1,18 @@
 'use client';
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useAuthStore,
   createCommunityPost,
   uploadCommunityPostMedia,
+  getAlbumMaster,
   getErrorMessage,
 } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { CommunityPostCategory } from '@vinyla/shared-types';
 import { CommunityMediaPicker, CommunityMediaSlot } from '../../../components/Community/CommunityMediaPicker';
 import { AlbumMultiSelectPicker, PickedAlbum } from '../../../components/Community/AlbumMultiSelectPicker';
-import { LocationPicker, PickedLocation } from '../../../components/Community/LocationPicker';
 import { ComingSoonNotice } from '../../../components/Community/ComingSoonNotice';
 import styles from './page.module.css';
 
@@ -21,22 +21,56 @@ import styles from './page.module.css';
 type CategoryChoice = CommunityPostCategory | 'LOCATION';
 const CATEGORIES: CategoryChoice[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'INFO', 'TIP', 'QNA', 'LOCATION'];
 
+const isCategoryChoice = (v: string | null): v is CategoryChoice =>
+  !!v && (CATEGORIES as string[]).includes(v);
+
 // 카테고리에 따라 입력폼이 달라지는 커뮤니티 글쓰기 화면. 제목+사진+내용은
-// 전 카테고리 공통이고, 오늘 온 전리품(앨범 다중 첨부)·정보게시판(위치 공유)만
-// 전용 필드가 추가된다.
+// 전 카테고리 공통이고, 오늘 온 전리품(앨범 다중 첨부)만 전용 필드가 추가된다.
+// (위치 공유는 정보게시판 개념 변경 — 예약판매/신반 발매정보/팝업스토어 소식 —
+// 으로 더 이상 쓰이지 않는다. 장소 기반 정보는 추후 로케이션 게시판으로 옮겨간다.)
+// useSearchParams()(보관함 저장 직후 "?category=ARRIVAL&albumId=" 유도 링크용)가
+// 정적 생성 페이지를 전부 강제 동적 렌더링으로 만들지 않도록, 그 훅을 쓰는
+// 부분만 Suspense로 감싼다.
 export default function CommunityNewPostPage() {
+  return (
+    <Suspense fallback={null}>
+      <CommunityNewPostPageInner />
+    </Suspense>
+  );
+}
+
+function CommunityNewPostPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const { t } = useLocale();
 
-  const [category, setCategory] = React.useState<CategoryChoice>('FREE');
+  const categoryParam = searchParams.get('category');
+  const albumIdParam = searchParams.get('albumId');
+
+  const [category, setCategory] = React.useState<CategoryChoice>(
+    isCategoryChoice(categoryParam) ? categoryParam : 'FREE'
+  );
   const [title, setTitle] = React.useState('');
   const [content, setContent] = React.useState('');
   const [media, setMedia] = React.useState<CommunityMediaSlot[]>([]);
   const [albums, setAlbums] = React.useState<PickedAlbum[]>([]);
-  const [location, setLocation] = React.useState<PickedLocation | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  // 보관함에 방금 추가한 앨범을 "오온음(ARRIVAL)" 글에 자동 첨부 — 방문자가
+  // 앨범 다중선택 피커를 다시 열어 고르지 않아도 되게 미리 채워둔다.
+  React.useEffect(() => {
+    if (!albumIdParam) return;
+    const albumId = Number(albumIdParam);
+    if (!Number.isFinite(albumId)) return;
+    getAlbumMaster(albumId).then((master) => {
+      if (!master) return;
+      setAlbums((prev) => prev.some((a) => a.ALBUM_ID === albumId)
+        ? prev
+        : [...prev, { ALBUM_ID: albumId, TITLE: master.TITLE, ARTIST: master.ARTIST, IMAGE_URL: master.IMAGE_URL || null }]);
+    });
+  }, [albumIdParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,10 +99,6 @@ export default function CommunityNewPostPage() {
         content,
         mediaItems,
         albumIds: category === 'ARRIVAL' ? albums.map((a) => a.ALBUM_ID) : undefined,
-        placeName: category === 'INFO' ? location?.placeName : undefined,
-        placeAddress: category === 'INFO' ? location?.placeAddress : undefined,
-        latitude: category === 'INFO' ? location?.latitude : undefined,
-        longitude: category === 'INFO' ? location?.longitude : undefined,
       });
       router.push(`/community/${postId}`);
     } catch (err) {
@@ -105,7 +135,7 @@ export default function CommunityNewPostPage() {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={t('communityBoard.titlePlaceholder')}
+          placeholder={t(`communityBoard.titlePlaceholders.${category}` as any)}
           className={styles.input}
           maxLength={100}
         />
@@ -120,18 +150,11 @@ export default function CommunityNewPostPage() {
           </>
         )}
 
-        {category === 'INFO' && (
-          <>
-            <label className={styles.label}>{t('communityBoard.locationLabel')}</label>
-            <LocationPicker value={location} onChange={setLocation} />
-          </>
-        )}
-
         <label className={styles.label}>{t('communityBoard.contentLabel')}</label>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder={t('communityBoard.contentPlaceholder')}
+          placeholder={t(`communityBoard.contentPlaceholders.${category}` as any)}
           className={styles.textarea}
           maxLength={5000}
         />

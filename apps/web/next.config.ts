@@ -50,6 +50,13 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://vinyla.vercel.app',
   },
+  async redirects() {
+    return [
+      // 공지사항 목록은 /community?tab=NOTICE 탭으로 통합됐다 — 기존
+      // 북마크/딥링크가 죽지 않도록 라우팅 단에서 리다이렉트한다.
+      { source: '/notices', destination: '/community?tab=NOTICE', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

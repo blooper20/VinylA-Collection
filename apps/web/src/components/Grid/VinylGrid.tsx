@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -134,7 +135,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const [viewMode, setViewMode] = useState<ViewMode>('grid4');
   const [sortMode, setSortMode] = useState<SortMode>('custom');
   const [isEditMode, setIsEditMode] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; ctaHref?: string; ctaLabel?: string } | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isRandomPickOpen, setIsRandomPickOpen] = useState(false);
   
@@ -215,8 +216,10 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
 
   useEffect(() => {
     const handleToast = (e: Event) => {
-      setToastMessage((e as CustomEvent<{ message: string }>).detail.message);
-      setTimeout(() => setToastMessage(null), 3000);
+      const detail = (e as CustomEvent<{ message: string; ctaHref?: string; ctaLabel?: string }>).detail;
+      setToast(detail);
+      // CTA가 있으면 눌러볼 시간을 더 준다
+      setTimeout(() => setToast(null), detail.ctaHref ? 6000 : 3000);
     };
     window.addEventListener('SHOW_TOAST', handleToast);
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
@@ -279,8 +282,8 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     try {
       await updateUserVinylOrder(reordered.map((a) => a.USER_VINYL_ID!));
     } catch {
-      setToastMessage(t('collection.orderSaveFailed'));
-      setTimeout(() => setToastMessage(null), 3000);
+      setToast({ message: t('collection.orderSaveFailed') });
+      setTimeout(() => setToast(null), 3000);
     } finally {
       // The 17 PATCHes' own postgres_changes echoes can keep trickling in
       // for a bit after the last one resolves — give them a moment to drain
@@ -295,8 +298,8 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
       const avatar = encodeURIComponent(user.user_metadata?.avatar_url || '/logo.png');
       const link = `${window.location.origin}/user/${user.id}?n=${name}&a=${avatar}`;
       await copyToClipboard(link);
-      setToastMessage(t('collection.linkCopied'));
-      setTimeout(() => setToastMessage(null), 3000);
+      setToast({ message: t('collection.linkCopied') });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -471,10 +474,15 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         />
       )}
 
-      {toastMessage && (
-        <div className={styles.toast}>
+      {toast && (
+        <div className={`${styles.toast} ${toast.ctaHref ? styles.toastWithCta : ''}`}>
           <span className="material-symbols-outlined">check_circle</span>
-          {toastMessage}
+          {toast.message}
+          {toast.ctaHref && (
+            <Link href={toast.ctaHref} className={styles.toastCtaBtn} onClick={() => setToast(null)}>
+              {toast.ctaLabel}
+            </Link>
+          )}
         </div>
       )}
 

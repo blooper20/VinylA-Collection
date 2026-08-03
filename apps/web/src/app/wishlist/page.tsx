@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { DetailModal } from '../../components/Modal/DetailModal';
 import { ShareBottomSheet } from '../../components/Modal/ShareBottomSheet';
 import { SharePreviewModal } from '../../components/Modal/SharePreviewModal';
@@ -77,11 +78,11 @@ export default function WishlistPage() {
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewMode, setPreviewMode] = useState<'save' | 'copy' | null>(null);
   const shareGridRef = useRef<HTMLDivElement>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; ctaHref?: string; ctaLabel?: string } | null>(null);
 
   const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
+    setToast({ message });
+    setTimeout(() => setToast(null), 3000);
   };
 
   const { user, initializeAuth } = useAuthStore();
@@ -92,7 +93,12 @@ export default function WishlistPage() {
 
   // Listen for SHOW_TOAST events (e.g. from SharePreviewModal)
   useEffect(() => {
-    const handler = (e: Event) => showToast((e as CustomEvent<{ message: string }>).detail.message);
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ message: string; ctaHref?: string; ctaLabel?: string }>).detail;
+      setToast(detail);
+      // CTA가 있으면 눌러볼 시간을 더 준다
+      setTimeout(() => setToast(null), detail.ctaHref ? 6000 : 3000);
+    };
     window.addEventListener('SHOW_TOAST', handler);
     return () => window.removeEventListener('SHOW_TOAST', handler);
   }, []);
@@ -275,7 +281,7 @@ export default function WishlistPage() {
       />
 
       {/* Toast notification */}
-      {toastMessage && (
+      {toast && (
         <div style={{
           position: 'fixed',
           bottom: '40px',
@@ -298,7 +304,20 @@ export default function WishlistPage() {
           animation: 'fadeInUp 0.3s ease',
         }}>
           <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#d4af37', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-          {toastMessage}
+          {toast.message}
+          {toast.ctaHref && (
+            <Link
+              href={toast.ctaHref}
+              onClick={() => setToast(null)}
+              style={{
+                background: '#d4af37', color: '#111', padding: '6px 14px',
+                borderRadius: '100px', fontSize: '12px', fontWeight: 700,
+                whiteSpace: 'nowrap', textDecoration: 'none', flexShrink: 0,
+              }}
+            >
+              {toast.ctaLabel}
+            </Link>
+          )}
         </div>
       )}
     </div>

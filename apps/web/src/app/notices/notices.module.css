@@ -6,110 +6,11 @@
   padding: 64px 24px 120px;
 }
 
-.header {
-  margin-bottom: 32px;
-}
-
-.eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  color: var(--accent);
-  margin: 0 0 12px;
-}
-
-.title {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 10px;
-}
-
-.subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.6;
-}
-
 .loadingText {
   color: var(--text-muted);
   font-size: 14px;
   padding: 40px 0;
   text-align: center;
-}
-
-.sectionTitle {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-  margin: 0 0 14px;
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 32px;
-}
-
-.item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-  text-decoration: none;
-}
-
-.item:hover {
-  border-color: var(--accent);
-}
-
-.itemPinned {
-  border-color: rgba(212, 175, 55, 0.35);
-}
-
-.itemThumb {
-  width: 56px;
-  height: 56px;
-  border-radius: 10px;
-  object-fit: cover;
-  flex-shrink: 0;
-  border: 1px solid var(--border);
-}
-
-.itemThumbEmpty {
-  width: 56px;
-  height: 56px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.04);
-  flex-shrink: 0;
-}
-
-.itemBody {
-  flex: 1;
-  min-width: 0;
-}
-
-.itemTitle {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.itemDate {
-  font-size: 12px;
-  color: var(--text-muted);
 }
 
 .pinBadge {
@@ -122,24 +23,6 @@
   font-weight: 700;
   margin-right: 8px;
   vertical-align: middle;
-}
-
-.loadMoreBtn {
-  display: block;
-  margin: 8px auto 0;
-  padding: 10px 24px;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-secondary, var(--text-muted));
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.loadMoreBtn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 /* ── 상세 페이지 ─────────────────────────── */

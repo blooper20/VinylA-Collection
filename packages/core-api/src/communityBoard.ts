@@ -75,16 +75,24 @@ const attachMeta = async (rows: any[]): Promise<CommunityPostWithMeta[]> => {
   }));
 };
 
-/** 카테고리별(또는 전체) 게시글 목록 — 최신순, beforeCreatedAt 커서 페이지네이션 */
+/**
+ * 카테고리별(또는 전체) 게시글 목록 — 최신순, beforeCreatedAt 커서 페이지네이션.
+ * category에 배열을 넘기면 여러 카테고리를 하나의 탭으로 묶어 조회한다
+ * (예: 커뮤니티 상단 "자랑" 탭 = ARRIVAL + LISTENING_ROOM).
+ */
 export const getCommunityPosts = async (
-  { category, limit = 20, beforeCreatedAt }: { category?: CommunityPostCategory; limit?: number; beforeCreatedAt?: string } = {}
+  { category, limit = 20, beforeCreatedAt }: { category?: CommunityPostCategory | CommunityPostCategory[]; limit?: number; beforeCreatedAt?: string } = {}
 ): Promise<CommunityPostWithMeta[]> => {
   let query = supabase
     .from('COMMUNITY_POST')
     .select('*')
     .order('CREATED_AT', { ascending: false })
     .limit(limit);
-  if (category) query = query.eq('CATEGORY', category);
+  if (Array.isArray(category)) {
+    if (category.length > 0) query = query.in('CATEGORY', category);
+  } else if (category) {
+    query = query.eq('CATEGORY', category);
+  }
   if (beforeCreatedAt) query = query.lt('CREATED_AT', beforeCreatedAt);
 
   const { data, error } = await query;

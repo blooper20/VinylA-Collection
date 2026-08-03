@@ -619,6 +619,23 @@
   color: var(--accent);
 }
 
+/* CTA가 있으면 눌러볼 시간을 주기 위해 페이드아웃을 늦춘다 (JS setTimeout과 맞춤) */
+.toastWithCta {
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, fadeOutToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) 5.6s forwards;
+}
+
+.toastCtaBtn {
+  background: var(--accent);
+  color: #111;
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
 @keyframes slideUpFade {
   from { opacity: 0; transform: translate(-50%, 20px); }
   to { opacity: 1; transform: translate(-50%, 0); }

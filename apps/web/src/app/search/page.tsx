@@ -128,7 +128,7 @@ export default function SearchPage() {
   const [totalToCheck, setTotalToCheck] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [selectedAlbum, setSelectedAlbum] = useState<SelectedAlbum | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; ctaHref?: string; ctaLabel?: string } | null>(null);
   const [searchMode, setSearchMode] = useState<SearchMode>('auto');
   // Discogs release country filter ('' = no filter / "전체"). Beyond letting
   // a user pick "the pressing I actually own" among many legit results, it
@@ -194,8 +194,10 @@ export default function SearchPage() {
 
   React.useEffect(() => {
     const handleToast = (e: Event) => {
-      setToastMessage((e as CustomEvent<{ message: string }>).detail.message);
-      setTimeout(() => setToastMessage(null), 3000);
+      const detail = (e as CustomEvent<{ message: string; ctaHref?: string; ctaLabel?: string }>).detail;
+      setToast(detail);
+      // CTA가 있으면 눌러볼 시간을 더 준다
+      setTimeout(() => setToast(null), detail.ctaHref ? 6000 : 3000);
     };
     window.addEventListener('SHOW_TOAST', handleToast);
     return () => window.removeEventListener('SHOW_TOAST', handleToast);
@@ -679,10 +681,15 @@ export default function SearchPage() {
         />
       )}
 
-      {toastMessage && (
-        <div className={styles.toast}>
+      {toast && (
+        <div className={`${styles.toast} ${toast.ctaHref ? styles.toastWithCta : ''}`}>
           <span className="material-symbols-outlined">check_circle</span>
-          {toastMessage}
+          {toast.message}
+          {toast.ctaHref && (
+            <Link href={toast.ctaHref} className={styles.toastCtaBtn} onClick={() => setToast(null)}>
+              {toast.ctaLabel}
+            </Link>
+          )}
         </div>
       )}
     </div>

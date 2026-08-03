@@ -96,7 +96,7 @@ export default function NoticeDetailPage() {
 
   return (
     <div className={styles.container}>
-      <Link href="/notices" className={styles.backLink}>
+      <Link href="/community?tab=NOTICE" className={styles.backLink}>
         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
         {t('notice.backToList')}
       </Link>

@@ -79,7 +79,7 @@ export default function NotificationsPage() {
 
   // 알림 클릭 시 이동할 곳 — 관련 콘텐츠가 있는 화면으로
   const notifHref = (n: NotificationItem): string => {
-    if (n.TYPE === 'NOTICE') return n.NOTICE_ID ? `/notices/${n.NOTICE_ID}` : '/notices';
+    if (n.TYPE === 'NOTICE') return n.NOTICE_ID ? `/notices/${n.NOTICE_ID}` : '/community?tab=NOTICE';
     if (n.TYPE === 'FOLLOW_REQUEST') return '/my';
     if (n.TYPE === 'FOLLOW_ACCEPTED' || n.TYPE === 'NEW_FOLLOWER') {
       return n.ACTOR_ID
