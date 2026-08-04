@@ -58,6 +58,9 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
           height={400}
           style={{ objectFit: 'cover' }}
           onError={() => setCoverRenderFailed(true)}
+          // picsum 플레이스홀더는 앨범마다 고유 URL이라 Vercel 이미지 최적화
+          // 쿼터(문의 없이도 계속 소모됨)만 갉아먹는다 — 실제 커버만 최적화한다.
+          unoptimized={coverRenderFailed || displayCoverUrl === coverFallbackUrl}
         />
         <EditionCoverArt album={album} size="sm" />
       </div>
