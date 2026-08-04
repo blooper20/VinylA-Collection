@@ -27,6 +27,7 @@ const CATEGORIES: { id: BadgeCategory | 'all', labelKey: TranslationKey }[] = [
   { id: 'wealth', labelKey: 'mobile.badgeSelect.categoryWealth' },
   { id: 'wishlist', labelKey: 'badgeSelect.categoryWishlist' },
   { id: 'genre', labelKey: 'mobile.badgeSelect.categoryGenre' },
+  { id: 'community', labelKey: 'badgeSelect.categoryCommunity' },
 ];
 
 function getTierColor(tier: BadgeTier): string {

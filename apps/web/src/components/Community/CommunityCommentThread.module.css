@@ -80,6 +80,22 @@
   word-break: break-word;
 }
 
+.editForm {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+
+.editInput {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 13px;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -98,6 +114,9 @@
 }
 
 .actionBtn:hover { color: #fff; }
+
+.resonanceActive { color: #e6b93c; }
+.resonanceActive:hover { color: #e6b93c; }
 
 .acceptBtn {
   border: 1px solid rgba(230, 185, 60, 0.5);

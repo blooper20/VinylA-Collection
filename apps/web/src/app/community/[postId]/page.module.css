@@ -72,9 +72,9 @@
 }
 
 .albumGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
   margin-bottom: 16px;
   padding: 12px;
   border-radius: 10px;
@@ -83,14 +83,21 @@
 
 .albumCard {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .albumCover {
-  width: 44px;
-  height: 44px;
-  border-radius: 6px;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
   object-fit: cover;
   background: #000;
 }
@@ -112,6 +119,9 @@
 .albumArtist {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .content {

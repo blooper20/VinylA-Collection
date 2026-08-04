@@ -38,6 +38,9 @@ export interface CommunityPostWithMeta extends COMMUNITY_POST {
   AUTHOR_NAME: string | null;
   AUTHOR_IMAGE: string | null;
   COMMENT_COUNT: number;
+  /** "울림"(게시글 좋아요) — COMMUNITY_COMMENT_LIKE와 같은 패턴의 COMMUNITY_POST_LIKE 집계 */
+  LIKE_COUNT: number;
+  LIKED_BY_ME: boolean;
   /** 오늘 온 전리품 전용 — 첨부된 본인 컬렉션 앨범들 */
   albums: CommunityPostAlbum[];
 }
@@ -45,10 +48,13 @@ export interface CommunityPostWithMeta extends COMMUNITY_POST {
 const attachMeta = async (rows: any[]): Promise<CommunityPostWithMeta[]> => {
   if (rows.length === 0) return [];
   const postIds = rows.map((r) => r.POST_ID);
-  const [profileMap, commentsRes, albumsRes] = await Promise.all([
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  const [profileMap, commentsRes, albumsRes, likesRes] = await Promise.all([
     getProfilesLite(rows.map((r) => r.AUTHOR_ID)),
     supabase.from('COMMUNITY_COMMENT').select('POST_ID').in('POST_ID', postIds),
     supabase.from('COMMUNITY_POST_ALBUM').select('POST_ID, ALBUM_ID, ALBUM_MASTER(TITLE, ARTIST, IMAGE_URL)').in('POST_ID', postIds),
+    supabase.from('COMMUNITY_POST_LIKE').select('POST_ID, USER_ID').in('POST_ID', postIds),
   ]);
 
   const commentCountMap: Record<number, number> = {};
@@ -65,12 +71,20 @@ const attachMeta = async (rows: any[]): Promise<CommunityPostWithMeta[]> => {
       IMAGE_URL: a.ALBUM_MASTER?.IMAGE_URL || null,
     });
   }
+  const likeCountMap: Record<number, number> = {};
+  const likedByMeSet = new Set<number>();
+  for (const l of (likesRes.data as { POST_ID: number; USER_ID: string }[]) || []) {
+    likeCountMap[l.POST_ID] = (likeCountMap[l.POST_ID] || 0) + 1;
+    if (myId && l.USER_ID === myId) likedByMeSet.add(l.POST_ID);
+  }
 
   return rows.map((r) => ({
     ...r,
     AUTHOR_NAME: profileMap[r.AUTHOR_ID]?.name || null,
     AUTHOR_IMAGE: profileMap[r.AUTHOR_ID]?.img || null,
     COMMENT_COUNT: commentCountMap[r.POST_ID] || 0,
+    LIKE_COUNT: likeCountMap[r.POST_ID] || 0,
+    LIKED_BY_ME: likedByMeSet.has(r.POST_ID),
     albums: albumsMap[r.POST_ID] || [],
   }));
 };
@@ -165,7 +179,8 @@ export const createCommunityPost = async (input: CommunityPostInput): Promise<nu
   }
 
   const postId = (data as any).POST_ID as number;
-  if (input.category === 'ARRIVAL' && input.albumIds?.length) {
+  const albumAttachCategories: CommunityPostCategory[] = ['ARRIVAL', 'COLLECTION', 'WISHLIST'];
+  if (albumAttachCategories.includes(input.category) && input.albumIds?.length) {
     const rows = [...new Set(input.albumIds)].map((albumId) => ({ POST_ID: postId, ALBUM_ID: albumId }));
     const { error: albumError } = await supabase.from('COMMUNITY_POST_ALBUM').insert(rows);
     if (albumError) {
@@ -175,6 +190,60 @@ export const createCommunityPost = async (input: CommunityPostInput): Promise<nu
     }
   }
   return postId;
+};
+
+/** 작성자 본인만 수정 가능 — RLS(UPDATE own)가 실제 판정을 담당. 카테고리는
+ * 바꿀 수 없어(글쓰기 폼에서 카테고리 고정) 파라미터로 받지 않는다. 앨범
+ * 첨부는 새로 고른 목록으로 통째로 교체(기존 행 삭제 후 재삽입)한다 —
+ * 부분 diff보다 훨씬 단순하고, 개인 글의 첨부 앨범 개수가 적어 비용도 미미하다. */
+export const updateCommunityPost = async (
+  postId: number,
+  input: {
+    title: string;
+    content: string;
+    mediaItems: CommunityMediaItem[];
+    albumIds?: number[];
+    placeName?: string | null;
+    placeAddress?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }
+): Promise<void> => {
+  const title = input.title.trim();
+  const content = input.content.trim();
+  if (!title) throw new AppError('DB-001', '제목을 입력해주세요.');
+  if (!content) throw new AppError('DB-001', '내용을 입력해주세요.');
+
+  const { error } = await supabase
+    .from('COMMUNITY_POST')
+    .update({
+      TITLE: title.slice(0, 100),
+      CONTENT: content.slice(0, 5000),
+      MEDIA_ITEMS: input.mediaItems,
+      PLACE_NAME: input.placeName !== undefined ? (input.placeName?.trim() || null) : undefined,
+      PLACE_ADDRESS: input.placeAddress !== undefined ? (input.placeAddress?.trim() || null) : undefined,
+      LATITUDE: input.latitude !== undefined ? input.latitude : undefined,
+      LONGITUDE: input.longitude !== undefined ? input.longitude : undefined,
+      UPDATED_AT: new Date().toISOString(),
+    })
+    .eq('POST_ID', postId);
+  if (error) {
+    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '게시글 수정에 실패했습니다.', error);
+  }
+
+  if (input.albumIds) {
+    const { error: delError } = await supabase.from('COMMUNITY_POST_ALBUM').delete().eq('POST_ID', postId);
+    if (delError) {
+      throw new AppError('DB-001', '게시글은 수정됐지만 앨범 첨부 갱신에 실패했습니다.', delError);
+    }
+    if (input.albumIds.length > 0) {
+      const rows = [...new Set(input.albumIds)].map((albumId) => ({ POST_ID: postId, ALBUM_ID: albumId }));
+      const { error: insError } = await supabase.from('COMMUNITY_POST_ALBUM').insert(rows);
+      if (insError) {
+        throw new AppError('DB-001', '게시글은 수정됐지만 앨범 첨부 갱신에 실패했습니다.', insError);
+      }
+    }
+  }
 };
 
 /** 작성자 본인 또는 관리자만 — RLS가 실제 판정을 담당 */
@@ -324,6 +393,19 @@ export const addCommunityComment = async (
   }
 };
 
+/** 작성자 본인만 — RLS(UPDATE own)가 실제 판정을 담당 */
+export const updateCommunityComment = async (commentId: number, content: string): Promise<void> => {
+  const trimmed = content.trim();
+  if (!trimmed) throw new AppError('DB-001', '내용을 입력해주세요.');
+  const { error } = await supabase
+    .from('COMMUNITY_COMMENT')
+    .update({ CONTENT: trimmed.slice(0, 1000) })
+    .eq('COMMENT_ID', commentId);
+  if (error) {
+    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '수정에 실패했습니다.', error);
+  }
+};
+
 /** 삭제 권한(작성자 본인, 게시글 작성자, 관리자)은 RLS가 판정 — 권한 없으면 0건 삭제 */
 export const deleteCommunityComment = async (commentId: number): Promise<void> => {
   const { error } = await supabase.from('COMMUNITY_COMMENT').delete().eq('COMMENT_ID', commentId);
@@ -332,11 +414,13 @@ export const deleteCommunityComment = async (commentId: number): Promise<void> =
   }
 };
 
+// "울림" — 댓글/게시글 공용 반응 명칭. 하트 대신 음악노트 아이콘을 쓴다
+// (UI 쪽, CommunityCommentThread.tsx/[postId]/page.tsx 참고).
 export const likeCommunityComment = async (commentId: number): Promise<void> => {
   const userId = await requireUserId();
   const { error } = await supabase.from('COMMUNITY_COMMENT_LIKE').insert({ COMMENT_ID: commentId, USER_ID: userId });
   if (error && error.code !== '23505') {
-    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '좋아요 처리에 실패했습니다.', error);
+    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '울림 처리에 실패했습니다.', error);
   }
 };
 
@@ -345,7 +429,24 @@ export const unlikeCommunityComment = async (commentId: number): Promise<void> =
   const { error } = await supabase
     .from('COMMUNITY_COMMENT_LIKE').delete().eq('COMMENT_ID', commentId).eq('USER_ID', userId);
   if (error) {
-    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '좋아요 취소에 실패했습니다.', error);
+    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '울림 취소에 실패했습니다.', error);
+  }
+};
+
+export const likeCommunityPost = async (postId: number): Promise<void> => {
+  const userId = await requireUserId();
+  const { error } = await supabase.from('COMMUNITY_POST_LIKE').insert({ POST_ID: postId, USER_ID: userId });
+  if (error && error.code !== '23505') {
+    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '울림 처리에 실패했습니다.', error);
+  }
+};
+
+export const unlikeCommunityPost = async (postId: number): Promise<void> => {
+  const userId = await requireUserId();
+  const { error } = await supabase
+    .from('COMMUNITY_POST_LIKE').delete().eq('POST_ID', postId).eq('USER_ID', userId);
+  if (error) {
+    throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '울림 취소에 실패했습니다.', error);
   }
 };
 
@@ -370,4 +471,31 @@ export const reportCommunityComment = async (commentId: number, reason: string):
   if (error && error.code !== '23505') {
     throw new AppError(isNetworkError(error) ? 'NET-001' : 'DB-001', '신고 접수에 실패했습니다.', error);
   }
+};
+
+// ── 커뮤니티 활동 통계 (뱃지 판정용) ──────────────────────────────────
+
+export interface CommunityActivityStats {
+  postCount: number;
+  commentCount: number;
+  /** 내 댓글들이 받은 좋아요 총합 (게시글 자체 좋아요는 없음 — 댓글 좋아요만 집계) */
+  likesReceived: number;
+}
+
+/** getFollowCounts와 같은 방식으로 실패 시 0 반환(뱃지 판정용 보조 통계라 프로필
+ * 페이지 전체를 막을 정도로 치명적이지 않다). */
+export const getCommunityActivityStats = async (userId: string): Promise<CommunityActivityStats> => {
+  const [postsRes, commentsRes] = await Promise.all([
+    supabase.from('COMMUNITY_POST').select('POST_ID', { count: 'exact', head: true }).eq('AUTHOR_ID', userId),
+    supabase.from('COMMUNITY_COMMENT').select('COMMENT_ID').eq('USER_ID', userId),
+  ]);
+  const postCount = postsRes.count || 0;
+  const myCommentIds = ((commentsRes.data as { COMMENT_ID: number }[]) || []).map((c) => c.COMMENT_ID);
+  if (myCommentIds.length === 0) return { postCount, commentCount: 0, likesReceived: 0 };
+
+  const likesRes = await supabase
+    .from('COMMUNITY_COMMENT_LIKE')
+    .select('LIKE_ID', { count: 'exact', head: true })
+    .in('COMMENT_ID', myCommentIds);
+  return { postCount, commentCount: myCommentIds.length, likesReceived: likesRes.count || 0 };
 };

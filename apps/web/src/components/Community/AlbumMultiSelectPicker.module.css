@@ -29,16 +29,16 @@
 }
 
 .selectedGrid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
 
 .selectedThumb {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
   background: #000;
@@ -96,64 +96,122 @@
   padding: 12px 0;
 }
 
-.list {
+.sections {
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.selectAllBtn {
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.selectAllBtn:hover {
+  border-color: rgba(230, 185, 60, 0.5);
+  color: #e6b93c;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pickGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 10px;
+}
+
+.pickItem {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
   text-align: left;
 }
 
-.row:hover { background: rgba(255, 255, 255, 0.05); }
-.rowSelected { background: rgba(230, 185, 60, 0.12); }
-
-.rowImg {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-  object-fit: cover;
+.pickCoverWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
   background: #000;
-  flex-shrink: 0;
 }
 
-.rowText {
+.pickCover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pickCheck {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  font-size: 18px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
+  align-items: center;
+  justify-content: center;
 }
 
-.rowTitle {
-  font-size: 13px;
+.pickCheckOn {
+  color: #0a0a0a;
+  background: #e6b93c;
+}
+
+.pickTitle {
+  font-size: 12px;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.rowArtist {
-  font-size: 11px;
+.pickArtist {
+  font-size: 10px;
   color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.rowCheck {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.3);
-  flex-shrink: 0;
-}
-
-.rowSelected .rowCheck { color: #e6b93c; }
 
 .doneBtn {
   margin-top: 10px;

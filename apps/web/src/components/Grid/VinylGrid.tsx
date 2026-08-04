@@ -137,6 +137,12 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   const [isEditMode, setIsEditMode] = useState(false);
   const [toast, setToast] = useState<{ message: string; ctaHref?: string; ctaLabel?: string } | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  // 헤더의 "전체 공유"와 컬렉션 자랑(다중 선택)이 같은 바텀시트/템플릿을
+  // 공유해 쓴다 — 어느 쪽에서 열었는지에 따라 템플릿에 넘길 앨범 목록과
+  // 공유 옵션(선택 공유엔 공개 링크가 의미 없어 제외)만 갈라진다.
+  const [shareSource, setShareSource] = useState<'all' | 'selected'>('all');
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isRandomPickOpen, setIsRandomPickOpen] = useState(false);
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -165,6 +171,12 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
   useEffect(() => {
     if (sortMode !== 'custom') setIsEditMode(false);
   }, [sortMode]);
+
+  // 드래그 정렬 모드와 다중 선택 모드는 카드 클릭 동작이 서로 충돌해
+  // 동시에 켤 수 없다 — 한쪽을 켜면 반대쪽은 자동으로 꺼진다.
+  useEffect(() => {
+    if (isEditMode) { setIsSelectMode(false); setSelectedIds(new Set()); }
+  }, [isEditMode]);
 
   useEffect(() => {
     if (user && !user.user_metadata?.displayName) {
@@ -263,6 +275,29 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
     setIsEditMode((v) => !v);
   };
 
+  const handleToggleSelectMode = () => {
+    if (isEditMode) setIsEditMode(false);
+    if (isSelectMode) setSelectedIds(new Set());
+    setIsSelectMode((v) => !v);
+  };
+
+  const toggleAlbumSelected = (album: MockVinylData) => {
+    const id = album.USER_VINYL_ID;
+    if (id == null) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedAlbums = displayedAlbums.filter((a) => a.USER_VINYL_ID != null && selectedIds.has(a.USER_VINYL_ID));
+
+  const openShareSheet = (source: 'all' | 'selected') => {
+    setShareSource(source);
+    setIsShareOpen(true);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -311,7 +346,7 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
           <span className={styles.pageEyebrow}>My Collection</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <h1 className={styles.pageTitle}>{t('collection.title')}</h1>
-            <button className={styles.shareBtn} onClick={() => setIsShareOpen(true)} title={t('common.share')}>
+            <button className={styles.shareBtn} onClick={() => openShareSheet('all')} title={t('common.share')}>
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
             </button>
           </div>
@@ -345,6 +380,17 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
                     {isEditMode ? 'check' : 'drag_indicator'}
                   </span>
                   {isEditMode ? t('collection.editModeDone') : t('collection.editMode')}
+                </button>
+              )}
+              {statusFilter === 'OWNED' && viewMode !== 'table' && displayedAlbums.length > 0 && (
+                <button
+                  className={`${styles.controlChip} ${styles.editModeBtn} ${isSelectMode ? styles.controlActive : ''}`}
+                  onClick={handleToggleSelectMode}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: '-2px' }}>
+                    {isSelectMode ? 'close' : 'checklist'}
+                  </span>
+                  {isSelectMode ? t('collection.selectModeCancel') : t('collection.selectModeEnter')}
                 </button>
               )}
             </div>
@@ -407,7 +453,13 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         ) : (
           <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
             {displayedAlbums.map(album => (
-              <AlbumCard key={album.USER_VINYL_ID ?? album.ALBUM_ID} album={album} onClick={setSelectedAlbum} />
+              <AlbumCard
+                key={album.USER_VINYL_ID ?? album.ALBUM_ID}
+                album={album}
+                onClick={isSelectMode ? toggleAlbumSelected : setSelectedAlbum}
+                selectable={isSelectMode}
+                selected={album.USER_VINYL_ID != null && selectedIds.has(album.USER_VINYL_ID)}
+              />
             ))}
           </div>
         )
@@ -486,10 +538,24 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
         </div>
       )}
 
+      {isSelectMode && (
+        <div className={styles.selectActionBar}>
+          <span className={styles.selectActionCount}>{t('collection.selectedCount', { count: selectedAlbums.length })}</span>
+          <button
+            className={styles.selectActionShareBtn}
+            disabled={selectedAlbums.length === 0}
+            onClick={() => openShareSheet('selected')}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>ios_share</span>
+            {t('collection.shareSelectedCta')}
+          </button>
+        </div>
+      )}
+
       <ShareBottomSheet
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        title={t('collection.shareSheetTitle')}
+        title={shareSource === 'selected' ? t('collection.shareSelectedSheetTitle') : t('collection.shareSheetTitle')}
         options={[
           { id: 'image', label: t('share.saveImage'), icon: 'download', action: async () => {
               setIsShareOpen(false);
@@ -511,20 +577,22 @@ export const VinylGrid: React.FC<VinylGridProps> = ({ statusFilter = 'ALL' }) =>
               }
             }
           },
-          { id: 'link', label: t('share.copyLink'), icon: 'link', action: handleShareLink }
+          // 공개 프로필 링크는 "전체 컬렉션"에만 대응된다 — 선택한 일부 앨범만
+          // 가리키는 링크는 없으므로 선택 공유일 땐 이 옵션 자체를 뺀다.
+          ...(shareSource === 'all' ? [{ id: 'link', label: t('share.copyLink'), icon: 'link', action: handleShareLink }] : [])
         ]}
       />
 
-      <SharePreviewModal 
+      <SharePreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         blob={previewBlob}
         mode={previewMode}
       />
 
-      <ShareableGridTemplate 
+      <ShareableGridTemplate
         ref={shareGridRef}
-        albums={displayedAlbums.filter(a => a.STATUS !== 'WISH')}
+        albums={shareSource === 'selected' ? selectedAlbums : displayedAlbums.filter(a => a.STATUS !== 'WISH')}
         username={user?.user_metadata?.displayName || 'Collector'}
         title={t('collection.title')}
       />

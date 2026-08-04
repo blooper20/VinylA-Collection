@@ -22,10 +22,10 @@ type FrontendVinyl = ReturnType<typeof mapToFrontendModel>;
 // 행/카드마다 훅(useCoverImageUrl)을 걸어야 해서 .map() 콜백 안에 인라인으로
 // 두지 않고 따로 뺐다 — 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘
 // 대신 프록시 재시도 후 플레이스홀더로 대체한다.
-const WishlistGridCard: React.FC<{ rec: FrontendVinyl; onClick: () => void }> = ({ rec, onClick }) => {
+const WishlistGridCard: React.FC<{ rec: FrontendVinyl; onClick: () => void; selectable?: boolean; selected?: boolean }> = ({ rec, onClick, selectable, selected }) => {
   const displayCoverUrl = useCoverImageUrl(rec.IMAGE_URL || rec.COVER_URL, '/logo_real_transparent.png');
   return (
-    <div className={styles.card} onClick={onClick}>
+    <div className={`${styles.card} ${selectable && selected ? styles.cardSelected : ''}`} onClick={onClick}>
       <div className={styles.coverWrapper}>
         <img src={displayCoverUrl} alt={rec.TITLE} className={styles.cover} loading="lazy" />
         <div className={styles.coverOverlay}>
@@ -36,6 +36,12 @@ const WishlistGridCard: React.FC<{ rec: FrontendVinyl; onClick: () => void }> = 
           <div className={styles.editionBadge}>
             <span className="material-symbols-outlined">auto_awesome</span>
             {rec.EDITION_LABEL}
+          </div>
+        )}
+        {/* 위시리스트 공유용 다중 선택 체크박스 — 상시 노출, 우하단 배치 */}
+        {selectable && (
+          <div className={`${styles.selectCheckbox} ${selected ? styles.selectCheckboxChecked : ''}`}>
+            <span className="material-symbols-outlined">{selected ? 'check_circle' : 'radio_button_unchecked'}</span>
           </div>
         )}
       </div>
@@ -79,6 +85,11 @@ export default function WishlistPage() {
   const [previewMode, setPreviewMode] = useState<'save' | 'copy' | null>(null);
   const shareGridRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ message: string; ctaHref?: string; ctaLabel?: string } | null>(null);
+  // 전체 공유(헤더 버튼)와 선택 공유(다중 선택 모드)가 같은 바텀시트/템플릿을
+  // 공유해 쓴다 — VinylGrid의 컬렉션 자랑과 동일한 패턴.
+  const [shareSource, setShareSource] = useState<'all' | 'selected'>('all');
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const showToast = (message: string) => {
     setToast({ message });
@@ -135,6 +146,28 @@ export default function WishlistPage() {
     }
   });
 
+  const handleToggleSelectMode = () => {
+    if (isSelectMode) setSelectedIds(new Set());
+    setIsSelectMode((v) => !v);
+  };
+
+  const toggleWishSelected = (rec: FrontendVinyl) => {
+    const id = rec.USER_VINYL_ID;
+    if (id == null) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedWishes = sorted.filter((r) => r.USER_VINYL_ID != null && selectedIds.has(r.USER_VINYL_ID));
+
+  const openShareSheet = (source: 'all' | 'selected') => {
+    setShareSource(source);
+    setIsShareOpen(true);
+  };
+
   return (
     <div className={styles.page}>
       <PageTabs group="collection" />
@@ -144,7 +177,7 @@ export default function WishlistPage() {
             <span className={styles.eyebrow}>Archive</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <h1 className={styles.title}>{t('wishlist.title')}</h1>
-              <button className={styles.shareBtn} onClick={() => setIsShareOpen(true)} title={t('common.share')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>
+              <button className={styles.shareBtn} onClick={() => openShareSheet('all')} title={t('common.share')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>ios_share</span>
               </button>
             </div>
@@ -163,6 +196,17 @@ export default function WishlistPage() {
                   {label}
                 </button>
               ))}
+              {viewMode !== 'table' && sorted.length > 0 && (
+                <button
+                  className={`${styles.controlChip} ${isSelectMode ? styles.controlActive : ''}`}
+                  onClick={handleToggleSelectMode}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: '-2px' }}>
+                    {isSelectMode ? 'close' : 'checklist'}
+                  </span>
+                  {isSelectMode ? t('wishlist.selectModeCancel') : t('wishlist.selectModeEnter')}
+                </button>
+              )}
             </div>
             {/* View */}
             <div className={styles.viewGroup}>
@@ -201,7 +245,13 @@ export default function WishlistPage() {
       ) : viewMode !== 'table' ? (
         <div className={viewMode === 'grid4' ? styles.grid4 : styles.grid6}>
           {sorted.map(rec => (
-            <WishlistGridCard key={rec.USER_VINYL_ID ?? rec.ALBUM_ID} rec={rec} onClick={() => setSelectedAlbum(rec)} />
+            <WishlistGridCard
+              key={rec.USER_VINYL_ID ?? rec.ALBUM_ID}
+              rec={rec}
+              onClick={() => (isSelectMode ? toggleWishSelected(rec) : setSelectedAlbum(rec))}
+              selectable={isSelectMode}
+              selected={rec.USER_VINYL_ID != null && selectedIds.has(rec.USER_VINYL_ID)}
+            />
           ))}
         </div>
       ) : (
@@ -227,10 +277,24 @@ export default function WishlistPage() {
 
       {selectedAlbum && <DetailModal album={selectedAlbum} onClose={() => setSelectedAlbum(null)} />}
 
+      {isSelectMode && (
+        <div className={styles.selectActionBar}>
+          <span className={styles.selectActionCount}>{t('wishlist.selectedCount', { count: selectedWishes.length })}</span>
+          <button
+            className={styles.selectActionShareBtn}
+            disabled={selectedWishes.length === 0}
+            onClick={() => openShareSheet('selected')}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>ios_share</span>
+            {t('wishlist.shareSelectedCta')}
+          </button>
+        </div>
+      )}
+
       <ShareBottomSheet
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        title={t('wishlist.shareSheetTitle')}
+        title={shareSource === 'selected' ? t('wishlist.shareSelectedSheetTitle') : t('wishlist.shareSheetTitle')}
         options={[
           { id: 'image', label: t('share.saveImage'), icon: 'download', action: async () => {
               setIsShareOpen(false);
@@ -252,7 +316,9 @@ export default function WishlistPage() {
               }
             }
           },
-          { id: 'link', label: t('share.copyLink'), icon: 'link', action: async () => {
+          // 공개 프로필 링크는 "전체 위시리스트"에만 대응된다 — 선택 공유일 땐
+          // 뺀다 (컬렉션 자랑과 동일한 이유).
+          ...(shareSource === 'all' ? [{ id: 'link', label: t('share.copyLink'), icon: 'link', action: async () => {
               setIsShareOpen(false);
               if (user?.id) {
                 const name = encodeURIComponent(user.user_metadata?.displayName || 'Collector');
@@ -262,20 +328,20 @@ export default function WishlistPage() {
                 showToast(t('wishlist.linkCopied'));
               }
             }
-          }
+          }] : [])
         ]}
       />
 
-      <SharePreviewModal 
+      <SharePreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         blob={previewBlob}
         mode={previewMode}
       />
 
-      <ShareableGridTemplate 
+      <ShareableGridTemplate
         ref={shareGridRef}
-        albums={sorted}
+        albums={shareSource === 'selected' ? selectedWishes : sorted}
         username={user?.user_metadata?.displayName || 'Collector'}
         title={t('wishlist.title')}
       />

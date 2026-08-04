@@ -5,7 +5,7 @@ import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation
 import { useTheme, ThemeType, shadows, shape } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { mockVinyls } from '@vinyla/shared-types';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, getMySavedVinyls, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests, AppError, getErrorMessage } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, BADGES, Badge, UserStats, evaluateBadges, supabase, getBadgeText, getSignupNumber, getMySavedSpinLogs, getMySavedVinyls, SavedSpinLog, ListeningLogWithAlbum, getProfileInfo, setMyProfileVisibility, getFollowCounts, getIncomingFollowRequests, AppError, getErrorMessage, getCommunityActivityStats } from '@vinyla/core-api';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import * as ImagePicker from 'expo-image-picker';
 // v19 (SDK 54) moved readAsStringAsync to the legacy entry point
@@ -218,11 +218,26 @@ export const MyScreen = () => {
       const fetchedSignupNumber = await getSignupNumber(user.id);
       setSignupNumber(fetchedSignupNumber);
 
-      const data = await getUserVinyls(user.id);
+      // 커뮤니티 활동 통계는 컬렉션 유무와 무관하게 조회 — 게시글/댓글 뱃지가
+      // 컬렉션이 0장인 유저에게도 평가되어야 한다 (웹 /my와 동일 수정).
+      const [data, communityStats] = await Promise.all([
+        getUserVinyls(user.id),
+        getCommunityActivityStats(user.id),
+      ]);
+
+      let ownedCount = 0;
+      let wishCount = 0;
+      let totalMarketPrice = 0;
+      let totalWishPrice = 0;
+      let highestMarketPrice = 0;
+      let highestPurchasePrice = 0;
+      let ownedGenres: Record<string, number> = {};
+      let wishGenres: Record<string, number> = {};
+
       if (data && data.length > 0) {
         const owned = data.filter(v => v.STATUS === 'OWNED');
         setOwnedCount(owned.length);
-        
+
         const value = owned.reduce((sum, item) => sum + (item.ALBUM_MASTER?.MARKET_PRICE || 0), 0);
         setCollectionValue(value);
 
@@ -256,16 +271,12 @@ export const MyScreen = () => {
         }
         setTopGenre(currentGenre);
 
-        let highestMarketPrice = 0;
-        let highestPurchasePrice = 0;
         mappedOwned.forEach(item => {
           const mp = item.MARKET_PRICE || 0;
           if (mp > highestMarketPrice) highestMarketPrice = mp;
           if ((item.PURCHASE_PRICE || 0) > highestPurchasePrice) highestPurchasePrice = item.PURCHASE_PRICE || 0;
         });
 
-        let totalWishPrice = 0;
-        const wishGenres: Record<string, number> = {};
         mappedWish.forEach(item => {
           totalWishPrice += (item.MARKET_PRICE || 0);
           if (item.GENRES && Array.isArray(item.GENRES)) {
@@ -275,53 +286,60 @@ export const MyScreen = () => {
           }
         });
 
-        const stats: UserStats = {
-          ownedCount: mappedOwned.length,
-          wishCount: mappedWish.length,
-          totalMarketPrice: value,
-          totalWishPrice,
-          highestMarketPrice,
-          highestPurchasePrice,
-          averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
-          favoriteGenre: currentGenre,
-          ownedGenres: genreCounts,
-          wishGenres,
-          signupNumber: fetchedSignupNumber ?? undefined
-        };
-
-        const newlyUnlocked = evaluateBadges(stats);
-        const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
-        
-        const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
-        if (newBadges.length > 0) {
-           const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
-           await updateUnlockedBadges(nextBadges);
-
-           const toastWorthyBadges = newBadges.filter(id => id !== 'founding_100');
-           if (toastWorthyBadges.length > 0) {
-             const newBadgeNames = toastWorthyBadges
-               .map(id => BADGES.find(b => b.id === id))
-               .filter((b): b is Badge => Boolean(b))
-               .map(b => getBadgeText(b, locale, t).name)
-               .join(', ');
-
-             setToastMessage(t('my.badgeUnlocked', { names: newBadgeNames }));
-             setIsToastVisible(true);
-           }
-        }
-
-        // founding_100's grand celebration is keyed off "have they seen it
-        // yet" rather than "was it newly unlocked this session" — accounts
-        // that silently got the badge before this modal existed would
-        // otherwise never see it, since it'd never show up as "new" again.
-        if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
-          setShowFoundingCelebration(true);
-          markFoundingCelebrationSeen();
-        }
-
+        ownedCount = mappedOwned.length;
+        wishCount = mappedWish.length;
+        totalMarketPrice = value;
+        ownedGenres = genreCounts;
       } else {
         setTopGenre(currentGenre);
         setActualTopGenre('-');
+      }
+
+      const stats: UserStats = {
+        ownedCount,
+        wishCount,
+        totalMarketPrice,
+        totalWishPrice,
+        highestMarketPrice,
+        highestPurchasePrice,
+        averageMarketPrice: ownedCount > 0 ? totalMarketPrice / ownedCount : 0,
+        favoriteGenre: currentGenre,
+        ownedGenres,
+        wishGenres,
+        signupNumber: fetchedSignupNumber ?? undefined,
+        postCount: communityStats.postCount,
+        commentCount: communityStats.commentCount,
+        likesReceived: communityStats.likesReceived,
+      };
+
+      const newlyUnlocked = evaluateBadges(stats);
+      const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
+
+      const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
+      if (newBadges.length > 0) {
+         const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
+         await updateUnlockedBadges(nextBadges);
+
+         const toastWorthyBadges = newBadges.filter(id => id !== 'founding_100');
+         if (toastWorthyBadges.length > 0) {
+           const newBadgeNames = toastWorthyBadges
+             .map(id => BADGES.find(b => b.id === id))
+             .filter((b): b is Badge => Boolean(b))
+             .map(b => getBadgeText(b, locale, t).name)
+             .join(', ');
+
+           setToastMessage(t('my.badgeUnlocked', { names: newBadgeNames }));
+           setIsToastVisible(true);
+         }
+      }
+
+      // founding_100's grand celebration is keyed off "have they seen it
+      // yet" rather than "was it newly unlocked this session" — accounts
+      // that silently got the badge before this modal existed would
+      // otherwise never see it, since it'd never show up as "new" again.
+      if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
+        setShowFoundingCelebration(true);
+        markFoundingCelebrationSeen();
       }
     } catch (e) {
       console.error('Failed to load stats', e);

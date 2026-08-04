@@ -78,7 +78,7 @@ export const CommunityScreen = () => {
             ]}
           >
             <Text style={{ color: category === c ? themeColors.accent : themeColors.textSecondary, fontSize: 12, fontWeight: '600' }}>
-              {c === 'ALL' ? t('communityBoard.pageTitle') : t(`communityBoard.categories.${c}` as any)}
+              {c === 'ALL' ? t('communityBoard.tabs.ALL') : t(`communityBoard.categories.${c}` as any)}
             </Text>
           </TouchableOpacity>
         )}
@@ -86,7 +86,7 @@ export const CommunityScreen = () => {
 
       {!isLocationPlaceholder && (
         <Text style={[styles.categoryHint, { color: themeColors.textSecondary }]}>
-          {category === 'ALL' ? t('communityBoard.allCategoriesHint') : t(`communityBoard.categoryHint.${category}` as any)}
+          {category === 'ALL' ? t('communityBoard.tabHints.ALL') : t(`communityBoard.categoryHint.${category}` as any)}
         </Text>
       )}
 

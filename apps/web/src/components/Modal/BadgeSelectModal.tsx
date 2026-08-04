@@ -42,6 +42,7 @@ export default function BadgeSelectModal({
     { id: 'wealth', label: t('badgeSelect.categoryWealth') },
     { id: 'wishlist', label: t('badgeSelect.categoryWishlist') },
     { id: 'genre', label: t('badgeSelect.categoryGenre') },
+    { id: 'community', label: t('badgeSelect.categoryCommunity') },
   ];
 
   const filteredBadges = BADGES.filter(b => activeTab === 'all' || b.category === activeTab);

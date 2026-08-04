@@ -14,15 +14,36 @@ import { CommunityPostCategory } from '@vinyla/shared-types';
 import { CommunityMediaPicker, CommunityMediaSlot } from '../../../components/Community/CommunityMediaPicker';
 import { AlbumMultiSelectPicker, PickedAlbum } from '../../../components/Community/AlbumMultiSelectPicker';
 import { ComingSoonNotice } from '../../../components/Community/ComingSoonNotice';
+import { COMMUNITY_TABS } from '../../../components/Community/CommunityTabs';
 import styles from './page.module.css';
 
 // LOCATION은 실제 DB 카테고리가 아니다 — 지도 SDK 도입 전까지는 선택해도
 // "준비 중" 안내만 뜨고 글쓰기 폼 자체가 나타나지 않는다.
 type CategoryChoice = CommunityPostCategory | 'LOCATION';
-const CATEGORIES: CategoryChoice[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'INFO', 'TIP', 'QNA', 'LOCATION'];
+const CATEGORIES: CategoryChoice[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'COLLECTION', 'WISHLIST', 'INFO', 'TIP', 'QNA', 'LOCATION'];
 
 const isCategoryChoice = (v: string | null): v is CategoryChoice =>
   !!v && (CATEGORIES as string[]).includes(v);
+
+// 글쓰기 카테고리도 브라우징 상단 탭(CommunityTabs)과 같은 부모→하위 묶음을
+// 쓴다 — "자랑" 하나를 고르면 그 안의 오온음/청음실/컬렉션/위시리스트가
+// 하위 탭으로 나오는 식(정보도 정보/팁/Q&A로 동일). 그룹 정의를 두 군데서
+// 따로 관리하면 어긋나기 쉬워 COMMUNITY_TABS의 SHOWCASE/INFO를 그대로 재사용.
+type ParentKey = 'FREE' | 'SHOWCASE' | 'INFO' | 'LOCATION';
+const PARENT_TABS: { key: ParentKey; categories: CategoryChoice[] }[] = [
+  { key: 'FREE', categories: ['FREE'] },
+  { key: 'SHOWCASE', categories: COMMUNITY_TABS.find((t) => t.key === 'SHOWCASE')!.categories },
+  { key: 'INFO', categories: COMMUNITY_TABS.find((t) => t.key === 'INFO')!.categories },
+  { key: 'LOCATION', categories: ['LOCATION'] },
+];
+
+// 앨범 다중 첨부 피커는 "자랑" 하위 3개 카테고리에서만 쓴다 — 오온음은 보유/
+// 위시 둘 다, 컬렉션은 보유만, 위시리스트는 위시만 고를 수 있게 소스를 제한.
+const ALBUM_PICKER_SOURCE: Partial<Record<CategoryChoice, 'owned' | 'wish' | 'both'>> = {
+  ARRIVAL: 'both',
+  COLLECTION: 'owned',
+  WISHLIST: 'wish',
+};
 
 // 카테고리에 따라 입력폼이 달라지는 커뮤니티 글쓰기 화면. 제목+사진+내용은
 // 전 카테고리 공통이고, 오늘 온 전리품(앨범 다중 첨부)만 전용 필드가 추가된다.
@@ -98,7 +119,7 @@ function CommunityNewPostPageInner() {
         title,
         content,
         mediaItems,
-        albumIds: category === 'ARRIVAL' ? albums.map((a) => a.ALBUM_ID) : undefined,
+        albumIds: ALBUM_PICKER_SOURCE[category] ? albums.map((a) => a.ALBUM_ID) : undefined,
       });
       router.push(`/community/${postId}`);
     } catch (err) {
@@ -108,22 +129,38 @@ function CommunityNewPostPageInner() {
     }
   };
 
+  const activeParent = PARENT_TABS.find((p) => p.categories.includes(category)) || PARENT_TABS[0];
+
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>{t('communityBoard.writeCta')}</h1>
 
       <div className={styles.categoryTabs}>
-        {CATEGORIES.map((c) => (
+        {PARENT_TABS.map((p) => (
           <button
-            key={c}
+            key={p.key}
             type="button"
-            className={`${styles.categoryTab} ${category === c ? styles.categoryTabActive : ''}`}
-            onClick={() => setCategory(c)}
+            className={`${styles.categoryTab} ${activeParent.key === p.key ? styles.categoryTabActive : ''}`}
+            onClick={() => setCategory(p.categories[0])}
           >
-            {t(`communityBoard.categories.${c}` as any)}
+            {t(`communityBoard.tabs.${p.key}` as any)}
           </button>
         ))}
       </div>
+      {activeParent.categories.length > 1 && (
+        <div className={styles.subCategoryTabs}>
+          {activeParent.categories.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`${styles.subCategoryTab} ${category === c ? styles.subCategoryTabActive : ''}`}
+              onClick={() => setCategory(c)}
+            >
+              {t(`communityBoard.categories.${c}` as any)}
+            </button>
+          ))}
+        </div>
+      )}
       <p className={styles.categoryHint}>{t(`communityBoard.categoryHint.${category}` as any)}</p>
 
       {category === 'LOCATION' ? (
@@ -143,10 +180,10 @@ function CommunityNewPostPageInner() {
         <label className={styles.label}>{t('communityBoard.photoLabel')}</label>
         <CommunityMediaPicker value={media} onChange={setMedia} disabled={isSubmitting} />
 
-        {category === 'ARRIVAL' && (
+        {ALBUM_PICKER_SOURCE[category] && (
           <>
             <label className={styles.label}>{t('communityBoard.albumPickerLabel')}</label>
-            <AlbumMultiSelectPicker value={albums} onChange={setAlbums} />
+            <AlbumMultiSelectPicker value={albums} onChange={setAlbums} source={ALBUM_PICKER_SOURCE[category]} />
           </>
         )}
 

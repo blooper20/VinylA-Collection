@@ -296,10 +296,10 @@ export interface CommunityMediaItem {
   type: 'image' | 'video';
 }
 
-export type CommunityPostCategory = 'ARRIVAL' | 'FREE' | 'QNA' | 'INFO' | 'LISTENING_ROOM' | 'TIP';
+export type CommunityPostCategory = 'ARRIVAL' | 'FREE' | 'QNA' | 'INFO' | 'LISTENING_ROOM' | 'TIP' | 'COLLECTION' | 'WISHLIST';
 
 /**
- * 커뮤니티 게시판 — 6개 카테고리를 한 테이블로 묶고 CATEGORY로 구분한다.
+ * 커뮤니티 게시판 — 8개 카테고리를 한 테이블로 묶고 CATEGORY로 구분한다.
  * 카테고리별 전용 필드(오늘 온 전리품의 앨범 첨부는 COMMUNITY_POST_ALBUM,
  * QnA의 채택 답변은 ACCEPTED_COMMENT_ID, 정보 게시판의 위치는 PLACE_NAME 등)만
  * 다르고 나머지는 전 카테고리 공통이다. 항상 전체 공개(비공개 옵션 없음).

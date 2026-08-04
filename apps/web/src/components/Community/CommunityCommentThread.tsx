@@ -5,6 +5,7 @@ import {
   useAuthStore,
   getCommunityComments,
   addCommunityComment,
+  updateCommunityComment,
   deleteCommunityComment,
   likeCommunityComment,
   unlikeCommunityComment,
@@ -36,6 +37,8 @@ export const CommunityCommentThread: React.FC<{
   const [toast, setToast] = React.useState<string | null>(null);
   const [reportTarget, setReportTarget] = React.useState<number | null>(null);
   const [reportReason, setReportReason] = React.useState('');
+  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [editContent, setEditContent] = React.useState('');
 
   const showToast = (message: string) => {
     setToast(message);
@@ -114,6 +117,30 @@ export const CommunityCommentThread: React.FC<{
   };
 
   const canDelete = (c: CommunityComment) => user?.id === c.USER_ID;
+  // 수정 권한은 삭제보다 좁다(RLS도 UPDATE는 작성자 본인만 허용 — 삭제는
+  // 게시글 작성자·관리자도 가능) — 우연히 조건식이 같을 뿐 별도 이름으로 둔다.
+  const canEdit = (c: CommunityComment) => user?.id === c.USER_ID;
+
+  const startEdit = (c: CommunityComment) => {
+    setEditingId(c.COMMENT_ID);
+    setEditContent(c.CONTENT);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditContent('');
+  };
+
+  const saveEdit = async (commentId: number) => {
+    if (!editContent.trim()) return;
+    try {
+      await updateCommunityComment(commentId, editContent);
+      cancelEdit();
+      load();
+    } catch (err) {
+      showToast(getErrorMessage(err, t));
+    }
+  };
 
   const renderComment = (c: CommunityComment, isReply: boolean) => {
     const isAccepted = isQna && !isReply && acceptedCommentId === c.COMMENT_ID;
@@ -130,10 +157,24 @@ export const CommunityCommentThread: React.FC<{
           <span className={styles.name}>{c.DISPLAY_NAME || t('communityBoard.authorFallback')}</span>
           <span className={styles.date}>{new Date(c.CREATED_AT).toLocaleDateString()}</span>
         </div>
-        <p className={styles.content}>{c.CONTENT}</p>
+        {editingId === c.COMMENT_ID ? (
+          <div className={styles.editForm}>
+            <input
+              type="text"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className={styles.editInput}
+              maxLength={1000}
+            />
+            <button type="button" className={styles.actionBtn} onClick={() => saveEdit(c.COMMENT_ID)}>{t('communityBoard.updateButton')}</button>
+            <button type="button" className={styles.actionBtn} onClick={cancelEdit}>{t('common.cancel')}</button>
+          </div>
+        ) : (
+          <p className={styles.content}>{c.CONTENT}</p>
+        )}
         <div className={styles.actions}>
-          <button type="button" className={styles.actionBtn} onClick={() => handleToggleLike(c)}>
-            <span className="material-symbols-outlined" style={{ fontSize: 15, fontVariationSettings: c.LIKED_BY_ME ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+          <button type="button" className={`${styles.actionBtn} ${c.LIKED_BY_ME ? styles.resonanceActive : ''}`} onClick={() => handleToggleLike(c)} title={t('communityBoard.resonanceCta')}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15, fontVariationSettings: c.LIKED_BY_ME ? "'FILL' 1" : "'FILL' 0" }}>music_note</span>
             {c.LIKE_COUNT > 0 && c.LIKE_COUNT}
           </button>
           {!isReply && (
@@ -147,6 +188,9 @@ export const CommunityCommentThread: React.FC<{
             ) : (
               <button type="button" className={styles.acceptBtn} onClick={() => handleAccept(c.COMMENT_ID)}>{t('communityBoard.acceptCta')}</button>
             )
+          )}
+          {canEdit(c) && editingId !== c.COMMENT_ID && (
+            <button type="button" className={styles.actionBtn} onClick={() => startEdit(c)}>{t('communityBoard.editButton')}</button>
           )}
           {canDelete(c) && (
             <button type="button" className={styles.actionBtn} onClick={() => handleDelete(c.COMMENT_ID)}>{t('communityBoard.deleteButton')}</button>

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import styles from './page.module.css';
-import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, AppError, getErrorMessage, getUnreadNotificationCount, subscribeToNotifications } from '@vinyla/core-api';
+import { useAuthStore, getUserVinyls, mapToFrontendModel, UserStats, BADGES, evaluateBadges, getBadgeText, getSignupNumber, NICKNAME_MAX_LENGTH, getFollowCounts, getProfileInfo, setMyProfileVisibility, getIncomingFollowRequests, getMySavedSpinLogs, SavedSpinLog, ListeningLogWithAlbum, AppError, getErrorMessage, getUnreadNotificationCount, subscribeToNotifications, getCommunityActivityStats } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { FeaturedLPModal } from '../../components/Modal/FeaturedLPModal';
 import BadgeSelectModal from '../../components/Modal/BadgeSelectModal';
@@ -160,11 +160,26 @@ export default function MyProfilePage() {
       const fetchedSignupNumber = await getSignupNumber(user.id);
       setSignupNumber(fetchedSignupNumber);
 
-      const data = await getUserVinyls(user.id);
+      // 커뮤니티 활동 통계는 컬렉션 유무와 무관하게 조회 — 게시글/댓글 뱃지가
+      // 컬렉션이 0장인 유저(예: 커뮤니티만 이용 중인 유저)에게도 평가되어야 한다.
+      const [data, communityStats] = await Promise.all([
+        getUserVinyls(user.id),
+        getCommunityActivityStats(user.id),
+      ]);
+
+      let ownedCount = 0;
+      let wishCount = 0;
+      let totalMarketPrice = 0;
+      let totalWishPrice = 0;
+      let highestMarketPrice = 0;
+      let highestPurchasePrice = 0;
+      let ownedGenres: Record<string, number> = {};
+      let wishGenres: Record<string, number> = {};
+
       if (data && data.length > 0) {
         const owned = data.filter(v => v.STATUS === 'OWNED');
         setOwnedCount(owned.length);
-        
+
         // Calculate estimated market value
         const value = owned.reduce((sum, item) => {
           const estimatedKrw = item.ALBUM_MASTER?.MARKET_PRICE || 0;
@@ -177,7 +192,7 @@ export default function MyProfilePage() {
         setActualSpentValue(spent);
 
         const mapped = data.map(v => mapToFrontendModel(v, null));
-        
+
         // Compute actual top genre
         const genreCounts: Record<string, number> = {};
         mapped.filter(v => v.STATUS === 'OWNED').forEach(item => {
@@ -187,7 +202,7 @@ export default function MyProfilePage() {
             });
           }
         });
-        
+
         if (Object.keys(genreCounts).length > 0) {
           const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]);
           setActualTopGenre(sortedGenres[0][0]);
@@ -208,16 +223,12 @@ export default function MyProfilePage() {
         );
 
         // --- 호칭 획득 로직 ---
-        let highestMarketPrice = 0;
-        let highestPurchasePrice = 0;
         mappedOwned.forEach(item => {
           const mp = item.MARKET_PRICE || 0;
           if (mp > highestMarketPrice) highestMarketPrice = mp;
           if ((item.PURCHASE_PRICE || 0) > highestPurchasePrice) highestPurchasePrice = item.PURCHASE_PRICE || 0;
         });
 
-        let totalWishPrice = 0;
-        const wishGenres: Record<string, number> = {};
         mappedWish.forEach(item => {
           totalWishPrice += (item.MARKET_PRICE || 0);
           if (item.GENRES && Array.isArray(item.GENRES)) {
@@ -227,53 +238,61 @@ export default function MyProfilePage() {
           }
         });
 
-        const stats: UserStats = {
-          ownedCount: mappedOwned.length,
-          wishCount: mappedWish.length,
-          totalMarketPrice: value,
-          totalWishPrice,
-          highestMarketPrice,
-          highestPurchasePrice,
-          averageMarketPrice: mappedOwned.length > 0 ? value / mappedOwned.length : 0,
-          favoriteGenre: currentGenre,
-          ownedGenres: genreCounts,
-          wishGenres,
-          signupNumber: fetchedSignupNumber ?? undefined
-        };
-
-        const newlyUnlocked = evaluateBadges(stats);
-        const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
-
-        const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
-        if (newBadges.length > 0) {
-           const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
-           updateUnlockedBadges(nextBadges);
-
-           const toastWorthyBadges = newBadges.filter(b => b !== 'founding_100');
-           if (toastWorthyBadges.length > 0) {
-             const newBadgeNames = toastWorthyBadges
-               .map(id => BADGES.find(b => b.id === id))
-               .filter((b): b is NonNullable<typeof b> => Boolean(b))
-               .map(b => getBadgeText(b, locale, t).name)
-               .join(', ');
-
-             const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.badgeUnlocked', { names: newBadgeNames }) } });
-             window.dispatchEvent(event);
-           }
-        }
-
-        // founding_100's grand celebration is keyed off "have they seen it
-        // yet" rather than "was it newly unlocked this session" — accounts
-        // that silently got the badge before this modal existed would
-        // otherwise never see it, since it'd never show up as "new" again.
-        if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
-          setShowFoundingCelebration(true);
-          markFoundingCelebrationSeen();
-        }
-        // --- 끝 ---
+        ownedCount = mappedOwned.length;
+        wishCount = mappedWish.length;
+        totalMarketPrice = value;
+        ownedGenres = genreCounts;
       } else {
         setActualTopGenre('-');
       }
+
+      const stats: UserStats = {
+        ownedCount,
+        wishCount,
+        totalMarketPrice,
+        totalWishPrice,
+        highestMarketPrice,
+        highestPurchasePrice,
+        averageMarketPrice: ownedCount > 0 ? totalMarketPrice / ownedCount : 0,
+        favoriteGenre: currentGenre,
+        ownedGenres,
+        wishGenres,
+        signupNumber: fetchedSignupNumber ?? undefined,
+        postCount: communityStats.postCount,
+        commentCount: communityStats.commentCount,
+        likesReceived: communityStats.likesReceived,
+      };
+
+      const newlyUnlocked = evaluateBadges(stats);
+      const previouslyUnlocked = user.user_metadata?.unlocked_badges || [];
+
+      const newBadges = newlyUnlocked.filter(b => !previouslyUnlocked.includes(b));
+      if (newBadges.length > 0) {
+         const nextBadges = Array.from(new Set([...previouslyUnlocked, ...newlyUnlocked]));
+         updateUnlockedBadges(nextBadges);
+
+         const toastWorthyBadges = newBadges.filter(b => b !== 'founding_100');
+         if (toastWorthyBadges.length > 0) {
+           const newBadgeNames = toastWorthyBadges
+             .map(id => BADGES.find(b => b.id === id))
+             .filter((b): b is NonNullable<typeof b> => Boolean(b))
+             .map(b => getBadgeText(b, locale, t).name)
+             .join(', ');
+
+           const event = new CustomEvent('SHOW_TOAST', { detail: { message: t('my.badgeUnlocked', { names: newBadgeNames }) } });
+           window.dispatchEvent(event);
+         }
+      }
+
+      // founding_100's grand celebration is keyed off "have they seen it
+      // yet" rather than "was it newly unlocked this session" — accounts
+      // that silently got the badge before this modal existed would
+      // otherwise never see it, since it'd never show up as "new" again.
+      if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
+        setShowFoundingCelebration(true);
+        markFoundingCelebrationSeen();
+      }
+      // --- 끝 ---
     }
     loadStats();
   }, [user, updateUnlockedBadges, markFoundingCelebrationSeen, locale, t]);

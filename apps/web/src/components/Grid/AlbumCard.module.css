@@ -10,6 +10,36 @@
   group: true;
 }
 
+.cardSelected {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.selectCheckbox {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 6;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.selectCheckbox .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.selectCheckboxChecked {
+  background: var(--accent);
+  color: #0a0a0a;
+}
+
 /* Cover image */
 .cover {
   position: absolute;

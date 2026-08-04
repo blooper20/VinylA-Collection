@@ -200,6 +200,79 @@
 .card:hover .coverWrapper { box-shadow: 0 16px 32px rgba(0,0,0,0.4); }
 .card:hover .coverOverlay { opacity: 1; }
 
+.cardSelected .coverWrapper {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.selectCheckbox {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 6;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.selectCheckbox .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.selectCheckboxChecked {
+  background: var(--accent);
+  color: #0a0a0a;
+}
+
+/* 위시리스트 다중 선택 공유 모드의 하단 고정 액션바 */
+.selectActionBar {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 14px 16px 14px 22px;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border: 1px solid var(--border-light);
+  z-index: 9999;
+}
+
+.selectActionCount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.selectActionShareBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #0a0a0a;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.selectActionShareBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .coverWrapper {
   position: relative;
   width: 100%;

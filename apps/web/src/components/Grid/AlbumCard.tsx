@@ -10,9 +10,12 @@ import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 interface AlbumCardProps {
   album: MockVinylData;
   onClick: (album: MockVinylData) => void;
+  /** 컬렉션 자랑 게시글용 다중 선택 모드 — true면 클릭이 상세 열람 대신 선택 토글로 동작한다 */
+  selectable?: boolean;
+  selected?: boolean;
 }
 
-export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
+export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick, selectable, selected }) => {
   const { t } = useLocale();
   // 외부 커버 소스가 순간 실패해도 깨진 이미지 아이콘 대신 프록시 재시도 후
   // 기존 컨벤션과 동일한 picsum 플레이스홀더로 대체한다.
@@ -25,7 +28,7 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
   const [coverRenderFailed, setCoverRenderFailed] = React.useState(false);
   React.useEffect(() => { setCoverRenderFailed(false); }, [displayCoverUrl]);
   return (
-    <div className={styles.card} onClick={() => onClick(album)}>
+    <div className={`${styles.card} ${selectable && selected ? styles.cardSelected : ''}`} onClick={() => onClick(album)}>
       {/* Vinyl disc behind — 호버하면 커버 뒤에서 밀려 나온다. 에디션 정보가
           있으면 이 판이 실제로 그 실물의 색·무늬를 갖는다(제네릭 검은 판 대신). */}
       <div className={styles.vinylWrapper}>
@@ -85,6 +88,14 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album, onClick }) => {
         <div className={styles.editionBadge}>
           <span className="material-symbols-outlined">auto_awesome</span>
           {album.EDITION_LABEL}
+        </div>
+      )}
+
+      {/* 컬렉션 자랑 다중 선택 체크박스 — 상시 노출(hover 의존 X), 다른
+          뱃지들과 겹치지 않는 우하단에 배치 */}
+      {selectable && (
+        <div className={`${styles.selectCheckbox} ${selected ? styles.selectCheckboxChecked : ''}`}>
+          <span className="material-symbols-outlined">{selected ? 'check_circle' : 'radio_button_unchecked'}</span>
         </div>
       )}
     </div>

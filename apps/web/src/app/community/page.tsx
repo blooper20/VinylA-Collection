@@ -16,14 +16,14 @@ const isTabKey = (v: string | null): v is CommunityTabKey =>
   !!v && COMMUNITY_TABS.some((tab) => tab.key === v);
 
 // 게시판은 이제 사이드바 카테고리 목록이 아니라 이 페이지 상단 탭
-// (자유게시판/자랑/정보/공지사항/로케이션) 하나로 통합됐다 — ?tab= 쿼리만
+// (전체/공지사항/자유게시판/자랑/정보/로케이션) 하나로 통합됐다 — ?tab= 쿼리만
 // 읽어 필터링한다. useSearchParams()를 쓰는 부분만 Suspense로 감싸 이 훅
 // 하나 때문에 다른 정적 페이지들까지 동적 렌더링으로 강제되지 않게 한다.
 function CommunityPageInner() {
   const { t } = useLocale();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const activeTab: CommunityTabKey = isTabKey(tabParam) ? tabParam : 'FREE';
+  const activeTab: CommunityTabKey = isTabKey(tabParam) ? tabParam : 'ALL';
   const activeGroup = COMMUNITY_TABS.find((tab) => tab.key === activeTab)!;
   // LOCATION은 지도 SDK 도입 전까지 실제 게시글이 없는 자리표시 탭이다
   // (COMMUNITY_POST.CATEGORY DB 체크 제약에도 없음) — 목록 조회 자체를

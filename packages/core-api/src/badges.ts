@@ -14,10 +14,16 @@ export interface UserStats {
   // DB-assigned (PROFILES.SIGNUP_NUMBER) — undefined until loaded, never
   // client-computed. See founding_100 badge below.
   signupNumber?: number;
+  // 커뮤니티 활동 지표(getCommunityActivityStats) — 컬렉션 스캔과 별도로
+  // 조회되는 값이라 로딩 전에는 undefined. 다른 활동 뱃지들처럼 자가
+  // 평가(서버 검증 없음)이므로 signupNumber와 달리 조작 가능성은 감수한다.
+  postCount?: number;
+  commentCount?: number;
+  likesReceived?: number;
 }
 
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
-export type BadgeCategory = 'collection' | 'wealth' | 'wishlist' | 'genre' | 'special';
+export type BadgeCategory = 'collection' | 'wealth' | 'wishlist' | 'genre' | 'special' | 'community';
 
 export interface Badge {
   id: string;
@@ -394,6 +400,158 @@ export const BADGES: Badge[] = [
     tier: 'diamond',
     category: 'wishlist',
     check: (stats) => stats.totalWishPrice >= 10000000,
+  },
+
+  // --- 커뮤니티 활동 (게시글/댓글/받은 좋아요) ---
+  {
+    id: 'post_1',
+    name: '게시판 데뷔',
+    description: '첫 게시글을 작성했습니다.',
+    icon: 'edit_note',
+    isHidden: false,
+    tier: 'bronze',
+    category: 'community',
+    check: (stats) => (stats.postCount ?? 0) >= 1,
+  },
+  {
+    id: 'post_5',
+    name: '이야기꾼의 시작',
+    description: '게시글 5개 이상 작성',
+    icon: 'forum',
+    isHidden: false,
+    tier: 'bronze',
+    category: 'community',
+    check: (stats) => (stats.postCount ?? 0) >= 5,
+  },
+  {
+    id: 'post_20',
+    name: '게시판 상주민',
+    description: '게시글 20개 이상 작성',
+    icon: 'campaign',
+    isHidden: false,
+    tier: 'silver',
+    category: 'community',
+    check: (stats) => (stats.postCount ?? 0) >= 20,
+  },
+  {
+    id: 'post_50',
+    name: '커뮤니티 인플루언서',
+    description: '게시글 50개 이상 작성',
+    icon: 'stadium',
+    isHidden: false,
+    tier: 'gold',
+    category: 'community',
+    check: (stats) => (stats.postCount ?? 0) >= 50,
+  },
+  {
+    id: 'post_100',
+    name: '커뮤니티의 터줏대감',
+    description: '게시글 100개 이상 작성 (히든)',
+    icon: 'emoji_events',
+    isHidden: true,
+    tier: 'platinum',
+    category: 'community',
+    check: (stats) => (stats.postCount ?? 0) >= 100,
+  },
+  {
+    id: 'comment_1',
+    name: '댓글의 첫 걸음',
+    description: '첫 댓글을 작성했습니다.',
+    icon: 'chat_bubble',
+    isHidden: false,
+    tier: 'bronze',
+    category: 'community',
+    check: (stats) => (stats.commentCount ?? 0) >= 1,
+  },
+  {
+    id: 'comment_10',
+    name: '리액션 부자',
+    description: '댓글 10개 이상 작성',
+    icon: 'forum',
+    isHidden: false,
+    tier: 'bronze',
+    category: 'community',
+    check: (stats) => (stats.commentCount ?? 0) >= 10,
+  },
+  {
+    id: 'comment_50',
+    name: '댓글 장인',
+    description: '댓글 50개 이상 작성',
+    icon: 'reviews',
+    isHidden: false,
+    tier: 'silver',
+    category: 'community',
+    check: (stats) => (stats.commentCount ?? 0) >= 50,
+  },
+  {
+    id: 'comment_150',
+    name: '소통의 달인',
+    description: '댓글 150개 이상 작성 (히든)',
+    icon: 'record_voice_over',
+    isHidden: true,
+    tier: 'gold',
+    category: 'community',
+    check: (stats) => (stats.commentCount ?? 0) >= 150,
+  },
+  {
+    id: 'comment_500',
+    name: '커뮤니티 수호신',
+    description: '댓글 500개 이상 작성 (히든)',
+    icon: 'shield',
+    isHidden: true,
+    tier: 'platinum',
+    category: 'community',
+    check: (stats) => (stats.commentCount ?? 0) >= 500,
+  },
+  {
+    id: 'like_1',
+    name: '첫 공감',
+    description: '댓글에 첫 좋아요를 받았습니다.',
+    icon: 'favorite_border',
+    isHidden: false,
+    tier: 'bronze',
+    category: 'community',
+    check: (stats) => (stats.likesReceived ?? 0) >= 1,
+  },
+  {
+    id: 'like_10',
+    name: '공감 능력자',
+    description: '댓글 좋아요 10개 이상 받음',
+    icon: 'favorite',
+    isHidden: false,
+    tier: 'bronze',
+    category: 'community',
+    check: (stats) => (stats.likesReceived ?? 0) >= 10,
+  },
+  {
+    id: 'like_50',
+    name: '인기 댓글러',
+    description: '댓글 좋아요 50개 이상 받음',
+    icon: 'thumb_up',
+    isHidden: false,
+    tier: 'silver',
+    category: 'community',
+    check: (stats) => (stats.likesReceived ?? 0) >= 50,
+  },
+  {
+    id: 'like_150',
+    name: '커뮤니티 셀럽',
+    description: '댓글 좋아요 150개 이상 받음 (히든)',
+    icon: 'local_fire_department',
+    isHidden: true,
+    tier: 'gold',
+    category: 'community',
+    check: (stats) => (stats.likesReceived ?? 0) >= 150,
+  },
+  {
+    id: 'like_500',
+    name: '레전드 댓글',
+    description: '댓글 좋아요 500개 이상 받음 (히든)',
+    icon: 'workspace_premium',
+    isHidden: true,
+    tier: 'platinum',
+    category: 'community',
+    check: (stats) => (stats.likesReceived ?? 0) >= 500,
   },
 
   // --- 다양성 ---
