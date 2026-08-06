@@ -6,6 +6,7 @@ import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { CommunityPostWithMeta } from '@vinyla/core-api';
 import { CoverImage } from '../CoverImage';
+import { buildShowcaseItems } from '../../utils/showcaseCarouselItems';
 
 // 자랑게시판 글 하나를 인스타그램 피드 포스트처럼 보여주는 카드 —
 // 소셜 탭 피드(SocialScreen)와 커뮤니티 자랑 목록(CommunityScreen)이 같은
@@ -32,9 +33,10 @@ export const ShowcasePostCard: React.FC<ShowcasePostCardProps> = ({ post }) => {
   const styles = getStyles(themeColors);
 
   const authorName = post.AUTHOR_NAME || t('feed.anonymous');
-  const albums = post.albums || [];
-  const media = post.MEDIA_ITEMS?.[0];
-  const shownAlbums = albums.slice(0, 4);
+  // 사진/영상 + 첨부 앨범(오노추의 노래 포함)을 합친 목록의 첫 항목만
+  // 썸네일로 보여준다 — 상세페이지의 캐러셀과 순서가 같아야 "첫 화면"이
+  // 일관되게 느껴진다(앨범이 있으면 앨범 먼저, 없으면 사진/영상).
+  const firstItem = buildShowcaseItems(post.albums || [], post.MEDIA_ITEMS || [])[0];
 
   const openProfile = () => navigation.navigate('UserProfile', { userId: post.AUTHOR_ID, name: post.AUTHOR_NAME });
   const openPost = () => navigation.navigate('CommunityPost', { postId: post.POST_ID });
@@ -61,39 +63,21 @@ export const ShowcasePostCard: React.FC<ShowcasePostCardProps> = ({ post }) => {
         </View>
       </View>
 
-      {shownAlbums.length > 0 ? (
-        <View style={styles.albumGrid}>
-          {shownAlbums.map((a, idx) => (
-            <View key={a.ALBUM_ID} style={{ width: `${100 / shownAlbums.length}%`, padding: 1 }}>
-              <View style={styles.albumCoverWrap}>
-                <CoverImage
-                  uri={a.IMAGE_URL}
-                  fallback={require('../../../assets/logo_real_transparent.png')}
-                  style={styles.albumCover}
-                  resizeMode="cover"
-                />
-                {idx === 3 && albums.length > 4 && (
-                  <View style={styles.albumMoreOverlay}>
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>+{albums.length - 4}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={{ color: themeColors.textSecondary, fontSize: 11, marginTop: 4 }} numberOfLines={1}>{a.TITLE}</Text>
-            </View>
-          ))}
-        </View>
-      ) : media ? (
-        media.type === 'video' ? (
-          <View style={[styles.media, styles.mediaFallback]}>
-            <Feather name="film" size={28} color={themeColors.textSecondary} />
-          </View>
-        ) : (
-          <Image source={{ uri: media.url }} style={styles.media} resizeMode="cover" />
-        )
-      ) : (
+      {!firstItem ? (
         <View style={[styles.media, styles.mediaFallback]}>
           <Feather name="camera" size={28} color={themeColors.textSecondary} />
         </View>
+      ) : firstItem.kind === 'video' ? (
+        <View style={[styles.media, styles.mediaFallback]}>
+          <Feather name="film" size={28} color={themeColors.textSecondary} />
+        </View>
+      ) : (
+        <CoverImage
+          uri={firstItem.kind === 'album' ? firstItem.imageUrl : firstItem.url}
+          fallback={require('../../../assets/logo_real_transparent.png')}
+          style={styles.media}
+          resizeMode="cover"
+        />
       )}
 
       <View style={{ padding: 14 }}>
@@ -129,20 +113,6 @@ const getStyles = (themeColors: any) => StyleSheet.create({
     padding: 14,
   },
   avatar: { width: 34, height: 34, borderRadius: 17 },
-  albumGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 1,
-  },
-  albumCoverWrap: { aspectRatio: 1, position: 'relative' },
-  albumCover: { width: '100%', height: '100%' },
-  albumMoreOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   media: { width: '100%', aspectRatio: 4 / 3 },
   mediaFallback: {
     backgroundColor: 'rgba(255,255,255,0.06)',

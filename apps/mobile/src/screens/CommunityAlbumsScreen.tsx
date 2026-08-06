@@ -11,6 +11,7 @@ import { DetailModal } from '../components/Modal/DetailModal';
 
 const { width } = Dimensions.get('window');
 const itemSize = (width - 40 - 16) / 2;
+const PAGE_SIZE = 30;
 
 // Discogs 카탈로그에 없어 유저가 직접 등록한 앨범 목록 — 메인 검색과는 완전히
 // 분리된 위키형 브라우즈 화면(웹 /community-albums의 모바일 버전).
@@ -23,17 +24,35 @@ export const CommunityAlbumsScreen = () => {
   const [query, setQuery] = useState('');
   const [albums, setAlbums] = useState<CommunityAlbum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIsLoading(true);
-      getCommunityAlbums({ query })
-        .then(setAlbums)
+      getCommunityAlbums({ query, limit: PAGE_SIZE })
+        .then((rows) => {
+          setAlbums(rows);
+          setHasMore(rows.length === PAGE_SIZE);
+        })
         .finally(() => setIsLoading(false));
     }, 300);
     return () => clearTimeout(timeout);
   }, [query]);
+
+  const loadMore = async () => {
+    const oldest = albums[albums.length - 1];
+    if (!oldest || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const more = await getCommunityAlbums({ query, limit: PAGE_SIZE, before: oldest.CREATED_AT });
+      setAlbums((prev) => [...prev, ...more]);
+      setHasMore(more.length === PAGE_SIZE);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const openAlbum = (a: CommunityAlbum) => {
     setSelectedAlbum({
@@ -90,6 +109,16 @@ export const CommunityAlbumsScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+
+        {hasMore && !isLoading && (
+          <TouchableOpacity style={[styles.loadMoreBtn, { borderColor: themeColors.border }]} onPress={loadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? (
+              <ActivityIndicator color={themeColors.accent} size="small" />
+            ) : (
+              <Text style={{ color: themeColors.textSecondary, fontSize: 12, fontWeight: '600' }}>{t('communityBoard.loadMore')}</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <DetailModal
@@ -145,5 +174,13 @@ const styles = StyleSheet.create({
   cardArtist: {
     fontSize: 12,
     marginTop: 2,
+  },
+  loadMoreBtn: {
+    alignSelf: 'center',
+    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
   },
 });

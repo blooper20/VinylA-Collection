@@ -9,6 +9,7 @@ import {
   useAuthStore,
   FeedItem,
   FeedEntry,
+  ListeningLogFeedItem,
   TasteMatch,
   getMergedFeed,
   subscribeToMergedFeed,
@@ -63,10 +64,14 @@ const groupByAlbum = (entries: ListeningLogWithAlbum[]) => {
   return Array.from(groups.values()).map(g => ({ ...g, title: g.album?.TITLE || '' }));
 };
 
-// 수집 활동(VINYL_ADD)과 자랑게시판 글(SHOWCASE_POST)이 같은 피드에 섞이므로
-// 종류별로 고유한 키를 만든다 — 두 소스의 PK 네임스페이스가 겹칠 수 있어서다.
-const entryKey = (entry: FeedEntry): string =>
-  entry.KIND === 'VINYL_ADD' ? `v:${entry.DATA.USER_VINYL_ID}` : `p:${entry.DATA.POST_ID}`;
+// 수집 활동(VINYL_ADD)·자랑게시판 글(SHOWCASE_POST)·다이어리 기록(LISTENING_LOG)이
+// 같은 피드에 섞이므로 종류별로 고유한 키를 만든다 — 세 소스의 PK 네임스페이스가
+// 겹칠 수 있어서다.
+const entryKey = (entry: FeedEntry): string => {
+  if (entry.KIND === 'VINYL_ADD') return `v:${entry.DATA.USER_VINYL_ID}`;
+  if (entry.KIND === 'LISTENING_LOG') return `l:${entry.DATA.LOG_ID}`;
+  return `p:${entry.DATA.POST_ID}`;
+};
 
 // 웹의 '소셜' 메뉴(피드+다이어리 탭)와 동일한 구성의 모바일 화면.
 export const SocialScreen = () => {
@@ -393,6 +398,38 @@ export const SocialScreen = () => {
     );
   };
 
+  // 피드에 섞여 나오는 다이어리 기록 — /log 탭(내 기록만)과 달리 전체 유저의
+  // 공개 기록이라 작성자 이름을 붙인다. 좋아요/댓글 수는 다이어리 탭과 같은
+  // socialMap을 공유해서 쓴다(LOG_ID가 소스와 무관하게 전역 고유하므로 키
+  // 충돌 없음) — 없으면 core-api가 채워준 item.SOCIAL(최초 조회 시점 값)로 폴백.
+  const renderFeedListeningLogItem = (item: ListeningLogFeedItem) => {
+    const name = item.DISPLAY_NAME || t('feed.anonymous');
+    const s = socialMap[item.LOG_ID] ?? item.SOCIAL;
+    return (
+      <TouchableOpacity style={[styles.feedItem, { borderColor: themeColors.border }]} onPress={() => setSocialEntry(item)}>
+        {item.ALBUM_MASTER?.IMAGE_URL ? (
+          <Image source={{ uri: item.ALBUM_MASTER.IMAGE_URL }} style={styles.feedCover} />
+        ) : (
+          <View style={[styles.feedCover, { backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }]}>
+            <Feather name="disc" size={20} color={themeColors.textSecondary} />
+          </View>
+        )}
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 12 }} numberOfLines={1}>
+            <Text style={{ color: themeColors.accent, fontWeight: '700' }} onPress={() => openProfile(item.USER_ID, item.DISPLAY_NAME || null)}>{name}</Text>
+            {t('feed.spunSuffix')}
+          </Text>
+          <Text style={{ color: themeColors.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 3 }} numberOfLines={1}>{item.ALBUM_MASTER?.TITLE}</Text>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{item.ALBUM_MASTER?.ARTIST}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{relativeTime(item.CREATED_AT)}</Text>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>♥ {s?.likeCount ?? 0}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const renderDiaryItem = ({ item }: { item: ListeningLogWithAlbum }) => {
     const s = socialMap[item.LOG_ID];
     return (
@@ -541,9 +578,11 @@ export const SocialScreen = () => {
           <FlatList
             data={feedEntries}
             keyExtractor={entryKey}
-            renderItem={({ item }) =>
-              item.KIND === 'VINYL_ADD' ? renderFeedItem({ item: item.DATA }) : <ShowcasePostCard post={item.DATA} />
-            }
+            renderItem={({ item }) => {
+              if (item.KIND === 'VINYL_ADD') return renderFeedItem({ item: item.DATA });
+              if (item.KIND === 'LISTENING_LOG') return renderFeedListeningLogItem(item.DATA);
+              return <ShowcasePostCard post={item.DATA} />;
+            }}
             ListHeaderComponent={renderFeedHeader}
             ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('feed.empty')}</Text>}
             contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
@@ -626,12 +665,16 @@ export const SocialScreen = () => {
           onEdit={handleEditEntry}
           onUpdate={(updated) => {
             setEntries((prev) => prev ? prev.map((e) => e.LOG_ID === updated.LOG_ID ? updated : e) : []);
+            setFeedEntries((prev) => prev.map((e) =>
+              e.KIND === 'LISTENING_LOG' && e.DATA.LOG_ID === updated.LOG_ID ? { ...e, DATA: { ...e.DATA, ...updated } } : e
+            ));
             setSocialEntry(updated);
           }}
           onDelete={async (logId) => {
             try {
               await deleteSpinLog(logId);
               setEntries((prev) => prev ? prev.filter((e) => e.LOG_ID !== logId) : []);
+              setFeedEntries((prev) => prev.filter((e) => !(e.KIND === 'LISTENING_LOG' && e.DATA.LOG_ID === logId)));
               setSocialEntry(null);
             } catch (e) {
               Alert.alert('', getErrorMessage(e, t));

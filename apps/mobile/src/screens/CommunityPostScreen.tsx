@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator,
-  TextInput, Alert, Modal,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
+  TextInput, Alert, Modal, Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import {
@@ -23,16 +22,18 @@ import {
   reportCommunityComment,
   acceptCommunityAnswer,
   unacceptCommunityAnswer,
+  getAlbumMaster,
   getErrorMessage,
   CommunityPostWithMeta,
   CommunityComment,
 } from '@vinyla/core-api';
+import { MockVinylData } from '@vinyla/shared-types';
+import { ShowcaseCarousel } from '../components/Community/ShowcaseCarousel';
+import { buildShowcaseItems } from '../utils/showcaseCarouselItems';
+import { DetailModal } from '../components/Modal/DetailModal';
 
-// 각 영상마다 자기 자신의 useVideoPlayer 인스턴스가 필요해 별도 컴포넌트로 분리(NoticeDetailScreen과 동일 패턴).
-const CommunityVideo = ({ url }: { url: string }) => {
-  const player = useVideoPlayer(url, (p) => { p.loop = true; });
-  return <VideoView player={player} style={styles.mediaImg} allowsFullscreen allowsPictureInPicture nativeControls />;
-};
+// 캐러셀은 화면 폭에서 상세 스크롤뷰의 좌우 패딩(16px×2)만큼 뺀 너비로 맞춘다.
+const carouselSize = Dimensions.get('window').width - 32;
 
 // 커뮤니티 게시글 상세 — 웹 /community/[postId]의 모바일 버전. 댓글/답변
 // 스레드(1단계 대댓글)와 QnA 채택 버튼을 한 화면에서 처리한다.
@@ -51,6 +52,7 @@ export const CommunityPostScreen = () => {
   const [content, setContent] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: number; name: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<{ type: 'post' | 'comment'; id: number } | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<MockVinylData | null>(null);
   const [reportReason, setReportReason] = useState('');
 
   const loadComments = useCallback(() => {
@@ -67,6 +69,11 @@ export const CommunityPostScreen = () => {
 
   const isAuthor = user?.id === post?.AUTHOR_ID;
   const isQna = post?.CATEGORY === 'QNA';
+
+  const openAlbum = async (albumId: number) => {
+    const master = await getAlbumMaster(albumId).catch(() => null);
+    if (master) setSelectedAlbum(master as MockVinylData);
+  };
 
   const handleDeletePost = () => {
     Alert.alert(t('communityBoard.deleteConfirm'), '', [
@@ -227,29 +234,13 @@ export const CommunityPostScreen = () => {
           </View>
         )}
 
-        {post.MEDIA_ITEMS.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {post.MEDIA_ITEMS.map((m, i) =>
-              m.type === 'video' ? (
-                <CommunityVideo key={i} url={m.url} />
-              ) : (
-                <Image key={i} source={{ uri: m.url }} style={styles.mediaImg} />
-              )
-            )}
-          </ScrollView>
-        )}
-
-        {post.albums.length > 0 && (
-          <View style={[styles.albumBox, { backgroundColor: themeColors.border }]}>
-            {post.albums.map((a) => (
-              <View key={a.ALBUM_ID} style={styles.albumRow}>
-                <Image source={{ uri: a.IMAGE_URL || undefined }} style={styles.albumCover} />
-                <View style={{ minWidth: 0, flex: 1 }}>
-                  <Text style={{ color: themeColors.textPrimary, fontSize: 13 }} numberOfLines={1}>{a.TITLE}</Text>
-                  <Text style={{ color: themeColors.textSecondary, fontSize: 11 }} numberOfLines={1}>{a.ARTIST}</Text>
-                </View>
-              </View>
-            ))}
+        {(post.albums.length > 0 || post.MEDIA_ITEMS.length > 0) && (
+          <View style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
+            <ShowcaseCarousel
+              items={buildShowcaseItems(post.albums, post.MEDIA_ITEMS)}
+              onAlbumPress={openAlbum}
+              size={carouselSize}
+            />
           </View>
         )}
 
@@ -257,7 +248,12 @@ export const CommunityPostScreen = () => {
 
         <View style={[styles.postActions, { borderBottomColor: themeColors.border }]}>
           {isAuthor && (
-            <TouchableOpacity onPress={handleDeletePost}><Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>{t('communityBoard.deleteButton')}</Text></TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={() => navigation.navigate('CommunityPostEdit', { postId })}>
+                <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>{t('communityBoard.editButton')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDeletePost}><Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>{t('communityBoard.deleteButton')}</Text></TouchableOpacity>
+            </>
           )}
           <TouchableOpacity onPress={() => setReportTarget({ type: 'post', id: postId })}>
             <Text style={{ color: themeColors.textSecondary, fontSize: 12 }}>{t('communityBoard.reportCta')}</Text>
@@ -311,6 +307,12 @@ export const CommunityPostScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <DetailModal
+        album={selectedAlbum}
+        visible={!!selectedAlbum}
+        onClose={() => setSelectedAlbum(null)}
+      />
     </View>
   );
 };
@@ -326,10 +328,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '700', marginTop: 4, marginBottom: 6 },
   locationBox: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, marginBottom: 12 },
-  mediaImg: { width: 160, height: 160, borderRadius: 10, marginRight: 8, backgroundColor: '#000' },
-  albumBox: { borderRadius: 10, padding: 10, marginBottom: 12, gap: 8 },
-  albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  albumCover: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#000' },
   postActions: { flexDirection: 'row', gap: 16, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   sectionTitle: { fontSize: 15, fontWeight: '700', marginTop: 16, marginBottom: 8 },
   commentItem: { paddingVertical: 10 },

@@ -10,8 +10,12 @@ import { CommunityPostCategory } from '@vinyla/shared-types';
 import { ComingSoonNotice } from '../components/Community/ComingSoonNotice';
 
 // LOCATION은 실제 DB 카테고리가 아니다 — 지도 SDK 도입 전까지 "준비 중" 안내만 보여준다.
+// 자랑(ARRIVAL/LISTENING_ROOM/COLLECTION/WISHLIST/ONOCHU)은 /feed(소셜 피드)로
+// 흡수돼 게시판 카테고리 목록에는 두지 않는다(웹 CommunityTabs.tsx와 동일,
+// 2026-08-06) — "전체"도 그 카테고리들을 뺀 목록만 명시적으로 조회한다.
 type CategoryChoice = CommunityPostCategory | 'ALL' | 'LOCATION';
-const CATEGORIES: CategoryChoice[] = ['ALL', 'FREE', 'ARRIVAL', 'LISTENING_ROOM', 'INFO', 'TIP', 'QNA', 'LOCATION'];
+const ALL_CATEGORIES: CommunityPostCategory[] = ['FREE', 'INFO', 'TIP', 'QNA'];
+const CATEGORIES: CategoryChoice[] = ['ALL', 'FREE', 'INFO', 'TIP', 'QNA', 'LOCATION'];
 const PAGE_SIZE = 20;
 
 // 커뮤니티 게시판 목록 — 웹 /community의 모바일 버전. 카테고리 탭 + 커서
@@ -31,7 +35,7 @@ export const CommunityScreen = () => {
   const load = useCallback((cat: CategoryChoice) => {
     if (cat === 'LOCATION') { setIsLoading(false); return; }
     setIsLoading(true);
-    getCommunityPosts({ category: cat === 'ALL' ? undefined : cat, limit: PAGE_SIZE })
+    getCommunityPosts({ category: cat === 'ALL' ? ALL_CATEGORIES : cat, limit: PAGE_SIZE })
       .then((rows) => {
         setPosts(rows);
         setHasMore(rows.length === PAGE_SIZE);
@@ -44,7 +48,7 @@ export const CommunityScreen = () => {
   const loadMore = async () => {
     if (posts.length === 0 || !hasMore || category === 'LOCATION') return;
     const more = await getCommunityPosts({
-      category: category === 'ALL' ? undefined : category,
+      category: category === 'ALL' ? ALL_CATEGORIES : category,
       limit: PAGE_SIZE,
       beforeCreatedAt: posts[posts.length - 1].CREATED_AT,
     });
