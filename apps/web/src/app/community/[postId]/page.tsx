@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   useAuthStore,
@@ -15,20 +15,29 @@ import {
   getAlbumMaster,
   getUserVinyls,
   CommunityPostWithMeta,
-  CommunityPostAlbum,
 } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
 import { CommunityCommentThread } from '../../../components/Community/CommunityCommentThread';
+import { ShowcaseCarousel } from '../../../components/Community/ShowcaseCarousel';
+import { buildShowcaseItems } from '../../../components/Community/showcaseCarouselItems';
 import { DetailModal } from '../../../components/Modal/DetailModal';
 import styles from './page.module.css';
 
-export default function CommunityPostDetailPage() {
+// ?from=feed(자랑게시판 글이 소셜 피드에 섞여 노출될 때의 진입 경로 구분)를
+// 읽는 useSearchParams()만 Suspense로 감싼다 — community/page.tsx와 동일 이유.
+function CommunityPostDetailContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const { t } = useLocale();
   const postId = Number(params.postId);
+  // 소셜 피드(/feed)에 섞여 노출된 자랑게시판 글은 뒤로가기도 피드로
+  // 돌아가야 자연스럽다 — ?from=feed로 진입 경로를 구분한다.
+  const cameFromFeed = searchParams.get('from') === 'feed';
+  const backHref = cameFromFeed ? '/feed' : '/community';
+  const backLabel = cameFromFeed ? t('feed.title') : t('communityBoard.pageTitle');
 
   const [post, setPost] = React.useState<CommunityPostWithMeta | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -61,11 +70,11 @@ export default function CommunityPostDetailPage() {
       .catch(() => {});
   }, [user?.id]);
 
-  const handleAlbumClick = async (a: CommunityPostAlbum) => {
+  const handleAlbumClick = async (albumId: number) => {
     if (!user) { setShowLoginPrompt(true); return; }
-    const master = await getAlbumMaster(a.ALBUM_ID).catch(() => null);
+    const master = await getAlbumMaster(albumId).catch(() => null);
     if (!master) return;
-    setSelectedAlbum({ ...master, STATUS: viewerStatusMap[String(a.ALBUM_ID)] } as MockVinylData);
+    setSelectedAlbum({ ...master, STATUS: viewerStatusMap[String(albumId)] } as MockVinylData);
   };
 
   const showToast = (message: string) => {
@@ -77,7 +86,7 @@ export default function CommunityPostDetailPage() {
     if (!window.confirm(t('communityBoard.deleteConfirm'))) return;
     try {
       await deleteCommunityPost(postId);
-      router.push('/community');
+      router.push(backHref);
     } catch (err) {
       showToast(getErrorMessage(err, t));
     }
@@ -117,7 +126,7 @@ export default function CommunityPostDetailPage() {
 
   return (
     <div className={styles.container}>
-      <Link href="/community" className={styles.backLink}>← {t('communityBoard.pageTitle')}</Link>
+      <Link href={backHref} className={styles.backLink}>← {backLabel}</Link>
 
       <span className={styles.category}>{t(`communityBoard.categories.${post.CATEGORY}` as any)}</span>
       <h1 className={styles.title}>{post.TITLE}</h1>
@@ -133,32 +142,8 @@ export default function CommunityPostDetailPage() {
         </div>
       )}
 
-      {post.MEDIA_ITEMS.length > 0 && (
-        <div className={styles.mediaGrid}>
-          {post.MEDIA_ITEMS.map((m, i) =>
-            m.type === 'video' ? (
-              <video key={i} className={styles.mediaImg} src={m.url} controls playsInline />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img key={i} src={m.url} alt="" className={styles.mediaImg} />
-            )
-          )}
-        </div>
-      )}
-
-      {(post.CATEGORY === 'ARRIVAL' || post.CATEGORY === 'COLLECTION' || post.CATEGORY === 'WISHLIST') && post.albums.length > 0 && (
-        <div className={styles.albumGrid}>
-          {post.albums.map((a) => (
-            <button type="button" key={a.ALBUM_ID} className={styles.albumCard} onClick={() => handleAlbumClick(a)}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={a.IMAGE_URL || ''} alt="" className={styles.albumCover} />
-              <div className={styles.albumText}>
-                <div className={styles.albumTitle}>{a.TITLE}</div>
-                <div className={styles.albumArtist}>{a.ARTIST}</div>
-              </div>
-            </button>
-          ))}
-        </div>
+      {(post.albums.length > 0 || post.MEDIA_ITEMS.length > 0) && (
+        <ShowcaseCarousel items={buildShowcaseItems(post.albums, post.MEDIA_ITEMS)} onAlbumClick={handleAlbumClick} />
       )}
 
       <p className={styles.content}>{post.CONTENT}</p>
@@ -244,5 +229,13 @@ export default function CommunityPostDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CommunityPostDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <CommunityPostDetailContent />
+    </Suspense>
   );
 }

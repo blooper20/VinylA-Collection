@@ -3,19 +3,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import styles from './feed.module.css';
-import { PageTabs } from '../../components/Navigation/PageTabs';
 import {
-  getDiscoveryFeed,
-  subscribeToDiscoveryFeed,
+  getMergedFeed,
+  subscribeToMergedFeed,
   getTasteMatches,
   getMyFollowingIds,
   followUser,
   unfollowUser,
+  FeedEntry,
   FeedItem,
+  ListeningLogFeedItem,
+  SpinSocialSummary,
   TasteMatch,
 } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { VinylSocialModal } from '../../components/Modal/VinylSocialModal';
+import { SpinSocialModal } from '../../components/Modal/SpinSocialModal';
+import { SpinSocialActions } from '../../components/SpinSocialActions';
+import { ShowcasePostCard } from '../../components/Community/ShowcasePostCard';
 import { useCoverImageUrl } from '../../hooks/useCoverImageUrl';
 
 const PAGE_SIZE = 30;
@@ -36,18 +41,32 @@ const FeedItemCover: React.FC<{ imageUrl?: string; title?: string }> = ({ imageU
   return <img className={styles.feedCover} src={displayCoverUrl} alt={title} />;
 };
 
+// 수집 활동(VINYL_ADD)·자랑게시판 글(SHOWCASE_POST)·다이어리 기록(LISTENING_LOG)이
+// 같은 리스트에 섞이므로 종류별로 고유한 키를 만든다 — 세 소스의 PK
+// 네임스페이스가 겹칠 수 있어서다.
+const entryKey = (entry: FeedEntry): string => {
+  if (entry.KIND === 'VINYL_ADD') return `v:${entry.DATA.USER_VINYL_ID}`;
+  if (entry.KIND === 'LISTENING_LOG') return `l:${entry.DATA.LOG_ID}`;
+  return `p:${entry.DATA.POST_ID}`;
+};
+
 export default function DiscoveryFeedPage() {
   const { t } = useLocale();
-  const [items, setItems] = useState<FeedItem[]>([]);
-  const [newIds, setNewIds] = useState<Set<number>>(new Set());
+  const [entries, setEntries] = useState<FeedEntry[]>([]);
+  const [newKeys, setNewKeys] = useState<Set<string>>(new Set());
   const [matches, setMatches] = useState<TasteMatch[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null);
-  // 실시간 INSERT/UPDATE가 초기 조회 결과와 겹칠 수 있어 id로 중복을 막는다.
-  const seenIds = useRef<Set<number>>(new Set());
+  const [selectedLog, setSelectedLog] = useState<ListeningLogFeedItem | null>(null);
+  // 실시간 INSERT/UPDATE가 초기 조회 결과와 겹칠 수 있어 key로 중복을 막는다.
+  const seenKeys = useRef<Set<string>>(new Set());
+  // 세 소스(USER_VINYL/COMMUNITY_POST/LISTENING_LOG)를 독립적으로 페이지네이션하기 위한 커서
+  const vinylCursor = useRef<string | undefined>(undefined);
+  const postCursor = useRef<string | undefined>(undefined);
+  const logCursor = useRef<string | undefined>(undefined);
 
   const relativeTime = useCallback(
     (iso: string): string => {
@@ -66,25 +85,35 @@ export default function DiscoveryFeedPage() {
     let cancelled = false;
 
     (async () => {
-      const [feed, taste, following] = await Promise.all([
-        getDiscoveryFeed({ limit: PAGE_SIZE }).catch(() => [] as FeedItem[]),
+      const [page, taste, following] = await Promise.all([
+        getMergedFeed({ limit: PAGE_SIZE }).catch(() => ({
+          entries: [] as FeedEntry[],
+          nextVinylCursor: null,
+          nextPostCursor: null,
+          nextLogCursor: null,
+          hasMore: false,
+        })),
         getTasteMatches(10),
         getMyFollowingIds(),
       ]);
       if (cancelled) return;
-      feed.forEach((i) => seenIds.current.add(i.USER_VINYL_ID));
-      setItems(feed);
-      setHasMore(feed.length === PAGE_SIZE);
+      page.entries.forEach((e) => seenKeys.current.add(entryKey(e)));
+      vinylCursor.current = page.nextVinylCursor ?? undefined;
+      postCursor.current = page.nextPostCursor ?? undefined;
+      logCursor.current = page.nextLogCursor ?? undefined;
+      setEntries(page.entries);
+      setHasMore(page.hasMore);
       setMatches(taste);
       setFollowingIds(following);
       setIsLoading(false);
     })();
 
-    const unsubscribe = subscribeToDiscoveryFeed((item) => {
-      if (cancelled || seenIds.current.has(item.USER_VINYL_ID)) return;
-      seenIds.current.add(item.USER_VINYL_ID);
-      setItems((prev) => [item, ...prev]);
-      setNewIds((prev) => new Set(prev).add(item.USER_VINYL_ID));
+    const unsubscribe = subscribeToMergedFeed((entry) => {
+      const key = entryKey(entry);
+      if (cancelled || seenKeys.current.has(key)) return;
+      seenKeys.current.add(key);
+      setEntries((prev) => [entry, ...prev]);
+      setNewKeys((prev) => new Set(prev).add(key));
     });
 
     return () => {
@@ -95,15 +124,22 @@ export default function DiscoveryFeedPage() {
   }, []);
 
   const loadMore = async () => {
-    const oldest = items[items.length - 1];
-    if (!oldest || isLoadingMore) return;
+    if (isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
     try {
-      const page = await getDiscoveryFeed({ limit: PAGE_SIZE, beforeAddedAt: oldest.ADDED_AT });
-      const fresh = page.filter((i) => !seenIds.current.has(i.USER_VINYL_ID));
-      fresh.forEach((i) => seenIds.current.add(i.USER_VINYL_ID));
-      setItems((prev) => [...prev, ...fresh]);
-      setHasMore(page.length === PAGE_SIZE);
+      const page = await getMergedFeed({
+        limit: PAGE_SIZE,
+        beforeVinylAt: vinylCursor.current,
+        beforePostAt: postCursor.current,
+        beforeLogAt: logCursor.current,
+      });
+      const fresh = page.entries.filter((e) => !seenKeys.current.has(entryKey(e)));
+      fresh.forEach((e) => seenKeys.current.add(entryKey(e)));
+      vinylCursor.current = page.nextVinylCursor ?? undefined;
+      postCursor.current = page.nextPostCursor ?? undefined;
+      logCursor.current = page.nextLogCursor ?? undefined;
+      setEntries((prev) => [...prev, ...fresh]);
+      setHasMore(page.hasMore);
     } catch {
       setHasMore(false);
     } finally {
@@ -137,19 +173,103 @@ export default function DiscoveryFeedPage() {
   const profileHref = (userId: string, name: string | null) =>
     `/user/${userId}/dashboard${name ? `?n=${encodeURIComponent(name)}` : ''}`;
 
+  const renderVinylAdd = (item: FeedItem, key: string) => {
+    const name = item.DISPLAY_NAME || t('feed.anonymous');
+    return (
+      <div
+        key={key}
+        className={`${styles.feedItem} ${newKeys.has(key) ? styles.feedItemNew : ''}`}
+        onClick={() => setSelectedItem(item)}
+        style={{ cursor: 'pointer' }}
+      >
+        <div style={{ position: 'relative' }}>
+          <FeedItemCover imageUrl={item.ALBUM?.IMAGE_URL} title={item.ALBUM?.TITLE} />
+          {item.STATUS === 'WISH' && <span className={styles.wishBadge}>WISH</span>}
+        </div>
+        <div className={styles.feedText}>
+          <p className={styles.feedHeadline}>
+            <Link
+              href={profileHref(item.USER_ID, item.DISPLAY_NAME)}
+              className={styles.feedUserName}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {name}
+            </Link>
+            {' '}{item.STATUS === 'WISH' ? '님이 위시리스트에 담았습니다.' : t('feed.addedSuffix')}
+          </p>
+          <p className={styles.feedAlbum}>
+            {item.ALBUM?.TITLE || `#${item.ALBUM_ID}`}
+            {item.ALBUM?.ARTIST && <span className={styles.feedArtist}> · {item.ALBUM.ARTIST}</span>}
+          </p>
+        </div>
+        <span className={styles.feedTime}>{relativeTime(item.ADDED_AT)}</span>
+      </div>
+    );
+  };
+
+  // SpinSocialActions/모달이 좋아요·댓글 수를 바꾸면 해당 LISTENING_LOG
+  // 엔트리의 SOCIAL만 갱신 — 다른 종류 엔트리는 KIND 다르므로 그대로 둔다.
+  const updateLogSocial = (logId: number, social: SpinSocialSummary) => {
+    setEntries((prev) =>
+      prev.map((e) => (e.KIND === 'LISTENING_LOG' && e.DATA.LOG_ID === logId ? { ...e, DATA: { ...e.DATA, SOCIAL: social } } : e))
+    );
+  };
+
+  const renderListeningLog = (item: ListeningLogFeedItem, key: string) => {
+    const name = item.DISPLAY_NAME || t('feed.anonymous');
+    return (
+      <div
+        key={key}
+        className={`${styles.feedItem} ${newKeys.has(key) ? styles.feedItemNew : ''}`}
+        onClick={() => setSelectedLog(item)}
+        style={{ cursor: 'pointer', alignItems: 'flex-start' }}
+      >
+        <FeedItemCover imageUrl={item.ALBUM_MASTER?.IMAGE_URL} title={item.ALBUM_MASTER?.TITLE} />
+        <div className={styles.feedText}>
+          <p className={styles.feedHeadline}>
+            <Link
+              href={profileHref(item.USER_ID, item.DISPLAY_NAME || null)}
+              className={styles.feedUserName}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {name}
+            </Link>
+            {' '}{t('feed.spunSuffix')}
+          </p>
+          <p className={styles.feedAlbum}>
+            {item.ALBUM_MASTER?.TITLE || `#${item.ALBUM_ID}`}
+            {item.ALBUM_MASTER?.ARTIST && <span className={styles.feedArtist}> · {item.ALBUM_MASTER.ARTIST}</span>}
+          </p>
+          <SpinSocialActions
+            entry={item}
+            ownerName={item.DISPLAY_NAME}
+            summary={item.SOCIAL}
+            onOpenComments={() => setSelectedLog(item)}
+            onSummaryChange={updateLogSocial}
+          />
+        </div>
+        <span className={styles.feedTime}>{relativeTime(item.CREATED_AT)}</span>
+      </div>
+    );
+  };
+
   return (
     <div className={styles.container}>
-      <PageTabs group="social" />
       <header className={styles.header}>
-        <p className={styles.eyebrow}>{t('feed.eyebrow')}</p>
-        <h1 className={styles.title}>
-          {t('feed.title')}
-          <span className={styles.liveBadge}>
-            <span className={styles.liveDot} />
-            {t('feed.live')}
-          </span>
-        </h1>
-        <p className={styles.subtitle}>{t('feed.subtitle')}</p>
+        <div>
+          <p className={styles.eyebrow}>{t('feed.eyebrow')}</p>
+          <h1 className={styles.title}>
+            {t('feed.title')}
+            <span className={styles.liveBadge}>
+              <span className={styles.liveDot} />
+              {t('feed.live')}
+            </span>
+          </h1>
+          <p className={styles.subtitle}>{t('feed.subtitle')}</p>
+        </div>
+        <Link href="/community/new?category=ARRIVAL&scope=feed" className={styles.writeBtn}>
+          {t('communityBoard.writeCta')}
+        </Link>
       </header>
 
       {/* 오늘의 바이닐 스토리 — 사이드바 메뉴 대신 피드 최상단에서 진입 (앱 파리티) */}
@@ -200,44 +320,22 @@ export default function DiscoveryFeedPage() {
       <section className={styles.feedSection}>
         {isLoading ? (
           <p className={styles.loadingText}>{t('feed.loading')}</p>
-        ) : items.length === 0 ? (
+        ) : entries.length === 0 ? (
           <p className={styles.loadingText}>{t('feed.empty')}</p>
         ) : (
           <>
             <div className={styles.feedList}>
-              {items.map((item) => {
-                const name = item.DISPLAY_NAME || t('feed.anonymous');
+              {entries.map((entry) => {
+                const key = entryKey(entry);
+                if (entry.KIND === 'VINYL_ADD') return renderVinylAdd(entry.DATA, key);
+                if (entry.KIND === 'LISTENING_LOG') return renderListeningLog(entry.DATA, key);
                 return (
-                  <div
-                    key={item.USER_VINYL_ID}
-                    className={`${styles.feedItem} ${newIds.has(item.USER_VINYL_ID) ? styles.feedItemNew : ''}`}
-                    onClick={() => setSelectedItem(item)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div style={{ position: 'relative' }}>
-                      <FeedItemCover imageUrl={item.ALBUM?.IMAGE_URL} title={item.ALBUM?.TITLE} />
-                      {item.STATUS === 'WISH' && (
-                        <span className={styles.wishBadge}>WISH</span>
-                      )}
-                    </div>
-                    <div className={styles.feedText}>
-                      <p className={styles.feedHeadline}>
-                        <Link 
-                          href={profileHref(item.USER_ID, item.DISPLAY_NAME)}
-                          className={styles.feedUserName}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {name}
-                        </Link>
-                        {' '}{item.STATUS === 'WISH' ? '님이 위시리스트에 담았습니다.' : t('feed.addedSuffix')}
-                      </p>
-                      <p className={styles.feedAlbum}>
-                        {item.ALBUM?.TITLE || `#${item.ALBUM_ID}`}
-                        {item.ALBUM?.ARTIST && <span className={styles.feedArtist}> · {item.ALBUM.ARTIST}</span>}
-                      </p>
-                    </div>
-                    <span className={styles.feedTime}>{relativeTime(item.ADDED_AT)}</span>
-                  </div>
+                  <ShowcasePostCard
+                    key={key}
+                    post={entry.DATA}
+                    href={`/community/${entry.DATA.POST_ID}?from=feed`}
+                    isNew={newKeys.has(key)}
+                  />
                 );
               })}
             </div>
@@ -255,6 +353,15 @@ export default function DiscoveryFeedPage() {
           entry={selectedItem}
           ownerName={selectedItem.DISPLAY_NAME}
           onClose={() => setSelectedItem(null)}
+        />
+      )}
+
+      {selectedLog && (
+        <SpinSocialModal
+          entry={selectedLog}
+          ownerName={selectedLog.DISPLAY_NAME}
+          onClose={() => setSelectedLog(null)}
+          onSummaryChange={updateLogSocial}
         />
       )}
     </div>

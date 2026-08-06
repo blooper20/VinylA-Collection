@@ -114,3 +114,20 @@
   color: var(--text-faint);
   margin-top: 6px;
 }
+
+.loadMoreBtn {
+  display: block;
+  margin: 24px auto 0;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

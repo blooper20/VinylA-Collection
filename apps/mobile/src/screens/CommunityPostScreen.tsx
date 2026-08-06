@@ -239,7 +239,7 @@ export const CommunityPostScreen = () => {
           </ScrollView>
         )}
 
-        {post.CATEGORY === 'ARRIVAL' && post.albums.length > 0 && (
+        {post.albums.length > 0 && (
           <View style={[styles.albumBox, { backgroundColor: themeColors.border }]}>
             {post.albums.map((a) => (
               <View key={a.ALBUM_ID} style={styles.albumRow}>

@@ -204,6 +204,27 @@ export const getPublicListeningLog = async (
   return (data as ListeningLogWithAlbum[]) || [];
 };
 
+// 디스커버리 피드용 — 전체 유저의 공개 재생 기록을 최신순으로. RLS(public
+// read + IS_PUBLIC + can_view_profile)가 비공개 프로필·비공개 기록을 행
+// 단위로 걸러내므로, 여기서는 유저를 특정하지 않고 그대로 조회하면 된다.
+// LISTENED_AT은 유저가 자유롭게 바꿀 수 있어(과거 감상 기록) 정렬 기준으로는
+// 부적절하다 — "실제로 언제 남겼는지"인 CREATED_AT을 커서로 쓴다.
+export const getDiscoveryListeningLog = async (
+  { limit = 30, beforeCreatedAt }: { limit?: number; beforeCreatedAt?: string } = {}
+): Promise<ListeningLogWithAlbum[]> => {
+  let query = supabase
+    .from('LISTENING_LOG')
+    .select('*, ALBUM_MASTER(*)')
+    .eq('IS_PUBLIC', true)
+    .order('CREATED_AT', { ascending: false })
+    .limit(limit);
+  if (beforeCreatedAt) query = query.lt('CREATED_AT', beforeCreatedAt);
+
+  const { data, error } = await query;
+  if (error) return [];
+  return (data as ListeningLogWithAlbum[]) || [];
+};
+
 // 앨범별 마지막 재생 시각 맵 — "오늘의 LP 추천"이 오래 안 들은 앨범에
 // 가중치를 주기 위한 용도. 실패해도 던지지 않고 빈 객체를 반환해 랜덤 픽이
 // 균등 랜덤으로 자연스럽게 폴백하게 한다.

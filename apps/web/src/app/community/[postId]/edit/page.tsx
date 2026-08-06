@@ -14,6 +14,7 @@ import {
 import { useLocale } from '@vinyla/i18n';
 import { CommunityMediaPicker, CommunityMediaSlot } from '../../../../components/Community/CommunityMediaPicker';
 import { AlbumMultiSelectPicker, PickedAlbum } from '../../../../components/Community/AlbumMultiSelectPicker';
+import { SongMultiSelectPicker } from '../../../../components/Community/SongMultiSelectPicker';
 // 글쓰기 폼과 시각적으로 동일한 화면이라 CSS 모듈을 그대로 재사용한다 —
 // 카테고리 탭만 없을 뿐 title/label/input/textarea/submitBtn 클래스는 동일.
 import styles from '../../new/page.module.css';
@@ -61,6 +62,7 @@ export default function CommunityEditPostPage() {
 
   const isAuthor = !!post && user?.id === post.AUTHOR_ID;
   const albumSource = post ? ALBUM_PICKER_SOURCE[post.CATEGORY] : undefined;
+  const isSongCategory = post?.CATEGORY === 'ONOCHU';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +85,7 @@ export default function CommunityEditPostPage() {
         title,
         content,
         mediaItems,
-        albumIds: albumSource ? albums.map((a) => a.ALBUM_ID) : undefined,
+        albumIds: albumSource || isSongCategory ? albums.map((a) => a.ALBUM_ID) : undefined,
       });
       router.push(`/community/${postId}`);
     } catch (err) {
@@ -119,6 +121,13 @@ export default function CommunityEditPostPage() {
           <>
             <label className={styles.label}>{t('communityBoard.albumPickerLabel')}</label>
             <AlbumMultiSelectPicker value={albums} onChange={setAlbums} source={albumSource} />
+          </>
+        )}
+
+        {isSongCategory && (
+          <>
+            <label className={styles.label}>{t('communityBoard.songPickerLabel')}</label>
+            <SongMultiSelectPicker value={albums} onChange={setAlbums} />
           </>
         )}
 

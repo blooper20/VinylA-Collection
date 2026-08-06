@@ -63,7 +63,7 @@ export const SideNav: React.FC = () => {
   const navItems: NavItem[] = [
     { name: t('nav.collection'), path: '/collection', icon: 'shelves', match: ['/collection', '/wishlist'] },
     { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
-    { name: t('nav.social'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log'] },
+    { name: t('nav.feed'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log'] },
     { name: t('communityBoard.pageTitle'), path: '/community', icon: 'forum' },
     { name: t('nav.support'), path: '/support', icon: 'support_agent' },
   ];

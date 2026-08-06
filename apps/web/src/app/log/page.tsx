@@ -234,35 +234,57 @@ export default function ListeningLogPage() {
                 <span className={styles.albumPlayCount}>{t('log.playCount', { count: g.logs.length })}</span>
               </div>
               <div className={styles.albumEntryList}>
-                {g.logs.map((entry) => (
-                  <div
-                    key={entry.LOG_ID}
-                    className={styles.albumEntryRow}
-                    onClick={() => setSocialEntry(entry)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span className={styles.albumEntryDate}>
-                      {new Date(entry.LISTENED_AT).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      {' · '}
-                      {new Date(entry.LISTENED_AT).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                      {entry.MOOD ? ` · ${entry.MOOD}` : ''}
-                      {!entry.IS_PUBLIC && (
-                        <span className={styles.privateBadge}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>lock</span>
-                          {t('detail.spinLogPrivate')}
-                        </span>
+                {g.logs.map((entry) => {
+                  const isDeleting = deletingId === entry.LOG_ID;
+                  return (
+                    <div
+                      key={entry.LOG_ID}
+                      className={styles.albumEntryRow}
+                      onClick={() => { if (!isDeleting) setSocialEntry(entry); }}
+                      style={{ cursor: isDeleting ? 'default' : 'pointer' }}
+                    >
+                      <span className={styles.albumEntryDate}>
+                        {new Date(entry.LISTENED_AT).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        {' · '}
+                        {new Date(entry.LISTENED_AT).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                        {entry.MOOD ? ` · ${entry.MOOD}` : ''}
+                        {!entry.IS_PUBLIC && (
+                          <span className={styles.privateBadge}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>lock</span>
+                            {t('detail.spinLogPrivate')}
+                          </span>
+                        )}
+                      </span>
+                      {entry.NOTE && <p className={styles.albumEntryNote}>{entry.NOTE}</p>}
+                      {isDeleting ? (
+                        <div className={styles.deleteConfirmRow} onClick={(e) => e.stopPropagation()}>
+                          <span>{t('log.deleteConfirm')}</span>
+                          <button type="button" className={styles.deleteConfirmYes} onClick={() => handleConfirmDelete(entry.LOG_ID)} disabled={deleteSubmitting}>
+                            {deleteSubmitting ? t('log.editSaving') : t('log.deleteConfirmYes')}
+                          </button>
+                          <button type="button" className={styles.deleteConfirmNo} onClick={() => setDeletingId(null)} disabled={deleteSubmitting}>
+                            {t('log.deleteConfirmNo')}
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <SpinSocialActions
+                            entry={entry}
+                            ownerName={user?.user_metadata?.displayName || null}
+                            summary={socialMap[entry.LOG_ID]}
+                            onOpenComments={() => setSocialEntry(entry)}
+                            onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
+                          />
+                          <div className={styles.timelineActions}>
+                            <button type="button" className={styles.timelineActionBtn} onClick={(e) => { e.stopPropagation(); handleDeleteClick(entry.LOG_ID); }}>
+                              {t('log.delete')}
+                            </button>
+                          </div>
+                        </>
                       )}
-                    </span>
-                    {entry.NOTE && <p className={styles.albumEntryNote}>{entry.NOTE}</p>}
-                    <SpinSocialActions
-                      entry={entry}
-                      ownerName={user?.user_metadata?.displayName || null}
-                      summary={socialMap[entry.LOG_ID]}
-                      onOpenComments={() => setSocialEntry(entry)}
-                      onSummaryChange={(logId, s) => setSocialMap((prev) => ({ ...prev, [logId]: s }))}
-                    />
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           ))}

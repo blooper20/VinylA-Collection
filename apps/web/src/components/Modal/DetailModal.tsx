@@ -803,7 +803,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({ album, onClose, coverC
           detail: {
             message,
             ...(isNewlyOwned ? {
-              ctaHref: `/community/new?category=ARRIVAL&albumId=${numericAlbumId}`,
+              ctaHref: `/community/new?category=ARRIVAL&albumId=${numericAlbumId}&scope=feed`,
               ctaLabel: t('detail.shareArrivalCta'),
             } : {}),
           },

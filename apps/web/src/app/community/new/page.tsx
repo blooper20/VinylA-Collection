@@ -13,6 +13,7 @@ import { useLocale } from '@vinyla/i18n';
 import { CommunityPostCategory } from '@vinyla/shared-types';
 import { CommunityMediaPicker, CommunityMediaSlot } from '../../../components/Community/CommunityMediaPicker';
 import { AlbumMultiSelectPicker, PickedAlbum } from '../../../components/Community/AlbumMultiSelectPicker';
+import { SongMultiSelectPicker } from '../../../components/Community/SongMultiSelectPicker';
 import { ComingSoonNotice } from '../../../components/Community/ComingSoonNotice';
 import { COMMUNITY_TABS } from '../../../components/Community/CommunityTabs';
 import styles from './page.module.css';
@@ -20,7 +21,7 @@ import styles from './page.module.css';
 // LOCATION은 실제 DB 카테고리가 아니다 — 지도 SDK 도입 전까지는 선택해도
 // "준비 중" 안내만 뜨고 글쓰기 폼 자체가 나타나지 않는다.
 type CategoryChoice = CommunityPostCategory | 'LOCATION';
-const CATEGORIES: CategoryChoice[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'COLLECTION', 'WISHLIST', 'INFO', 'TIP', 'QNA', 'LOCATION'];
+const CATEGORIES: CategoryChoice[] = ['FREE', 'ARRIVAL', 'LISTENING_ROOM', 'COLLECTION', 'WISHLIST', 'ONOCHU', 'INFO', 'TIP', 'QNA', 'LOCATION'];
 
 const isCategoryChoice = (v: string | null): v is CategoryChoice =>
   !!v && (CATEGORIES as string[]).includes(v);
@@ -68,10 +69,19 @@ function CommunityNewPostPageInner() {
 
   const categoryParam = searchParams.get('category');
   const albumIdParam = searchParams.get('albumId');
+  // /feed의 "글쓰기"는 피드에 실제로 올라오는 카테고리(자랑 하위)만 고를 수
+  // 있어야 한다 — 자유게시판/정보/로케이션은 피드에 안 뜨니 고를 이유가 없다.
+  const isFeedScope = searchParams.get('scope') === 'feed';
+  const showcaseCategories = COMMUNITY_TABS.find((t) => t.key === 'SHOWCASE')!.categories;
 
-  const [category, setCategory] = React.useState<CategoryChoice>(
-    isCategoryChoice(categoryParam) ? categoryParam : 'FREE'
-  );
+  const [category, setCategory] = React.useState<CategoryChoice>(() => {
+    if (isFeedScope) {
+      return isCategoryChoice(categoryParam) && showcaseCategories.includes(categoryParam as CommunityPostCategory)
+        ? categoryParam
+        : 'ARRIVAL';
+    }
+    return isCategoryChoice(categoryParam) ? categoryParam : 'FREE';
+  });
   const [title, setTitle] = React.useState('');
   const [content, setContent] = React.useState('');
   const [media, setMedia] = React.useState<CommunityMediaSlot[]>([]);
@@ -119,7 +129,7 @@ function CommunityNewPostPageInner() {
         title,
         content,
         mediaItems,
-        albumIds: ALBUM_PICKER_SOURCE[category] ? albums.map((a) => a.ALBUM_ID) : undefined,
+        albumIds: ALBUM_PICKER_SOURCE[category] || category === 'ONOCHU' ? albums.map((a) => a.ALBUM_ID) : undefined,
       });
       router.push(`/community/${postId}`);
     } catch (err) {
@@ -135,18 +145,20 @@ function CommunityNewPostPageInner() {
     <div className={styles.container}>
       <h1 className={styles.title}>{t('communityBoard.writeCta')}</h1>
 
-      <div className={styles.categoryTabs}>
-        {PARENT_TABS.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            className={`${styles.categoryTab} ${activeParent.key === p.key ? styles.categoryTabActive : ''}`}
-            onClick={() => setCategory(p.categories[0])}
-          >
-            {t(`communityBoard.tabs.${p.key}` as any)}
-          </button>
-        ))}
-      </div>
+      {!isFeedScope && (
+        <div className={styles.categoryTabs}>
+          {PARENT_TABS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className={`${styles.categoryTab} ${activeParent.key === p.key ? styles.categoryTabActive : ''}`}
+              onClick={() => setCategory(p.categories[0])}
+            >
+              {t(`communityBoard.tabs.${p.key}` as any)}
+            </button>
+          ))}
+        </div>
+      )}
       {activeParent.categories.length > 1 && (
         <div className={styles.subCategoryTabs}>
           {activeParent.categories.map((c) => (
@@ -184,6 +196,13 @@ function CommunityNewPostPageInner() {
           <>
             <label className={styles.label}>{t('communityBoard.albumPickerLabel')}</label>
             <AlbumMultiSelectPicker value={albums} onChange={setAlbums} source={ALBUM_PICKER_SOURCE[category]} />
+          </>
+        )}
+
+        {category === 'ONOCHU' && (
+          <>
+            <label className={styles.label}>{t('communityBoard.songPickerLabel')}</label>
+            <SongMultiSelectPicker value={albums} onChange={setAlbums} />
           </>
         )}
 

@@ -21,14 +21,15 @@
 }
 
 .categoryTab {
-  padding: 6px 14px;
+  padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: transparent;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  min-height: 40px;
 }
 
 .categoryTabActive {
@@ -45,14 +46,15 @@
 }
 
 .subCategoryTab {
-  padding: 4px 12px;
+  padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.45);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  min-height: 36px;
 }
 
 .subCategoryTabActive {
@@ -84,12 +86,13 @@
 }
 
 .input, .textarea {
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: #fff;
-  font-size: 14px;
+  /* 16px 미만이면 iOS Safari가 포커스 시 화면을 확대해버린다 */
+  font-size: 16px;
   font-family: inherit;
 }
 
@@ -106,14 +109,15 @@
 
 .submitBtn {
   margin-top: 20px;
-  padding: 12px;
+  padding: 14px;
   border-radius: 10px;
   border: none;
   background: #e6b93c;
   color: #000;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
+  min-height: 48px;
 }
 
 .submitBtn:disabled {

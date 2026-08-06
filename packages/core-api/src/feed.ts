@@ -1,7 +1,10 @@
 import { supabase } from './supabase';
-import { ALBUM_MASTER } from '@vinyla/shared-types';
+import { ALBUM_MASTER, CommunityPostCategory } from '@vinyla/shared-types';
 import { AppError } from './errors';
 import { getProfilesLite } from './profile';
+import { getCommunityPosts, getCommunityPost, CommunityPostWithMeta } from './communityBoard';
+import { getDiscoveryListeningLog, ListeningLogWithAlbum } from './listeningLog';
+import { getSpinSocialSummary, SpinSocialSummary } from './spinSocial';
 
 // 디스커버리 피드 — "방금 다른 수집가가 어떤 LP를 보관함에 담았는지"를
 // 보여준다. USER_VINYL은 public read + Realtime publication에 이미 등록돼
@@ -128,5 +131,162 @@ export const subscribeToDiscoveryFeed = (onItem: (item: FeedItem) => void): (() 
 
   return () => {
     void supabase.removeChannel(channel);
+  };
+};
+
+// ── 자랑게시판 게시글을 섞은 통합 피드 ─────────────────────────────────
+// "소셜" 피드는 원래 수집 활동(위)만 보여줬지만, 사진 위주인 커뮤니티
+// "자랑" 탭(CommunityTabs.tsx의 SHOWCASE 카테고리)의 글도 인스타그램처럼
+// 같은 타임라인에 자연스럽게 섞어 보여준다. 두 카테고리 그룹이 어긋나면
+// 피드에서 조용히 빠지는 글이 생기니, CommunityTabs.tsx의 SHOWCASE 탭
+// 정의를 바꾸면 이 배열도 같이 바꿔야 한다.
+const SHOWCASE_CATEGORIES: CommunityPostCategory[] = ['ARRIVAL', 'LISTENING_ROOM', 'COLLECTION', 'WISHLIST', 'ONOCHU'];
+
+export interface ListeningLogFeedItem extends ListeningLogWithAlbum {
+  PROFILE_IMAGE_URL: string | null;
+  SOCIAL: SpinSocialSummary;
+}
+
+const EMPTY_SOCIAL: SpinSocialSummary = { likeCount: 0, commentCount: 0, likedByMe: false, savedByMe: false };
+
+const enrichListeningLogs = async (rows: ListeningLogWithAlbum[]): Promise<ListeningLogFeedItem[]> => {
+  if (rows.length === 0) return [];
+  const [profileMap, socialMap] = await Promise.all([
+    getProfilesLite(rows.map((r) => r.USER_ID)),
+    getSpinSocialSummary(rows.map((r) => r.LOG_ID)),
+  ]);
+  return rows.map((r) => ({
+    ...r,
+    DISPLAY_NAME: profileMap[r.USER_ID]?.name || null,
+    PROFILE_IMAGE_URL: profileMap[r.USER_ID]?.img || null,
+    SOCIAL: socialMap[r.LOG_ID] || EMPTY_SOCIAL,
+  }));
+};
+
+export type FeedEntry =
+  | { KIND: 'VINYL_ADD'; SORT_AT: string; DATA: FeedItem }
+  | { KIND: 'SHOWCASE_POST'; SORT_AT: string; DATA: CommunityPostWithMeta }
+  | { KIND: 'LISTENING_LOG'; SORT_AT: string; DATA: ListeningLogFeedItem };
+
+const sortEntriesDesc = (entries: FeedEntry[]): FeedEntry[] =>
+  [...entries].sort((a, b) => (a.SORT_AT < b.SORT_AT ? 1 : a.SORT_AT > b.SORT_AT ? -1 : 0));
+
+export interface MergedFeedPage {
+  entries: FeedEntry[];
+  /** 다음 페이지 요청 시 그대로 넘기면 되는 커서 — 세 소스를 독립적으로 페이지네이션한다 */
+  nextVinylCursor: string | null;
+  nextPostCursor: string | null;
+  nextLogCursor: string | null;
+  hasMore: boolean;
+}
+
+/**
+ * 수집 활동 + 자랑게시판 글 + 다이어리(재생 기록)를 하나의 타임라인으로
+ * 합친다. 세 테이블을 각자의 커서로 최대 limit개씩 가져와 시간순으로
+ * 병합하는데, 잘라내지 않고 가져온 건 전부 반환한다(어느 한쪽이 몰리면
+ * 페이지가 최대 3*limit까지 커질 수 있음) — 이렇게 해야 커서가 항상
+ * "이번에 실제로 받은 마지막 항목"을 정확히 가리켜서 다음 페이지 호출 때
+ * 데이터가 누락되지 않는다. 대신 세 소스의 병합 지점(다음 페이지 경계)에서는
+ * 아주 드물게 시간 순서가 살짝 어긋날 수 있다(v1 허용, 각 소스 내부 정렬은
+ * 항상 정확함).
+ */
+export const getMergedFeed = async (
+  { limit = 30, beforeVinylAt, beforePostAt, beforeLogAt }: {
+    limit?: number; beforeVinylAt?: string; beforePostAt?: string; beforeLogAt?: string;
+  } = {}
+): Promise<MergedFeedPage> => {
+  const [vinylItems, posts, logRows] = await Promise.all([
+    getDiscoveryFeed({ limit, beforeAddedAt: beforeVinylAt }).catch(() => [] as FeedItem[]),
+    getCommunityPosts({ category: SHOWCASE_CATEGORIES, limit, beforeCreatedAt: beforePostAt }).catch(
+      () => [] as CommunityPostWithMeta[]
+    ),
+    getDiscoveryListeningLog({ limit, beforeCreatedAt: beforeLogAt }).catch(() => [] as ListeningLogWithAlbum[]),
+  ]);
+  const logs = await enrichListeningLogs(logRows).catch(() => [] as ListeningLogFeedItem[]);
+
+  const entries = sortEntriesDesc([
+    ...vinylItems.map((v) => ({ KIND: 'VINYL_ADD' as const, SORT_AT: v.ADDED_AT, DATA: v })),
+    ...posts.map((p) => ({ KIND: 'SHOWCASE_POST' as const, SORT_AT: p.CREATED_AT, DATA: p })),
+    ...logs.map((l) => ({ KIND: 'LISTENING_LOG' as const, SORT_AT: l.CREATED_AT, DATA: l })),
+  ]);
+
+  return {
+    entries,
+    nextVinylCursor: vinylItems.length > 0 ? vinylItems[vinylItems.length - 1].ADDED_AT : beforeVinylAt ?? null,
+    nextPostCursor: posts.length > 0 ? posts[posts.length - 1].CREATED_AT : beforePostAt ?? null,
+    nextLogCursor: logRows.length > 0 ? logRows[logRows.length - 1].CREATED_AT : beforeLogAt ?? null,
+    hasMore: vinylItems.length === limit || posts.length === limit || logRows.length === limit,
+  };
+};
+
+/** 새 자랑게시판 글이 올라오면 작성자/좋아요·댓글수까지 채워서 콜백으로 넘긴다. */
+const subscribeToShowcasePosts = (onItem: (post: CommunityPostWithMeta) => void): (() => void) => {
+  const channel = supabase
+    .channel('discovery-feed-showcase')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'COMMUNITY_POST' },
+      (payload) => {
+        const row = payload.new as any;
+        if (!row || !SHOWCASE_CATEGORIES.includes(row.CATEGORY)) return;
+        void getCommunityPost(row.POST_ID).then((post) => {
+          if (post) onItem(post);
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+};
+
+/** 새 공개 다이어리 기록이 올라오면 작성자 정보를 채워서(좋아요·댓글은 0) 콜백으로 넘긴다. */
+const subscribeToDiscoveryListeningLog = (onItem: (entry: ListeningLogFeedItem) => void): (() => void) => {
+  const channel = supabase
+    .channel('discovery-feed-listening-log')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'LISTENING_LOG' },
+      (payload) => {
+        const row = payload.new as any;
+        if (!row || row.IS_PUBLIC === false) return;
+        void (async () => {
+          const [{ data: album }, profileMap] = await Promise.all([
+            supabase.from('ALBUM_MASTER').select('*').eq('ALBUM_ID', row.ALBUM_ID).maybeSingle(),
+            getProfilesLite([row.USER_ID]),
+          ]);
+          onItem({
+            ...(row as ListeningLogWithAlbum),
+            ALBUM_MASTER: (album as ALBUM_MASTER) || null,
+            DISPLAY_NAME: profileMap[row.USER_ID]?.name || null,
+            PROFILE_IMAGE_URL: profileMap[row.USER_ID]?.img || null,
+            SOCIAL: EMPTY_SOCIAL,
+          });
+        })();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+};
+
+/** getMergedFeed의 실시간 버전 — 수집 활동·자랑게시판 글·다이어리 구독을 하나로 묶는다. */
+export const subscribeToMergedFeed = (onEntry: (entry: FeedEntry) => void): (() => void) => {
+  const unsubVinyl = subscribeToDiscoveryFeed((item) =>
+    onEntry({ KIND: 'VINYL_ADD', SORT_AT: item.ADDED_AT, DATA: item })
+  );
+  const unsubPosts = subscribeToShowcasePosts((post) =>
+    onEntry({ KIND: 'SHOWCASE_POST', SORT_AT: post.CREATED_AT, DATA: post })
+  );
+  const unsubLogs = subscribeToDiscoveryListeningLog((entry) =>
+    onEntry({ KIND: 'LISTENING_LOG', SORT_AT: entry.CREATED_AT, DATA: entry })
+  );
+  return () => {
+    unsubVinyl();
+    unsubPosts();
+    unsubLogs();
   };
 };

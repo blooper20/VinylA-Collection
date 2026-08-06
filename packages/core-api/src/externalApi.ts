@@ -578,6 +578,34 @@ export const searchAppleMusicAlbums = async (term: string): Promise<AppleMusicSe
 // already relies on.
 export const fetchAppleMusicAlbumTracks = fetchAppleMusicAlbumPage;
 
+// ── Apple Music 노래(트랙) 검색 ("오노추" 글쓰기 카테고리 전용) ────────────
+// searchAppleMusicAlbums(entity=album)와 같은 방식이지만 entity=song이라
+// 앨범이 아니라 개별 트랙 단위로 결과가 온다 — "오늘의 노래 추천"은 유저
+// 컬렉션이 아니라 애플뮤직 전체 카탈로그에서 곡을 찾아 추천하기 때문.
+export interface AppleMusicSongSearchResult {
+  trackId: number;
+  trackName: string;
+  artistName: string;
+  /** 이 트랙이 속한 앨범/싱글의 iTunes collectionId — 커뮤니티 앨범으로
+   *  등록할 때 중복 방지 키(APPLE_COLLECTION_ID)로 재사용한다. */
+  collectionId: number;
+  collectionName: string;
+  artworkUrl: string;
+  releaseYear?: number;
+}
+
+export const searchAppleMusicSongs = async (term: string): Promise<AppleMusicSongSearchResult[]> => {
+  if (!term.trim()) return [];
+  try {
+    const res = await axios.get(`${getProxyBaseUrl()}/api/external/apple-song-search`, {
+      params: { term },
+    });
+    return Array.isArray(res.data?.results) ? res.data.results : [];
+  } catch {
+    return [];
+  }
+};
+
 export const createDiscogsSearchSession = (
   query: string,
   onItem: (album: AlbumItem) => void,

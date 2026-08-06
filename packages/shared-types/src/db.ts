@@ -296,7 +296,7 @@ export interface CommunityMediaItem {
   type: 'image' | 'video';
 }
 
-export type CommunityPostCategory = 'ARRIVAL' | 'FREE' | 'QNA' | 'INFO' | 'LISTENING_ROOM' | 'TIP' | 'COLLECTION' | 'WISHLIST';
+export type CommunityPostCategory = 'ARRIVAL' | 'FREE' | 'QNA' | 'INFO' | 'LISTENING_ROOM' | 'TIP' | 'COLLECTION' | 'WISHLIST' | 'ONOCHU';
 
 /**
  * 커뮤니티 게시판 — 8개 카테고리를 한 테이블로 묶고 CATEGORY로 구분한다.

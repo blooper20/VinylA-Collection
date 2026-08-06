@@ -22,24 +22,44 @@ const CommunityAlbumCover: React.FC<{ src?: string | null }> = ({ src }) => {
 // Discogs 카탈로그에 없어 유저가 직접 등록한 앨범들을 모아 보여주는 위키형
 // 목록 — 메인 Discogs 검색과는 완전히 분리된 화면이다(메인 검색 매칭 로직은
 // 건드리지 않는다는 결정에 따름).
+const PAGE_SIZE = 30;
+
 export default function CommunityAlbumsPage() {
   const { t } = useLocale();
   const { user } = useAuthStore();
   const [query, setQuery] = useState('');
   const [albums, setAlbums] = useState<CommunityAlbum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState<CommunityAlbum | null>(null);
   const [userVinyls, setUserVinyls] = useState<USER_VINYL[]>([]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIsLoading(true);
-      getCommunityAlbums({ query })
-        .then(setAlbums)
+      getCommunityAlbums({ query, limit: PAGE_SIZE })
+        .then((rows) => {
+          setAlbums(rows);
+          setHasMore(rows.length === PAGE_SIZE);
+        })
         .finally(() => setIsLoading(false));
     }, 300);
     return () => clearTimeout(timeout);
   }, [query]);
+
+  const loadMore = async () => {
+    const oldest = albums[albums.length - 1];
+    if (!oldest || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const more = await getCommunityAlbums({ query, limit: PAGE_SIZE, before: oldest.CREATED_AT });
+      setAlbums((prev) => [...prev, ...more]);
+      setHasMore(more.length === PAGE_SIZE);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     const loadUserVinyls = () => {
@@ -106,6 +126,12 @@ export default function CommunityAlbumsPage() {
           </button>
         ))}
       </div>
+
+      {hasMore && !isLoading && (
+        <button type="button" className={styles.loadMoreBtn} onClick={loadMore} disabled={isLoadingMore}>
+          {isLoadingMore ? t('community.loading') : t('communityBoard.loadMore')}
+        </button>
+      )}
 
       {selected && <DetailModal album={toDetailAlbum(selected)} onClose={() => setSelected(null)} />}
     </div>

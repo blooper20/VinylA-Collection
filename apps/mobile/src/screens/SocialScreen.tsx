@@ -8,9 +8,10 @@ import { useLocale } from '@vinyla/i18n';
 import {
   useAuthStore,
   FeedItem,
+  FeedEntry,
   TasteMatch,
-  getDiscoveryFeed,
-  subscribeToDiscoveryFeed,
+  getMergedFeed,
+  subscribeToMergedFeed,
   getTasteMatches,
   getMyFollowingIds,
   followUser,
@@ -30,6 +31,7 @@ import {
 } from '@vinyla/core-api';
 import type { NOTICE } from '@vinyla/shared-types';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
+import { ShowcasePostCard } from '../components/Community/ShowcasePostCard';
 import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
 import { SpinLogEditorModal } from '../components/Modal/SpinLogEditorModal';
 import { useTabBarHeight } from '../constants/layout';
@@ -61,6 +63,11 @@ const groupByAlbum = (entries: ListeningLogWithAlbum[]) => {
   return Array.from(groups.values()).map(g => ({ ...g, title: g.album?.TITLE || '' }));
 };
 
+// 수집 활동(VINYL_ADD)과 자랑게시판 글(SHOWCASE_POST)이 같은 피드에 섞이므로
+// 종류별로 고유한 키를 만든다 — 두 소스의 PK 네임스페이스가 겹칠 수 있어서다.
+const entryKey = (entry: FeedEntry): string =>
+  entry.KIND === 'VINYL_ADD' ? `v:${entry.DATA.USER_VINYL_ID}` : `p:${entry.DATA.POST_ID}`;
+
 // 웹의 '소셜' 메뉴(피드+다이어리 탭)와 동일한 구성의 모바일 화면.
 export const SocialScreen = () => {
   const { themeColors } = useTheme();
@@ -75,14 +82,17 @@ export const SocialScreen = () => {
   const [unread, setUnread] = useState(0);
 
   // ── 피드 상태 ──
-  const [items, setItems] = useState<FeedItem[]>([]);
+  const [feedEntries, setFeedEntries] = useState<FeedEntry[]>([]);
   const [matches, setMatches] = useState<TasteMatch[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [feedLoading, setFeedLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedFeedItem, setSelectedFeedItem] = useState<FeedItem | null>(null);
-  const seenIds = useRef<Set<number>>(new Set());
+  const seenKeys = useRef<Set<string>>(new Set());
+  // 두 소스(USER_VINYL/COMMUNITY_POST)를 독립적으로 페이지네이션하기 위한 커서
+  const vinylCursor = useRef<string | undefined>(undefined);
+  const postCursor = useRef<string | undefined>(undefined);
 
   // ── 다이어리 상태 ──
   const [entries, setEntries] = useState<ListeningLogWithAlbum[] | null>(null);
@@ -115,23 +125,31 @@ export const SocialScreen = () => {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const [feed, taste, following] = await Promise.all([
-          getDiscoveryFeed({ limit: PAGE_SIZE }).catch(() => [] as FeedItem[]),
+        const [page, taste, following] = await Promise.all([
+          getMergedFeed({ limit: PAGE_SIZE }).catch(() => ({
+            entries: [] as FeedEntry[],
+            nextVinylCursor: null,
+            nextPostCursor: null,
+            hasMore: false,
+          })),
           getTasteMatches(10).catch(() => [] as TasteMatch[]),
           getMyFollowingIds().catch(() => new Set<string>()),
         ]);
         if (cancelled) return;
-        seenIds.current = new Set(feed.map((i) => i.USER_VINYL_ID));
-        setItems(feed);
-        setHasMore(feed.length === PAGE_SIZE);
+        seenKeys.current = new Set(page.entries.map(entryKey));
+        vinylCursor.current = page.nextVinylCursor ?? undefined;
+        postCursor.current = page.nextPostCursor ?? undefined;
+        setFeedEntries(page.entries);
+        setHasMore(page.hasMore);
         setMatches(taste);
         setFollowingIds(following);
         setFeedLoading(false);
       })();
-      const unsubscribe = subscribeToDiscoveryFeed((item) => {
-        if (cancelled || seenIds.current.has(item.USER_VINYL_ID)) return;
-        seenIds.current.add(item.USER_VINYL_ID);
-        setItems((prev) => [item, ...prev]);
+      const unsubscribe = subscribeToMergedFeed((entry) => {
+        const key = entryKey(entry);
+        if (cancelled || seenKeys.current.has(key)) return;
+        seenKeys.current.add(key);
+        setFeedEntries((prev) => [entry, ...prev]);
       });
       return () => {
         cancelled = true;
@@ -141,15 +159,20 @@ export const SocialScreen = () => {
   );
 
   const loadMoreFeed = async () => {
-    const oldest = items[items.length - 1];
-    if (!oldest || loadingMore || !hasMore) return;
+    if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const page = await getDiscoveryFeed({ limit: PAGE_SIZE, beforeAddedAt: oldest.ADDED_AT });
-      const fresh = page.filter((i) => !seenIds.current.has(i.USER_VINYL_ID));
-      fresh.forEach((i) => seenIds.current.add(i.USER_VINYL_ID));
-      setItems((prev) => [...prev, ...fresh]);
-      setHasMore(page.length === PAGE_SIZE);
+      const page = await getMergedFeed({
+        limit: PAGE_SIZE,
+        beforeVinylAt: vinylCursor.current,
+        beforePostAt: postCursor.current,
+      });
+      const fresh = page.entries.filter((e) => !seenKeys.current.has(entryKey(e)));
+      fresh.forEach((e) => seenKeys.current.add(entryKey(e)));
+      vinylCursor.current = page.nextVinylCursor ?? undefined;
+      postCursor.current = page.nextPostCursor ?? undefined;
+      setFeedEntries((prev) => [...prev, ...fresh]);
+      setHasMore(page.hasMore);
     } catch {
       setHasMore(false);
     } finally {
@@ -516,9 +539,11 @@ export const SocialScreen = () => {
           <ActivityIndicator color={themeColors.accent} style={{ marginTop: 40 }} />
         ) : (
           <FlatList
-            data={items}
-            keyExtractor={(i) => String(i.USER_VINYL_ID)}
-            renderItem={renderFeedItem}
+            data={feedEntries}
+            keyExtractor={entryKey}
+            renderItem={({ item }) =>
+              item.KIND === 'VINYL_ADD' ? renderFeedItem({ item: item.DATA }) : <ShowcasePostCard post={item.DATA} />
+            }
             ListHeaderComponent={renderFeedHeader}
             ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('feed.empty')}</Text>}
             contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
@@ -585,7 +610,9 @@ export const SocialScreen = () => {
           isVisible={!!selectedFeedItem}
           onClose={() => setSelectedFeedItem(null)}
           onUpdate={(updated) => {
-            setItems((prev) => prev.map((e) => e.USER_VINYL_ID === updated.USER_VINYL_ID ? updated : e));
+            setFeedEntries((prev) => prev.map((e) =>
+              e.KIND === 'VINYL_ADD' && e.DATA.USER_VINYL_ID === updated.USER_VINYL_ID ? { ...e, DATA: updated } : e
+            ));
             setSelectedFeedItem(updated);
           }}
         />

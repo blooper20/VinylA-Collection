@@ -179,7 +179,7 @@ export const createCommunityPost = async (input: CommunityPostInput): Promise<nu
   }
 
   const postId = (data as any).POST_ID as number;
-  const albumAttachCategories: CommunityPostCategory[] = ['ARRIVAL', 'COLLECTION', 'WISHLIST'];
+  const albumAttachCategories: CommunityPostCategory[] = ['ARRIVAL', 'COLLECTION', 'WISHLIST', 'ONOCHU'];
   if (albumAttachCategories.includes(input.category) && input.albumIds?.length) {
     const rows = [...new Set(input.albumIds)].map((albumId) => ({ POST_ID: postId, ALBUM_ID: albumId }));
     const { error: albumError } = await supabase.from('COMMUNITY_POST_ALBUM').insert(rows);

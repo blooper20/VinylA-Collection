@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getCommunityPosts, CommunityPostWithMeta, getPinnedNotices, getNotices } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 import { NOTICE } from '@vinyla/shared-types';
@@ -21,6 +21,7 @@ const isTabKey = (v: string | null): v is CommunityTabKey =>
 // 하나 때문에 다른 정적 페이지들까지 동적 렌더링으로 강제되지 않게 한다.
 function CommunityPageInner() {
   const { t } = useLocale();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab: CommunityTabKey = isTabKey(tabParam) ? tabParam : 'ALL';
@@ -32,6 +33,11 @@ function CommunityPageInner() {
   // 공지사항은 COMMUNITY_POST가 아니라 별도 NOTICE 테이블이라 아래에서
   // getCommunityPosts 대신 getNotices/getPinnedNotices로 따로 조회한다.
   const isNoticeTab = activeTab === 'NOTICE';
+  // 자랑은 게시판에서 뺐다 — /feed(소셜 피드)로 흡수됐으니 옛 북마크/링크로
+  // 들어오면 그쪽으로 보낸다. CommunityTabs에는 탭 버튼 없이 남겨둔 상태라
+  // (community/new/page.tsx의 글쓰기 카테고리 그룹핑에서 여전히 씀) URL로는
+  // 여전히 도달 가능하므로 여기서 막아준다.
+  const isShowcaseTab = activeTab === 'SHOWCASE';
 
   const [posts, setPosts] = React.useState<CommunityPostWithMeta[]>([]);
   const [pinnedNotices, setPinnedNotices] = React.useState<NOTICE[]>([]);
@@ -40,7 +46,11 @@ function CommunityPageInner() {
   const [hasMore, setHasMore] = React.useState(false);
 
   React.useEffect(() => {
-    if (isLocationPlaceholder) { setIsLoading(false); return; }
+    if (isShowcaseTab) router.replace('/feed');
+  }, [isShowcaseTab, router]);
+
+  React.useEffect(() => {
+    if (isLocationPlaceholder || isShowcaseTab) { setIsLoading(false); return; }
     setIsLoading(true);
     if (isNoticeTab) {
       Promise.all([getPinnedNotices().catch(() => []), getNotices({ limit: PAGE_SIZE }).catch(() => [])])
@@ -59,7 +69,7 @@ function CommunityPageInner() {
       })
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isLocationPlaceholder, isNoticeTab]);
+  }, [activeTab, isLocationPlaceholder, isShowcaseTab, isNoticeTab]);
 
   const loadMore = async () => {
     if (isNoticeTab) {
@@ -100,6 +110,8 @@ function CommunityPageInner() {
       </Link>
     );
   };
+
+  if (isShowcaseTab) return null;
 
   return (
     <div className={styles.container}>
@@ -142,39 +154,39 @@ function CommunityPageInner() {
           {isLoading && <p className={styles.status}>{t('communityBoard.loading')}</p>}
           {!isLoading && posts.length === 0 && <p className={styles.status}>{t('communityBoard.empty')}</p>}
 
-          <div className={styles.list}>
-            {posts.map((p) => (
-              <Link key={p.POST_ID} href={`/community/${p.POST_ID}`} className={styles.row}>
-                {p.MEDIA_ITEMS[0] ? (
-                  <div className={styles.thumbWrap}>
-                    {p.MEDIA_ITEMS[0].type === 'video' ? (
-                      <video className={styles.thumb} src={p.MEDIA_ITEMS[0].url} muted playsInline preload="metadata" />
-                    ) : (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={p.MEDIA_ITEMS[0].url} alt="" className={styles.thumb} />
-                    )}
-                    {p.MEDIA_ITEMS[0].type === 'video' && (
-                      <span className="material-symbols-outlined" aria-hidden style={{
-                        position: 'absolute', inset: 0, margin: 'auto', width: 18, height: 18,
-                        fontSize: 18, color: '#fff', textShadow: '0 0 4px rgba(0,0,0,0.8)',
-                      }}>play_circle</span>
-                    )}
+            <div className={styles.list}>
+              {posts.map((p) => (
+                <Link key={p.POST_ID} href={`/community/${p.POST_ID}`} className={styles.row}>
+                  {p.MEDIA_ITEMS[0] ? (
+                    <div className={styles.thumbWrap}>
+                      {p.MEDIA_ITEMS[0].type === 'video' ? (
+                        <video className={styles.thumb} src={p.MEDIA_ITEMS[0].url} muted playsInline preload="metadata" />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={p.MEDIA_ITEMS[0].url} alt="" className={styles.thumb} />
+                      )}
+                      {p.MEDIA_ITEMS[0].type === 'video' && (
+                        <span className="material-symbols-outlined" aria-hidden style={{
+                          position: 'absolute', inset: 0, margin: 'auto', width: 18, height: 18,
+                          fontSize: 18, color: '#fff', textShadow: '0 0 4px rgba(0,0,0,0.8)',
+                        }}>play_circle</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className={styles.thumbPlaceholder} />
+                  )}
+                  <div className={styles.rowBody}>
+                    <span className={styles.rowCategory}>{t(`communityBoard.categories.${p.CATEGORY}` as any)}</span>
+                    <span className={styles.rowTitle}>{p.TITLE}</span>
+                    <span className={styles.rowMeta}>
+                      {p.AUTHOR_NAME || t('communityBoard.authorFallback')} · {new Date(p.CREATED_AT).toLocaleDateString()}
+                      {' · '}{t('communityBoard.commentCount', { count: p.COMMENT_COUNT })}
+                      {' · '}{t('communityBoard.viewCount', { count: p.VIEW_COUNT })}
+                    </span>
                   </div>
-                ) : (
-                  <div className={styles.thumbPlaceholder} />
-                )}
-                <div className={styles.rowBody}>
-                  <span className={styles.rowCategory}>{t(`communityBoard.categories.${p.CATEGORY}` as any)}</span>
-                  <span className={styles.rowTitle}>{p.TITLE}</span>
-                  <span className={styles.rowMeta}>
-                    {p.AUTHOR_NAME || t('communityBoard.authorFallback')} · {new Date(p.CREATED_AT).toLocaleDateString()}
-                    {' · '}{t('communityBoard.commentCount', { count: p.COMMENT_COUNT })}
-                    {' · '}{t('communityBoard.viewCount', { count: p.VIEW_COUNT })}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
 
           {hasMore && !isLoading && (
             <button type="button" className={styles.loadMoreBtn} onClick={loadMore}>
