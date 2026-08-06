@@ -55,16 +55,15 @@ export const SideNav: React.FC = () => {
     };
   }, [user?.id]);
 
-  // 컬렉션(+위시리스트)과 소셜(피드+다이어리)은 페이지 내 탭으로 통합 —
-  // match는 그룹의 다른 탭 경로에서도 메뉴가 활성으로 보이게 한다.
-  // 커뮤니티(공지사항 포함)도 이제 하나의 페이지 안 탭으로 통합됐으므로
-  // 사이드바를 컬렉션/커뮤니티 모드로 나누지 않고 진입점 하나로 둔다.
+  // 컬렉션(+위시리스트)과 소셜(피드+커뮤니티)은 페이지 내 탭으로 통합 —
+  // match는 그룹의 다른 탭 경로에서도 메뉴가 활성으로 보이게 한다. 커뮤니티는
+  // 자랑 카테고리가 피드로 흡수된 뒤 남은 자유게시판/정보/공지사항 게시판이라
+  // 소셜 활동의 일부로 보고 별도 사이드바 항목 대신 소셜 하위 탭으로 둔다.
   type NavItem = { name: string; path: string; icon: string; badge?: number; match?: string[] };
   const navItems: NavItem[] = [
     { name: t('nav.collection'), path: '/collection', icon: 'shelves', match: ['/collection', '/wishlist'] },
     { name: t('nav.search'), path: '/search', icon: 'travel_explore' },
-    { name: t('nav.feed'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log'] },
-    { name: t('communityBoard.pageTitle'), path: '/community', icon: 'forum' },
+    { name: t('nav.social'), path: '/feed', icon: 'rss_feed', match: ['/feed', '/log', '/community'] },
     { name: t('nav.support'), path: '/support', icon: 'support_agent' },
   ];
 

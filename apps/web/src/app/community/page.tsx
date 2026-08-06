@@ -8,6 +8,7 @@ import { useLocale } from '@vinyla/i18n';
 import { NOTICE } from '@vinyla/shared-types';
 import { ComingSoonNotice } from '../../components/Community/ComingSoonNotice';
 import { CommunityTabs, COMMUNITY_TABS, CommunityTabKey } from '../../components/Community/CommunityTabs';
+import { PageTabs } from '../../components/Navigation/PageTabs';
 import styles from './page.module.css';
 
 const PAGE_SIZE = 20;
@@ -115,6 +116,7 @@ function CommunityPageInner() {
 
   return (
     <div className={styles.container}>
+      <PageTabs group="social" />
       <CommunityTabs active={activeTab} />
 
       <header className={styles.header}>

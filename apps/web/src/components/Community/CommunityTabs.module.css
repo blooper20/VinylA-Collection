@@ -1,0 +1,39 @@
+/* 커뮤니티 게시판 내부 탭 — 위에 PageTabs(소셜: 피드/커뮤니티)가 이미
+   같은 밑줄 탭 스타일로 떠 있어서, 여기서 같은 모양을 또 쓰면 두 줄이
+   구분 없이 겹쳐 보인다. 그래서 한 단계 아래 탐색이라는 걸 보여주는
+   작은 필(pill) 버튼 줄로 스타일을 분리했다. */
+
+.tabBar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabBar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tabActive {
+  border-color: #d4af37;
+  background: rgba(212, 175, 55, 0.12);
+  color: #d4af37;
+}

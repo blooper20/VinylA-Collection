@@ -4,10 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { useLocale } from '@vinyla/i18n';
 import { CommunityPostCategory } from '@vinyla/shared-types';
-// PageTabs와 같은 상단 탭바 스타일을 재사용 — 다만 이건 라우트 간 이동이
-// 아니라 /community 한 페이지 안에서 ?tab= 쿼리로만 갈아끼우는 탭이라
-// PageTabs 컴포넌트 자체(pathname 기반 active 판정)는 재사용할 수 없다.
-import styles from '../Navigation/PageTabs.module.css';
+// 이 페이지 위에는 소셜(피드/커뮤니티) PageTabs가 이미 떠 있으므로, 여기는
+// 그 아래 단계 탐색임을 보여주는 별도의 작은 필 스타일을 쓴다(PageTabs.module.css
+// 재사용 시 두 탭바가 똑같이 보여 구분이 안 됨) — CommunityTabs.module.css.
+import styles from './CommunityTabs.module.css';
 
 export type CommunityTabKey = 'ALL' | 'NOTICE' | 'FREE' | 'SHOWCASE' | 'INFO' | 'LOCATION';
 
