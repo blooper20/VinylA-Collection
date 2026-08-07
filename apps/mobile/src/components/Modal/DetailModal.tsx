@@ -647,6 +647,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
       });
     } catch (e) {
       console.error(e);
+      showAlert(t('common.error'), t('mobile.detail.linkShareFailed'));
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -656,6 +657,9 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
   const handleImageShare = async () => {
     try {
       setIsSharingProcessing(true);
+      // 오프스크린 스토리 뷰의 원격 커버 이미지가 로드되기 전에 캡처될 수
+      // 있다 — 캡처 전에 먼저 캐시에 올려둔다.
+      if (album?.IMAGE_URL) await Image.prefetch(album.IMAGE_URL).catch(() => {});
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share image', e);
@@ -852,8 +856,7 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
     setCoverPickerOpen(true);
   };
 
-  const handleDelete = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const performDelete = async () => {
     if (!album || !resolvedUserVinylId) return;
     if (!user) {
       showAlert(t('common.error'), t('detail.loginRequired'));
@@ -870,6 +873,20 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
       console.error(e);
       showAlert(t('common.error'), getErrorMessage(e, t));
     }
+  };
+
+  // 실수로 한 번 탭했다고 영구 삭제되지 않도록 확인을 거친다(웹 DetailModal과 동일한 안전장치).
+  const handleDelete = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!album || !resolvedUserVinylId) return;
+    Alert.alert(
+      t('detail.deleteConfirmTitle'),
+      t('detail.deleteConfirmMessage', { target: realStatus === 'OWNED' ? t('nav.collection') : t('nav.wishlist') }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: performDelete },
+      ]
+    );
   };
 
   React.useEffect(() => {
@@ -1125,8 +1142,8 @@ export const DetailModal = ({ album, visible, onClose, coverCandidates }: Detail
               {(genreTags.length > 0) && (
                 <View style={styles.tagsContainer}>
                   {genreTags.map((tag, i) => {
-                    const tTag = t(`genres.${tag}` as any);
-                    const displayTag = tTag && !tTag.startsWith('genres.') ? tTag : tag;
+                    const tTag = t(`mobile.genres.${tag}` as any);
+                    const displayTag = tTag && !tTag.startsWith('mobile.genres.') ? tTag : tag;
                     return (
                       <View key={`g-${i}`} style={styles.tagBadge}>
                         <Text style={styles.tagText}>{displayTag}</Text>

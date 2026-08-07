@@ -87,6 +87,19 @@ export const markAllNotificationsRead = async (): Promise<void> => {
     .is('READ_AT', null);
 };
 
+/** 알림 한 건 삭제 (RLS: 본인 행만 DELETE 가능) */
+export const deleteNotification = async (notificationId: number): Promise<void> => {
+  await supabase.from('NOTIFICATION').delete().eq('NOTIFICATION_ID', notificationId);
+};
+
+/** 알림 전체 삭제 — RLS가 USER_ID로 이미 본인 행만 걸러주므로 필터는
+ * "행이 실제로 존재한다"는 조건(항상 참) 하나만 있으면 된다. */
+export const deleteAllNotifications = async (): Promise<void> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user?.id) return;
+  await supabase.from('NOTIFICATION').delete().gte('NOTIFICATION_ID', 0);
+};
+
 /**
  * 새 알림 실시간 구독 — 미읽음 배지 갱신용. RLS(WALRUS)가 수신자 본인
  * 이벤트만 전달한다. 반환값은 해제 함수.

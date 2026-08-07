@@ -95,19 +95,26 @@ const attachMeta = async (rows: any[]): Promise<CommunityPostWithMeta[]> => {
  * (예: 커뮤니티 상단 "자랑" 탭 = ARRIVAL + LISTENING_ROOM).
  */
 export const getCommunityPosts = async (
-  { category, limit = 20, beforeCreatedAt }: { category?: CommunityPostCategory | CommunityPostCategory[]; limit?: number; beforeCreatedAt?: string } = {}
+  { category, limit = 20, beforeCreatedAt, beforePostId }: { category?: CommunityPostCategory | CommunityPostCategory[]; limit?: number; beforeCreatedAt?: string; beforePostId?: number } = {}
 ): Promise<CommunityPostWithMeta[]> => {
   let query = supabase
     .from('COMMUNITY_POST')
     .select('*')
     .order('CREATED_AT', { ascending: false })
+    .order('POST_ID', { ascending: false })
     .limit(limit);
   if (Array.isArray(category)) {
     if (category.length > 0) query = query.in('CATEGORY', category);
   } else if (category) {
     query = query.eq('CATEGORY', category);
   }
-  if (beforeCreatedAt) query = query.lt('CREATED_AT', beforeCreatedAt);
+  // CREATED_AT만으로 커서를 자르면 같은 타임스탬프(동시각 생성)의 행이 페이지
+  // 경계에서 조용히 스킵될 수 있다 — POST_ID를 타이브레이커로 함께 건다.
+  if (beforeCreatedAt && beforePostId != null) {
+    query = query.or(`CREATED_AT.lt.${beforeCreatedAt},and(CREATED_AT.eq.${beforeCreatedAt},POST_ID.lt.${beforePostId})`);
+  } else if (beforeCreatedAt) {
+    query = query.lt('CREATED_AT', beforeCreatedAt);
+  }
 
   const { data, error } = await query;
   if (error) {

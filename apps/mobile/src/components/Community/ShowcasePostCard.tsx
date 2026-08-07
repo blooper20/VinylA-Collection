@@ -8,10 +8,9 @@ import { CommunityPostWithMeta } from '@vinyla/core-api';
 import { CoverImage } from '../CoverImage';
 import { buildShowcaseItems } from '../../utils/showcaseCarouselItems';
 
-// 자랑게시판 글 하나를 인스타그램 피드 포스트처럼 보여주는 카드 —
-// 소셜 탭 피드(SocialScreen)와 커뮤니티 자랑 목록(CommunityScreen)이 같은
-// 콘텐츠를 다른 맥락에서 보여주므로 웹의 ShowcasePostCard와 동일한 구성으로
-// 시각적 일관성을 맞춘다. 상세/프로필 이동은 이 컴포넌트가 직접 처리한다.
+// 자랑게시판 글 하나를 인스타그램 피드 포스트처럼 보여주는 카드 — 소셜 탭
+// 피드(SocialScreen)에서 웹의 ShowcasePostCard와 동일한 구성으로 시각적
+// 일관성을 맞춘다. 상세/프로필 이동은 이 컴포넌트가 직접 처리한다.
 
 interface ShowcasePostCardProps {
   post: CommunityPostWithMeta;

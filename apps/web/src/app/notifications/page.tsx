@@ -1,18 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import styles from './notifications.module.css';
+import DeleteAllNotificationsModal from '../../components/Modal/DeleteAllNotificationsModal';
 import {
   useAuthStore,
   getNotifications,
   markAllNotificationsRead,
+  deleteNotification,
+  deleteAllNotifications,
   NotificationItem,
   NotificationType,
 } from '@vinyla/core-api';
 import { useLocale } from '@vinyla/i18n';
 
 const PAGE_SIZE = 30;
+const SWIPE_OPEN_X = -76;
 
 const TYPE_ICON: Record<NotificationType, string> = {
   SPIN_LIKE: 'favorite',
@@ -27,12 +31,85 @@ const TYPE_ICON: Record<NotificationType, string> = {
   NOTICE: 'campaign',
 };
 
+// 행을 왼쪽으로 밀면 뒤에 숨어있던 삭제 버튼이 드러난다 — 드래그 중엔
+// Link 클릭(페이지 이동)을 막아야 해서 드래그 여부를 ref로 함께 추적한다.
+const NotificationRow: React.FC<{
+  href: string;
+  isUnread: boolean;
+  icon: string;
+  body: React.ReactNode;
+  time: string;
+  deleteLabel: string;
+  onDelete: () => void;
+}> = ({ href, isUnread, icon, body, time, deleteLabel, onDelete }) => {
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startDragX: number; dragging: boolean } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragRef.current = { startX: e.clientX, startDragX: dragX, dragging: false };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st) return;
+    const delta = e.clientX - st.startX;
+    if (!st.dragging) {
+      if (Math.abs(delta) < 6) return;
+      st.dragging = true;
+      setIsDragging(true);
+    }
+    setDragX(Math.min(0, Math.max(SWIPE_OPEN_X, st.startDragX + delta)));
+  };
+  const endDrag = () => {
+    const st = dragRef.current;
+    if (!st) return;
+    if (st.dragging) setDragX((x) => (x < SWIPE_OPEN_X / 2 ? SWIPE_OPEN_X : 0));
+    dragRef.current = null;
+    setIsDragging(false);
+  };
+  const onClickCapture = (e: React.MouseEvent) => {
+    // 열려있는 상태(또는 방금 드래그한 상태)에서의 탭은 이동이 아니라 닫기로 처리
+    if (dragX !== 0) {
+      e.preventDefault();
+      setDragX(0);
+    }
+  };
+
+  return (
+    <div className={styles.itemRow}>
+      <button type="button" className={styles.deleteAction} onClick={onDelete} aria-label={deleteLabel}>
+        <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
+      </button>
+      <Link
+        href={href}
+        className={`${styles.item} ${isUnread ? styles.itemUnread : ''}`}
+        style={{ transform: `translateX(${dragX}px)`, transition: isDragging ? 'none' : undefined }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
+      >
+        <span className={styles.iconWrap}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px', fontVariationSettings: "'FILL' 1" }}>
+            {icon}
+          </span>
+        </span>
+        <div className={styles.body}>{body}</div>
+        <span className={styles.time}>{time}</span>
+        {isUnread && <span className={styles.unreadDot} />}
+      </Link>
+    </div>
+  );
+};
+
 export default function NotificationsPage() {
   const { t } = useLocale();
   const { user, initializeAuth } = useAuthStore();
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
 
   useEffect(() => { initializeAuth(); }, [initializeAuth]);
 
@@ -51,6 +128,17 @@ export default function NotificationsPage() {
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  const handleDelete = async (notificationId: number) => {
+    setItems((prev) => (prev ? prev.filter((n) => n.NOTIFICATION_ID !== notificationId) : prev));
+    await deleteNotification(notificationId);
+  };
+
+  const handleDeleteAll = async () => {
+    setItems([]);
+    setHasMore(false);
+    await deleteAllNotifications();
+  };
 
   const loadMore = async () => {
     if (!items || items.length === 0 || isLoadingMore) return;
@@ -108,8 +196,17 @@ export default function NotificationsPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <p className={styles.eyebrow}>{t('notif.eyebrow')}</p>
-        <h1 className={styles.title}>{t('notif.title')}</h1>
+        <div className={styles.headerTop}>
+          <div>
+            <p className={styles.eyebrow}>{t('notif.eyebrow')}</p>
+            <h1 className={styles.title}>{t('notif.title')}</h1>
+          </div>
+          {!!items && items.length > 0 && (
+            <button type="button" className={styles.deleteAllBtn} onClick={() => setIsDeleteAllModalOpen(true)}>
+              {t('notif.deleteAll')}
+            </button>
+          )}
+        </div>
         <p className={styles.subtitle}>{t('notif.subtitle')}</p>
       </header>
 
@@ -121,23 +218,21 @@ export default function NotificationsPage() {
         <>
           <div className={styles.list}>
             {items.map((n) => (
-              <Link
+              <NotificationRow
                 key={n.NOTIFICATION_ID}
                 href={notifHref(n)}
-                className={`${styles.item} ${!n.READ_AT ? styles.itemUnread : ''}`}
-              >
-                <span className={styles.iconWrap}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', fontVariationSettings: "'FILL' 1" }}>
-                    {TYPE_ICON[n.TYPE] || 'notifications'}
-                  </span>
-                </span>
-                <div className={styles.body}>
-                  {message(n)}
-                  {n.COMMENT_PREVIEW && <p className={styles.preview}>“{n.COMMENT_PREVIEW}”</p>}
-                </div>
-                <span className={styles.time}>{relativeTime(n.CREATED_AT)}</span>
-                {!n.READ_AT && <span className={styles.unreadDot} />}
-              </Link>
+                isUnread={!n.READ_AT}
+                icon={TYPE_ICON[n.TYPE] || 'notifications'}
+                time={relativeTime(n.CREATED_AT)}
+                deleteLabel={t('notif.delete')}
+                onDelete={() => handleDelete(n.NOTIFICATION_ID)}
+                body={
+                  <>
+                    {message(n)}
+                    {n.COMMENT_PREVIEW && <p className={styles.preview}>“{n.COMMENT_PREVIEW}”</p>}
+                  </>
+                }
+              />
             ))}
           </div>
           {hasMore && (
@@ -147,6 +242,12 @@ export default function NotificationsPage() {
           )}
         </>
       )}
+
+      <DeleteAllNotificationsModal
+        isOpen={isDeleteAllModalOpen}
+        onClose={() => setIsDeleteAllModalOpen(false)}
+        onConfirm={handleDeleteAll}
+      />
     </div>
   );
 }

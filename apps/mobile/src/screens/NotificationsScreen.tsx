@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import {
   useAuthStore,
   getNotifications,
   markAllNotificationsRead,
+  deleteNotification,
+  deleteAllNotifications,
   NotificationItem,
   NotificationType,
 } from '@vinyla/core-api';
@@ -49,6 +51,27 @@ export const NotificationsScreen = () => {
       markAllNotificationsRead();
     })();
   }, [user?.id]);
+
+  const handleDelete = async (notificationId: number) => {
+    setItems((prev) => (prev ? prev.filter((n) => n.NOTIFICATION_ID !== notificationId) : prev));
+    await deleteNotification(notificationId);
+  };
+
+  const handleDeleteAll = () => {
+    if (!items || items.length === 0) return;
+    Alert.alert(t('notif.deleteAllTitle'), t('notif.deleteAllBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('notif.deleteAll'),
+        style: 'destructive',
+        onPress: async () => {
+          setItems([]);
+          setHasMore(false);
+          await deleteAllNotifications();
+        },
+      },
+    ]);
+  };
 
   const loadMore = async () => {
     if (!items || items.length === 0 || loadingMore || !hasMore) return;
@@ -99,7 +122,13 @@ export const NotificationsScreen = () => {
           <Feather name="chevron-left" size={24} color={themeColors.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>{t('notif.title')}</Text>
-        <View style={{ width: 36 }} />
+        {items && items.length > 0 ? (
+          <TouchableOpacity onPress={handleDeleteAll} style={{ padding: 6, width: 36, alignItems: 'flex-end' }}>
+            <Text style={{ color: themeColors.textSecondary, fontSize: 12, fontWeight: '600' }}>{t('notif.deleteAll')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
       {items === null ? (
@@ -137,8 +166,17 @@ export const NotificationsScreen = () => {
                     </Text>
                   )}
                 </View>
-                <Text style={{ color: themeColors.textSecondary, fontSize: 11, marginLeft: 8 }}>{relativeTime(n.CREATED_AT)}</Text>
-                {!n.READ_AT && <View style={styles.unreadDot} />}
+                <View style={{ alignItems: 'flex-end', gap: 6, marginLeft: 8 }}>
+                  <Text style={{ color: themeColors.textSecondary, fontSize: 11 }}>{relativeTime(n.CREATED_AT)}</Text>
+                  {!n.READ_AT && <View style={[styles.unreadDot, { marginLeft: 0 }]} />}
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleDelete(n.NOTIFICATION_ID)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ paddingLeft: 10 }}
+                >
+                  <Feather name="trash-2" size={15} color={themeColors.textSecondary} />
+                </TouchableOpacity>
               </TouchableOpacity>
             );
           }}

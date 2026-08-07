@@ -155,6 +155,12 @@ export const SearchScreen = ({ route }: any) => {
       if (searchIdRef.current === currentSearchId) {
         setHasMore(more);
       }
+    } catch (e) {
+      // loadMore()는 오늘 기준 내부에서 다 처리해 던지지 않지만(onStatusChange로
+      // 자체 에러 얼럿을 띄움), 그 계약이 앞으로도 유지된다는 보장은 없다 —
+      // 방어적으로 잡아서 언젠가 던지게 바뀌어도 unhandled rejection이 되지 않게 한다.
+      console.error('Failed to load more search results', e);
+      if (searchIdRef.current === currentSearchId) setHasMore(false);
     } finally {
       loadingMoreRef.current = false;
       if (searchIdRef.current === currentSearchId) {

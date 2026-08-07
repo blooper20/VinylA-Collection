@@ -29,10 +29,13 @@ import {
   deleteUserVinyl,
   getPinnedNotices,
   getNotices,
+  getCommunityPosts,
+  CommunityPostWithMeta,
 } from '@vinyla/core-api';
-import type { NOTICE } from '@vinyla/shared-types';
+import type { NOTICE, CommunityPostCategory } from '@vinyla/shared-types';
 import { VinylSocialModal } from '../components/Modal/VinylSocialModal';
 import { ShowcasePostCard } from '../components/Community/ShowcasePostCard';
+import { ComingSoonNotice } from '../components/Community/ComingSoonNotice';
 import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
 import { SpinLogEditorModal } from '../components/Modal/SpinLogEditorModal';
 import { useTabBarHeight } from '../constants/layout';
@@ -40,6 +43,13 @@ import { useTabBarHeight } from '../constants/layout';
 const PAGE_SIZE = 30;
 const DIARY_PAGE_SIZE = 20;
 const NOTICE_PAGE_SIZE = 20;
+const COMMUNITY_PAGE_SIZE = 20;
+
+// 자랑(ARRIVAL/LISTENING_ROOM/COLLECTION/WISHLIST/ONOCHU)은 피드에 흡수돼
+// 게시판 카테고리 목록에는 두지 않는다(웹 CommunityTabs.tsx와 동일).
+type CommunityCategoryChoice = CommunityPostCategory | 'ALL' | 'LOCATION';
+const COMMUNITY_ALL_CATEGORIES: CommunityPostCategory[] = ['FREE', 'INFO', 'TIP', 'QNA'];
+const COMMUNITY_CATEGORIES: CommunityCategoryChoice[] = ['ALL', 'FREE', 'INFO', 'TIP', 'QNA', 'LOCATION'];
 
 const groupByDate = (entries: ListeningLogWithAlbum[]) => {
   const groups = new Map<string, ListeningLogWithAlbum[]>();
@@ -73,7 +83,8 @@ const entryKey = (entry: FeedEntry): string => {
   return `p:${entry.DATA.POST_ID}`;
 };
 
-// 웹의 '소셜' 메뉴(피드+다이어리 탭)와 동일한 구성의 모바일 화면.
+// 웹 사이드바에서 소셜+커뮤니티를 하나로 합친 것과 동일하게, 이 하단 탭
+// 하나(피드/커뮤니티/다이어리/공지사항)로 모바일 소셜 화면을 구성한다.
 export const SocialScreen = () => {
   const { themeColors } = useTheme();
   const { t } = useLocale();
@@ -82,7 +93,7 @@ export const SocialScreen = () => {
   const tabBarHeight = useTabBarHeight();
   const { user } = useAuthStore();
 
-  const [tab, setTab] = useState<'feed' | 'diary' | 'notice'>('feed');
+  const [tab, setTab] = useState<'feed' | 'community' | 'diary' | 'notice'>('feed');
   const [viewMode, setViewMode] = useState<'date' | 'album'>('date');
   const [unread, setUnread] = useState(0);
 
@@ -95,9 +106,10 @@ export const SocialScreen = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedFeedItem, setSelectedFeedItem] = useState<FeedItem | null>(null);
   const seenKeys = useRef<Set<string>>(new Set());
-  // 두 소스(USER_VINYL/COMMUNITY_POST)를 독립적으로 페이지네이션하기 위한 커서
+  // 세 소스(USER_VINYL/COMMUNITY_POST/LISTENING_LOG)를 독립적으로 페이지네이션하기 위한 커서
   const vinylCursor = useRef<string | undefined>(undefined);
   const postCursor = useRef<string | undefined>(undefined);
+  const logCursor = useRef<string | undefined>(undefined);
 
   // ── 다이어리 상태 ──
   const [entries, setEntries] = useState<ListeningLogWithAlbum[] | null>(null);
@@ -106,6 +118,17 @@ export const SocialScreen = () => {
   const [socialMap, setSocialMap] = useState<Record<number, SpinSocialSummary>>({});
   const [socialEntry, setSocialEntry] = useState<ListeningLogWithAlbum | null>(null);
   const [editingEntry, setEditingEntry] = useState<ListeningLogWithAlbum | null>(null);
+
+  // ── 커뮤니티 게시판 상태(자유/정보/팁/QNA — 자랑 카테고리는 피드로 흡수됨) ──
+  const [commCategory, setCommCategory] = useState<CommunityCategoryChoice>('ALL');
+  const [commPosts, setCommPosts] = useState<CommunityPostWithMeta[]>([]);
+  const [commLoading, setCommLoading] = useState(true);
+  const [commHasMore, setCommHasMore] = useState(false);
+  const [commLoadingMore, setCommLoadingMore] = useState(false);
+  // 카테고리를 빠르게 연속으로 바꾸면 먼저 보낸(느린) 요청이 나중에 도착해
+  // 최신 선택과 다른 카테고리 결과로 화면을 덮어쓸 수 있다 — 요청마다 번호를
+  // 매겨 가장 최신 요청의 응답만 반영한다.
+  const commRequestId = useRef(0);
 
   // ── 공지사항 상태 ──
   const [pinnedNotices, setPinnedNotices] = useState<NOTICE[]>([]);
@@ -135,6 +158,7 @@ export const SocialScreen = () => {
             entries: [] as FeedEntry[],
             nextVinylCursor: null,
             nextPostCursor: null,
+            nextLogCursor: null,
             hasMore: false,
           })),
           getTasteMatches(10).catch(() => [] as TasteMatch[]),
@@ -144,6 +168,7 @@ export const SocialScreen = () => {
         seenKeys.current = new Set(page.entries.map(entryKey));
         vinylCursor.current = page.nextVinylCursor ?? undefined;
         postCursor.current = page.nextPostCursor ?? undefined;
+        logCursor.current = page.nextLogCursor ?? undefined;
         setFeedEntries(page.entries);
         setHasMore(page.hasMore);
         setMatches(taste);
@@ -171,11 +196,13 @@ export const SocialScreen = () => {
         limit: PAGE_SIZE,
         beforeVinylAt: vinylCursor.current,
         beforePostAt: postCursor.current,
+        beforeLogAt: logCursor.current,
       });
       const fresh = page.entries.filter((e) => !seenKeys.current.has(entryKey(e)));
       fresh.forEach((e) => seenKeys.current.add(entryKey(e)));
       vinylCursor.current = page.nextVinylCursor ?? undefined;
       postCursor.current = page.nextPostCursor ?? undefined;
+      logCursor.current = page.nextLogCursor ?? undefined;
       setFeedEntries((prev) => [...prev, ...fresh]);
       setHasMore(page.hasMore);
     } catch {
@@ -241,6 +268,54 @@ export const SocialScreen = () => {
     }
   };
 
+  // 커뮤니티 게시판 로드 — 탭 전환/카테고리 변경 시 + 글쓰기 후 돌아왔을 때
+  // (포커스 복귀) 새로고침되도록 useFocusEffect를 쓴다(옛 CommunityScreen과 동일).
+  useFocusEffect(
+    useCallback(() => {
+      if (tab !== 'community' || commCategory === 'LOCATION') return;
+      const requestId = ++commRequestId.current;
+      setCommLoading(true);
+      getCommunityPosts({
+        category: commCategory === 'ALL' ? COMMUNITY_ALL_CATEGORIES : commCategory,
+        limit: COMMUNITY_PAGE_SIZE,
+      })
+        .then((rows) => {
+          if (commRequestId.current !== requestId) return; // 그 사이 더 최신 요청이 나감 — 이 응답은 버린다
+          setCommPosts(rows);
+          setCommHasMore(rows.length === COMMUNITY_PAGE_SIZE);
+        })
+        .catch(() => {
+          if (commRequestId.current !== requestId) return;
+          setCommHasMore(false);
+        })
+        .finally(() => {
+          if (commRequestId.current === requestId) setCommLoading(false);
+        });
+    }, [tab, commCategory])
+  );
+
+  const loadMoreCommunity = async () => {
+    if (commPosts.length === 0 || !commHasMore || commCategory === 'LOCATION' || commLoadingMore) return;
+    const requestId = commRequestId.current;
+    setCommLoadingMore(true);
+    try {
+      const lastPost = commPosts[commPosts.length - 1];
+      const more = await getCommunityPosts({
+        category: commCategory === 'ALL' ? COMMUNITY_ALL_CATEGORIES : commCategory,
+        limit: COMMUNITY_PAGE_SIZE,
+        beforeCreatedAt: lastPost.CREATED_AT,
+        beforePostId: lastPost.POST_ID,
+      });
+      if (commRequestId.current !== requestId) return; // 그 사이 카테고리가 바뀜 — 반영하지 않는다
+      setCommPosts((prev) => [...prev, ...more]);
+      setCommHasMore(more.length === COMMUNITY_PAGE_SIZE);
+    } catch {
+      if (commRequestId.current === requestId) setCommHasMore(false);
+    } finally {
+      if (commRequestId.current === requestId) setCommLoadingMore(false);
+    }
+  };
+
   // 공지사항 로드 (탭 첫 진입 시)
   useEffect(() => {
     if (tab !== 'notice' || noticeItems !== null) return;
@@ -260,7 +335,7 @@ export const SocialScreen = () => {
     setNoticeLoadingMore(true);
     try {
       const last = noticeItems[noticeItems.length - 1];
-      const more = await getNotices({ limit: NOTICE_PAGE_SIZE, beforeCreatedAt: last.CREATED_AT });
+      const more = await getNotices({ limit: NOTICE_PAGE_SIZE, beforeCreatedAt: last.CREATED_AT, beforeNoticeId: last.NOTICE_ID });
       setNoticeItems((prev) => [...(prev || []), ...more]);
       setNoticeHasMore(more.length === NOTICE_PAGE_SIZE);
     } finally {
@@ -550,22 +625,30 @@ export const SocialScreen = () => {
       {/* 헤더: 타이틀 + 알림 벨 */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>{t('nav.social')}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ padding: 6 }}>
-          <Feather name="bell" size={22} color={themeColors.textPrimary} />
-          {unread > 0 && (
-            <View style={styles.badge}>
-              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>{unread > 99 ? '99+' : unread}</Text>
-            </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {tab === 'community' && (
+            <TouchableOpacity onPress={() => navigation.navigate('CommunityNewPost')} style={{ padding: 6 }}>
+              <Feather name="edit" size={20} color={themeColors.accent} />
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ padding: 6 }}>
+            <Feather name="bell" size={22} color={themeColors.textPrimary} />
+            {unread > 0 && (
+              <View style={styles.badge}>
+                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>{unread > 99 ? '99+' : unread}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* 피드 | 다이어리 | 공지사항 탭 */}
+      {/* 피드 | 커뮤니티 | 다이어리 | 공지사항 탭 — 웹 사이드메뉴에서 소셜·커뮤니티를
+          하나로 합친 것과 동일하게, 모바일도 커뮤니티 게시판을 이 탭 하나로 흡수했다. */}
       <View style={[styles.tabRow, { borderBottomColor: themeColors.border }]}>
-        {(['feed', 'diary', 'notice'] as const).map((key) => (
+        {(['feed', 'community', 'diary', 'notice'] as const).map((key) => (
           <TouchableOpacity key={key} onPress={() => setTab(key)} style={[styles.tabBtn, tab === key && { borderBottomColor: themeColors.accent, borderBottomWidth: 2 }]}>
             <Text style={{ color: tab === key ? themeColors.textPrimary : themeColors.textSecondary, fontWeight: '600', fontSize: 15 }}>
-              {key === 'feed' ? t('nav.feed') : key === 'diary' ? t('nav.log') : t('notice.title')}
+              {key === 'feed' ? t('nav.feed') : key === 'community' ? t('communityBoard.pageTitle') : key === 'diary' ? t('nav.log') : t('notice.title')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -618,6 +701,81 @@ export const SocialScreen = () => {
             />
           </>
         )
+      ) : tab === 'community' ? (
+        <View style={{ flex: 1 }}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={COMMUNITY_CATEGORIES}
+            keyExtractor={(c) => c}
+            style={styles.commTabsList}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 6 }}
+            renderItem={({ item: c }) => (
+              <TouchableOpacity
+                onPress={() => setCommCategory(c)}
+                style={[
+                  styles.commCategoryTab,
+                  { borderColor: commCategory === c ? themeColors.accent : themeColors.border },
+                  commCategory === c && { backgroundColor: `${themeColors.accent}20` },
+                ]}
+              >
+                <Text style={{ color: commCategory === c ? themeColors.accent : themeColors.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                  {c === 'ALL' ? t('communityBoard.tabs.ALL') : t(`communityBoard.categories.${c}` as any)}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+
+          {commCategory !== 'LOCATION' && (
+            <Text style={[styles.commCategoryHint, { color: themeColors.textSecondary }]}>
+              {commCategory === 'ALL' ? t('communityBoard.tabHints.ALL') : t(`communityBoard.categoryHint.${commCategory}` as any)}
+            </Text>
+          )}
+
+          {commCategory === 'LOCATION' ? (
+            <ComingSoonNotice />
+          ) : commLoading ? (
+            <ActivityIndicator color={themeColors.accent} style={{ marginTop: 24 }} />
+          ) : (
+            <FlatList
+              data={commPosts}
+              keyExtractor={(p) => String(p.POST_ID)}
+              contentContainerStyle={{ paddingBottom: tabBarHeight + 48 }}
+              onEndReachedThreshold={0.4}
+              onEndReached={loadMoreCommunity}
+              ListEmptyComponent={<Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>{t('communityBoard.empty')}</Text>}
+              renderItem={({ item: p }) => (
+                <TouchableOpacity
+                  style={[styles.commRow, { borderBottomColor: themeColors.border }]}
+                  onPress={() => navigation.navigate('CommunityPost', { postId: p.POST_ID })}
+                >
+                  {p.MEDIA_ITEMS[0] ? (
+                    p.MEDIA_ITEMS[0].type === 'video' ? (
+                      <View style={[styles.commThumb, styles.commThumbVideo, { backgroundColor: themeColors.border }]}>
+                        <Feather name="video" size={18} color={themeColors.textSecondary} />
+                      </View>
+                    ) : (
+                      <Image source={{ uri: p.MEDIA_ITEMS[0].url }} style={styles.commThumb} />
+                    )
+                  ) : (
+                    <View style={[styles.commThumb, { backgroundColor: themeColors.border }]} />
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ color: themeColors.accent, fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>
+                      {t(`communityBoard.categories.${p.CATEGORY}` as any)}
+                    </Text>
+                    <Text style={[styles.commRowTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{p.TITLE}</Text>
+                    <Text style={[styles.commRowMeta, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                      {p.AUTHOR_NAME || t('communityBoard.authorFallback')} · {new Date(p.CREATED_AT).toLocaleDateString()}
+                      {' · '}{t('communityBoard.commentCount', { count: p.COMMENT_COUNT })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              ListFooterComponent={commLoadingMore ? <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} /> : null}
+            />
+          )}
+        </View>
       ) : noticeItems === null ? (
         <ActivityIndicator color={themeColors.accent} style={{ marginTop: 40 }} />
       ) : (
@@ -760,4 +918,16 @@ const getStyles = (themeColors: any) => StyleSheet.create({
   },
   noticeThumb: { width: 52, height: 52, borderRadius: 8 },
   noticePinBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, marginRight: 6, backgroundColor: 'rgba(212,175,55,0.15)' },
+  commTabsList: { flexGrow: 0, paddingVertical: 10 },
+  commCategoryTab: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  commCategoryHint: { fontSize: 12, paddingHorizontal: 16, marginBottom: 8 },
+  commRow: {
+    flexDirection: 'row', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  commThumb: { width: 56, height: 56, borderRadius: 8 },
+  commThumbVideo: { alignItems: 'center', justifyContent: 'center' },
+  commRowTitle: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  commRowMeta: { fontSize: 11, marginTop: 2 },
 });

@@ -76,16 +76,18 @@ function CommunityPageInner() {
     if (isNoticeTab) {
       const oldest = notices[notices.length - 1];
       if (!oldest) return;
-      const more = await getNotices({ limit: PAGE_SIZE, beforeCreatedAt: oldest.CREATED_AT });
+      const more = await getNotices({ limit: PAGE_SIZE, beforeCreatedAt: oldest.CREATED_AT, beforeNoticeId: oldest.NOTICE_ID });
       setNotices((prev) => [...prev, ...more]);
       setHasMore(more.length === PAGE_SIZE);
       return;
     }
     if (posts.length === 0) return;
+    const lastPost = posts[posts.length - 1];
     const more = await getCommunityPosts({
       category: activeGroup.categories,
       limit: PAGE_SIZE,
-      beforeCreatedAt: posts[posts.length - 1].CREATED_AT,
+      beforeCreatedAt: lastPost.CREATED_AT,
+      beforePostId: lastPost.POST_ID,
     });
     setPosts((prev) => [...prev, ...more]);
     setHasMore(more.length === PAGE_SIZE);

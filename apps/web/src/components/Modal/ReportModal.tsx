@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import styles from './ReportModal.module.css';
 import { reportSpinLog, reportSpinComment, reportVinyl, reportVinylComment } from '@vinyla/core-api';
+import { useLocale } from '@vinyla/i18n';
 
 interface ReportModalProps {
   isVisible: boolean;
@@ -12,17 +13,11 @@ interface ReportModalProps {
   onReportSuccess?: () => void;
 }
 
-const REPORT_REASONS = [
-  '스팸홍보/도배글입니다.',
-  '음란물입니다.',
-  '불법정보를 포함하고 있습니다.',
-  '욕설/생명경시/혐오/차별적 표현입니다.',
-  '개인정보 노출 게시물입니다.',
-  '불쾌한 표현이 있습니다.',
-  '기타'
-];
+const REPORT_REASON_KEYS = ['spam', 'adult', 'illegal', 'hate', 'privacy', 'offensive', 'other'] as const;
 
 export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, targetId, targetType, onReportSuccess }) => {
+  const { t } = useLocale();
+  const REPORT_REASONS = REPORT_REASON_KEYS.map((key) => t(`report.reasons.${key}` as any));
   const [reason, setReason] = useState(REPORT_REASONS[0]);
   const [details, setDetails] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,14 +36,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
       } else if (targetType === 'vinylComment') {
         await reportVinylComment(targetId, reason, details);
       }
-      alert('신고가 정상적으로 접수되었습니다. 검토 후 조치하겠습니다.');
+      alert(t('report.successMessage'));
       if (onReportSuccess) onReportSuccess();
       onClose();
       // Reset form
       setReason(REPORT_REASONS[0]);
       setDetails('');
     } catch (e: any) {
-      alert(e.message || '신고 처리 중 오류가 발생했습니다.');
+      alert(e.message || t('report.failedMessage'));
     } finally {
       setIsSubmitting(false);
     }
@@ -58,13 +53,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>신고하기</h2>
+          <h2 className={styles.title}>{t('report.title')}</h2>
           <button className={styles.closeButton} onClick={onClose}>✕</button>
         </div>
-        
+
         <div className={styles.content}>
-          <label className={styles.label}>신고 사유를 선택해주세요.</label>
-          <select 
+          <label className={styles.label}>{t('report.reasonLabel')}</label>
+          <select
             className={styles.reasonSelect}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -74,18 +69,18 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
             ))}
           </select>
 
-          <label className={styles.label}>상세 내용 (선택)</label>
-          <textarea 
+          <label className={styles.label}>{t('report.detailsLabel')}</label>
+          <textarea
             className={styles.detailsInput}
-            placeholder="신고 내용을 구체적으로 적어주시면 빠른 처리에 도움이 됩니다."
+            placeholder={t('report.detailsPlaceholder')}
             value={details}
             onChange={(e) => setDetails(e.target.value)}
           />
         </div>
 
         <div className={styles.footer}>
-          <button className={styles.cancelButton} onClick={onClose} disabled={isSubmitting}>취소</button>
-          <button className={styles.submitButton} onClick={handleSubmit} disabled={isSubmitting}>신고하기</button>
+          <button className={styles.cancelButton} onClick={onClose} disabled={isSubmitting}>{t('common.cancel')}</button>
+          <button className={styles.submitButton} onClick={handleSubmit} disabled={isSubmitting}>{t('report.submit')}</button>
         </div>
       </div>
     </div>

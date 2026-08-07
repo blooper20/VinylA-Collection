@@ -43,15 +43,22 @@ export const getPinnedNotices = async (): Promise<NOTICE[]> => {
 
 /** 일반(비고정) 공지 목록 — 최신순, beforeCreatedAt으로 커서 페이지네이션. */
 export const getNotices = async (
-  { limit = 20, beforeCreatedAt }: { limit?: number; beforeCreatedAt?: string } = {}
+  { limit = 20, beforeCreatedAt, beforeNoticeId }: { limit?: number; beforeCreatedAt?: string; beforeNoticeId?: number } = {}
 ): Promise<NOTICE[]> => {
   let query = supabase
     .from('NOTICE')
     .select('*')
     .eq('IS_PINNED', false)
     .order('CREATED_AT', { ascending: false })
+    .order('NOTICE_ID', { ascending: false })
     .limit(limit);
-  if (beforeCreatedAt) query = query.lt('CREATED_AT', beforeCreatedAt);
+  // CREATED_AT만으로 커서를 자르면 같은 타임스탬프의 행이 페이지 경계에서
+  // 조용히 스킵될 수 있다 — NOTICE_ID를 타이브레이커로 함께 건다.
+  if (beforeCreatedAt && beforeNoticeId != null) {
+    query = query.or(`CREATED_AT.lt.${beforeCreatedAt},and(CREATED_AT.eq.${beforeCreatedAt},NOTICE_ID.lt.${beforeNoticeId})`);
+  } else if (beforeCreatedAt) {
+    query = query.lt('CREATED_AT', beforeCreatedAt);
+  }
 
   const { data, error } = await query;
   if (error) {

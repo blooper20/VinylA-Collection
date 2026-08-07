@@ -328,30 +328,12 @@
 
 .bottomRow {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   width: 100%;
 }
 
-/* 마이페이지/알림은 같은 행에 두 칸으로 나눠 쓰는 .navItem이라 — 다른
-   메뉴 항목들과 똑같이 펼치면 라벨이 나타난다. flex:1은 기본 min-width:auto
-   때문에 라벨 텍스트(opacity:0이어도 자기 너비는 그대로 차지)가 접힌 폭보다
-   넓으면 아이콘까지 밀려나 잘려버린다 — min-width:0로 실제로 줄어들게 하고,
-   접힌 상태에선 좁은 여백을 쓰다가 펼쳐지면 다른 항목과 같은 여백으로 늘어난다. */
+/* 마이페이지/알림은 다른 메뉴 항목들과 동일하게 한 행씩 전체 너비를 차지한다. */
 .bottomItem {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  gap: 8px;
-  padding: 11px 2px;
-  transition: background 0.2s ease, color 0.2s ease, padding 0.25s ease;
-}
-
-.sidebar.expanded .bottomItem {
-  padding: 11px 10px;
-}
-
-@media (min-width: 641px) {
-  .sidebar:hover .bottomItem {
-    padding: 11px 10px;
-  }
+  gap: 14px;
 }

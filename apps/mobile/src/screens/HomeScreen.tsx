@@ -5,7 +5,7 @@ import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { RandomPickModal } from '../components/Modal/RandomPickModal';
 import { EmptyState } from '../components/EmptyState';
-import { getUserVinyls, mapToFrontendModel, updateUserVinylOrder, supabase, useAuthStore } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, updateUserVinylOrder, supabase, useAuthStore, getErrorMessage } from '@vinyla/core-api';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, shadows, shape } from '@vinyla/ui';
@@ -14,7 +14,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EditionCoverArt } from '../components/Edition/EditionCoverArt';
 import { AppHeader, VinylViewMode } from '../components/AppHeader';
-import { ShareableGridView } from '../components/Share/ShareableGridView';
+import { ShareableGridView, MAX_ITEMS as SHARE_GRID_MAX_ITEMS } from '../components/Share/ShareableGridView';
 import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { SortChipRow } from '../components/SortChipRow';
@@ -61,19 +61,24 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
-      
-      // Attempt to load from offline cache first
-      try {
-        const cached = await AsyncStorage.getItem('@vinyls_owned');
-        if (cached) setOwnedAlbums(JSON.parse(cached));
-      } catch (e) {
-        console.error('Failed to load from cache', e);
-      }
 
       if (!user) {
         setOwnedAlbums([]);
         setIsLoading(false);
         return;
+      }
+
+      // 캐시 키를 계정별로 분리 — 그렇지 않으면 같은 기기에서 계정을
+      // 바꿨을 때 이전 계정의 컬렉션이 잠깐(또는 오프라인이면 계속) 새
+      // 계정 화면에 그대로 보이는 문제가 있었다.
+      const cacheKey = `@vinyls_owned:${user.id}`;
+
+      // Attempt to load from offline cache first
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) setOwnedAlbums(JSON.parse(cached));
+      } catch (e) {
+        console.error('Failed to load from cache', e);
       }
 
       try {
@@ -86,7 +91,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
 
           // Save to offline cache
           try {
-            await AsyncStorage.setItem('@vinyls_owned', JSON.stringify(owned));
+            await AsyncStorage.setItem(cacheKey, JSON.stringify(owned));
           } catch (e) {
             console.error('Failed to save cache', e);
           }
@@ -96,7 +101,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
       } catch (e) {
         // Keep whatever the offline cache already rendered; just surface it.
         console.error('Failed to load collection', e);
-        showToast(t('mobile.home.loadFailed'));
+        showToast(getErrorMessage(e, t));
       } finally {
         setIsLoading(false);
       }
@@ -172,6 +177,7 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
       });
     } catch (e) {
       console.error(e);
+      showToast(t('mobile.home.linkShareFailed'));
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -181,6 +187,13 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
   const handleImageShare = async () => {
     try {
       setIsSharingProcessing(true);
+      // 오프스크린 그리드의 원격 커버 <Image>는 로드 완료를 기다리지 않고
+      // 캡처될 수 있다(막 스캔한 직후 등) — 캡처 전에 먼저 캐시에 올려둔다.
+      await Promise.all(
+        sortedAlbums.slice(0, SHARE_GRID_MAX_ITEMS)
+          .filter((a) => a.IMAGE_URL)
+          .map((a) => Image.prefetch(a.IMAGE_URL!).catch(() => {}))
+      );
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share image', e);
@@ -196,7 +209,11 @@ export const HomeScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
       <AppHeader
         mode="collection"
         onModeChange={onModeChange}
-        onSharePress={() => setShareSheetVisible(true)}
+        onSharePress={() => {
+          // 앨범이 없으면 로고만 있는 빈 이미지를 공유하게 되므로 안내만 하고 시트는 안 연다.
+          if (ownedAlbums.length === 0) { showToast(t('mobile.home.shareEmptyCollection')); return; }
+          setShareSheetVisible(true);
+        }}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />

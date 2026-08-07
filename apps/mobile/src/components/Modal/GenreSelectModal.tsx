@@ -78,7 +78,7 @@ export const GenreSelectModal = ({ visible, onClose, initialSelected, onSave }: 
                     <Text style={[
                       { color: isSelected ? themeColors.background : themeColors.textSecondary, fontWeight: isSelected ? 'bold' : 'normal' }
                     ]}>
-                      {t(`genres.${genre}` as any)}
+                      {t(`mobile.genres.${genre}` as any)}
                     </Text>
                   </TouchableOpacity>
                 );

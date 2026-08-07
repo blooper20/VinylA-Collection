@@ -41,7 +41,10 @@ export const SetupScreen = () => {
       // RootNavigator swaps Setup -> Main automatically once displayName is set.
     } catch (error) {
       console.error('Failed to update profile:', error);
-      setErrorMsg(t('setup.saveFailed'));
+      // 닉네임 30일 제한/중복 같은 에러는 원인을 그대로 알려주는 메시지를
+      // 담은 plain Error로 던져진다(useAuthStore.ts 주석 참고) — 그걸 버리고
+      // 항상 같은 일반 실패 문구만 보여주면 유저가 왜 막혔는지 알 수 없다.
+      setErrorMsg(error instanceof Error && error.message ? error.message : t('setup.saveFailed'));
       setIsSubmitting(false);
     }
   };

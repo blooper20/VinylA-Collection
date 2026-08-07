@@ -61,8 +61,10 @@ export const CommunityPostScreen = () => {
 
   useEffect(() => {
     setIsLoading(true);
+    setPost(null);
     Promise.all([getCommunityPost(postId), getCommunityComments(postId)])
       .then(([p, c]) => { setPost(p); setComments(c); })
+      .catch(() => setPost(null)) // 삭제됐거나 RLS로 막힌 글 — 아래에서 "찾을 수 없음"으로 처리
       .finally(() => setIsLoading(false));
     incrementCommunityPostViewCount(postId);
   }, [postId]);
@@ -198,10 +200,29 @@ export const CommunityPostScreen = () => {
     );
   };
 
-  if (isLoading || !post) {
+  if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: themeColors.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={themeColors.accent} />
+      </View>
+    );
+  }
+
+  // 삭제됐거나 RLS로 막힌 글 — 예전엔 post가 계속 null인 채로 위 스피너가
+  // 영원히 돌아 뒤로 갈 방법도 없었다.
+  if (!post) {
+    return (
+      <View style={{ flex: 1, backgroundColor: themeColors.background }}>
+        <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: themeColors.border }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 6 }}>
+            <Feather name="arrow-left" size={22} color={themeColors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 14, textAlign: 'center' }}>
+            {t('communityBoard.postNotFound')}
+          </Text>
+        </View>
       </View>
     );
   }

@@ -14,6 +14,9 @@ export interface ProfileInfo {
   PROFILE_IMAGE_URL: string | null;
   /** 대표 LP ID (선택 사항) */
   FEATURED_ALBUM_ID?: number | null;
+  /** 탈퇴했거나 애초에 없는 user id면 false — "비공개 프로필"과 구분해
+   * "존재하지 않는 사용자" 화면을 보여줄 수 있게 한다. */
+  EXISTS: boolean;
 }
 
 export const getProfileInfo = async (userId: string): Promise<ProfileInfo> => {
@@ -30,13 +33,36 @@ export const getProfileInfo = async (userId: string): Promise<ProfileInfo> => {
       .eq('USER_ID', userId)
       .maybeSingle();
     data = fallback.data;
+    error = fallback.error;
+  }
+  // 42703(컬럼 없음, 위에서 폴백 처리) 외의 진짜 조회 에러(네트워크 등)는
+  // "행 없음"과 동일하게 취급하지 않는다 — 그러면 일시적 에러가 "존재하지
+  // 않는 사용자"로 잘못 표시된다. 호출부가 구분해서 재시도 UI를 보여줄 수
+  // 있도록 에러는 그대로 던진다.
+  if (error) {
+    throw new AppError('DB-002', '프로필 정보를 불러오는 데 실패했습니다.', error);
   }
   return {
     DISPLAY_NAME: (data as any)?.DISPLAY_NAME ?? null,
     IS_PUBLIC: (data as any)?.IS_PUBLIC === true,
     PROFILE_IMAGE_URL: (data as any)?.PROFILE_IMAGE_URL ?? null,
     FEATURED_ALBUM_ID: (data as any)?.FEATURED_ALBUM_ID ?? null,
+    EXISTS: data != null,
   };
+};
+
+/**
+ * 닉네임(DISPLAY_NAME, UNIQUE 컬럼) → USER_ID 역조회. 딥링크(vinyla://<닉네임>)로
+ * 특정 유저 프로필을 여는 데 쓴다 — 없거나 조회 실패 시 null.
+ */
+export const getUserIdByUsername = async (username: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('PROFILES')
+    .select('USER_ID')
+    .eq('DISPLAY_NAME', username)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as any).USER_ID;
 };
 
 export interface ProfileLite {

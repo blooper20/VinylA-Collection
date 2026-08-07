@@ -5,13 +5,13 @@ import { EditionCoverArt } from '../components/Edition/EditionCoverArt';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
 import { MockVinylData } from '@vinyla/shared-types';
-import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore } from '@vinyla/core-api';
+import { getUserVinyls, mapToFrontendModel, supabase, useAuthStore, getErrorMessage } from '@vinyla/core-api';
 import { EmptyState } from '../components/EmptyState';
 import { DetailModal } from '../components/Modal/DetailModal';
 import { AppHeader, VinylViewMode } from '../components/AppHeader';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ShareableGridView } from '../components/Share/ShareableGridView';
+import { ShareableGridView, MAX_ITEMS as SHARE_GRID_MAX_ITEMS } from '../components/Share/ShareableGridView';
 import { ShareOptionsSheet } from '../components/Modal/ShareOptionsSheet';
 import { NativeToast } from '../components/Toast/NativeToast';
 import { SortChipRow } from '../components/SortChipRow';
@@ -44,18 +44,22 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
 
   const loadData = async () => {
     setIsLoading(true);
-    
-    try {
-      const cached = await AsyncStorage.getItem('@vinyls_wish');
-      if (cached) setWishes(JSON.parse(cached));
-    } catch (e) {
-      console.error('Failed to load from cache', e);
-    }
 
     if (!user) {
       setWishes([]);
       setIsLoading(false);
       return;
+    }
+
+    // 캐시 키를 계정별로 분리 — 그렇지 않으면 같은 기기에서 계정을 바꿨을 때
+    // 이전 계정의 위시리스트가 새 계정 화면에 그대로 보이는 문제가 있었다.
+    const cacheKey = `@vinyls_wish:${user.id}`;
+
+    try {
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (cached) setWishes(JSON.parse(cached));
+    } catch (e) {
+      console.error('Failed to load from cache', e);
     }
 
     try {
@@ -67,7 +71,7 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
         setWishes(wishesData);
 
         try {
-          await AsyncStorage.setItem('@vinyls_wish', JSON.stringify(wishesData));
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(wishesData));
         } catch (e) {
           console.error('Failed to save cache', e);
         }
@@ -77,7 +81,7 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
     } catch (e) {
       // Keep whatever the offline cache already rendered; just surface it.
       console.error('Failed to load wishlist', e);
-      showToast(t('mobile.wish.loadFailed'));
+      showToast(getErrorMessage(e, t));
     } finally {
       setIsLoading(false);
     }
@@ -126,6 +130,7 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
       });
     } catch (e) {
       console.error(e);
+      showToast(t('mobile.wish.linkShareFailed'));
     } finally {
       setIsSharingProcessing(false);
       setShareSheetVisible(false);
@@ -135,6 +140,13 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
   const handleImageShare = async () => {
     try {
       setIsSharingProcessing(true);
+      // 오프스크린 그리드의 원격 커버 <Image>는 로드 완료를 기다리지 않고
+      // 캡처될 수 있다 — 캡처 전에 먼저 캐시에 올려둔다.
+      await Promise.all(
+        sortedWishes.slice(0, SHARE_GRID_MAX_ITEMS)
+          .filter((a) => a.IMAGE_URL)
+          .map((a) => Image.prefetch(a.IMAGE_URL!).catch(() => {}))
+      );
       await shareToInstagramStory(shareViewRef);
     } catch (e) {
       console.error('Failed to share image', e);
@@ -150,7 +162,10 @@ export const WishScreen = ({ onModeChange }: { onModeChange?: (mode: 'collection
       <AppHeader
         mode="wishlist"
         onModeChange={onModeChange}
-        onSharePress={() => setShareSheetVisible(true)}
+        onSharePress={() => {
+          if (wishes.length === 0) { showToast(t('mobile.wish.shareEmptyCollection')); return; }
+          setShareSheetVisible(true);
+        }}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />

@@ -17,7 +17,6 @@ import { SpinSocialModal } from '../components/Modal/SpinSocialModal';
 import { FollowListModal } from '../components/Modal/FollowListModal';
 import { FlashEffect } from '../components/Share/FlashEffect';
 import { NativeToast } from '../components/Toast/NativeToast';
-import { shareToInstagramStory } from '../utils/nativeShare';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -339,10 +338,15 @@ export const MyScreen = () => {
       // otherwise never see it, since it'd never show up as "new" again.
       if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
         setShowFoundingCelebration(true);
-        markFoundingCelebrationSeen();
+        // 축하 배너를 보여주는 게 핵심이라 "봤음" 저장 실패로 그걸 막지는
+        // 않는다(fire-and-forget) — 다만 이제 store 쪽이 rethrow하므로
+        // unhandled rejection이 되지 않게 여기서 받아준다.
+        markFoundingCelebrationSeen().catch((e) => console.error('Failed to mark founding celebration seen', e));
       }
     } catch (e) {
       console.error('Failed to load stats', e);
+      setToastMessage(t('mobile.my.loadFailed'));
+      setIsToastVisible(true);
     }
   }, [user, updateUnlockedBadges, markFoundingCelebrationSeen, locale, t]);
 
@@ -371,7 +375,16 @@ export const MyScreen = () => {
     isEarned: unlockedBadges.includes(badge.id) || badge.id === 'owned_1'
   }));
 
-  const selectedBadgeObj = availableBadges.find(b => b.id === selectedBadgeId) || availableBadges[0];
+  // founding_100("창단 멤버")는 위조 불가가 설계 의도인 유일한 배지다
+  // (packages/core-api/src/badges.ts 참고) — user_metadata.selected_badge는
+  // 클라이언트가 직접 API를 호출해 조작할 수 있으므로, 실제로 이 배지를
+  // 화면에 보여주기 전엔 서버가 내려준 signupNumber로 다시 검증한다.
+  const rawSelectedBadgeObj = availableBadges.find(b => b.id === selectedBadgeId) || availableBadges[0];
+  const isFoundingBadgeVerified = signupNumber !== null && signupNumber <= 100;
+  const selectedBadgeObj =
+    rawSelectedBadgeObj.id === 'founding_100' && !isFoundingBadgeVerified
+      ? availableBadges.find(b => b.id === 'owned_1') || availableBadges[0]
+      : rawSelectedBadgeObj;
 
   const handleShare = async () => {
     if (user?.id) {
@@ -391,6 +404,8 @@ export const MyScreen = () => {
         });
       } catch (error) {
         console.error(error);
+        setToastMessage(t('mobile.my.linkShareFailed'));
+        setIsToastVisible(true);
       }
     }
   };
@@ -848,6 +863,8 @@ export const MyScreen = () => {
               // registered in the still-current Main stack yet.
             } catch (error) {
               console.error('Logout error:', error);
+              setToastMessage(t('mobile.my.logoutFailed'));
+              setIsToastVisible(true);
             }
           }}
         >

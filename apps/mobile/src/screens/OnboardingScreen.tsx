@@ -218,7 +218,10 @@ export const OnboardingScreen = ({ navigation }: any) => {
 
         if (result.type === 'success' && result.url) {
           if (result.url.includes('error=')) {
-            showAlert('OAuth Error', decodeURIComponent(result.url));
+            // 리다이렉트 URL 원문(디버깅 정보·쿼리 파라미터)을 그대로 보여주지
+            // 않는다 — 사용자에게 의미 없고 민감할 수 있다. 원인 추적용으로만 로그에 남긴다.
+            console.error('OAuth redirect error:', decodeURIComponent(result.url));
+            showAlert(t('mobile.onboarding.oauthErrorTitle'), t('mobile.onboarding.oauthErrorGeneric'));
             return;
           }
 
@@ -245,7 +248,8 @@ export const OnboardingScreen = ({ navigation }: any) => {
           }
 
           if (sessionError) {
-            showAlert('Session Error', sessionError.message);
+            console.error('Session error:', sessionError.message);
+            showAlert(t('mobile.onboarding.sessionErrorTitle'), t('mobile.onboarding.sessionErrorGeneric'));
           } else {
             useAuthStore.getState().initializeAuth();
           }
@@ -253,7 +257,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
       }
     } catch (error) {
       console.error(`${provider} login failed:`, error);
-      showAlert('Login Error', 'An unexpected error occurred during login.');
+      showAlert(t('mobile.onboarding.loginErrorTitle'), t('mobile.onboarding.loginErrorGeneric'));
     }
   };
 

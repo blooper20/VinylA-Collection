@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { reportSpinLog, reportSpinComment, reportVinyl, reportVinylComment } from '@vinyla/core-api';
 import { useTheme } from '@vinyla/ui';
+import { useLocale } from '@vinyla/i18n';
 
 interface ReportModalProps {
   isVisible: boolean;
@@ -12,18 +13,12 @@ interface ReportModalProps {
   onReportSuccess?: () => void;
 }
 
-const REPORT_REASONS = [
-  '스팸홍보/도배글입니다.',
-  '음란물입니다.',
-  '불법정보를 포함하고 있습니다.',
-  '욕설/생명경시/혐오/차별적 표현입니다.',
-  '개인정보 노출 게시물입니다.',
-  '불쾌한 표현이 있습니다.',
-  '기타'
-];
+const REPORT_REASON_KEYS = ['spam', 'adult', 'illegal', 'hate', 'privacy', 'offensive', 'other'] as const;
 
 export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, targetId, targetType, onReportSuccess }) => {
   const { themeColors } = useTheme();
+  const { t } = useLocale();
+  const REPORT_REASONS = REPORT_REASON_KEYS.map((key) => t(`report.reasons.${key}` as any));
   const [reason, setReason] = useState(REPORT_REASONS[0]);
   const [details, setDetails] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,13 +35,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
       } else {
         await reportVinylComment(targetId, reason, details);
       }
-      Alert.alert('알림', '신고가 정상적으로 접수되었습니다. 검토 후 조치하겠습니다.');
+      Alert.alert(t('common.success'), t('report.successMessage'));
       if (onReportSuccess) onReportSuccess();
       onClose();
       setReason(REPORT_REASONS[0]);
       setDetails('');
     } catch (e: any) {
-      Alert.alert('오류', e.message || '신고 처리 중 오류가 발생했습니다.');
+      Alert.alert(t('common.error'), e.message || t('report.failedMessage'));
     } finally {
       setIsSubmitting(false);
     }
@@ -57,14 +52,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
         <View style={[styles.modal, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
           <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
-            <Text style={[styles.title, { color: themeColors.textPrimary }]}>신고하기</Text>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>{t('report.title')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={[styles.closeButton, { color: themeColors.textSecondary }]}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-            <Text style={[styles.label, { color: themeColors.textPrimary }]}>신고 사유를 선택해주세요.</Text>
+            <Text style={[styles.label, { color: themeColors.textPrimary }]}>{t('report.reasonLabel')}</Text>
             <View style={{ gap: 8, marginTop: 12 }}>
               {REPORT_REASONS.map((r) => (
                 <TouchableOpacity
@@ -83,10 +78,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
               ))}
             </View>
 
-            <Text style={[styles.label, { color: themeColors.textPrimary, marginTop: 24 }]}>상세 내용 (선택)</Text>
+            <Text style={[styles.label, { color: themeColors.textPrimary, marginTop: 24 }]}>{t('report.detailsLabel')}</Text>
             <TextInput
               style={[styles.detailsInput, { color: themeColors.textPrimary, borderColor: themeColors.border, backgroundColor: 'rgba(255,255,255,0.05)' }]}
-              placeholder="신고 내용을 구체적으로 적어주시면 빠른 처리에 도움이 됩니다."
+              placeholder={t('report.detailsPlaceholder')}
               placeholderTextColor={themeColors.textSecondary}
               value={details}
               onChangeText={setDetails}
@@ -97,10 +92,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isVisible, onClose, ta
 
           <View style={[styles.footer, { borderTopColor: themeColors.border }]}>
             <TouchableOpacity style={[styles.button, styles.cancelButton, { borderColor: themeColors.border }]} onPress={onClose} disabled={isSubmitting}>
-              <Text style={[styles.buttonText, { color: themeColors.textSecondary }]}>취소</Text>
+              <Text style={[styles.buttonText, { color: themeColors.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.button, styles.submitButton]} onPress={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.buttonText, { color: '#fff' }]}>신고하기</Text>}
+              {isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.buttonText, { color: '#fff' }]}>{t('report.submit')}</Text>}
             </TouchableOpacity>
           </View>
         </View>

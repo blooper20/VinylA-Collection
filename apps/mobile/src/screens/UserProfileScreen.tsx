@@ -13,6 +13,7 @@ import {
   getUserVinyls,
   mapToFrontendModel,
   getProfileInfo,
+  getUserIdByUsername,
   getFollowCounts,
   getMyFollowingIds,
   getMyOutgoingRequestIds,
@@ -87,13 +88,49 @@ export const UserProfileScreen = () => {
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<any>>();
-  const route = useRoute<RouteProp<Record<string, { userId: string; name?: string | null }>, string>>();
-  const { userId, name } = route.params || ({} as any);
+  const route = useRoute<RouteProp<Record<string, { userId?: string; username?: string; name?: string | null }>, string>>();
+  const { userId: routeUserId, username: routeUsername, name } = route.params || ({} as any);
   const { user } = useAuthStore();
 
-  const [displayName, setDisplayName] = useState<string | null>(name || null);
+  // vinyla://<닉네임> 딥링크는 userId 없이 username만 들고 들어온다 — 실제
+  // 유저 id로 먼저 역조회한 다음에야 나머지 로직(팔로우, 컬렉션 등)이 평소와
+  // 똑같이 동작할 수 있다. 앱 내부 네비게이션(navigation.navigate('UserProfile',
+  // { userId, name })은 이미 실제 id를 들고 있어 이 조회를 건너뛴다.
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(routeUserId || null);
+  const userId = resolvedUserId;
+
+  const [displayName, setDisplayName] = useState<string | null>(name || routeUsername || null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState<boolean | null>(null);
+  const [profileExists, setProfileExists] = useState<boolean | null>(null);
+  // getProfileInfo가 진짜 조회 에러(네트워크 등)로 실패한 경우 — "존재하지
+  // 않는 사용자"로 잘못 단정하지 않고 별도의 재시도 안내를 보여준다.
+  const [profileLoadError, setProfileLoadError] = useState(false);
+
+  useEffect(() => {
+    if (routeUserId || !routeUsername) return;
+    let cancelled = false;
+    getUserIdByUsername(routeUsername)
+      .then((id) => {
+        if (cancelled) return;
+        if (id) {
+          setResolvedUserId(id);
+        } else {
+          // 그런 닉네임을 가진 유저가 없음 — 탈퇴/오타와 구분하지 않고 동일하게
+          // "존재하지 않는 사용자" 화면으로 처리한다.
+          setProfileExists(false);
+          setIsPublic(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProfileLoadError(true);
+          setIsPublic(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [routeUserId, routeUsername]);
+
   const [counts, setCounts] = useState<{ followers: number; following: number } | null>(null);
   const [followStatus, setFollowStatus] = useState<FollowStatus>('none');
   const [tab, setTab] = useState<'collection' | 'wishlist' | 'diary'>('collection');
@@ -140,15 +177,25 @@ export const UserProfileScreen = () => {
       if (!userId) return;
       let cancelled = false;
       (async () => {
+        let loadFailed = false;
         const [profile, followCounts] = await Promise.all([
-          getProfileInfo(userId).catch(() => ({ DISPLAY_NAME: null, IS_PUBLIC: false, PROFILE_IMAGE_URL: null, FEATURED_ALBUM_ID: null })),
+          getProfileInfo(userId).catch(() => {
+            loadFailed = true;
+            return { DISPLAY_NAME: null, IS_PUBLIC: false, PROFILE_IMAGE_URL: null, FEATURED_ALBUM_ID: null, EXISTS: false };
+          }),
           getFollowCounts(userId).catch(() => null),
         ]);
         if (cancelled) return;
+        if (loadFailed) {
+          setProfileLoadError(true);
+          setIsPublic(false);
+          return;
+        }
         if (profile.DISPLAY_NAME) setDisplayName(profile.DISPLAY_NAME);
         setProfileImageUrl(profile.PROFILE_IMAGE_URL || null);
         setIsPublic(profile.IS_PUBLIC);
-        
+        setProfileExists(profile.EXISTS);
+
         let featId = profile.FEATURED_ALBUM_ID || null;
         if (!featId && isMe && user?.user_metadata?.featured_album_id) {
           featId = user.user_metadata.featured_album_id;
@@ -233,8 +280,10 @@ export const UserProfileScreen = () => {
       .catch(() => setDiary([]));
   }, [userId, diary]);
 
+  const [isFollowBusy, setIsFollowBusy] = useState(false);
   const toggleFollow = async () => {
-    if (!user?.id || isMe) return;
+    if (!user?.id || !userId || isMe || isFollowBusy) return;
+    setIsFollowBusy(true);
     const prev = followStatus;
     try {
       if (prev === 'following') {
@@ -255,6 +304,8 @@ export const UserProfileScreen = () => {
     } catch {
       setFollowStatus(prev);
       getFollowCounts(userId).then(setCounts).catch(() => {});
+    } finally {
+      setIsFollowBusy(false);
     }
   };
 
@@ -300,11 +351,13 @@ export const UserProfileScreen = () => {
           {!isMe && user?.id && (
             <TouchableOpacity
               onPress={toggleFollow}
+              disabled={isFollowBusy}
               style={[
                 styles.followBtn,
                 followStatus === 'none'
                   ? { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
                   : { backgroundColor: 'transparent', borderColor: themeColors.border },
+                isFollowBusy && { opacity: 0.6 },
               ]}
             >
               <Text style={{ fontWeight: '700', fontSize: 13, color: followStatus === 'none' ? '#1a1814' : themeColors.textSecondary }}>
@@ -417,6 +470,20 @@ export const UserProfileScreen = () => {
 
       {isPublic === null ? (
         <ActivityIndicator color={themeColors.accent} style={{ marginTop: 40 }} />
+      ) : profileLoadError ? (
+        <View style={{ flex: 1, alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 }}>
+          <Feather name="wifi-off" size={30} color={themeColors.textSecondary} />
+          <Text style={{ color: themeColors.textPrimary, fontSize: 17, fontWeight: '700', marginTop: 14 }}>{t('publicGrid.loadErrorTitle')}</Text>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>{t('publicGrid.loadErrorDesc')}</Text>
+        </View>
+      ) : profileExists === false && !isMe ? (
+        // 탈퇴했거나 애초에 없는 user id — 비공개 프로필과 같은 잠금 화면을
+        // 보여주면 "이 사람이 날 차단했나?"처럼 잘못된 인상을 줄 수 있다.
+        <View style={{ flex: 1, alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 }}>
+          <Feather name="user-x" size={30} color={themeColors.textSecondary} />
+          <Text style={{ color: themeColors.textPrimary, fontSize: 17, fontWeight: '700', marginTop: 14 }}>{t('publicGrid.notFoundTitle')}</Text>
+          <Text style={{ color: themeColors.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>{t('publicGrid.notFoundDesc')}</Text>
+        </View>
       ) : !canView ? (
         <View style={{ flex: 1 }}>
           {header}

@@ -10,6 +10,31 @@
   margin-bottom: 28px;
 }
 
+.headerTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deleteAllBtn {
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.deleteAllBtn:hover {
+  border-color: #ff4d6d;
+  color: #ff4d6d;
+}
+
 .eyebrow {
   font-size: 12px;
   font-weight: 600;
@@ -44,6 +69,29 @@
   gap: 10px;
 }
 
+/* 스와이프 삭제 — .item이 뒤에 숨은 .deleteAction 위를 왼쪽으로 밀려나는
+   구조라, 바깥 래퍼는 삭제 버튼 폭만큼만 보이면 되고 나머지는 잘라낸다. */
+.itemRow {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.deleteAction {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 76px;
+  border: none;
+  background: #ff4d6d;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 .item {
   display: flex;
   gap: 14px;
@@ -53,7 +101,10 @@
   border: 1px solid var(--border);
   border-radius: 14px;
   text-decoration: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.2s ease;
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
 }
 
 .item:hover {

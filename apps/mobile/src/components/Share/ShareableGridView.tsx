@@ -12,7 +12,8 @@ interface ShareableGridViewProps {
 const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1920;
 const COLUMNS = 4;
-const MAX_ITEMS = 24;
+// 공유 버튼 핸들러가 캡처 전에 이 개수만큼만 미리 로드(prefetch)하면 되므로 export한다.
+export const MAX_ITEMS = 24;
 const GRID_PADDING = 40;
 const CELL_GAP = 16;
 const CELL_SIZE = (CANVAS_WIDTH - GRID_PADDING * 2 - CELL_GAP * (COLUMNS - 1)) / COLUMNS;

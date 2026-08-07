@@ -100,6 +100,22 @@ export const SideNav: React.FC = () => {
     </span>
   );
 
+  // 마이페이지 아이콘은 고정 아이콘 대신 본인 프로필 사진을 보여준다 — 앱
+  // 디자인의 골드 accent 테두리를 둘러 다른 메뉴 아이콘과 구분되는 "내 계정"
+  // 느낌을 준다.
+  const myPageAvatarUrl = user?.user_metadata?.avatar_url || '/logo.png';
+  const renderMyPageIcon = () => (
+    <span style={{ position: 'relative', display: 'inline-flex' }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={myPageAvatarUrl}
+        alt=""
+        className={styles.navIcon}
+        style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxSizing: 'content-box' }}
+      />
+    </span>
+  );
+
   const isItemActive = (item: NavItem) => {
     if (item.path === '/admin') return pathname.startsWith('/admin');
     if (item.match) return item.match.includes(pathname);
@@ -164,19 +180,11 @@ export const SideNav: React.FC = () => {
           })}
         </div>
 
-      {/* Bottom — 마이페이지·알림이 항상 이 자리에 한 행으로 나란히 고정.
-          언어·로그아웃은 마이페이지 화면 안의 설정으로 옮겨갔다. */}
+      {/* Bottom — 알림·마이페이지가 항상 이 자리에 각각 한 행씩 고정, 마이페이지가
+          맨 아래. 언어·로그아웃은 마이페이지 화면 안의 설정으로 옮겨갔다. */}
+      <div className={styles.divider} />
       <div className={styles.bottom}>
         <div className={styles.bottomRow}>
-          <Link
-            href={myPageItem.path}
-            onClick={() => setExpanded(false)}
-            aria-label={myPageItem.name}
-            className={`${styles.navItem} ${styles.bottomItem} ${isItemActive(myPageItem) ? styles.active : ''}`}
-          >
-            {renderNavIcon(myPageItem, isItemActive(myPageItem))}
-            <span className={styles.navLabel}>{myPageItem.name}</span>
-          </Link>
           <Link
             href={notificationsItem.path}
             onClick={() => setExpanded(false)}
@@ -185,6 +193,15 @@ export const SideNav: React.FC = () => {
           >
             {renderNavIcon(notificationsItem, isItemActive(notificationsItem))}
             <span className={styles.navLabel}>{notificationsItem.name}</span>
+          </Link>
+          <Link
+            href={myPageItem.path}
+            onClick={() => setExpanded(false)}
+            aria-label={myPageItem.name}
+            className={`${styles.navItem} ${styles.bottomItem} ${isItemActive(myPageItem) ? styles.active : ''}`}
+          >
+            {renderMyPageIcon()}
+            <span className={styles.navLabel}>{myPageItem.name}</span>
           </Link>
         </div>
       </div>

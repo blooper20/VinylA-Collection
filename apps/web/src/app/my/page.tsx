@@ -290,7 +290,10 @@ export default function MyProfilePage() {
       // otherwise never see it, since it'd never show up as "new" again.
       if (newlyUnlocked.includes('founding_100') && !user.user_metadata?.founding_celebration_seen) {
         setShowFoundingCelebration(true);
-        markFoundingCelebrationSeen();
+        // 축하 배너를 보여주는 게 핵심이라 "봤음" 저장 실패로 그걸 막지는
+        // 않는다(fire-and-forget) — store 쪽이 rethrow하므로 unhandled
+        // rejection이 되지 않게 여기서 받아준다.
+        markFoundingCelebrationSeen().catch((e) => console.error('Failed to mark founding celebration seen', e));
       }
       // --- 끝 ---
     }

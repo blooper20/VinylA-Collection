@@ -114,32 +114,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 않는다 — 앱 로드 시 세션 복원 시점에도 한 번 캡처해준다.
       if (activeUser && session?.access_token) captureCountry(session.access_token);
 
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        let newUser = session?.user ?? null;
+      // 콜백을 async로 두고 그 안에서 다른 Auth 메서드(updateUser 등)를 또
+      // 호출하면 Supabase 공식 문서가 경고하는 교착 상태 위험이 있다. 그래서
+      // 세션 반영(set)은 콜백 안에서 동기적으로 즉시 끝내고, 탈퇴 계정
+      // 재활성화처럼 추가 Auth 호출이 필요한 부수 작업만 setTimeout으로
+      // 한 틱 미뤄서 분리한다 — 실패해도 최소한 로그인 자체는 막히지 않는다.
+      supabase.auth.onAuthStateChange((_event, session) => {
+        const newUser = session?.user ?? null;
         if (_event === 'SIGNED_IN' && newUser && loginLoggedForUserId !== newUser.id) {
           loginLoggedForUserId = newUser.id;
           logEvent('LOGIN');
           logSignupIfNew(newUser);
           if (session?.access_token) captureCountry(session.access_token);
         }
-        if (newUser?.user_metadata?.del_yn === 'N') {
-          // On-the-fly login with deleted account
-          const { wipeUserData } = await import('../supabaseDb');
-          await wipeUserData(newUser.id);
-          const { data } = await supabase.auth.updateUser({
-            data: {
-              del_yn: 'Y',
-              displayName: null,
-              interests: null,
-              avatar_url: null,
-              featured_album: null,
-              unlocked_badges: null,
-              selected_badge: null
-            }
-          });
-          if (data.user) newUser = data.user;
-        }
         set({ user: newUser });
+
+        if (newUser?.user_metadata?.del_yn === 'N') {
+          setTimeout(async () => {
+            try {
+              // On-the-fly login with deleted account
+              const { wipeUserData } = await import('../supabaseDb');
+              await wipeUserData(newUser.id);
+              const { data, error } = await supabase.auth.updateUser({
+                data: {
+                  del_yn: 'Y',
+                  displayName: null,
+                  interests: null,
+                  avatar_url: null,
+                  featured_album: null,
+                  unlocked_badges: null,
+                  selected_badge: null
+                }
+              });
+              if (error) throw error;
+              if (data.user) set({ user: data.user });
+            } catch (error) {
+              console.error('Failed to reactivate previously deleted account', error);
+            }
+          }, 0);
+        }
       });
     } catch (error) {
       console.error('Failed to initialize auth', error);
@@ -372,6 +385,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to mark founding celebration seen', error);
+      throw error;
     }
   },
   deleteAccount: async () => {

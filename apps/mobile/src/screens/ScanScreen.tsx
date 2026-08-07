@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, FlatList, Image, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { mockVinyls, MockVinylData } from '@vinyla/shared-types';
 import { DetailModal } from '../components/Modal/DetailModal';
@@ -38,14 +38,23 @@ export const ScanScreen = () => {
   if (!permission) return <View style={styles.container} />;
 
   if (!permission.granted) {
+    // canAskAgain이 false면(한 번 영구 거부) requestPermission()은 시스템
+    // 팝업 없이 조용히 다시 거부된 상태만 돌려준다 — 버튼이 죽은 것처럼
+    // 보이지 않도록 이때는 설정 앱으로 보내는 경로를 대신 보여준다.
+    const canRetryInApp = permission.canAskAgain;
     return (
       <View style={styles.permissionContainer}>
         <Text style={styles.permissionTitle}>{t('mobile.scan.permissionTitle')}</Text>
         <Text style={styles.permissionDesc}>
-          {t('mobile.scan.permissionDesc')}
+          {canRetryInApp ? t('mobile.scan.permissionDesc') : t('mobile.scan.permissionDeniedDesc')}
         </Text>
-        <TouchableOpacity style={styles.btnPrimary} onPress={requestPermission}>
-          <Text style={styles.btnPrimaryText}>{t('mobile.scan.permissionAllow')}</Text>
+        <TouchableOpacity
+          style={styles.btnPrimary}
+          onPress={canRetryInApp ? requestPermission : () => Linking.openSettings()}
+        >
+          <Text style={styles.btnPrimaryText}>
+            {canRetryInApp ? t('mobile.scan.permissionAllow') : t('mobile.scan.permissionOpenSettings')}
+          </Text>
         </TouchableOpacity>
       </View>
     );

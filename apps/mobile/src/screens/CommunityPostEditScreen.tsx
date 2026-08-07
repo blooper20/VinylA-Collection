@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
@@ -21,6 +22,10 @@ import { AlbumMultiSelectPicker, PickedAlbum } from '../components/Community/Alb
 import { SongMultiSelectPicker } from '../components/Community/SongMultiSelectPicker';
 
 const MAX_MEDIA = 5;
+// 다이어리 기록 첨부(SpinLogEditorModal)와 동일한 상한 — 업로드 전 용량
+// 검증이 커뮤니티 글 수정에도 빠져 있었다.
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 const MIME_BY_EXT: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
   mp4: 'video/mp4', mov: 'video/quicktime',
@@ -87,13 +92,20 @@ export const CommunityPostEditScreen = () => {
     if (media.length >= MAX_MEDIA) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('common.error'), '갤러리 접근 권한이 필요합니다.');
+      Alert.alert(t('common.error'), t('mobile.detail.galleryPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 });
     if (!result.canceled && result.assets?.length) {
       const asset = result.assets[0];
-      setMedia((prev) => [...prev, { kind: 'new', uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image' }]);
+      const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+      const realSize = new File(asset.uri).size ?? 0;
+      if (realSize > (type === 'image' ? IMAGE_MAX_BYTES : VIDEO_MAX_BYTES)) {
+        const sizeMB = (realSize / (1024 * 1024)).toFixed(1);
+        Alert.alert(t('common.error'), t('detail.spinLogMediaTooLargeWithSize', { size: sizeMB }));
+        return;
+      }
+      setMedia((prev) => [...prev, { kind: 'new', uri: asset.uri, type }]);
     }
   };
 

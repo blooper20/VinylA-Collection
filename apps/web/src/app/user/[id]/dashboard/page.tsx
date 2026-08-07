@@ -36,7 +36,13 @@ function PublicDashboardContent() {
   const featuredAlbumId = decodeURIComponent(searchParams?.get('f') || '');
   const isSpentPublic = searchParams?.get('sp') === '1';
 
-  const selectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
+  // 배지는 URL 쿼리(공유 링크 생성자가 자기 user_metadata를 그대로 실어보낸 값)라
+  // 누구든 링크를 직접 조작해 위조할 수 있다 — 대부분의 배지는 원래도
+  // "자가 신고, 검증 없음"이 설계 의도(packages/core-api/src/badges.ts 참고)라
+  // 위험을 감수하지만, founding_100("창단 멤버")만은 위조 불가가 목표이므로
+  // PROFILES.SIGNUP_NUMBER(서버값)로 실제 자격을 재확인하기 전엔 표시하지 않는다
+  // (검증은 signupNumber state 선언 이후, 아래에서 이어진다).
+  const rawSelectedBadgeObj = selectedBadgeId ? BADGES.find(b => b.id === selectedBadgeId) : null;
 
   const [actualSpentValue, setActualSpentValue] = useState(0);
   const [ownedCount, setOwnedCount] = useState(0);
@@ -58,6 +64,9 @@ function PublicDashboardContent() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [viewerStatusMap, setViewerStatusMap] = useState<Record<string, 'OWNED' | 'WISH'>>({});
   const [signupNumber, setSignupNumber] = useState<number | null>(null);
+  const isFoundingBadgeVerified = signupNumber !== null && signupNumber <= 100;
+  const selectedBadgeObj =
+    rawSelectedBadgeObj?.id === 'founding_100' && !isFoundingBadgeVerified ? null : rawSelectedBadgeObj;
   // none → (공개) 바로 팔로우 / (비공개) 요청 → requested → 상대 수락 시 following
   const [followStatus, setFollowStatus] = useState<'none' | 'requested' | 'following'>('none');
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);

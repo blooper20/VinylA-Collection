@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
@@ -26,7 +27,15 @@ type CategoryChoice = CommunityPostCategory | 'LOCATION';
 const CATEGORIES: CategoryChoice[] = [
   'FREE', 'ARRIVAL', 'LISTENING_ROOM', 'COLLECTION', 'WISHLIST', 'ONOCHU', 'INFO', 'TIP', 'QNA', 'LOCATION',
 ];
+// 이 카테고리들은 피드로 흡수돼 커뮤니티 게시판 목록에는 안 나온다
+// (SocialScreen.tsx의 COMMUNITY_ALL_CATEGORIES와 정확히 상보 관계).
+const SHOWCASE_CATEGORIES: CategoryChoice[] = ['ARRIVAL', 'LISTENING_ROOM', 'COLLECTION', 'WISHLIST', 'ONOCHU'];
 const MAX_MEDIA = 5;
+// 다이어리 기록 첨부(SpinLogEditorModal)와 동일한 상한 — 그쪽엔 이미 있는
+// 업로드 전 용량 검증이 커뮤니티 글쓰기에는 빠져 있어, 큰 파일을 끝까지
+// 올린 뒤에야 서버가 거부하는 낭비가 생겼다.
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 const MIME_BY_EXT: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
   mp4: 'video/mp4', mov: 'video/quicktime',
@@ -76,13 +85,20 @@ export const CommunityNewPostScreen = () => {
     if (media.length >= MAX_MEDIA) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('common.error'), '갤러리 접근 권한이 필요합니다.');
+      Alert.alert(t('common.error'), t('mobile.detail.galleryPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 });
     if (!result.canceled && result.assets?.length) {
       const asset = result.assets[0];
-      setMedia((prev) => [...prev, { uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image' }]);
+      const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+      const realSize = new File(asset.uri).size ?? 0;
+      if (realSize > (type === 'image' ? IMAGE_MAX_BYTES : VIDEO_MAX_BYTES)) {
+        const sizeMB = (realSize / (1024 * 1024)).toFixed(1);
+        Alert.alert(t('common.error'), t('detail.spinLogMediaTooLargeWithSize', { size: sizeMB }));
+        return;
+      }
+      setMedia((prev) => [...prev, { uri: asset.uri, type }]);
     }
   };
 
@@ -111,7 +127,18 @@ export const CommunityNewPostScreen = () => {
         placeName: category === 'INFO' ? placeName : undefined,
         placeAddress: category === 'INFO' ? placeAddress : undefined,
       });
-      navigation.replace('CommunityPost', { postId });
+      // ARRIVAL 등 "자랑" 카테고리는 피드로 흡수돼 커뮤니티 목록엔 안 보인다
+      // — 아무 안내 없이 그냥 넘어가면 "방금 쓴 글이 사라졌다"고 오해하기
+      // 쉬워, 어디서 보이는지 한 번 짚어주고 넘어간다.
+      if (SHOWCASE_CATEGORIES.includes(category)) {
+        Alert.alert(
+          t('communityBoard.showcaseSubmittedTitle'),
+          t('communityBoard.showcaseSubmittedDesc'),
+          [{ text: t('communityBoard.showcaseSubmittedOk'), onPress: () => navigation.replace('CommunityPost', { postId }) }]
+        );
+      } else {
+        navigation.replace('CommunityPost', { postId });
+      }
     } catch (e) {
       Alert.alert(t('common.error'), getErrorMessage(e, t));
     } finally {

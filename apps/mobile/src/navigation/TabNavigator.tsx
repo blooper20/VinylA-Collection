@@ -1,36 +1,51 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingScanButton } from '../components/TabBar/FloatingScanButton';
 import { TAB_BAR_BASE_HEIGHT } from '../constants/layout';
 
 import { CollectionTabsScreen } from '../screens/CollectionTabsScreen';
 import { SocialScreen } from '../screens/SocialScreen';
-import { CommunityScreen } from '../screens/CommunityScreen';
 import { ScanScreen } from '../screens/ScanScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { MyScreen } from '../screens/MyScreen';
 
 const Tab = createBottomTabNavigator();
 
-export const tabLinkingConfig = {
-  screens: {
-    My: {
-      path: ':username',
-    },
-  },
+// avatar_url이 설정돼 있지만 실제로는 만료/삭제된 이미지면 onError 없이는
+// 빈 금색 테두리 원만 남는다 — 로드 실패 시 기본 사람 아이콘으로 대체한다.
+const MyTabIcon = ({ size, focused, avatarUrl, accent }: { size: number; focused: boolean; avatarUrl: string; accent: string }) => {
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => { setFailed(false); }, [avatarUrl]);
+  const borderColor = focused ? accent : `${accent}80`;
+  if (failed) {
+    return <Feather name="user" size={size} color={borderColor} />;
+  }
+  const iconSize = size - 4;
+  return (
+    <Image
+      source={{ uri: avatarUrl }}
+      onError={() => setFailed(true)}
+      style={{ width: iconSize, height: iconSize, borderRadius: iconSize / 2, borderWidth: 2, borderColor }}
+    />
+  );
 };
 
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@vinyla/ui';
 import { useLocale } from '@vinyla/i18n';
+import { useAuthStore } from '@vinyla/core-api';
 
 export const TabNavigator = () => {
   const { themeColors } = useTheme();
   const { t } = useLocale();
+  const { user } = useAuthStore();
   const insets = useSafeAreaInsets();
   const styles = getStyles(themeColors);
+  // 마이 탭 아이콘은 고정 아이콘 대신 본인 프로필 사진을 보여준다 — 앱의
+  // 골드 accent 테두리를 둘러 다른 탭 아이콘과 구분되는 "내 계정" 느낌을 준다.
+  const myAvatarUrl = user?.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=32';
 
   return (
     <Tab.Navigator
@@ -59,14 +74,6 @@ export const TabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Community"
-        component={CommunityScreen}
-        options={{
-          tabBarLabel: t('mobile.tab.community'),
-          tabBarIcon: ({ color, size }) => <Feather name="message-circle" color={color} size={size} />
-        }}
-      />
-      <Tab.Screen
         name="Scan"
         component={ScanScreen}
         options={{
@@ -87,7 +94,9 @@ export const TabNavigator = () => {
         component={MyScreen}
         options={{
           tabBarLabel: t('mobile.tab.my'),
-          tabBarIcon: ({ color, size }) => <Feather name="user" color={color} size={size} />
+          tabBarIcon: ({ size, focused }) => (
+            <MyTabIcon size={size} focused={focused} avatarUrl={myAvatarUrl} accent={themeColors.accent} />
+          )
         }}
       />
     </Tab.Navigator>

@@ -228,6 +228,62 @@ export const getUserVinyls = async (userId: string | number): Promise<any[]> => 
   return data;
 };
 
+export interface PickerAlbumRow {
+  ALBUM_ID: number;
+  TITLE: string;
+  ARTIST: string;
+  IMAGE_URL: string | null;
+  STATUS: 'OWNED' | 'WISH';
+}
+
+/**
+ * 커뮤니티 글쓰기의 "내 컬렉션에서 앨범 첨부" 피커 전용 — getUserVinyls처럼
+ * 전체 컬렉션(모든 컬럼 + ALBUM_MASTER 조인)을 한 번에 불러오지 않고,
+ * 검색어·상태로 서버에서 걸러 필요한 필드만 페이지 단위로 가져온다.
+ * 컬렉션이 수백 장 이상인 유저도 피커를 열 때 전체를 한 번에 안 불러온다.
+ */
+export const searchMyAlbumsForPicker = async ({
+  userId,
+  source = 'both',
+  query,
+  limit = 30,
+  offset = 0,
+}: {
+  userId: string;
+  source?: 'owned' | 'wish' | 'both';
+  query?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PickerAlbumRow[]> => {
+  let q = supabase
+    .from('USER_VINYL')
+    .select('STATUS, ALBUM_MASTER!inner(ALBUM_ID, TITLE, ARTIST, IMAGE_URL)')
+    .eq('USER_ID', userId)
+    .order('ALBUM_ID', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (source === 'owned') q = q.eq('STATUS', 'OWNED');
+  else if (source === 'wish') q = q.eq('STATUS', 'WISH');
+  else q = q.in('STATUS', ['OWNED', 'WISH']);
+
+  const term = query?.trim().replace(/[%_]/g, '');
+  if (term) {
+    q = q.or(`TITLE.ilike.%${term}%,ARTIST.ilike.%${term}%`, { referencedTable: 'ALBUM_MASTER' });
+  }
+
+  const { data, error } = await q;
+  if (error || !data) return [];
+  return (data as any[])
+    .filter((r) => r.ALBUM_MASTER)
+    .map((r) => ({
+      ALBUM_ID: r.ALBUM_MASTER.ALBUM_ID,
+      TITLE: r.ALBUM_MASTER.TITLE,
+      ARTIST: r.ALBUM_MASTER.ARTIST,
+      IMAGE_URL: r.ALBUM_MASTER.IMAGE_URL ?? null,
+      STATUS: r.STATUS,
+    }));
+};
+
 export const wipeUserData = async (userId: string): Promise<void> => {
   if (isOffline()) {
     throw new AppError('NET-001', '네트워크 연결이 끊겨 오프라인 상태입니다.');

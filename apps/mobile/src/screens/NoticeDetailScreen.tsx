@@ -73,7 +73,7 @@ export const NoticeDetailScreen = () => {
       setCommentInput('');
       loadComments();
     } catch (e: any) {
-      Alert.alert('', e?.message || '댓글 작성에 실패했습니다.');
+      Alert.alert('', e?.message || t('notice.commentSubmitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -90,7 +90,7 @@ export const NoticeDetailScreen = () => {
             await deleteNoticeComment(commentId);
             setComments((prev) => (prev || []).filter((c) => c.COMMENT_ID !== commentId));
           } catch (e: any) {
-            Alert.alert('', e?.message || '댓글 삭제에 실패했습니다.');
+            Alert.alert('', e?.message || t('notice.commentDeleteFailed'));
           }
         },
       },
